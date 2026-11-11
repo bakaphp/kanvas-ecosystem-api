@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Roles;
 
+use ErrorException;
 use Tests\TestCase;
 
 class UsersAbilitiesTest extends TestCase
@@ -25,6 +26,47 @@ class UsersAbilitiesTest extends TestCase
                 'userId' => $user->getId(),
             ]
         )->assertJson([
+            'data' => [
+                'getAllAbilities' => [],
+            ],
+        ]);
+    }
+
+    public function testGetAllAbilitiesWithoutCompanyIdRaisesNoWarning()
+    {
+        // The app only logs warnings, so the request succeeds either way; escalate them to see one.
+        set_error_handler(
+            static fn (
+                int $level,
+                string $message,
+                string $file,
+                int $line
+            ) => throw new ErrorException(
+                $message,
+                0,
+                $level,
+                $file,
+                $line
+            ),
+            E_WARNING
+        );
+
+        try {
+            $response = $this->graphQL(/** @lang GraphQL */
+                '
+                query getAllAbilities($userId: ID!) {
+                    getAllAbilities(userId: $userId)
+                }',
+                [
+                    'userId' => auth()->user()->getId(),
+                ]
+            );
+        } finally {
+            restore_error_handler();
+        }
+
+        $response->assertJsonMissingPath('errors');
+        $response->assertJson([
             'data' => [
                 'getAllAbilities' => [],
             ],

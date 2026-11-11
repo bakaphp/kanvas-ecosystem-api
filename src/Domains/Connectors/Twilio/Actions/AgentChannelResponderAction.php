@@ -37,8 +37,9 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         // The burst that closed is already one turn — FlushSmsBurstAction hands over every text in
         // it as a single prompt, so the agent answers the flurry rather than its first line.
-        $messageConversation = Str::trimToNull($params['burst_text'] ?? null)
-            ?? $this->message->message['content'];
+        ['text' => $messageConversation, 'images' => $images, 'documents' => $documents] = $this->inboundContent(
+            Str::trimToNull($params['burst_text'] ?? null) ?? $this->message->message['content'] ?? null
+        );
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
@@ -46,6 +47,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             message: $messageConversation,
             user: $this->message->company->getAiAgentUserOrFail(),
             currentLead: $entity instanceof Lead ? $entity : null,
+            images: $images,
+            documents: $documents,
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,
@@ -60,16 +63,18 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
         $to = $this->hijackMessagePhone($to);
 
+        $from = $this->agent->smsPhoneNumber() ?? $params['from'];
+
         $messageResponse = $this->createMessage(
             $responseText,
             $to,
             $this->message,
             $this->channel,
-            $params['from']
+            $from
         );
 
         if (! $messageResponse->is_locked) {
-            $this->sendResponse($to, $params['from'], $responseText);
+            $this->sendResponse($to, $from, $responseText);
         }
 
         return [

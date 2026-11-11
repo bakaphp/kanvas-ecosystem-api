@@ -620,6 +620,8 @@ class ProjectPmToolsTest extends TestCase
             'list_company_workflows',
             'create_email_route',
             'read_channel_window',
+            'search_channel_messages',
+            'read_thread',
             'get_transcription',
             // Lost once already: ProjectManagerAgent overrides SystemUserAgent::tools() without
             // calling parent, which drops these silently — a shorter list, no error.

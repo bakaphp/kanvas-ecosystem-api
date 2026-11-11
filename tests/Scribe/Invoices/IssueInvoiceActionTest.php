@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
+use Kanvas\Scribe\Invoices\Actions\UpdateInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
@@ -96,14 +97,10 @@ class IssueInvoiceActionTest extends TestCase
         $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $issued->document_status);
         $this->assertSame(InvoiceCollectionStateEnum::CURRENT, $issued->collection_state);
 
-        // Snapshot frozen — values come from the real Guild Organization (BillableTrait getters).
-        // Org has no tax_id / email columns today so those snapshot fields are null until a tenant
-        // backfills the custom fields. The display name and address are present.
+        // The seeded organization carries no tax id, email or address, so only the name freezes.
         $this->assertSame('ACME Corp', $issued->billable_display_name);
         $this->assertNull($issued->billable_tax_id);
         $this->assertNull($issued->billable_email);
-        // billing_address_snapshot is null because the seeded org's address column is empty.
-        // BillableTrait::getBillingAddressArray returns null on empty raw — that's the contract.
         $this->assertNull($issued->billing_address_snapshot);
 
         // Number allocated
@@ -242,9 +239,81 @@ class IssueInvoiceActionTest extends TestCase
         $this->assertSame($firstJeCount, $secondJeCount, 'No new JE posted on idempotent re-issue.');
     }
 
+    public function test_a_coded_line_keeps_its_account_on_create_and_update(): void
+    {
+        $billable = $this->seedOrganization();
+        $account = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->firstOrFail();
+        $data = $this->makeInvoiceData(
+            billable: $billable,
+            lines: [new InvoiceLineData(
+                description: 'Rebate',
+                quantity: 1,
+                unit_price_native: 100,
+                account_id: $account->getId(),
+            )],
+        );
+
+        $invoice = new CreateInvoiceAction(data: $data, user: static::$cachedUser)->execute();
+        $this->assertSame($account->getId(), $invoice->lines->first()->account_id);
+
+        $updated = new UpdateInvoiceAction(invoice: $invoice, data: $data, user: static::$cachedUser)->execute();
+        $this->assertSame($account->getId(), $updated->lines->first()->account_id);
+    }
+
     /**
-     * @param array<int, InvoiceLineData> $lines
+     * USD 100.37 + 18% at 58.9123: converted separately, the parts came to 6977.3726 against a total of
+     * 6977.3725, past the validator's tolerance, so the invoice could not be issued.
      */
+    public function test_a_foreign_currency_invoice_whose_parts_round_apart_still_issues_balanced(): void
+    {
+        $billable = $this->seedOrganization('Rounding Corp');
+
+        $invoice = new CreateInvoiceAction(
+            data: $this->makeInvoiceData(
+                billable: $billable,
+                lines: [
+                    new InvoiceLineData(
+                        description: 'Consulting',
+                        quantity: 1,
+                        unit_price_native: 100.37,
+                        tax_rate: 0.18,
+                        tax_amount_native: 18.0666,
+                    ),
+                ],
+                fxRate: 58.9123,
+                issuedDate: Carbon::parse('2026-06-15'),
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertEqualsWithDelta(
+            (float) $invoice->subtotal_base + (float) $invoice->tax_base,
+            (float) $invoice->total_base,
+            0.00001,
+            'The base total is the sum of its rounded parts.',
+        );
+
+        $issued = new IssueInvoiceAction(invoice: $invoice, billable: $billable, user: static::$cachedUser)->execute();
+
+        $je = JournalEntry::query()
+            ->where('companies_id', $this->company->getId())
+            ->where('source_type', 'invoice')
+            ->where('source_id', $issued->id)
+            ->firstOrFail();
+        $je->load('lines');
+
+        $this->assertEqualsWithDelta((float) $je->lines->sum('debit_base'), (float) $je->lines->sum('credit_base'), 0.00001);
+        $this->assertEqualsWithDelta(
+            (float) $issued->total_base,
+            (float) $je->lines->sum('debit_base'),
+            0.00001,
+            'AR still equals the invoice total.'
+        );
+    }
+
     private function makeInvoiceData(
         Organization $billable,
         array $lines,

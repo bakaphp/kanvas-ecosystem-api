@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
@@ -125,9 +127,12 @@ class AgentProviderService
         }
 
         if ($provider === AgentLlmProviderEnum::GEMINI) {
+            $tenantKey = self::tenantKey($source, $agent, $provider);
+            $trialKey = $tenantKey === null ? TrialLlmService::geminiKeyFor($app) : null;
+
             return new KanvasGemini(
-                key: self::requireKey($source, $agent, $provider),
-                model: $model,
+                key: $tenantKey ?? $trialKey ?? self::missingKey($provider),
+                model: $trialKey !== null ? TrialLlmService::model() : $model,
                 parameters: self::withGeminiThinking($parameters, $app),
                 httpClient: $httpClient,
             );
@@ -141,6 +146,31 @@ class AgentProviderService
             parameters: $parameters,
             httpClient: $httpClient,
         );
+    }
+
+    /**
+     * The provider that listens to a voice note on this agent's behalf: its own when it can hear, else
+     * Gemini on the tenant's (or the trial) key, the one provider every app already runs. Null when
+     * there is no Gemini key at all; the caller then says so in the prompt instead of sending bytes
+     * nobody hears.
+     */
+    public static function audioProvider(Agent $agent, AIProviderInterface $own): ?AIProviderInterface
+    {
+        if (AttachmentDescriptionService::providerHearsAudio($own)) {
+            return $own;
+        }
+
+        try {
+            return self::makeProvider($agent, [
+                'provider' => AgentLlmProviderEnum::GEMINI->value,
+                'base_uri' => null,
+                'key' => null,
+                'model' => (string) ($agent->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-3.8-flash'),
+                'parameters' => [],
+            ]);
+        } catch (ValidationException) {
+            return null;
+        }
     }
 
     /**
@@ -174,6 +204,11 @@ class AgentProviderService
             'model' => $model,
             'parameters' => [],
         ]);
+    }
+
+    public static function summaryProviderOrOwn(Agent $agent): AIProviderInterface
+    {
+        return self::summaryProvider($agent) ?? self::resolve($agent);
     }
 
     /**
@@ -263,6 +298,17 @@ class AgentProviderService
         ];
     }
 
+    /**
+     * The LLM config the agent answers phone calls with (voice_config.llm_config_id). Separate from
+     * selectedConfig(), which is its chat config, so calls can run a faster model than chat.
+     */
+    public static function voiceConfig(Agent $agent): ?AgentLlmConfig
+    {
+        $configId = (int) ($agent->voice_config['llm_config_id'] ?? 0);
+
+        return $configId > 0 ? self::activeConfig($agent, $configId, includeGlobal: false) : null;
+    }
+
     public static function selectedConfig(Agent $agent): ?AgentLlmConfig
     {
         if ($agent->agent_llm_config_id === null) {
@@ -272,13 +318,41 @@ class AgentProviderService
         return self::activeConfig($agent, (int) $agent->agent_llm_config_id, includeGlobal: false);
     }
 
+    /**
+     * One of the tenant's active LLM configs (its own or a global one), for a caller that has no Agent
+     * row — a structured LLM call such as product enrichment picking a cheaper model by setting.
+     */
+    public static function tenantConfig(AppInterface $app, CompanyInterface $company, int $configId): ?AgentLlmConfig
+    {
+        return self::findActiveConfig(
+            appsId: (int) $app->getId(),
+            companiesId: (int) $company->getId(),
+            configId: $configId,
+            includeGlobal: true,
+        );
+    }
+
     private static function activeConfig(Agent $agent, int $configId, bool $includeGlobal): ?AgentLlmConfig
     {
-        $companies = $includeGlobal ? [0, $agent->companies_id] : [$agent->companies_id];
+        return self::findActiveConfig(
+            appsId: (int) $agent->apps_id,
+            companiesId: (int) $agent->companies_id,
+            configId: $configId,
+            includeGlobal: $includeGlobal,
+        );
+    }
+
+    private static function findActiveConfig(
+        int $appsId,
+        int $companiesId,
+        int $configId,
+        bool $includeGlobal
+    ): ?AgentLlmConfig {
+        $companies = $includeGlobal ? [0, $companiesId] : [$companiesId];
 
         return AgentLlmConfig::query()
             ->where('id', $configId)
-            ->where('apps_id', $agent->apps_id)
+            ->where('apps_id', $appsId)
             ->whereIn('companies_id', $companies)
             ->where('is_deleted', 0)
             ->where('is_active', 1)
@@ -376,20 +450,32 @@ class AgentProviderService
      */
     private static function requireKey(array $source, Agent $agent, AgentLlmProviderEnum $provider): string
     {
-        $appKeySetting = $provider === AgentLlmProviderEnum::GEMINI
+        return self::tenantKey($source, $agent, $provider) ?? self::missingKey($provider);
+    }
+
+    /**
+     * @param array{key: ?string} $source
+     */
+    private static function tenantKey(array $source, Agent $agent, AgentLlmProviderEnum $provider): ?string
+    {
+        $key = $source['key'] ?? $agent->app->get(self::appKeySetting($provider)->value);
+
+        return is_string($key) ? Str::trimToNull($key) : null;
+    }
+
+    private static function missingKey(AgentLlmProviderEnum $provider): never
+    {
+        throw new ValidationException(
+            $provider->value . ' API key is not configured for this agent or app.'
+            . ' Set it on the selected LLM config, agent.config.key, or the app '
+            . self::appKeySetting($provider)->value . ' setting.'
+        );
+    }
+
+    private static function appKeySetting(AgentLlmProviderEnum $provider): ConfigurationEnum
+    {
+        return $provider === AgentLlmProviderEnum::GEMINI
             ? ConfigurationEnum::GEMINI_KEY
             : ConfigurationEnum::AI_PROVIDER_KEY;
-
-        $key = $source['key'] ?? $agent->app->get($appKeySetting->value);
-
-        if (! is_string($key) || $key === '') {
-            throw new ValidationException(
-                $provider->value . ' API key is not configured for this agent or app.'
-                . ' Set it on the selected LLM config, agent.config.key, or the app '
-                . $appKeySetting->value . ' setting.'
-            );
-        }
-
-        return $key;
     }
 }

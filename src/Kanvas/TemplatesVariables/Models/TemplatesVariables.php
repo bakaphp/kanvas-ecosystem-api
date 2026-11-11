@@ -39,7 +39,6 @@ class TemplatesVariables extends BaseModel
      */
     protected $guarded = [];
 
-
     /**
     * Template I'm based from
     *

@@ -66,7 +66,7 @@ class GetPersonTool extends Tool
      */
     public function __invoke(int $person_id): array
     {
-        $result = $this->resolvePersonOrError($person_id);
+        $result = $this->resolvePersonInReadScopeOrError($person_id);
         if (is_array($result)) {
             return $result;
         }
@@ -137,6 +137,7 @@ class GetPersonTool extends Tool
                     'is_open' => $lead->hasOpenLeadStatus(),
                 ])->all(),
             'custom_fields' => $this->relevantCustomFields($person),
+            ...$this->tenantLabel($person),
         ];
     }
 }

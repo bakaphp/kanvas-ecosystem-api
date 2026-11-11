@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Mockery;
+use RuntimeException;
 use Silber\Bouncer\BouncerFacade;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\TestCase;
@@ -314,6 +315,28 @@ class LeadFollowUpJobTest extends TestCase
             ->latest('id')
             ->first();
         $this->assertNotNull($skip);
-        $this->assertSame('no_session', $skip->payload['reason']);
+        // A lead inside its interval waits before a session is even looked for: the wait is a skip,
+        // a missing session is a failure, and a touch that is not due is neither.
+        $this->assertSame('too_soon', $skip->payload['reason']);
+    }
+
+    public function testAJobOutOfTriesLeavesAFailedLedgerRecordForTheReports(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+
+        new LeadFollowUpJob(app: $app, company: $company, lead: $lead)->failed(new RuntimeException('Agent not found'));
+
+        $event = Event::query()
+            ->where('apps_id', $app->getId())
+            ->where('event_type', 'lead.follow_up.failed')
+            ->where('source_entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($event);
+        $this->assertSame('job_failed', $event->payload['reason']);
+        $this->assertSame('Agent not found', $event->payload['error']);
+        $this->assertSame('error', $event->status);
     }
 }

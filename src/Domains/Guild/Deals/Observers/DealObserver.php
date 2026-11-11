@@ -37,6 +37,8 @@ class DealObserver
                 $deal->pipeline_stage_id = $pipeline->stages->first()?->id ?? 0;
             }
         }
+
+        $deal->stampClosedAtOnCreate('status_id');
     }
 
     public function created(Deal $deal): void
@@ -93,6 +95,11 @@ class DealObserver
 
     public function updating(Deal $deal): void
     {
+        $transition = $deal->syncClosedAtFromStatusChange('status_id');
+        if ($transition !== null) {
+            $deal->emitLedgerEvent('deal.status.changed', payload: $transition);
+        }
+
         $deal->clearLightHouseCache(withKanvasConfiguration: false);
     }
 

@@ -1,7 +1,8 @@
 <?php
 
-return [
+use Baka\Support\SentryUrlRedactor;
 
+return [
     'dsn' => env('SENTRY_LARAVEL_DSN', env('SENTRY_DSN')),
 
     // capture release as git sha
@@ -53,6 +54,11 @@ return [
     // @see: https://docs.sentry.io/platforms/php/configuration/options/#send-default-pii
     'send_default_pii' => env('SENTRY_SEND_DEFAULT_PII', false),
 
+    // Some providers put a credential in the URL path; HTTP breadcrumbs, spans and exception text are scrubbed.
+    'before_breadcrumb' => [SentryUrlRedactor::class, 'breadcrumb'],
+    'before_send' => [SentryUrlRedactor::class, 'event'],
+    'before_send_transaction' => [SentryUrlRedactor::class, 'event'],
+
     // Fraction of requests traced for performance (0.0–1.0). Default 0.05 (5%)
     // keeps aggregate p50/p95 metrics reliable while bounding billable spans.
     // NOTE: a SENTRY_TRACES_SAMPLE_RATE set in an environment's .env OVERRIDES
@@ -66,5 +72,4 @@ return [
     // Level filtering (warning/info/etc) is configured in config/logging.php
     // on the sentry_logs channel, not here.
     'enable_logs' => env('SENTRY_ENABLE_LOGS', false),
-
 ];

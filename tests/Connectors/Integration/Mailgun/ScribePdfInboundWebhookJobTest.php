@@ -12,8 +12,12 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Webhooks\ScribePdfInboundWebhookJob;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Scribe\PdfIngest\Jobs\ProcessAccountingPdfJob;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -59,8 +63,70 @@ class ScribePdfInboundWebhookJobTest extends TestCase
             ->company($company->getId())
             ->create([
                 'action_id' => $action->getId(),
-                'configuration' => [],
+                'configuration' => ['scribe_pdf_inbox' => true],
             ]);
+    }
+
+    public function test_a_receiver_not_flagged_as_the_accounting_inbox_creates_nothing(): void
+    {
+        $this->receiver->configuration = [];
+        $this->receiver->saveOrFail();
+        $pdf = $this->seedFilesystemRow('invoice.pdf');
+
+        $result = $this->runWebhookJob([
+            'Message-Id' => '<gate-' . uniqid() . '@mailgun.example.test>',
+            'sender' => 'billing@vendor.test',
+            'uploaded_files' => [
+                ['filesystem_id' => $pdf->getId(), 'name' => $pdf->name, 'content-type' => 'application/pdf'],
+            ],
+        ]);
+
+        $this->assertSame(0, $result['dispatched']);
+        $this->assertSame('not_an_accounting_inbox', $result['reason']);
+        Queue::assertNotPushed(ProcessAccountingPdfJob::class);
+    }
+
+    public function test_the_pdf_is_processed_as_the_companys_ap_agent_user(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agentUser = Users::factory()->create(['email' => 'ap-agent-' . uniqid() . '@example.test']);
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create(['provider' => 'neuron', 'handler' => AccountsPayableAgent::class]);
+        Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'Apex ' . Str::random(6), 'user_id' => $agentUser->getId(), 'agent_type_id' => $agentType->getId()]);
+        $pdf = $this->seedFilesystemRow('invoice.pdf');
+
+        $this->runWebhookJob([
+            'Message-Id' => '<ap-user-' . uniqid() . '@mailgun.example.test>',
+            'sender' => 'billing@vendor.test',
+            'uploaded_files' => [
+                ['filesystem_id' => $pdf->getId(), 'name' => $pdf->name, 'content-type' => 'application/pdf'],
+            ],
+        ]);
+
+        Queue::assertPushed(
+            ProcessAccountingPdfJob::class,
+            fn (ProcessAccountingPdfJob $job): bool => $job->actingUser?->getId() === $agentUser->getId()
+        );
+    }
+
+    public function test_with_no_agent_the_inbox_still_has_someone_to_act_as(): void
+    {
+        $pdf = $this->seedFilesystemRow('invoice.pdf');
+
+        $this->runWebhookJob([
+            'Message-Id' => '<fallback-user-' . uniqid() . '@mailgun.example.test>',
+            'sender' => 'billing@vendor.test',
+            'uploaded_files' => [
+                ['filesystem_id' => $pdf->getId(), 'name' => $pdf->name, 'content-type' => 'application/pdf'],
+            ],
+        ]);
+
+        Queue::assertPushed(ProcessAccountingPdfJob::class, fn (ProcessAccountingPdfJob $job): bool => $job->actingUser !== null);
     }
 
     public function test_dispatches_one_process_pdf_job_per_pdf_attachment(): void

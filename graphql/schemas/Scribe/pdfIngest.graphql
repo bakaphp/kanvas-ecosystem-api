@@ -5,15 +5,22 @@ enum ScribePdfIngestDocumentType {
     VENDOR_QUOTE @enum(value: "vendor_quote")
     OUR_INVOICE @enum(value: "our_invoice")
     OUR_QUOTE @enum(value: "our_quote")
+    BANK_STATEMENT @enum(value: "bank_statement")
+    REMITTANCE_ADVICE @enum(value: "remittance_advice")
+    CUSTOMER_PO @enum(value: "customer_po")
+    CREDIT_REQUEST @enum(value: "credit_request")
     UNKNOWN @enum(value: "unknown")
 }
 
 enum ScribePdfIngestStatus {
     PENDING @enum(value: "pending")
     ENTITY_CREATED @enum(value: "entity_created")
+    NEEDS_REVIEW @enum(value: "needs_review")
     AWAITING_BILL_SUPPORT @enum(value: "awaiting_bill_support")
     QUOTE_INBOUND_LOGGED @enum(value: "quote_inbound_logged")
     IGNORED_OUR_DOC @enum(value: "ignored_our_doc")
+    IGNORED_DUPLICATE @enum(value: "ignored_duplicate")
+    ROUTED_TO_AR @enum(value: "routed_to_ar")
     REJECTED_UNKNOWN @enum(value: "rejected_unknown")
     FAILED @enum(value: "failed")
 }

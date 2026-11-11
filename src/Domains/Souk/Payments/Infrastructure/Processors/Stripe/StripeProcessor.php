@@ -9,17 +9,18 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\CreateRefundAction;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
+use Kanvas\Souk\Payments\DataTransferObject\RefundPayment;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\CurrencyEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Payments\Models\Payments;
 use Stripe\Exception\ApiErrorException;
@@ -151,7 +152,34 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        $refundAmount = $amount ?? (float) $payment->amount;
+        try {
+            $refund = new CreateRefundAction(
+                RefundPayment::forProcessor(
+                    $this->app,
+                    $this->company,
+                    $payment,
+                    $amount,
+                    $context
+                )
+            )->execute();
+        } catch (ValidationException $e) {
+            return new RefundResult(
+                success: false,
+                message: $e->getMessage(),
+                transactionId: '',
+            );
+        }
+
+        if ($refund->isCompleted()) {
+            return new RefundResult(
+                success: true,
+                message: 'Refund already completed',
+                transactionId: (string) $refund->processor_refund_id,
+                raw: $refund->metadata ?? [],
+            );
+        }
+
+        $refundAmount = (float) $refund->amount;
         $amountCents = $this->toCents($refundAmount);
 
         $params = ['amount' => $amountCents];
@@ -161,23 +189,10 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             $params['payment_intent'] = $intentId;
         }
 
-        $refund = new PaymentRefund();
-        $refund->apps_id = $this->app->getId();
-        $refund->companies_id = $this->company->getId();
-        $refund->payments_id = $payment->getId();
-        $refund->users_id = $payment->users_id;
-        $refund->amount = $refundAmount;
-        $refund->currency = $payment->currency ?? $order->currency;
-        $refund->reason = $context['reason'] ?? null;
-        $refund->status = RefundStatusEnum::PENDING->value;
-        $refund->saveOrFail();
-
         try {
             $stripeRefund = $this->stripe->refunds->create(
                 $params,
-                // A caller refunding the same amount twice on purpose (two seats at one price)
-                // names each refund; otherwise Stripe would replay the first and move no money.
-                ['idempotency_key' => $context['idempotency_key'] ?? 'refund:' . $payment->getId() . ':' . $amountCents],
+                ['idempotency_key' => 'refund:' . $payment->getId() . ':' . $this->refundAttemptKey($refund, $amountCents)],
             );
         } catch (ApiErrorException $e) {
             $refund->markAsFailed(['error' => $e->getMessage()]);
@@ -187,7 +202,7 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
                 'order_id' => $order->getId(),
                 'refund_id' => $refund->getId(),
                 'error' => $e->getMessage(),
-            ]);
+            ], actor: $refund->user);
 
             return new RefundResult(
                 success: false,
@@ -210,7 +225,7 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             'refund_id' => $refund->getId(),
             'stripe_refund_id' => $stripeRefund->id,
             'amount' => $refundAmount,
-        ]);
+        ], actor: $refund->user);
 
         return new RefundResult(
             success: true,
@@ -435,7 +450,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
                 $payment->markAsPaid(['data' => $data]);
 
                 break;
-
             case PaymentStatusEnum::AUTHORIZED:
                 $this->clearClientSecret($payment);
                 $payment->status = PaymentStatusEnum::AUTHORIZED->value;
@@ -443,7 +457,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
                 $payment->save();
 
                 break;
-
             case PaymentStatusEnum::PENDING_AUTHORIZATION:
                 $data['stripe_client_secret'] = $intent->client_secret;
                 $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION->value;
@@ -451,7 +464,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
                 $payment->save();
 
                 break;
-
             case PaymentStatusEnum::FAILED:
                 $error = $intent->last_payment_error->message ?? null;
                 if ($error !== null) {
@@ -463,7 +475,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
                 $payment->save();
 
                 break;
-
             default:
                 $payment->status = PaymentStatusEnum::PROCESSING->value;
                 $payment->addMetadata(['data' => $data]);
@@ -616,6 +627,15 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
     private function toCents(float $amount): int
     {
         return (int) round($amount * 100);
+    }
+
+    private function refundAttemptKey(PaymentRefund $refund, int $amountCents): string
+    {
+        if ($refund->idempotency_key === null) {
+            return (string) $amountCents;
+        }
+
+        return $refund->idempotency_key . ':' . $refund->attempt();
     }
 
     private function errorBody(ApiErrorException $e): array

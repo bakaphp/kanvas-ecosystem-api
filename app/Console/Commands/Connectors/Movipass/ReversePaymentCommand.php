@@ -47,6 +47,7 @@ class ReversePaymentCommand extends Command
 
         if (! $order) {
             $this->error("No order found for ID {$orderId}");
+
             return;
         }
 
@@ -54,6 +55,7 @@ class ReversePaymentCommand extends Command
 
         if (! $payment) {
             $this->error("No payment found for ID {$paymentId} on order {$order->order_number}");
+
             return;
         }
 
@@ -69,6 +71,7 @@ class ReversePaymentCommand extends Command
 
             if ($result['status'] === 'error') {
                 $this->error("Error reversing payment for order({$order->id}) {$order->order_number} : {$result['message']}");
+
                 return;
             }
 

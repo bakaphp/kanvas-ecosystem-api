@@ -64,9 +64,32 @@ class PullOrganizationAction
                 $organization->saveOrFail();
 
                 $organization->set(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value, $this->salesforceId);
+                $organization->addEmailDomains($this->emailDomainSources());
 
                 return $organization;
             });
         });
+    }
+
+    /**
+     * Every field an org may hold one of the Account's domains in. Company_Domains__c is GAGroup's
+     * curated list (comma-separated); Contacts is the child subquery PullAllOrganizationsAction adds,
+     * so a domain only seen on a colleague's email still lands on the organization.
+     *
+     * @return list<string|null>
+     */
+    private function emailDomainSources(): array
+    {
+        $domains = preg_split('/[\s,;]+/', (string) ($this->payload['Company_Domains__c'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
+
+        return [
+            ...$domains,
+            $this->payload['Website'] ?? null,
+            $this->payload['Company_URL__c'] ?? null,
+            ...array_map(
+                fn (array $contact) => $contact['Email'] ?? null,
+                $this->payload['Contacts']['records'] ?? [],
+            ),
+        ];
     }
 }

@@ -27,7 +27,7 @@ Nothing is seeded. Create one rule per row, filtered by the `insurance` order ty
 |---|---|---|---|
 | `AttachInsuranceQuoteActivity` | Order `created`, `is_async = false` | Yes | Order is never validated; Report voids the hold |
 | `UploadInsuranceDocumentsActivity` | File attached to the order | Only if the insurer inspects (Universal) | Emission waits for documents |
-| `ReportInsurancePaymentActivity` | Card authorized | Yes | Emit refuses to run |
+| `ReportInsurancePaymentActivity` | Order `after-payment-authorized` | Yes | Emit refuses to run |
 | `EmitInsurancePolicyActivity` | `status-transition` to `payment_reported` | Yes | No policy, hold never captured |
 | `InvoiceInsurancePolicyActivity` | `status-transition` to `emitted` | Only if the insurer invoices (Universal) | Policy is not invoiced |
 | `GenerateInsuranceCarnetActivity` | `status-transition` to `policy_active` | Yes | No carnet, no email |

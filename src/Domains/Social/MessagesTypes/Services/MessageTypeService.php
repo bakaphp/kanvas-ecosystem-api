@@ -19,6 +19,7 @@ class MessageTypeService
         ?string $template = null,
         mixed $templatesPlura = null,
         int $languagesId = 0,
+        ?bool $isPublic = null,
     ): MessageType {
         $messageTypeInput = MessageTypeInput::from([
             'apps_id' => $app->getId(),
@@ -27,6 +28,7 @@ class MessageTypeService
             'template' => $template,
             'templates_plura' => $templatesPlura,
             'languages_id' => $languagesId,
+            'is_public' => $isPublic,
         ]);
 
         return new CreateMessageTypeAction($messageTypeInput)->execute();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
@@ -64,7 +65,8 @@ class ListOverdueInvoicesTool extends Tool
         $today = Carbon::today();
 
         $orgIds = null;
-        if ($customer !== null && $customer !== '') {
+        $customer = Str::trimToNull($customer);
+        if ($customer !== null) {
             $term = OrganizationNameNormalizerService::normalize($customer) ?: $customer;
 
             $orgIds = Organization::query()
@@ -78,7 +80,7 @@ class ListOverdueInvoicesTool extends Tool
         $invoices = Invoice::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
-            ->where('document_type', DocumentTypeEnum::INVOICE)
+            ->whereIn('document_type', DocumentTypeEnum::receivables())
             ->whereIn('document_status', [
                 InvoiceDocumentStatusEnum::ISSUED,
                 InvoiceDocumentStatusEnum::SENT,

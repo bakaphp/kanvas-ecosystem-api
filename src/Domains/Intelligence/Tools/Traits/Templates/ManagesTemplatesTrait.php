@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Services\PdfService;
@@ -16,6 +17,7 @@ use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\Actions\DeleteTemplateAction;
 use Kanvas\Templates\Actions\UpdateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Templates\Enums\TemplateEngineEnum;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -196,7 +198,7 @@ trait ManagesTemplatesTrait
      */
     protected function listTemplates(
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         Users $user,
         ?string $search = null,
     ): array {
@@ -216,8 +218,10 @@ trait ManagesTemplatesTrait
             'name' => $template->name,
             'subject' => $template->subject,
             'title' => $template->title,
+            'engine' => $template->engine->value,
             'owned' => $this->ownsTemplate($template, $user),
             'is_system' => (bool) $template->is_system,
+            ...$this->templateTenantFields($template, $company, $user),
         ])->all();
 
         return $this->ok(
@@ -226,7 +230,8 @@ trait ManagesTemplatesTrait
                 'templates' => $rows,
             ],
             guidance: $this->editabilityGuidance(
-                in_array(false, array_column($rows, 'owned'), true)
+                in_array(false, array_column($rows, 'owned'), true),
+                in_array(TemplateEngineEnum::BLADE->value, array_column($rows, 'engine'), true)
             )
         );
     }
@@ -236,7 +241,7 @@ trait ManagesTemplatesTrait
      */
     protected function getTemplate(
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         Users $user,
         int $templateId,
     ): array {
@@ -261,11 +266,37 @@ trait ManagesTemplatesTrait
                 'subject' => $template->subject,
                 'title' => $template->title,
                 'html' => $template->template,
+                'engine' => $template->engine->value,
                 'owned' => $owned,
                 'is_system' => (bool) $template->is_system,
+                ...$this->templateTenantFields($template, $company, $user),
             ],
-            guidance: $this->editabilityGuidance(! $owned)
+            guidance: $this->editabilityGuidance(! $owned, $template->isBlade())
         );
+    }
+
+    /**
+     * `owned` alone would promise an edit on another company's template that update/delete refuse;
+     * `editable_here` says what this turn can change.
+     *
+     * @return array<string, mixed>
+     */
+    private function templateTenantFields(Templates $template, Companies|CompanyScope $company, Users $user): array
+    {
+        if (! CompanyScope::needsTenantLabel($company)) {
+            return [];
+        }
+
+        $companiesId = (int) $template->companies_id;
+        $editableHere = $this->ownsTemplate($template, $user)
+            && in_array($companiesId, [(int) $company->ownCompany->getId(), AppEnums::GLOBAL_COMPANY_ID->getValue()], true);
+
+        return [
+            ...($companiesId === AppEnums::GLOBAL_COMPANY_ID->getValue()
+                ? ['tenant_company_id' => $companiesId, 'tenant_company' => 'global']
+                : $company->tenantLabelFor($companiesId)),
+            'editable_here' => $editableHere,
+        ];
     }
 
     /**
@@ -273,27 +304,39 @@ trait ManagesTemplatesTrait
      * than only in the refusal that follows it. Without this the flag is a word the model can read
      * past, then promise the user an edit that update_template will refuse.
      */
-    private function editabilityGuidance(bool $anyUnowned): ?string
+    private function editabilityGuidance(bool $anyUnowned, bool $anyBlade = false): ?string
     {
-        if (! $anyUnowned) {
-            return null;
+        $notes = [];
+
+        if ($anyUnowned) {
+            $notes[] = 'Anything with "owned": false was created by someone else: update_template and '
+                . 'delete_template WILL be refused on it and nothing will change. Never promise the user an '
+                . 'edit to one — say its owner has to make the change, or offer to create_template a new '
+                . 'template and hand back the new id.';
         }
 
-        return 'Anything with "owned": false was created by someone else: update_template and '
-            . 'delete_template WILL be refused on it and nothing will change. Never promise the user an '
-            . 'edit to one — say its owner has to make the change, or offer to create_template a new '
-            . 'template and hand back the new id.';
+        if ($anyBlade) {
+            $notes[] = 'Anything with "engine": "blade" is a platform-managed template written in Blade '
+                . '({{ $var }}, @if, @foreach). Templates you create are Twig ({{ var }}, {% if %}, '
+                . '{% for %}), so never copy Blade syntax into create_template or update_template — the '
+                . 'save will be rejected.';
+        }
+
+        return $notes === [] ? null : implode(' ', $notes);
     }
 
     /**
      * Templates the agent can see/render: the company's own plus platform-global ones, across the
      * current app and the legacy app id — the same visibility generate_template_pdf resolves by name.
      */
-    private function visibleTemplatesQuery(Apps $app, Companies $company): Builder
+    private function visibleTemplatesQuery(Apps $app, Companies|CompanyScope $company): Builder
     {
-        return Templates::notDeleted()
-            ->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()])
-            ->whereIn('companies_id', [$company->getId(), AppEnums::GLOBAL_COMPANY_ID->getValue()]);
+        return CompanyScope::applyToQuery(
+            Templates::notDeleted()->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()]),
+            'companies_id',
+            $company,
+            [AppEnums::GLOBAL_COMPANY_ID->getValue()],
+        );
     }
 
     /**

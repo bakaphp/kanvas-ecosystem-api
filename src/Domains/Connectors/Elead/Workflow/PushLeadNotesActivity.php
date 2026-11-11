@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
-use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
@@ -20,7 +20,6 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Actions\AttachTradeInPhotosAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
-use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -39,11 +38,18 @@ use Throwable;
 )]
 class PushLeadNotesActivity extends KanvasActivity
 {
+    use SkipsNonLeadEngagements;
+
     public $tries = 1;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        if ($skip = $this->skipNonLeadEngagement($message)) {
+            return $skip;
+        }
+
         $company = $message->company;
 
         if (! $company->get(CustomFieldEnum::COMPANY->value)) {
@@ -79,24 +85,20 @@ class PushLeadNotesActivity extends KanvasActivity
                     ]);
                 }
 
-                // Add note to lead
                 $addNoteAction = new AddNoteToLeadAction(
                     lead: $lead,
                     message: $message,
                 );
                 $note = $addNoteAction->execute($eLeadOpportunity);
 
-                // Process task updates
                 $processMessageTaskUpdatesAction = $this->setTaskEngagementStatus($message, $lead);
 
-                // Handle action by verb
                 $handlerResult = $this->handleActionByVerb(
                     message: $message,
                     lead: $lead,
                     eLeadOpportunity: $eLeadOpportunity
                 );
 
-                // Handle special cases for certain verbs
                 $this->handleSpecialCases($message, $lead, $eLeadOpportunity);
 
                 return [
@@ -111,9 +113,6 @@ class PushLeadNotesActivity extends KanvasActivity
         );
     }
 
-    /**
-     * Given the verb determine what action execute.
-     */
     protected function handleActionByVerb(Message $message, Lead $lead, mixed $eLeadOpportunity): mixed
     {
         $messageData = $message->getMessage();
@@ -200,9 +199,6 @@ class PushLeadNotesActivity extends KanvasActivity
                 }
 
                 break;
-            default:
-                # code...
-                break;
         }
 
         return $result;
@@ -226,9 +222,6 @@ class PushLeadNotesActivity extends KanvasActivity
         ]);
     }
 
-    /**
-     * Update people address information.
-     */
     protected function updatePeopleAddress(People $people, array $result, array $messageData): void
     {
         $people->addDefaultAddress(AddressDto::from([
@@ -252,26 +245,19 @@ class PushLeadNotesActivity extends KanvasActivity
         }
     }
 
-    /**
-     * Handle special cases for certain verbs and statuses.
-     */
     protected function handleSpecialCases(Message $message, Lead $lead, mixed $eLeadOpportunity): void
     {
         $messageData = $message->getMessage();
-        /** @var string $verb */
         $verb = $messageData['verb'] ?? '';
-        /** @var string $status */
         $status = $messageData['status'] ?? '';
         $messageDataData = $messageData['data'] ?? [];
 
-        // Handle credit app, co-signer, and get docs submission special cases
         $verbs = [ActionEnum::CO_SIGNER->value, ActionEnum::CREDIT_APP->value, ActionEnum::GET_DOCS->value];
         $isVerbInArray = in_array($verb, $verbs);
         $isStatusSubmitted = $status === ActionStatusEnum::SUBMITTED->value;
         $isGetDocsWithoutDriversLicense = $verb === ActionEnum::GET_DOCS->value && ! isset($messageDataData[3]); //3 is drivers license
 
         if ($isVerbInArray && $isStatusSubmitted && ! $isGetDocsWithoutDriversLicense) {
-            /** @var string $text */
             $text = is_string($messageData['text'] ?? null) ? $messageData['text'] : '';
             $baseComment = $lead->people->getDisplayName() . ' ' . $text . ' is ready to be imported into eLead. ';
 
@@ -284,26 +270,16 @@ class PushLeadNotesActivity extends KanvasActivity
         }
     }
 
-    /**
-     * Clean e-signature documents custom fields.
-     */
     protected function cleanEsignatureDocs(Lead $lead): void
     {
-        // Archive old values with timestamp
         $timestamp = time();
         $lead->set('prefill-sign-docs-' . $timestamp, $lead->get('prefill-sign-docs'));
         $lead->set('actions_pdf_custom_form-' . $timestamp, $lead->get('actions_pdf_custom_form'));
 
-        // Delete current values
         $lead->del('prefill-sign-docs');
         $lead->del('actions_pdf_custom_form');
     }
 
-    /**
-     * Set task engagement status.
-     *
-     * @throws Throwable
-     */
     protected function setTaskEngagementStatus(Message $message, Lead $lead): array
     {
         try {
@@ -314,8 +290,6 @@ class PushLeadNotesActivity extends KanvasActivity
             )->execute();
         } catch (Throwable $e) {
             report($e);
-
-            //throw new Exception('Failed to set task engagement status: ' . $e->getMessage());
         }
 
         return [];

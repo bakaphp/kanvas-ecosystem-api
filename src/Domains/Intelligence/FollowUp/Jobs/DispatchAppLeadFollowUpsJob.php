@@ -7,19 +7,28 @@ namespace Kanvas\Intelligence\FollowUp\Jobs;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\CustomFields\Models\AppsCustomFields;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Throwable;
 
 /**
- * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal)
- * and to open leads (by status id); remaining lead-level state is checked inside
- * FollowUpLeadAction so each skip lands a clean ledger event with the specific
- * reason. Streams via cursor().
+ * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal), plus every lead carrying
+ * a person's own plan whatever its stage, and to open leads (by status id); the lead-level gates (ai follow-up, lead type, exhausted, manual, mute, and the stage
+ * interval against the lead's last message) run here too, so a lead that was already followed up
+ * never takes a queue slot. Every lead leaves a ledger record: `lead.follow_up.skipped` with the
+ * reason and `source: dispatch`, or `lead.follow_up.queued`. FollowUpLeadAction still re-checks
+ * every gate when the job runs.
  */
 final class DispatchAppLeadFollowUpsJob implements ShouldQueue
 {
@@ -51,7 +60,40 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
             // authoritative check is FollowUpLeadAction's hasOpenLeadStatus() gate; this just
             // avoids spawning jobs for already-closed leads.
             ->hasOpenLeadStatus($this->company)
-            ->when($startDate, fn ($query) => $query->where('created_at', '>=', $startDate))
+            ->where(
+                fn ($query) => $query
+                    ->where(fn ($stage) => $this->inFollowUpStage($stage, $startDate))
+                    ->orWhereIn('id', $this->leadIdsWithField(ManualFollowUpPlan::ACTIVE_FIELD)),
+            )
+            ->with('stage')
+            ->lazyById(500);
+
+        $eligibility = new LeadFollowUpEligibilityService();
+        foreach ($leads as $lead) {
+            $skipReason = $eligibility->dispatchSkipReason($lead);
+            if ($skipReason !== null) {
+                $this->record($lead, 'lead.follow_up.skipped', ['reason' => $skipReason]);
+
+                continue;
+            }
+
+            LeadFollowUpJob::dispatch($this->app, $this->company, $lead)
+                ->onQueue('lead_follow_ups');
+            $this->record($lead, 'lead.follow_up.queued');
+        }
+    }
+
+    private function inFollowUpStage(Builder $query, ?Carbon $startDate): Builder
+    {
+        return $query
+            ->when(
+                $startDate,
+                fn ($q) => $q->where(
+                    fn ($created) => $created
+                        ->where('created_at', '>=', $startDate)
+                        ->orWhereIn('id', $this->leadIdsWithField(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value)),
+                ),
+            )
             ->whereNotNull('pipeline_stage_id')
             ->whereHas(
                 'stage',
@@ -63,12 +105,41 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
                             ->whereJsonDoesntContain('config->stage_meta->is_terminal', true)
                             ->orWhereNull('config->stage_meta->is_terminal'),
                     ),
-            )
-            ->cursor();
+            );
+    }
 
-        foreach ($leads as $lead) {
-            LeadFollowUpJob::dispatch($this->app, $this->company, $lead)
-                ->onQueue('lead_follow_ups');
+    /**
+     * A plan or a manual follow-up pin is a custom-field row on `ecosystem`; leads live on `crm`, so
+     * the ids are fetched first (a cross-connection whereHas is silently empty). Both rows exist only
+     * while they are active: an ended plan and a follow-up turned off delete theirs.
+     *
+     * @return list<int>
+     */
+    private function leadIdsWithField(string $name): array
+    {
+        return AppsCustomFields::query()
+            ->where('companies_id', $this->company->getId())
+            ->where('model_name', Lead::class)
+            ->where('name', $name)
+            ->where('is_deleted', 0)
+            ->pluck('entity_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
+     * A failed ledger write is reported, never allowed to stop the fan-out for the remaining leads.
+     */
+    private function record(Lead $lead, string $eventType, array $payload = []): void
+    {
+        try {
+            $lead->emitLedgerEvent($eventType, payload: [
+                'stage_id' => $lead->pipeline_stage_id,
+                ...$payload,
+                'source' => 'dispatch',
+            ]);
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 }

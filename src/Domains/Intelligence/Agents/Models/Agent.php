@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -28,9 +29,11 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SetMyEmailSignatureTool;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
@@ -67,6 +70,7 @@ use Override;
  * @property string|null $user_context
  * @property string|null $tools_config
  * @property array|null $voice_config
+ * @property array|null $sms_config
  * @property string|null $deployment_status
  * @property int|null $agent_model_id
  * @property int|null $agent_llm_config_id
@@ -132,6 +136,7 @@ class Agent extends BaseModel
         'user_context',
         'tools_config',
         'voice_config',
+        'sms_config',
         'deployment_status',
         'agent_model_id',
         'agent_llm_config_id',
@@ -167,6 +172,7 @@ class Agent extends BaseModel
             'role' => Json::class,
             'identity' => Json::class,
             'voice_config' => Json::class,
+            'sms_config' => Json::class,
             'is_active' => 'boolean',
             'is_sub_agent' => 'boolean',
             'last_state_changed_at' => 'datetime',
@@ -355,6 +361,16 @@ class Agent extends BaseModel
             ->latestOfMany();
     }
 
+    public function phoneNumber(AgentPhoneChannelEnum $channel): ?string
+    {
+        return Str::trimToNull((string) ($this->{$channel->configColumn()}['phone_number'] ?? ''));
+    }
+
+    public function smsPhoneNumber(): ?string
+    {
+        return $this->phoneNumber(AgentPhoneChannelEnum::SMS);
+    }
+
     public function isContainerRuntime(): bool
     {
         if ($this->activeDeployment instanceof AgentDeployment) {
@@ -436,6 +452,17 @@ class Agent extends BaseModel
             && $handler !== ''
             && class_exists($handler)
             && is_subclass_of($handler, ConversesWithUser::class);
+    }
+
+    /**
+     * Sending email and signing it as the person the agent acts for are separate capabilities: an agent
+     * signs only once set_my_email_signature is granted to it, so granting plain sending never starts
+     * putting someone's name under mail they did not configure.
+     */
+    public function signsEmailsAsOwner(): bool
+    {
+        return $this->conversesWithUser()
+            && $this->selectedTools()->active()->where('handler', SetMyEmailSignatureTool::class)->exists();
     }
 
     /**

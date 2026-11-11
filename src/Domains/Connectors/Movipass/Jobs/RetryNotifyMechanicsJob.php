@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Jobs;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
+use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\AssistanceMechanicNotFoundEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
@@ -21,7 +22,9 @@ use Kanvas\Users\Models\Users;
 class RetryNotifyMechanicsJob implements ShouldQueue
 {
     use Dispatchable;
+    use InteractsWithAssistanceCase;
     use InteractsWithQueue;
+    use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
 
@@ -37,7 +40,8 @@ class RetryNotifyMechanicsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $app = Apps::getById($this->order->apps_id);
+        $app = $this->order->app;
+        $this->overwriteAppService($app);
 
         try {
             new NotifyAvailableMechanicsAction(
@@ -60,7 +64,14 @@ class RetryNotifyMechanicsJob implements ShouldQueue
                 return;
             }
 
-            // Max retries reached — cancel the order and notify the owner.
+            $this->saveAssistanceCase(
+                $this->order,
+                $this->markStatusNotified(
+                    $this->assistanceCaseFrom($this->order),
+                    MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+                ),
+            );
+
             $this->order->transitionToStatus(
                 $this->mechanic,
                 MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
@@ -68,12 +79,15 @@ class RetryNotifyMechanicsJob implements ShouldQueue
             $this->order->fulfillCancelled();
             AssistanceMechanicNotFoundEvent::dispatch($this->order);
 
-            $this->order->user->notify(new RoadsideAssistanceStatusNotification(
-                $this->order,
-                'No mechanics available',
-                'We could not find an available mechanic. Your order has been cancelled.',
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-            ));
+            $this->notifySafely(
+                $this->resolveCaseUser($this->order->users_id),
+                new RoadsideAssistanceStatusNotification(
+                    $this->order,
+                    'No mechanics available',
+                    'We could not find an available mechanic. Your order has been cancelled.',
+                    MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+                ),
+            );
         }
     }
 }

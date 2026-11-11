@@ -1,0 +1,52 @@
+"Scribe.ElectronicInvoicing — the e-NCF ranges DGII authorized, one active per e-CF type, with history."
+enum ScribeEcfRangeStatus {
+    ACTIVE @enum(value: "active")
+    EXHAUSTED @enum(value: "exhausted")
+    EXPIRED @enum(value: "expired")
+    SUPERSEDED @enum(value: "superseded")
+}
+
+type ScribeEcfRange {
+    id: ID!
+    "e-CF type code: 31, 32, 33, 34, 41, 43, 44, 45, 46, 47."
+    document_type: String!
+    "The authority's name for the type, e.g. Factura de Crédito Fiscal Electrónica."
+    document_type_label: String @method(name: "documentTypeLabel")
+    first_number: String! @method(name: "firstNumber")
+    last_number: String! @method(name: "lastNumber")
+    "The next e-NCF to be issued; null once the range is no longer active."
+    next_number: String @method(name: "nextNumber")
+    remaining: Int @method(name: "remaining")
+    expires_at: Date
+    status: ScribeEcfRangeStatus!
+    environment: String!
+    created_at: DateTime!
+}
+
+input ScribeEcfRangeInput {
+    "e-CF type code, with or without the E: 31 or E31."
+    document_type: String!
+    "Full e-NCF (E310000000004) or the bare number (4)."
+    first_number: String!
+    last_number: String!
+    "DGII leaves it out for types 32 and 34."
+    expires_at: Date
+}
+
+extend type Query @guard {
+    "Every e-NCF range loaded for the current company, newest first."
+    scribeEcfRanges: [ScribeEcfRange!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\ElectronicInvoicing\\Models\\FiscalNumberRange"
+            scopes: ["fromApp", "fromCompany", "newestFirst"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    "Loads a DGII-authorized range for one e-CF type; the previous range of that type is kept as history."
+    configureScribeEcfRange(input: ScribeEcfRangeInput!): ScribeEcfRange!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Setup\\EcfRangeMutation@configure"
+        )
+}

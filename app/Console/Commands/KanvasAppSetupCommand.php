@@ -27,7 +27,6 @@ class KanvasAppSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Approvals\Mutations;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
+use Kanvas\Approvals\Actions\DeleteApprovalPolicyAction;
+use Kanvas\Approvals\Actions\SaveApprovalPolicyAction;
+use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Approvals\Services\ApproverResolverRegistryService;
@@ -20,12 +23,17 @@ class ApprovalPolicyMutation
         $ctx = $this->actingContext();
         $input = $request['input'];
 
-        return ApprovalPolicy::create([
-            'apps_id' => $ctx->app->getId(),
-            'companies_id' => $ctx->company->getId(),
-            'system_modules_id' => $this->systemModule($input)->getId(),
-            ...$this->attributes($input),
-        ]);
+        return new SaveApprovalPolicyAction(
+            new ApprovalPolicy([
+                'apps_id' => $ctx->app->getId(),
+                'companies_id' => $ctx->company->getId(),
+            ]),
+            [
+                'system_modules_id' => $this->systemModule($input)->getId(),
+                ...$this->attributes($input),
+            ],
+            $ctx->user,
+        )->execute();
     }
 
     public function update(mixed $rootValue, array $request): ApprovalPolicy
@@ -35,13 +43,14 @@ class ApprovalPolicyMutation
         /** @var ApprovalPolicy $policy */
         $policy = ApprovalPolicy::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
 
-        $policy->fill([
-            'system_modules_id' => $this->systemModule($request['input'])->getId(),
-            ...$this->attributes($request['input']),
-        ]);
-        $policy->saveOrFail();
-
-        return $policy;
+        return new SaveApprovalPolicyAction(
+            $policy,
+            [
+                'system_modules_id' => $this->systemModule($request['input'])->getId(),
+                ...$this->attributes($request['input']),
+            ],
+            $ctx->user,
+        )->execute();
     }
 
     public function delete(mixed $rootValue, array $request): bool
@@ -51,7 +60,7 @@ class ApprovalPolicyMutation
         /** @var ApprovalPolicy $policy */
         $policy = ApprovalPolicy::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
 
-        return $policy->softDelete();
+        return new DeleteApprovalPolicyAction($policy, $ctx->user)->execute();
     }
 
     /**
@@ -74,7 +83,7 @@ class ApprovalPolicyMutation
                 : 'any',
             'fallback_resolver' => $input['fallback_resolver'] ?? null,
             'fallback_config' => $input['fallback_config'] ?? null,
-            'notify' => (string) ($input['notify'] ?? 'all'),
+            'notify' => ApprovalNotifyModeEnum::fromSetting($input['notify'] ?? null)->value,
             'expires_after_hours' => $input['expires_after_hours'] ?? null,
             'allow_authority_override' => (bool) ($input['allow_authority_override'] ?? false),
         ];

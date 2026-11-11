@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
@@ -43,7 +42,7 @@ class CompletionStatusTool extends Tool
 
     public function __invoke(int $lead_id): array
     {
-        $result = $this->resolveLeadOrError($lead_id);
+        $result = $this->resolveLeadInReadScopeOrError($lead_id);
         if (is_array($result)) {
             return $result;
         }
@@ -58,7 +57,7 @@ class CompletionStatusTool extends Tool
             'lead' => $lead->toArray(),
             'people' => $lead->people->toArray(),
             'company' => $lead->company->toArray(),
-            'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+            'additional_context_information' => $lead->getAiContextInfo(),
         ];
 
         /** @var StructuredAgentResponse $response */

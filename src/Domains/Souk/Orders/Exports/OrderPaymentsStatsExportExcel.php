@@ -24,60 +24,60 @@ use Throwable;
 class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAutoSize, WithDrawings
 {
     private const DEFAULT_HEADER_BG = '5D8A66';
-    private const HEADER_FG         = 'FFFFFF';
-    private const BORDER_COLOR      = 'CCCCCC';
+    private const HEADER_FG = 'FFFFFF';
+    private const BORDER_COLOR = 'CCCCCC';
 
     private readonly string $headerBg;
 
     /** @var array<string, array<string, string>> */
     private const LABELS = [
         'en' => [
-            'breakdown_title'        => 'Payment Breakdown by Period',
-            'breakdown_period'       => 'Period',
+            'breakdown_title' => 'Payment Breakdown by Period',
+            'breakdown_period' => 'Period',
             'breakdown_transactions' => 'Transactions',
-            'breakdown_amount'       => 'Total Amount',
-            'breakdown_total'        => 'Total:',
-            'metrics_title'          => 'Metrics',
-            'metrics_metric'         => 'Metric',
-            'metrics_value'          => 'Value',
-            'metric_total_tx'        => 'Total transactions',
-            'metric_total_amount'    => 'Total amount',
-            'metric_daily_tx'        => 'Average daily transactions',
-            'metric_daily_amount'    => 'Average daily amount',
-            'metric_weekly_tx'       => 'Average weekly transactions',
-            'metric_weekly_amount'   => 'Average weekly amount',
-            'metric_monthly_tx'      => 'Average monthly transactions',
-            'metric_monthly_amount'  => 'Average monthly amount',
-            'detail_title'           => 'Order Detail',
-            'detail_order_number'    => 'Order Number',
-            'detail_date'            => 'Date',
-            'detail_name'            => 'Name',
-            'detail_amount'          => 'Amount',
-            'detail_email'           => 'Email',
+            'breakdown_amount' => 'Total Amount',
+            'breakdown_total' => 'Total:',
+            'metrics_title' => 'Metrics',
+            'metrics_metric' => 'Metric',
+            'metrics_value' => 'Value',
+            'metric_total_tx' => 'Total transactions',
+            'metric_total_amount' => 'Total amount',
+            'metric_daily_tx' => 'Average daily transactions',
+            'metric_daily_amount' => 'Average daily amount',
+            'metric_weekly_tx' => 'Average weekly transactions',
+            'metric_weekly_amount' => 'Average weekly amount',
+            'metric_monthly_tx' => 'Average monthly transactions',
+            'metric_monthly_amount' => 'Average monthly amount',
+            'detail_title' => 'Order Detail',
+            'detail_order_number' => 'Order Number',
+            'detail_date' => 'Date',
+            'detail_name' => 'Name',
+            'detail_amount' => 'Amount',
+            'detail_email' => 'Email',
         ],
         'es' => [
-            'breakdown_title'        => 'Resumen por Período',
-            'breakdown_period'       => 'Período',
+            'breakdown_title' => 'Resumen por Período',
+            'breakdown_period' => 'Período',
             'breakdown_transactions' => 'Transacciones',
-            'breakdown_amount'       => 'Monto Total',
-            'breakdown_total'        => 'Total:',
-            'metrics_title'          => 'Métricas',
-            'metrics_metric'         => 'Métrica',
-            'metrics_value'          => 'Valor',
-            'metric_total_tx'        => 'Total de transacciones',
-            'metric_total_amount'    => 'Monto total',
-            'metric_daily_tx'        => 'Promedio de transacciones diarias',
-            'metric_daily_amount'    => 'Monto promedio diario',
-            'metric_weekly_tx'       => 'Promedio de transacciones semanales',
-            'metric_weekly_amount'   => 'Monto promedio semanal',
-            'metric_monthly_tx'      => 'Promedio de transacciones mensuales',
-            'metric_monthly_amount'  => 'Monto promedio mensual',
-            'detail_title'           => 'Detalle de Órdenes',
-            'detail_order_number'    => 'Numero de Orden',
-            'detail_date'            => 'Fecha',
-            'detail_name'            => 'Nombre',
-            'detail_amount'          => 'Monto',
-            'detail_email'           => 'Email',
+            'breakdown_amount' => 'Monto Total',
+            'breakdown_total' => 'Total:',
+            'metrics_title' => 'Métricas',
+            'metrics_metric' => 'Métrica',
+            'metrics_value' => 'Valor',
+            'metric_total_tx' => 'Total de transacciones',
+            'metric_total_amount' => 'Monto total',
+            'metric_daily_tx' => 'Promedio de transacciones diarias',
+            'metric_daily_amount' => 'Monto promedio diario',
+            'metric_weekly_tx' => 'Promedio de transacciones semanales',
+            'metric_weekly_amount' => 'Monto promedio semanal',
+            'metric_monthly_tx' => 'Promedio de transacciones mensuales',
+            'metric_monthly_amount' => 'Monto promedio mensual',
+            'detail_title' => 'Detalle de Órdenes',
+            'detail_order_number' => 'Numero de Orden',
+            'detail_date' => 'Fecha',
+            'detail_name' => 'Nombre',
+            'detail_amount' => 'Monto',
+            'detail_email' => 'Email',
         ],
     ];
 
@@ -147,7 +147,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
 
     public function drawings(): array
     {
-        $logos    = $this->metadata['headerImages'] ?? [];
+        $logos = $this->metadata['headerImages'] ?? [];
         $drawings = [];
 
         foreach ($logos as $index => $logoUrl) {
@@ -189,7 +189,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
             return $startRow;
         }
 
-        $row     = $startRow;
+        $row = $startRow;
         $lastCol = 'F';
 
         if (! empty($this->metadata['headerImages'])) {
@@ -218,7 +218,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
 
     private function writeBreakdownSection(Worksheet $sheet, int $startRow): int
     {
-        $row     = $startRow;
+        $row = $startRow;
         $lastCol = 'C';
 
         $sheet->setCellValue("A{$row}", $this->label('breakdown_title'));
@@ -258,14 +258,14 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
 
     private function writeMetricsSection(Worksheet $sheet, int $startRow): int
     {
-        $row     = $startRow;
+        $row = $startRow;
         $lastCol = 'B';
 
-        $totals   = $this->stats['totals'];
+        $totals = $this->stats['totals'];
         $byPeriod = collect($this->stats['periods'] ?? [])->keyBy('period_type');
-        $daily    = $byPeriod->get('DAY', []);
-        $weekly   = $byPeriod->get('WEEK', []);
-        $monthly  = $byPeriod->get('MONTH', []);
+        $daily = $byPeriod->get('DAY', []);
+        $weekly = $byPeriod->get('WEEK', []);
+        $monthly = $byPeriod->get('MONTH', []);
 
         $sheet->setCellValue("A{$row}", $this->label('metrics_metric'));
         $sheet->setCellValue("B{$row}", $this->label('metrics_value'));
@@ -300,17 +300,17 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
     {
         $defaultMapper = [
             $this->label('detail_order_number') => 'order_number',
-            $this->label('detail_date')         => 'created_at',
-            $this->label('detail_name')         => 'user.firstname user.lastname',
-            $this->label('detail_amount')       => 'total_net_amount',
-            $this->label('detail_email')        => 'user.email',
+            $this->label('detail_date') => 'created_at',
+            $this->label('detail_name') => 'user.firstname user.lastname',
+            $this->label('detail_amount') => 'total_net_amount',
+            $this->label('detail_email') => 'user.email',
         ];
 
-        $mapper  = $this->fieldMapper ?? $defaultMapper;
+        $mapper = $this->fieldMapper ?? $defaultMapper;
         $headers = array_keys($mapper);
-        $paths   = array_values($mapper);
+        $paths = array_values($mapper);
         $lastCol = $this->columnLetter(count($headers) - 1);
-        $row     = $startRow;
+        $row = $startRow;
 
         $sheet->setCellValue("A{$row}", $this->label('detail_title'));
         $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
@@ -347,7 +347,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
                 ->implode(' ');
         }
 
-        $keys  = explode('.', $path);
+        $keys = explode('.', $path);
         $value = $model;
 
         foreach ($keys as $key) {
@@ -360,6 +360,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
                 $value = $this->getAttribute($value, $m[1]);
                 $value = is_array($value) ? ($value[(int) $m[2]] ?? null)
                     : (($value instanceof Collection) ? $value->get((int) $m[2]) : null);
+
                 continue;
             }
 
@@ -396,7 +397,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
         $letter = '';
         while ($index >= 0) {
             $letter = chr(($index % 26) + 65) . $letter;
-            $index  = intdiv($index, 26) - 1;
+            $index = intdiv($index, 26) - 1;
         }
 
         return $letter;
@@ -406,17 +407,17 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
     {
         $sheet->getStyle($range)->applyFromArray([
             'font' => [
-                'bold'  => true,
-                'size'  => 13,
+                'bold' => true,
+                'size' => 13,
                 'color' => ['rgb' => self::HEADER_FG],
             ],
             'fill' => [
-                'fillType'   => Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => $this->headerBg],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical'   => Alignment::VERTICAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ]);
         $sheet->getRowDimension($this->rowFromRange($range))->setRowHeight(22);
@@ -426,16 +427,16 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
     {
         $sheet->getStyle($range)->applyFromArray([
             'font' => [
-                'bold'  => true,
+                'bold' => true,
                 'color' => ['rgb' => self::HEADER_FG],
             ],
             'fill' => [
-                'fillType'   => Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => $this->headerBg],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical'   => Alignment::VERTICAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ]);
         $sheet->getRowDimension($this->rowFromRange($range))->setRowHeight(20);
@@ -445,12 +446,12 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
     {
         $sheet->getStyle($range)->applyFromArray([
             'fill' => [
-                'fillType'   => Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'FFFFFF'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_LEFT,
-                'vertical'   => Alignment::VERTICAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ]);
     }
@@ -459,11 +460,11 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
     {
         $sheet->getStyle($range)->applyFromArray([
             'font' => [
-                'bold'  => true,
+                'bold' => true,
                 'color' => ['rgb' => self::HEADER_FG],
             ],
             'fill' => [
-                'fillType'   => Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => $this->headerBg],
             ],
             'alignment' => [
@@ -476,7 +477,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
     {
         $sheet->getStyle($range)->getBorders()->getAllBorders()->applyFromArray([
             'borderStyle' => Border::BORDER_THIN,
-            'color'       => ['rgb' => self::BORDER_COLOR],
+            'color' => ['rgb' => self::BORDER_COLOR],
         ]);
     }
 

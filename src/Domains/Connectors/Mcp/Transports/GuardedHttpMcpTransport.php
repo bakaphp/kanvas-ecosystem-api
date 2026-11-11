@@ -52,6 +52,8 @@ class GuardedHttpMcpTransport implements McpTransportInterface
 
     private ?string $token = null;
 
+    private bool $oauthGrant = false;
+
     private bool $tokenResolved = false;
 
     private ?McpCredentialService $credentials = null;
@@ -101,6 +103,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->authHeader = $data['authHeader'] ?? null;
         $this->httpClient = null;
         $this->token = null;
+        $this->oauthGrant = false;
         $this->tokenResolved = false;
         $this->credentials = null;
         $this->credentialsResolved = false;
@@ -332,13 +335,25 @@ class GuardedHttpMcpTransport implements McpTransportInterface
      * The key travels in exactly one place. A vendor that reads it from the query string gets no header
      * at all — sending the same secret somewhere it never reads would only widen where it can leak.
      *
+     * `auth_query_param` and `auth_header` describe where a pasted KEY goes. An OAuth access token is
+     * always `Authorization: Bearer`, whatever the row says: Apollo offers both, and its key header
+     * would not read a token.
+     *
      * @return array<string, string>
      */
     private function authHeaders(): array
     {
         $token = $this->resolveToken();
 
-        if ($token === null || $this->authQueryParam !== null) {
+        if ($token === null) {
+            return [];
+        }
+
+        if ($this->isOAuthGrant()) {
+            return ['Authorization' => 'Bearer ' . $token];
+        }
+
+        if ($this->authQueryParam !== null) {
             return [];
         }
 
@@ -347,15 +362,25 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             : [$this->authHeader => $token];
     }
 
+    private function isOAuthGrant(): bool
+    {
+        $this->resolveToken();
+
+        return $this->oauthGrant;
+    }
+
     private function resolveToken(): ?string
     {
         if (! $this->tokenResolved) {
             $this->tokenResolved = true;
 
             try {
-                $this->token = $this->credentials()?->token();
+                $credentials = $this->credentials();
+                $this->token = $credentials?->token();
+                $this->oauthGrant = $credentials?->isOAuthGrant() === true;
             } catch (Throwable) {
                 $this->token = null;
+                $this->oauthGrant = false;
             }
         }
 
@@ -377,7 +402,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             throw new McpFetchException('This MCP connection has no server URL — connect it again.');
         }
 
-        if ($this->authQueryParam === null) {
+        if ($this->authQueryParam === null || $this->isOAuthGrant()) {
             return $url;
         }
 

@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -25,6 +27,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpFailureReasonEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
@@ -38,6 +41,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Templates\Models\Templates;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Kanvas\Workflow\Rules\Enums\ActionKindEnum;
@@ -130,6 +134,8 @@ class FollowUpLeadActionTest extends TestCase
     {
         $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
         $lead->close(); // leads_status_id outside the open set → hasOpenLeadStatus() false
+        // Closing turns the follow-up off (LeadObserver); turn it back on so this hits the status gate.
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::ON()->value);
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
@@ -152,6 +158,7 @@ class FollowUpLeadActionTest extends TestCase
         ];
         $lead = $this->seedLeadWithStageConfig($cfg);
         $lead->close();
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::ON()->value);
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
@@ -230,6 +237,61 @@ class FollowUpLeadActionTest extends TestCase
     // ─────────────────────────────────────────────────────────────────────
     // Gate 1c: count >= max_retries → exhausted(max_retries) + emit ledger event
     // ─────────────────────────────────────────────────────────────────────
+    public function testMaxRetriesAdvancesWithoutExhaustingNextStage(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['max_retries'] = 1;
+        $cfg['follow_up']['exhausted_action'] = 'advance';
+        [$lead, $stage1, $stage2] = $this->seedLeadWithTwoStages($cfg);
+        $stage2->update(['config' => $cfg]);
+        $lead->set('follow_up_state', ['count' => 1, 'last_at' => now()->subDay()->toIso8601String()]);
+
+        $outcome = new FollowUpLeadAction(
+            $this->testApp,
+            $this->company,
+            $lead,
+            $this->seedFollowUpAgent()
+        )->execute();
+
+        $lead->refresh();
+        $this->assertEquals($stage2->getId(), $lead->pipeline_stage_id);
+        $this->assertFalse($lead->isFollowUpExhausted());
+        $this->assertNull($lead->getFollowUpExhaustedReason());
+        $this->assertSame(0, $lead->getFollowUpStateCount());
+        $this->assertNotNull($lead->getFollowUpStageEnteredAt());
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('max_retries_stage_advanced', $outcome->reason);
+        $this->assertNull($outcome->message);
+        $this->assertSame('too_soon', (new \Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService())->dispatchSkipReason($lead));
+        $this->assertFalse(Event::query()->where('apps_id', $this->testApp->getId())
+            ->where('source_entity_id', $lead->getId())
+            ->where('event_type', 'lead.follow_up.exhausted')->exists());
+    }
+
+    public function testMaxRetriesExhaustsWhenAdvanceHasNoNextStage(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['max_retries'] = 1;
+        $cfg['follow_up']['exhausted_action'] = 'advance';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $stageId = $lead->pipeline_stage_id;
+        $lead->set('follow_up_state', ['count' => 1]);
+
+        $outcome = new FollowUpLeadAction(
+            $this->testApp,
+            $this->company,
+            $lead,
+            $this->seedFollowUpAgent()
+        )->execute();
+
+        $lead->refresh();
+        $this->assertEquals($stageId, $lead->pipeline_stage_id);
+        $this->assertTrue($lead->isFollowUpExhausted());
+        $this->assertSame('max_retries', $lead->getFollowUpExhaustedReason());
+        $this->assertSame(FollowUpOutcomeKindEnum::EXHAUSTED, $outcome->kind);
+        $this->assertSame('max_retries', $outcome->reason);
+    }
+
     public function testExhaustsOnMaxRetriesAndEmitsLedgerEvent(): void
     {
         $cfg = $this->defaultStageConfig();
@@ -399,6 +461,100 @@ class FollowUpLeadActionTest extends TestCase
     // ─────────────────────────────────────────────────────────────────────
     // Gate 3: no session → no_session
     // ─────────────────────────────────────────────────────────────────────
+    public function testSessionResolutionSupportsLegacyLeadAndPrefersPeople(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        $action = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent());
+        $resolve = new \ReflectionMethod($action, 'resolveSession');
+        $peopleSession = $this->seedSessionAndChannel($lead, 'email');
+        $legacySession = $this->seedSessionAndChannel($lead, 'sms');
+        $legacySession->update(['entity_namespace' => Lead::class, 'entity_id' => $lead->getId()]);
+
+        $this->assertSame($peopleSession->getId(), $resolve->invoke($action)?->getId());
+        $peopleSession->update(['is_deleted' => 1]);
+        $this->assertSame($legacySession->getId(), $resolve->invoke($action)?->getId());
+
+        foreach ([['companies_id' => 0], ['apps_id' => 0], ['entity_id' => 0], ['is_deleted' => 1]] as $invalid) {
+            $original = array_intersect_key($legacySession->getAttributes(), $invalid);
+            $legacySession->update($invalid);
+            $this->assertNull($resolve->invoke($action));
+            $legacySession->update($original);
+        }
+    }
+
+    public function testOpensASessionForALeadThatNeverHadOneWhenAsked(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        Contact::factory()->create([
+            'peoples_id' => $lead->people_id,
+            'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+            'value' => '+18095550142',
+        ]);
+        $agent = $this->seedFollowUpAgent();
+        $sessions = fn () => Session::query()->fromApp($this->testApp)->fromCompany($this->company)
+            ->where('entity_namespace', People::class)->where('entity_id', $lead->people_id);
+
+        $skipped = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $agent,
+            force: true,
+        )->execute();
+
+        $this->assertSame('no_session', $skipped->reason);
+        $this->assertSame(0, $sessions()->count());
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hello, just checking in.',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $agent,
+            force: true,
+            openSessionIfMissing: true,
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+        $this->assertSame(1, $sessions()->count());
+    }
+
+    public function testContactChannelCreatesBothSessionTypesWithoutDuplicates(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        $agent = $this->seedFollowUpAgent();
+        $contact = \Kanvas\Guild\Customers\Models\Contact::factory()->create([
+            'peoples_id' => $lead->people_id,
+            'contacts_types_id' => \Kanvas\Guild\Customers\Enums\ContactTypeEnum::EMAIL->value,
+            'value' => 'session-test@example.com',
+        ]);
+        $action = new \Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction(
+            $contact,
+            $this->testApp,
+            ['agent_id' => $agent->getId()],
+            $lead
+        );
+        $first = $action->execute();
+        $second = $action->execute();
+        $this->assertTrue($first['success']);
+        $this->assertSame($first['channel_id'], $second['channel_id']);
+
+        foreach ([People::class => $lead->people_id, Lead::class => $lead->getId()] as $namespace => $id) {
+            $sessions = Session::query()->fromApp($this->testApp)->fromCompany($this->company)
+                ->where('entity_namespace', $namespace)->where('entity_id', $id)->get();
+            $this->assertCount(1, $sessions);
+            $channel = Channel::findOrFail($sessions->first()->channel_id);
+            $this->assertSame($namespace, $channel->entity_namespace);
+            $this->assertEquals($id, $channel->entity_id);
+        }
+    }
+
     public function testSkipsWhenNoSessionExists(): void
     {
         $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
@@ -573,6 +729,43 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertNotNull($event);
     }
 
+    // The test company has no Twilio sender route, which SendMessageToLeadAction reports as
+    // `success: false` instead of throwing — the shape every non-retryable provider rejection takes.
+    public function testProviderRejectionLeavesASendFailedLedgerRecord(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hello Maria, just checking in.',
+            reason: 'polite_check_in',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $event = Event::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('event_type', 'lead.follow_up.send_failed')
+            ->where('source_entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($event);
+        $this->assertSame('send_failed', $event->payload['reason']);
+        $this->assertSame('sms', $event->payload['channel']);
+        $this->assertStringContainsString('sender route is missing', $event->payload['error']);
+    }
+
     public function testSmsFollowUpOmitsOptOutNoticeWhenTheSmsChannelAlreadyHasAnOutbound(): void
     {
         $cfg = $this->defaultStageConfig();
@@ -581,7 +774,7 @@ class FollowUpLeadActionTest extends TestCase
         ];
         $lead = $this->seedLeadWithStageConfig($cfg);
         $this->seedSessionAndChannel($lead, 'sms');
-        $this->seedSmsChannelWithPriorOutbound($lead);
+        $smsChannel = $this->seedSmsChannelWithPriorOutbound($lead);
 
         FollowUpAgentStub::configure(
             shouldRespond: true,
@@ -599,6 +792,45 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
         $this->assertSame('Hello Maria, still interested?', $outcome->message);
+        $this->assertSame(1, $this->countMessagesOn($smsChannel, 'Hello Maria, still interested?'), 'The follow-up must land on the existing SMS channel.');
+    }
+
+    public function testFollowUpLandsOnTheChannelItWasSentThroughNotTheSessionChannel(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $emailSession = $this->seedSessionAndChannel($lead, 'email');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hello Maria, still interested?',
+            reason: 'polite_check_in',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+
+        $cellphone = (string) $lead->people->getCellPhones()->first()->value;
+        $smsChannel = Channel::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('slug', SessionChannelService::createChannelSlug('sms', $cellphone))
+            ->first();
+        $this->assertNotNull($smsChannel, 'A first SMS opens the SMS channel.');
+        $this->assertSame(People::class, $smsChannel->entity_namespace);
+        $this->assertSame((int) $lead->people_id, (int) $smsChannel->entity_id);
+        $this->assertSame(1, $this->countMessagesOn($smsChannel, (string) $outcome->message));
+        $this->assertSame(0, $this->countMessagesOn($emailSession->channel, (string) $outcome->message));
     }
 
     public function testNonSmsFollowUpNeverCarriesTheSmsOptOutNotice(): void
@@ -798,6 +1030,14 @@ class FollowUpLeadActionTest extends TestCase
         )->execute();
 
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+    }
+
+    private function countMessagesOn(Channel $channel, string $content): int
+    {
+        return Message::query()
+            ->where('message->content', $content)
+            ->whereHas('channels', fn ($q) => $q->where('channels.id', $channel->getId()))
+            ->count();
     }
 
     private function seedSmsChannelWithPriorOutbound(Lead $lead): Channel
@@ -1476,6 +1716,210 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertStringStartsWith('agent-composed body in template style', (string) $outcome->message);
     }
 
+    public function testALinkTemplateSendsTheLinkExactlyAsStored(): void
+    {
+        $link = 'https://apply.example.com/?a=1&b=2';
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks(['apply' => $link]);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: "I'm checking in",
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+        $this->assertStringStartsWith("I'm checking in\n" . $link, (string) $outcome->message);
+    }
+
+    public function testALinkTemplateWithNoLinkDoesNotSendAndCountsAsFailed(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks(null);
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::LINK_MISSING->value . ': apply', $outcome->reason);
+        $this->assertTrue(FollowUpFailureReasonEnum::isFailure((string) $outcome->reason));
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+        $this->assertSame(1, $this->leadNotesTagged($lead));
+    }
+
+    public function testALinkTemplateWithoutAnAgentMessageSlotStillSendsTheLink(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('Apply here: {{ follow_up_links.apply|raw }}');
+        $link = 'https://apply.example.com/?a=1&b=2';
+        $lead->setFollowUpLinks(['apply' => $link]);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Please use the application link.',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+        $this->assertStringStartsWith('Apply here: ' . $link, (string) $outcome->message);
+    }
+
+    public function testALinkTemplateWithoutAnAgentMessageSlotDoesNotSendWhenRenderingFails(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ follow_up_links.apply|raw }}{{ 1 / 0 }}');
+        $lead->setFollowUpLinks(['apply' => 'https://apply.example.com/']);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Please use the application link.',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::TEMPLATE_RENDER_FAILED->value, $outcome->reason);
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+        $this->assertSame(1, $this->leadNotesTagged($lead));
+    }
+
+    public function testACronRunDoesNotWriteANoteForAMissingLink(): void
+    {
+        [$lead] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::LINK_MISSING->value . ': apply', $outcome->reason);
+        $this->assertSame(0, $this->leadNotesTagged($lead));
+    }
+
+    public function testALinkTemplateThatFailsToRenderDoesNotSend(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}{{ 1 / 0 }}');
+        $lead->setFollowUpLinks(['apply' => 'https://apply.example.com/']);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'checking in',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+        $this->assertSame(FollowUpFailureReasonEnum::TEMPLATE_RENDER_FAILED->value, $outcome->reason);
+    }
+
+    public function testALinkTemplateMissingTheLinkItNamesDoesNotSendEvenWithOtherLinks(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks(['other' => 'https://other.example.com/']);
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::LINK_MISSING->value . ': apply', $outcome->reason);
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+    }
+
+    public function testATemplatePicksTheLinkItNames(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks([
+            'other' => 'https://other.example.com/',
+            'apply' => 'https://apply.example.com/',
+        ]);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'checking in',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertStringStartsWith("checking in\nhttps://apply.example.com/", (string) $outcome->message);
+        $this->assertStringNotContainsString('other.example.com', (string) $outcome->message);
+    }
+
+    public function testOnlySafeLinksAreStoredAndEachCallReplacesTheMap(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+
+        $lead->setFollowUpLinks([
+            'apply' => 'https://apply.example.com/',
+            'plain' => 'http://apply.example.com/',
+            'script' => 'javascript:alert(1)',
+            'bare' => 'https://',
+            'empty' => '',
+            'nested' => ['https://apply.example.com/'],
+            'bad key' => 'https://apply.example.com/',
+            'https://apply.example.com/',
+        ]);
+        $this->assertSame(['apply' => 'https://apply.example.com/'], $lead->getFollowUpLinks());
+
+        $lead->setFollowUpLinks(['form' => 'https://form.example.com/']);
+        $this->assertSame(['form' => 'https://form.example.com/'], $lead->getFollowUpLinks());
+
+        foreach ([null, 'https://apply.example.com/', []] as $notAMap) {
+            $lead->setFollowUpLinks(['form' => 'https://form.example.com/']);
+            $lead->setFollowUpLinks($notAMap);
+            $this->assertSame([], $lead->getFollowUpLinks());
+        }
+    }
+
+    /**
+     * @return array{0: Lead, 1: FollowUpLeadAction}
+     */
+    private function seedLinkTemplateFollowUp(string $body): array
+    {
+        $template = Templates::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'fup_link_' . uniqid(),
+            'title' => 'Link template',
+            'template' => $body,
+        ]);
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => $template->name],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        return [
+            $lead,
+            new FollowUpLeadAction(
+                app: $this->testApp,
+                company: $this->company,
+                lead: $lead,
+                agent: $this->seedFollowUpAgent(),
+                force: true,
+            ),
+        ];
+    }
+
+    private function leadNotesTagged(Lead $lead): int
+    {
+        return Message::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('message', 'like', '%Follow-up not sent%')
+            ->whereHas('channels', fn ($query) => $query->where('channels.entity_id', $lead->getId()))
+            ->count();
+    }
+
     public function testLastInboundIsFoundOnDifferentChannelThanPickedSession(): void
     {
         // Person has an inbound on channel A (email) from 30 min ago, but the
@@ -1529,6 +1973,58 @@ class FollowUpLeadActionTest extends TestCase
         )->execute();
 
         // 30 min of silence < 60 min interval → too_soon.
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('too_soon', $outcome->reason);
+    }
+
+    // Any touch restarts the interval, not just the customer's inbound: an agent reply or
+    // reach-out 30 min ago means the lead was just talked to.
+    public function testRecentOutboundMessageRestartsTheInterval(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['time_based'] = ['interval_minutes' => 60, 'advance_after_max_retries' => false];
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        $personChannel = Channel::firstOrCreate(
+            [
+                'apps_id' => $this->testApp->getId(),
+                'companies_id' => $this->company->getId(),
+                'slug' => 'recent-outbound-' . $lead->getId(),
+            ],
+            [
+                'name' => 'Person channel',
+                'description' => 'test',
+                'users_id' => $this->user->getId(),
+                'entity_namespace' => People::class,
+                'entity_id' => $lead->people_id,
+            ]
+        );
+        $messageType = MessageType::firstOrCreate(
+            ['apps_id' => $this->testApp->getId(), 'languages_id' => 1, 'verb' => 'text'],
+            ['name' => 'Text']
+        );
+        $message = Message::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['content' => 'agent reply', 'from_me' => true, 'from_ia' => true],
+            'created_at' => now()->subMinutes(30),
+            'updated_at' => now()->subMinutes(30),
+        ]);
+        $personChannel->addMessage($message);
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertSame('too_soon', $outcome->reason);
     }

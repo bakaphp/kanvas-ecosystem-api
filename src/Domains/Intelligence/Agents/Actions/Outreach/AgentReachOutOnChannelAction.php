@@ -9,12 +9,14 @@ use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnu
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
@@ -139,7 +141,13 @@ class AgentReachOutOnChannelAction
         $outbound = $createMessage->execute();
 
         $outbound->set('communicationChannel', $this->channelType);
-        $outbound->set('from_number', $this->from);
+        // SendDelayMessageCommand sends a held draft from this value, so it has to be the agent's number.
+        $outbound->set(
+            'from_number',
+            $this->channelType === LeadCommunicationChannelEnum::SMS->value
+                ? ($this->agent->smsPhoneNumber() ?? $this->from)
+                : $this->from
+        );
         $outbound->set('title', $emailSubject);
         // $channel is the master People channel. addMessage() handles the channel pivot;
         // the polymorphic People entity link (used by history loaders) needs an explicit
@@ -179,16 +187,18 @@ class AgentReachOutOnChannelAction
         // Deliver via the canonical Lead-level dispatcher (SMS/email/WhatsApp/voice),
         // unless the draft is held for human approval.
         if (! $outbound->isLocked()) {
-            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
-                channel: $this->channelType,
-                message: $responseText,
-                from: $this->from,
-                title: $emailSubject,
-                signature: false,
-                files: null,
-                to: $this->recipient,
-                fromAgent: $this->agent,
-            );
+            $providerResponse = new SendMessageToLeadAction($this->lead)
+                ->withEmailTemplate(AgentReachOutConfigEnum::EMAIL_TEMPLATE)
+                ->execute(
+                    channel: $this->channelType,
+                    message: $responseText,
+                    from: $this->from,
+                    title: $emailSubject,
+                    signature: false,
+                    files: null,
+                    to: $this->recipient,
+                    fromAgent: $this->agent,
+                );
             new StoreMessageSidAction($outbound)->execute($providerResponse);
         }
 

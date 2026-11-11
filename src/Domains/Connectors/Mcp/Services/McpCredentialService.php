@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mcp\Services;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mcp\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\Integrations;
 use Throwable;
@@ -27,12 +28,12 @@ class McpCredentialService
     }
 
     /**
-     * Only a grant stored with an expiry (OAuth) is refreshed. Decided by the stored credential, not the
-     * server's row: a server can offer both methods, and a pasted key must never reach a token endpoint.
+     * Only an OAuth grant is refreshed. Decided by the stored credential, not the server's row: a server
+     * can offer both methods, and a pasted key must never reach a token endpoint.
      */
     public function token(): ?string
     {
-        if ($this->expiresAt() !== null) {
+        if ($this->isOAuthGrant()) {
             return new McpOAuthService($this->agent, $this->integration)->accessToken();
         }
 
@@ -63,8 +64,20 @@ class McpCredentialService
     }
 
     /**
-     * A null keeps the stored value: a provider that does not rotate omits the refresh token on refresh.
-     * A new grant calls forget() first, so the previous grant's expiry cannot outlive it.
+     * An OAuth access token is a bearer token by definition (RFC 6750) and travels as one even on a
+     * server whose pasted key goes elsewhere — Apollo reads keys from `X-Api-Key` and OAuth tokens
+     * from `Authorization`. The expiry fallback covers credentials that carry no `auth` field: only an
+     * OAuth grant is ever stored with one.
+     */
+    public function isOAuthGrant(): bool
+    {
+        return $this->field('auth') === McpAuthEnum::OAUTH->value || $this->expiresAt() !== null;
+    }
+
+    /**
+     * A null keeps the stored value: a provider that does not rotate omits the refresh token on refresh,
+     * and a refresh never changes the method the grant was obtained with. A new grant calls forget()
+     * first, so the previous grant's expiry cannot outlive it.
      *
      * Workflows are off because every custom-field write fires CREATE_CUSTOM_FIELD, and refreshes write
      * hourly per agent per server — events no rule is waiting for.
@@ -73,7 +86,8 @@ class McpCredentialService
         ?string $accessToken,
         ?string $refreshToken = null,
         ?int $expiresIn = null,
-        ?string $serverUrl = null
+        ?string $serverUrl = null,
+        ?McpAuthEnum $method = null
     ): void {
         $credentials = $this->credentials();
 
@@ -92,6 +106,10 @@ class McpCredentialService
 
         if ($serverUrl !== null) {
             $credentials['server_url'] = $serverUrl;
+        }
+
+        if ($method !== null) {
+            $credentials['auth'] = $method->value;
         }
 
         $this->agent->disableWorkflows();

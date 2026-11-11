@@ -42,7 +42,7 @@ class AddLeadKanvasChatLinkNoteActivity extends KanvasActivity
                     ]);
                 }
 
-                $shortUrl = Url::getShortUrl($chatLink, $app);
+                $shortUrl = Url::getShortUrl($chatLink, $app, company: $lead->company);
                 $note = $app->name . ' Engage link created. Use it to message this lead: ' . $shortUrl;
 
                 $response = new DealerSocketWorkNoteService(

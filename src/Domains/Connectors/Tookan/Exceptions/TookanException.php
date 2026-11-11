@@ -11,7 +11,7 @@ class TookanException extends ValidationException
 {
     protected array $errorBody;
 
-    public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null, array $errorBody = [])
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, array $errorBody = [])
     {
         parent::__construct($message, $code, $previous);
         $this->errorBody = $errorBody;

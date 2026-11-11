@@ -69,8 +69,7 @@ class ImageConversionService
             $filesystemService = new FilesystemServices($app, $company);
             $storage = $filesystemService->getStorageByDisk();
 
-            // Get upload path from app config
-            $uploadPath = $app->get('cloud-bucket-path') ?? '/';
+            $uploadPath = $filesystemService->uploadPath();
 
             // Generate new filename with converted extension
             $originalName = Str::before(Str::before($filesystem->name, '?'), '#');

@@ -10,14 +10,17 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Quotes\Actions\SendQuoteAction;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Tests\Scribe\ScribeTestCase;
@@ -86,13 +89,11 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $quote = Quote::getById($result['quote_id']);
         $this->assertSame($contact->getId(), $quote->contact_people_id);
 
-        $sent = new SendQuoteTool()
-            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(quote_id: $quote->getId());
+        $sent = $this->markSent($quote->getId());
 
         $found = new FindQuoteTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(quote_number: $sent['quote_number']);
+            ->__invoke(quote_number: (string) $sent->quote_number);
 
         $this->assertTrue($found['found']);
         $this->assertSame('Jane Ashford', $found['contact'], 'find_quote must report who the quote is addressed to.');
@@ -186,7 +187,11 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->assertSame('lines_required', $result['reason']);
     }
 
-    public function test_send_quote_numbers_it_and_freezes_the_customer(): void
+    /**
+     * send_quote now delivers (Track K): with nobody to deliver to it asks instead of flipping the status,
+     * so the quote stays an unnumbered draft. Delivery itself is covered in tests/Scribe/Delivery.
+     */
+    public function test_send_quote_without_a_known_contact_asks_and_leaves_the_draft_unsent(): void
     {
         $this->seedTestOrganization('Sendable Inc');
         $created = $this->createQuote('Sendable Inc', [['description' => 'Work', 'unit_price' => 750.0]]);
@@ -195,11 +200,26 @@ class QuoteAgentToolsTest extends ScribeTestCase
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(quote_id: $created['quote_id']);
 
-        $this->assertTrue($sent['sent']);
-        $this->assertSame(QuoteStatusEnum::SENT->value, $sent['status']);
-        $this->assertNotEmpty($sent['quote_number']);
-        $this->assertSame('Sendable Inc', $sent['customer']);
-        $this->assertNotNull($sent['valid_until']);
+        $this->assertFalse($sent['sent']);
+        $this->assertSame('no_billing_contact', $sent['reason']);
+        $quote = Quote::getById($created['quote_id']);
+        $this->assertSame(QuoteStatusEnum::DRAFT, $quote->status);
+        $this->assertNull($quote->quote_number);
+    }
+
+    public function test_send_quote_on_a_deleted_customer_reports_it_instead_of_throwing(): void
+    {
+        $organization = $this->seedTestOrganization('Gone Co');
+        $created = $this->createQuote('Gone Co', [['description' => 'Work', 'unit_price' => 100.0]]);
+        $organization->softDelete();
+
+        $sent = new SendQuoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $created['quote_id']);
+
+        $this->assertFalse($sent['sent']);
+        $this->assertSame('customer_not_found', $sent['reason']);
+        $this->assertSame(QuoteStatusEnum::DRAFT, Quote::getById($created['quote_id'])->status);
     }
 
     /** A model that repeats itself must not renumber the quote the customer already has. */
@@ -208,12 +228,12 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->seedTestOrganization('Double Send Co');
         $created = $this->createQuote('Double Send Co', [['description' => 'Work', 'unit_price' => 100.0]]);
 
-        $tool = new SendQuoteTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
-        $first = $tool->__invoke(quote_id: $created['quote_id']);
-        $second = $tool->__invoke(quote_id: $created['quote_id']);
+        $first = $this->markSent($created['quote_id']);
+        $second = $this->markSent($created['quote_id']);
 
-        $this->assertTrue($second['sent']);
-        $this->assertSame($first['quote_number'], $second['quote_number']);
+        $this->assertSame(QuoteStatusEnum::SENT, $second->status);
+        $this->assertNotEmpty($first->quote_number);
+        $this->assertSame($first->quote_number, $second->quote_number);
     }
 
     public function test_quote_travels_from_draft_to_a_draft_invoice(): void
@@ -221,9 +241,7 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->seedTestOrganization('Full Journey Ltd');
         $created = $this->createQuote('Full Journey Ltd', [['description' => 'Project', 'unit_price' => 4000.0]]);
 
-        new SendQuoteTool()
-            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(quote_id: $created['quote_id']);
+        $this->markSent($created['quote_id']);
 
         $answered = new AnswerQuoteTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -243,6 +261,9 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $invoice = Invoice::getById($converted['invoice_id']);
         $this->assertSame(4000.0, (float) $invoice->total_native);
         $this->assertSame(QuoteStatusEnum::CONVERTED, Quote::getById($created['quote_id'])->status);
+        $this->assertSame($invoice->pendingApproval() !== null, $converted['pending_approval'], 'the draft reaches an approver when a policy applies');
+        $this->assertSame($created['quote_id'], (int) $invoice->quote_id);
+        $this->assertSame(Quote::getById($created['quote_id'])->lines()->count(), $invoice->lines()->count(), 'line by line');
     }
 
     public function test_an_unaccepted_quote_cannot_be_converted(): void
@@ -256,6 +277,138 @@ class QuoteAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($converted['converted']);
         $this->assertSame('invalid_transition', $converted['reason']);
+        $this->assertSame('draft', $converted['quote_status']);
+        $this->assertStringContainsString('answer_quote', $converted['message']);
+        $this->assertStringContainsString('Do not rebuild the quote with create_ar_invoice', $converted['message']);
+    }
+
+    public function test_a_never_sent_quote_the_customer_accepted_outside_kanvas_is_invoiced_from_the_quote(): void
+    {
+        $this->seedTestOrganization('Offline Yes Ltd');
+        $created = $this->createQuote('Offline Yes Ltd', [['description' => 'Project', 'unit_price' => 700.0]]);
+        $answer = new AnswerQuoteTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $refused = $answer->__invoke(quote_id: $created['quote_id'], accepted: true);
+        $this->assertFalse($refused['recorded']);
+        $this->assertSame('never_sent', $refused['reason']);
+        $this->assertSame(QuoteStatusEnum::DRAFT, Quote::getById($created['quote_id'])->status);
+
+        $answered = $answer->__invoke(quote_id: $created['quote_id'], accepted: true, accepted_outside_kanvas: true);
+        $this->assertTrue($answered['recorded']);
+        $this->assertSame(QuoteStatusEnum::ACCEPTED->value, $answered['status']);
+        $this->assertNotNull($answered['quote_number'], 'numbered as a sent quote is');
+
+        $converted = new ConvertQuoteToInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $created['quote_id']);
+
+        $this->assertTrue($converted['converted']);
+        $this->assertSame($created['quote_id'], (int) Invoice::getById($converted['invoice_id'])->quote_id);
+    }
+
+    public function test_create_ar_invoice_refuses_to_rebuild_an_open_quote(): void
+    {
+        $this->seedTestOrganization('Rebuild Corp');
+        $created = $this->createQuote('Rebuild Corp', [['description' => 'Design', 'unit_price' => 950.0]]);
+        $invoice = new CreateArInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $sameTotal = $invoice->__invoke(customer_name: 'Rebuild Corp', memo: 'Design work', amount: 950.0);
+        $this->assertFalse($sameTotal['created']);
+        $this->assertSame('invoice_from_quote', $sameTotal['reason']);
+        $this->assertSame($created['quote_id'], $sameTotal['quote_id']);
+        $this->assertStringContainsString('accepted_outside_kanvas', $sameTotal['message']);
+
+        $namedInMemo = $invoice->__invoke(customer_name: 'Rebuild Corp', memo: 'Quote 12 conversion', amount: 400.0);
+        $this->assertSame('invoice_from_quote', $namedInMemo['reason']);
+
+        $unrelated = $invoice->__invoke(customer_name: 'Rebuild Corp', memo: 'Hosting renewal', amount: 120.0);
+        $this->assertTrue($unrelated['created'], 'other work for a customer with an open quote is still invoiced');
+    }
+
+    /**
+     * The agent once hand-built the 50% deposit of a quote whose SOW schedule would have billed it on acceptance: the
+     * e-CF went out with no quote_id and the quote stayed a draft.
+     */
+    public function test_create_ar_invoice_refuses_to_hand_build_a_deposit_or_a_line_of_an_open_quote(): void
+    {
+        $this->seedTestOrganization('Cresa Clinic');
+        $created = $this->createQuote('Cresa Clinic', [
+            ['description' => 'Patient UI implementation', 'unit_price' => 15000.0, 'tax_amount' => 2700.0],
+            ['description' => 'Monthly cloud operations', 'unit_price' => 2500.0, 'tax_amount' => 450.0],
+        ]);
+        $quote = Quote::getById($created['quote_id']);
+        $sow = new GenerateQuoteSowTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(
+            quote_id: $quote->getId(),
+            summary: 'Patient portal on Kanvas.',
+            scope: ['Patient UI', 'Cloud operations'],
+            deliverables: [[
+                'name' => 'Portal',
+                'acceptance_criteria' => 'Live.',
+                'quote_line_ids' => $quote->lines->pluck('id')->all(),
+            ]],
+            timeline_start: '2026-11-09',
+            timeline_end: '2027-01-31',
+            payment_schedule: [
+                ['label' => 'Upfront implementation deposit (50%)', 'when' => 'on_signature', 'amount' => 8850],
+                ['label' => 'Implementation balance on handover', 'when' => 'date', 'date' => '2026-12-31', 'amount' => 8850],
+                ['label' => 'First month cloud retainer', 'when' => 'date', 'date' => '2027-01-01', 'amount' => 2950],
+            ],
+            signatories: [['name' => 'Jane Customer', 'role' => 'Director']],
+            render_pdf: false,
+        );
+        $this->assertTrue($sow['saved'], json_encode($sow));
+        $invoice = new CreateArInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $deposit = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'New UI implementation',
+            lines: [['description' => 'New UI implementation - first payment', 'unit_price' => 7500.0, 'tax_rate' => 18]],
+        );
+        $this->assertFalse($deposit['created'], 'the SOW schedule bills this amount on acceptance');
+        $this->assertSame('invoice_from_quote', $deposit['reason']);
+        $this->assertSame($quote->getId(), $deposit['quote_id']);
+        $this->assertStringContainsString('accepted_outside_kanvas', $deposit['message']);
+        $this->assertStringContainsString('payment schedule', $deposit['message']);
+
+        $namedDeposit = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'Portal work',
+            lines: [['description' => '50% deposit', 'unit_price' => 100.0, 'tax_rate' => 18]],
+        );
+        $this->assertSame('invoice_from_quote', $namedDeposit['reason'], 'a deposit of anything is a part of a quote');
+
+        $oneLine = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'Cloud operations, first month',
+            lines: [['description' => 'Cloud operations', 'unit_price' => 2500.0, 'tax_rate' => 18]],
+        );
+        $this->assertSame('invoice_from_quote', $oneLine['reason'], 'one quote line is still quoted work');
+
+        $unrelated = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'Hosting renewal',
+            lines: [['description' => 'Hosting renewal', 'unit_price' => 120.0, 'tax_rate' => 18]],
+        );
+        $this->assertTrue($unrelated['created'], 'other work for the customer is still invoiced');
+        $this->assertSame(0, Invoice::query()->where('quote_id', $quote->getId())->count(), 'nothing was hung off the draft quote');
+    }
+
+    public function test_create_ar_invoice_refuses_a_second_invoice_for_the_same_open_amount(): void
+    {
+        $this->seedTestOrganization('Twice Billed Co');
+        $invoice = new CreateArInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $first = $invoice->__invoke(customer_name: 'Twice Billed Co', memo: 'October services', amount: 1250.0);
+        $this->assertTrue($first['created']);
+
+        $second = $invoice->__invoke(customer_name: 'Twice Billed Co', memo: 'October services again', amount: 1250.0);
+        $this->assertFalse($second['created']);
+        $this->assertSame('duplicate_invoice', $second['reason']);
+        $this->assertSame($first['invoice_id'], $second['invoice_id']);
+        $this->assertStringContainsString('bills the customer twice', $second['message']);
+
+        $other = $invoice->__invoke(customer_name: 'Twice Billed Co', memo: 'Hosting', amount: 80.0);
+        $this->assertTrue($other['created'], 'a different amount is other work');
     }
 
     public function test_rejecting_a_quote_records_the_reason(): void
@@ -263,9 +416,7 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->seedTestOrganization('Said No Inc');
         $created = $this->createQuote('Said No Inc', [['description' => 'Project', 'unit_price' => 300.0]]);
 
-        new SendQuoteTool()
-            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(quote_id: $created['quote_id']);
+        $this->markSent($created['quote_id']);
 
         $answered = new AnswerQuoteTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -281,13 +432,11 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->seedTestOrganization('Findable SA');
         $created = $this->createQuote('Findable SA', [['description' => 'Work', 'unit_price' => 120.0]]);
 
-        $sent = new SendQuoteTool()
-            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(quote_id: $created['quote_id']);
+        $sent = $this->markSent($created['quote_id']);
 
         $found = new FindQuoteTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(quote_number: (string) $sent['quote_number']);
+            ->__invoke(quote_number: (string) $sent->quote_number);
 
         $this->assertTrue($found['found']);
         $this->assertSame($created['quote_id'], $found['quote_id']);
@@ -351,6 +500,16 @@ class QuoteAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['generated']);
         $this->assertSame('identifier_required', $result['reason']);
+    }
+
+    /**
+     * SENT as a precondition: the status-only path the UI's "mark as sent" uses, no delivery.
+     */
+    private function markSent(int $quoteId): Quote
+    {
+        $quote = Quote::getById($quoteId);
+
+        return new SendQuoteAction(quote: $quote, billable: $quote->customer, user: static::$cachedUser)->execute();
     }
 
     /**

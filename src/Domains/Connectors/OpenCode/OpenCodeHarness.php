@@ -87,11 +87,19 @@ class OpenCodeHarness implements CodingHarness
 
         $assistant = $this->ofType($page['messages'], 'assistant');
         $idle = $this->ofType($page['messages'], 'idle');
-        $currentTurnIdle = array_slice($idle, (int) $session->turn_offset);
+        $turnOffset = (int) $session->turn_offset;
+        $currentTurnIdle = array_slice($idle, $turnOffset);
         $questions = $this->mapForms($forms);
+        $error = $this->lastError($currentTurnIdle, $this->currentTurn($assistant, $idle, $turnOffset));
 
         return new HarnessTick(
-            status: $this->resolveStatus($assistant, $currentTurnIdle, $permissions, $questions),
+            status: $this->resolveStatus(
+                $assistant,
+                $currentTurnIdle,
+                $permissions,
+                $questions,
+                $error
+            ),
             usage: $this->sumUsage($assistant),
             narration: $this->narrationSince($assistant, $session->last_message_at),
             permissions: $this->mapPermissions($permissions),
@@ -99,7 +107,7 @@ class OpenCodeHarness implements CodingHarness
             modelsObserved: $this->modelsObserved($assistant),
             cursor: $page['cursor'],
             lastMessageAt: $this->newestMessageAt($assistant),
-            error: $this->lastError($currentTurnIdle),
+            error: $error,
             closedTurns: count($idle),
             lastSaid: $this->lastSaid($assistant),
         );
@@ -116,9 +124,26 @@ class OpenCodeHarness implements CodingHarness
     {
         $messages = [];
         $cursor = null;
+        $restarted = false;
 
         for ($pages = 0; $pages < self::MAX_MESSAGE_PAGES; $pages++) {
-            $page = $this->client->messages($sessionId, $cursor, self::MESSAGE_PAGE_SIZE);
+            try {
+                $page = $this->client->messages($sessionId, $cursor, self::MESSAGE_PAGE_SIZE);
+            } catch (HarnessTransportException $e) {
+                // A cursor only goes stale between two pages of one read, when the runtime compacted
+                // or restarted in the gap. The history is still there; it just has to be read from the
+                // top again. Once — a second InvalidCursorError is a real fault.
+                if ($restarted || ! self::isApiError($e, 'InvalidCursor')) {
+                    throw $e;
+                }
+
+                $restarted = true;
+                $messages = [];
+                $cursor = null;
+
+                continue;
+            }
+
             $messages = [...$messages, ...$page['messages']];
 
             if (count($page['messages']) < self::MESSAGE_PAGE_SIZE || $page['cursor'] === $cursor) {
@@ -170,7 +195,7 @@ class OpenCodeHarness implements CodingHarness
         } catch (HarnessTransportException $e) {
             // Answering twice is PermissionNotFoundError. Someone else decided first, which is a race
             // we tolerate rather than an error worth surfacing.
-            if (! str_contains($e->getMessage(), 'PermissionNotFound')) {
+            if (! self::isApiError($e, 'PermissionNotFound')) {
                 throw $e;
             }
         }
@@ -209,7 +234,14 @@ class OpenCodeHarness implements CodingHarness
             );
         }
 
-        $this->client->replyForm($sessionId, $questionId, [$keys[0] => $answer]);
+        try {
+            $this->client->replyForm($sessionId, $questionId, [$keys[0] => $answer]);
+        } catch (HarnessTransportException $e) {
+            // The form's twin of PermissionNotFound: somebody answered first, the session has moved on.
+            if (! self::isApiError($e, 'FormAlreadySettled')) {
+                throw $e;
+            }
+        }
     }
 
     #[Override]
@@ -305,7 +337,8 @@ class OpenCodeHarness implements CodingHarness
         array $assistant,
         array $idle,
         array $permissions,
-        array $questions
+        array $questions,
+        ?string $error
     ): HarnessStatusEnum {
         if ($permissions !== []) {
             return HarnessStatusEnum::AWAITING_PERMISSION;
@@ -315,7 +348,7 @@ class OpenCodeHarness implements CodingHarness
             return HarnessStatusEnum::AWAITING_ANSWER;
         }
 
-        if ($this->lastError($idle) !== null) {
+        if ($error !== null) {
             return HarnessStatusEnum::FAILED;
         }
 
@@ -470,11 +503,43 @@ class OpenCodeHarness implements CodingHarness
                 id: $id,
                 action: (string) ($permission['action'] ?? 'unknown'),
                 resources: is_array($resources) ? array_values(array_filter($resources, 'is_string')) : [],
-                callId: is_string($permission['source']['callID'] ?? null) ? $permission['source']['callID'] : null,
+                callId: $this->permissionCallId($permission),
             );
         }
 
         return $mapped;
+    }
+
+    /**
+     * The transport folds the API's `{_tag: "XError"}` body into the exception message, so the tag is
+     * the only stable thing to match on — status codes differ between the errors that mean "already
+     * decided" (404, 409) and the ones that mean "stop" (400).
+     */
+    private static function isApiError(HarnessTransportException $e, string $tag): bool
+    {
+        return str_contains($e->getMessage(), $tag);
+    }
+
+    /**
+     * `source.id` from 2.2.0; `source.callID` on 2.0.16.
+     *
+     * @param array<string, mixed> $permission
+     */
+    private function permissionCallId(array $permission): ?string
+    {
+        $source = $permission['source'] ?? null;
+
+        if (! is_array($source)) {
+            return null;
+        }
+
+        foreach (['id', 'callID'] as $key) {
+            if (is_string($source[$key] ?? null) && $source[$key] !== '') {
+                return $source[$key];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -516,13 +581,23 @@ class OpenCodeHarness implements CodingHarness
      * v2 ends every turn with an `idle` message carrying its outcome, so a failure is a fact on the
      * conversation rather than something inferred.
      *
+     * The idle message carries the error from 2.2.0 on; 2.0.16 left a bare `{outcome: "failed"}` idle and
+     * put the structured error — type, message, HTTP status — on the assistant message it ended
+     * (`finish: "error"`). Both are read, idle first, so an out-of-credits run never reads the same as
+     * any other failure on either version.
+     *
+     * `interrupted` is the outcome of a turn Kanvas itself cut short (the time or cost limit, a cancel):
+     * every caller that interrupts either stops polling or moves `turn_offset` past this idle, so it is
+     * reported like any other non-success here rather than special-cased on a guess about who did it.
+     *
      * It is still not the whole story: a provider that cannot be resolved never reaches the API at all
      * and appears only in the container log. Absence of an error here is not evidence of health — the
      * poller's wall clock is what catches the rest.
      *
-     * @param list<array<string, mixed>> $idle
+     * @param list<array<string, mixed>> $idle      the current turn's idle messages
+     * @param list<array<string, mixed>> $assistant the current turn's assistant messages
      */
-    private function lastError(array $idle): ?string
+    private function lastError(array $idle, array $assistant): ?string
     {
         $error = null;
 
@@ -533,11 +608,63 @@ class OpenCodeHarness implements CodingHarness
                 continue;
             }
 
-            $error = is_string($message['error']['message'] ?? null)
-                ? $message['error']['message']
-                : 'the run ended as "' . $outcome . '"';
+            $error = $this->describeError($message['error'] ?? null)
+                ?? $this->lastAssistantError($assistant)
+                ?? 'the run ended as "' . $outcome . '"';
         }
 
         return $error;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $assistant
+     */
+    private function lastAssistantError(array $assistant): ?string
+    {
+        foreach (array_reverse($assistant) as $message) {
+            $described = $this->describeError($message['error'] ?? null);
+
+            if ($described !== null) {
+                return $described;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * `Session.StructuredError`: `{type, message, status?, response?: {body}}`. The type and status are
+     * what tell a reader "out of credits" apart from "bad key" without opening the container log.
+     */
+    private function describeError(mixed $error): ?string
+    {
+        if (! is_array($error) || ! is_string($error['message'] ?? null) || $error['message'] === '') {
+            return null;
+        }
+
+        $prefix = implode(' ', array_filter([
+            is_string($error['type'] ?? null) ? $error['type'] : null,
+            is_int($error['status'] ?? null) ? '(HTTP ' . $error['status'] . ')' : null,
+        ]));
+
+        return $prefix === '' ? $error['message'] : $prefix . ': ' . $error['message'];
+    }
+
+    /**
+     * The messages after the idle that closed the previous turn. A resumed session's history still
+     * holds the turn its pause aborted, and that turn's errors are not this turn's.
+     *
+     * @param list<array<string, mixed>> $messages
+     * @param list<array<string, mixed>> $idle     every idle message, not just the current turn's
+     * @return list<array<string, mixed>>
+     */
+    private function currentTurn(array $messages, array $idle, int $turnOffset): array
+    {
+        $turnStartedAt = (int) ($idle[$turnOffset - 1]['time']['created'] ?? 0);
+
+        return array_values(array_filter(
+            $messages,
+            static fn (array $message): bool => (int) ($message['time']['created'] ?? 0) > $turnStartedAt
+        ));
     }
 }

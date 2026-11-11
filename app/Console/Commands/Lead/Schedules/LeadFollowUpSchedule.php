@@ -20,7 +20,7 @@ final class LeadFollowUpSchedule
      *   :00  DispatchLeadFollowUps         (per-tenant candidate scan + fan-out)
      *
      * ── Daily (UTC-anchored) ────────────────────────────────────────────
-     *   00:30 UTC  LeadFollowUpDailySummary (per-tenant rollup ledger event)
+     *   00:30 UTC  LeadFollowUpDailySummary (per-tenant rollup ledger event + email)
      *
      * Why 00:30 UTC for the daily? The action computes "yesterday" per
      * tenant timezone internally; a UTC fire at 00:30 still aggregates
@@ -38,7 +38,7 @@ final class LeadFollowUpSchedule
             ->onOneServer()
             ->runInBackground();
 
-        // Daily summary — fires once per (app, company) into the ledger.
+        // Daily summary — fires once per (app, company) into the ledger, then emails it.
         $schedule->command(LeadFollowUpDailySummaryCommand::class)
             ->dailyAt('00:30')
             ->withoutOverlapping(720)

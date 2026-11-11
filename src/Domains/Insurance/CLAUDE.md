@@ -93,7 +93,7 @@ Whatever the origin, everything reads the order through `ReadInsuranceOrderActio
 |---|---|---|
 | Bind the quote, send the customer, stamp premium/tax/total | `AttachInsuranceQuoteActivity` | order created |
 | Push inspection documents | `UploadInsuranceDocumentsActivity` | attach-file |
-| Report the payment we took | `ReportInsurancePaymentActivity` | card authorized |
+| Report the payment we took | `ReportInsurancePaymentActivity` | `after-payment-authorized` |
 | Emit the policy, capture the hold | `EmitInsurancePolicyActivity` | payment reported |
 | Invoice the policy | `InvoiceInsurancePolicyActivity` | policy emitted |
 | Build the PDF carnet | `GenerateInsuranceCarnetActivity` | policy invoiced (policy active) |
@@ -465,5 +465,5 @@ command only runs when given an `app_id`) and a re-run of `kanvas:insurance-setu
 
 ## Open items
 
-- Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. The 3DS challenge flow (`startPaymentChallengeWithCard`) marks a held payment `PAID`, so insurance orders must be paid through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`, or a failed emission will not release the hold.
+- Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. Azul's 3DS path (`startChallenge` / `finalizeChallenge`) now honours the hold: it resolves `use_hold` from the call context, then the payment's `metadata.use_hold` (stored by `addPaymentToOrder`), then `AZUL_USE_HOLD`, remembers it in `metadata.data.three_ds_use_hold` and leaves an approved held payment `AUTHORIZED` instead of `PAID`. PayWay and Stripe do not read `use_hold`. Not yet exercised against the Azul sandbox; until it is, the FE keeps paying insurance orders through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`.
 - None of the new activities has a workflow rule seeded; each env needs one per trigger. The per-rule table (event, required or optional, what breaks without it) and the per-environment steps live in [`DEPLOY.md`](DEPLOY.md); keep it in sync when an activity or setting is added.

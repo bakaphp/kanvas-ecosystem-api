@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
@@ -38,6 +39,8 @@ final class LedgerKnowledgeSource implements KnowledgeSource
         'plan.approved',
         'plan.task.completed',
         'lead.stage.changed',
+        'lead.status.changed',
+        'deal.status.changed',
         'lead.follow_up.sent',
     ];
 
@@ -172,17 +175,21 @@ final class LedgerKnowledgeSource implements KnowledgeSource
     private static function outcomeDetail(string $eventType, array $payload): ?string
     {
         return match ($eventType) {
-            'lead.stage.changed' => self::stageName((int) ($payload['to_stage_id'] ?? 0)),
+            'lead.stage.changed' => self::namedRecord(PipelineStage::class, (int) ($payload['to_stage_id'] ?? 0), 'moved to'),
+            'lead.status.changed', 'deal.status.changed' => self::namedRecord(LeadStatus::class, (int) ($payload['to_status_id'] ?? 0), 'marked'),
             'lead.follow_up.sent' => self::payloadLine($payload, ['reason']),
             default => null,
         };
     }
 
-    private static function stageName(int $stageId): ?string
+    /**
+     * @param class-string<Model> $model
+     */
+    private static function namedRecord(string $model, int $id, string $verb): ?string
     {
-        $name = $stageId > 0 ? PipelineStage::query()->find($stageId)?->name : null;
+        $name = $id > 0 ? $model::query()->find($id)?->getAttribute('name') : null;
 
-        return is_string($name) && trim($name) !== '' ? 'moved to ' . trim($name) : null;
+        return is_string($name) && trim($name) !== '' ? $verb . ' ' . trim($name) : null;
     }
 
     private static function sourceLabel(Event $event): ?string

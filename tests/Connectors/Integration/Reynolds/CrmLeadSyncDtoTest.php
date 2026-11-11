@@ -28,10 +28,7 @@ final class CrmLeadSyncDtoTest extends TestCase
                 'emails' => ['ana.perez@example.com'],
                 'address' => ['address' => '123 Calle Sol', 'address_2' => null, 'city' => 'San Juan', 'state' => 'PR', 'zip' => '00901'],
                 'consent' => [
-                    'text_opt_status' => 'OptedIn',
-                    'opt_out' => 'N',
-                    'opt_out_use' => 'N',
-                    'follow_up' => ['phone' => 'Y', 'mail' => 'N', 'email' => 'Y', 'text' => 'Y'],
+                    'opt_out' => ['email' => true, 'phone' => false],
                 ],
             ],
             'lead' => [
@@ -56,7 +53,8 @@ final class CrmLeadSyncDtoTest extends TestCase
         $this->assertSame('Perez', $data->customer->lastname);
         $this->assertSame('7875550103', $data->customer->phones->work);
         $this->assertSame('PR', $data->customer->address->state);
-        $this->assertSame('Y', $data->customer->consent->follow_up->email);
+        $this->assertTrue($data->customer->consent->opt_out->email);
+        $this->assertFalse($data->customer->consent->opt_out->phone);
 
         $this->assertSame('6', $data->lead->type->id, 'the CRM sends a number, the DTO holds a string');
         $this->assertSame('*Drove By', $data->lead->source->name);
@@ -65,6 +63,47 @@ final class CrmLeadSyncDtoTest extends TestCase
         $this->assertSame('Marco', $data->participants->add[0]->firstname);
         $this->assertSame('77', $data->participants->remove[0]->people_id);
         $this->assertSame(['rep.one@dealer.com'], $data->followers->attach);
+    }
+
+    /**
+     * Older extensions send `opt_out` as a string or a `follow_up` block. Neither is an error and
+     * neither opts anyone out.
+     */
+    public function testTheConsentAnOlderExtensionSendsIsIgnored(): void
+    {
+        $data = $this->build([
+            'customer' => [
+                'consent' => [
+                    'text_opt_status' => 'I',
+                    'opt_out' => 'Y',
+                    'opt_out_use' => 'N',
+                    'opt_out_share' => 'Y',
+                    'follow_up' => ['phone' => 'N', 'mail' => null, 'email' => 'Y', 'text' => 'Y'],
+                ],
+            ],
+        ]);
+
+        $this->assertNull($data->customer->consent->opt_out);
+        $this->assertFalse(property_exists($data->customer->consent, 'follow_up'));
+    }
+
+    public function testAMemberThatIsNotARealBooleanIsNotAnOptOut(): void
+    {
+        $data = $this->build(['customer' => ['consent' => ['opt_out' => ['email' => 'Y', 'phone' => 1]]]]);
+
+        $this->assertFalse($data->customer->consent->opt_out->email);
+        $this->assertFalse($data->customer->consent->opt_out->phone);
+    }
+
+    public function testAMissingChannelIsNotAnOptOut(): void
+    {
+        $partial = $this->build(['customer' => ['consent' => ['opt_out' => ['email' => true]]]]);
+        $empty = $this->build(['customer' => ['consent' => ['opt_out' => []]]]);
+
+        $this->assertTrue($partial->customer->consent->opt_out->email);
+        $this->assertFalse($partial->customer->consent->opt_out->phone);
+        $this->assertFalse($empty->customer->consent->opt_out->email);
+        $this->assertFalse($empty->customer->consent->opt_out->phone);
     }
 
     public function testOnlyTheIdentityIsRequired(): void

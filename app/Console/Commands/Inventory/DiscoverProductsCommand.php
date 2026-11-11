@@ -61,7 +61,7 @@ class DiscoverProductsCommand extends Command
         }
 
         $intent = ProductIntent::fromSentence($query, new IntentLexiconService($app));
-        $engine = new ProductDiscoveryResolver($app, $company)->isOnTypesense() ? 'typesense' : 'sql';
+        $engine = new ProductDiscoveryResolver($app, $company)->engine();
 
         $this->line("<comment>\"{$query}\"</comment>");
         $this->line(sprintf(

@@ -24,6 +24,8 @@ the one company setting is `$company->set()`; unset means the default.
 | `agent_summary_llm_model` (+ `agent_summary_llm_provider`) | app | `AgentRunConfigurationEnum::SUMMARY_MODEL` / `SUMMARY_PROVIDER` | none (agent's own provider) | a cheaper model writes history summaries, with the app's key |
 | `agent_summary_llm_config_id` | **company** | `AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG` | none | one of the company's LLM configs writes summaries; wins over the two app settings |
 | `agent_tool_search_enabled` | app | `AgentRunConfigurationEnum::TOOL_SEARCH` | **on** | `0` sends every granted tool and MCP toolkit on every round again; see "Tool search" below |
+| `agent_lead_summary_enabled` | app | `AgentRunConfigurationEnum::LEAD_SUMMARY` | **on** | `0` turns off the rolling coverage-tracked summary on a lead's rollup, caught up before the reply; `Guild/Leads/Summary/CLAUDE.md` |
+| `agent_lead_summary_keys` | app, or **company** (wins) | `AgentRunConfigurationEnum::LEAD_SUMMARY_KEYS` | none | facts the lead summary tracks beyond its generic sections, named after lead custom fields; `Guild/Leads/Summary/CLAUDE.md` |
 | `agent_gemini_thinking` | app | `AgentRunConfigurationEnum::GEMINI_THINKING` | model default | `minimal` / `low` / `medium` / `high` sets Gemini's `thinkingLevel` on every chat step, an integer sets `thinkingBudget`; thought tokens land in the step's usage as `reasoning_tokens`, so compare before and after on one agent |
 
 Add a row here whenever a new `*ConfigurationEnum` case lands.
@@ -99,6 +101,17 @@ stops searching and answers the same way. The count is read off the turn's `Tool
 distinct call id, because the registry keeps the first `tool_search` it is given (the middleware
 removes and re-adds it on every node) and a durable-run resume rebuilds the middleware.
 
+A hit is partial and says so. The search loads the top `topN` (5) of every tool that matched, and the
+only tools the model can see are the ones a search loaded, so it reported those as all it had: an
+agent holding nine `kias__*` tools answered "I have 5 KIAS tools", then 9 after a second search in
+the same turn, then 5 again on the next turn (2026-10-26, Hector's KIAS/Zoho/Gmail agents). Two
+things fix the inventory without loading more schemas: a hit appends "Showing 5 of 9 matches. Also
+matching, not loaded: …" with the unloaded names, so the model can search one by its exact name; and
+the middleware prompt carries `KanvasToolSearchMiddleware::poolSummary()` on every turn (the pool as
+`KanvasToolSearchTool::inventory()` lists it, toolkits as one line with a count, that a search is
+partial, and that loaded tools go away on the next user message). The summary is prompt text, not
+schemas, so it costs a few hundred tokens, not the 29K the pool exists to save.
+
 A pooled tool called by name without a search is a correct call, not a hallucination: the miss reply
 names every pooled tool, so the model will do exactly that. The middleware loads it on the `ToolNode`
 from the `ToolCallEvent`. The provider has already registered an `UnknownToolStub` for the name while
@@ -109,7 +122,7 @@ misses. And the search is lexical
 (`ToolSearchTool::search()`: name and description words, levenshtein), so a catalog tool with a vague
 description is unfindable; the class `$description` is what the model searches, not the catalog row.
 `ToolSearchOnAgentTest` covers the split, the next-round call, the blind call and the switch;
-`ToolSearchMissTest` the miss reply, the cap and the per-turn reset.
+`ToolSearchMissTest` the miss reply, the partial hit, the pool summary, the cap and the per-turn reset.
 
 ## Thread id: mandatory, and the kernel chooses it
 
@@ -192,7 +205,13 @@ real hook, and only `ConversationMessageStore` implements it (`archived_at`).
   `summary` verb) on the session channel and entity, with the covered id range, `archived_count` and the
   token counts before and after. That write never fails the turn.
 - `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
-  skips it, so a customer-facing agent never replays the agent's own compaction note.
+  skips it, so a customer-facing agent never replays the agent's own compaction note. Three more
+  readers skip it through `AgentChannelActivity::isCompactionNote()`: `MessageObserver` never parses
+  it for mentions (it quotes the thread, handles included, so it woke the PM that wrote it with its own
+  summary, which summarized and posted again, six hops per human comment on project 23),
+  `agentPostedSince()` does not count it as the agent having answered (it swallowed the real reply on
+  every wake that compacted), and `ProjectContextService` leaves it out of the bundle. A new place
+  that reads channel rows as agent history or as "did the agent speak" uses the same predicate.
 - The summary prompt is Kanvas's own (`KanvasSummarization::SUMMARY_PROMPT`). Neuron's default asks
   for "action items or next steps", and a PM reading its own summary after a compaction executed them
   again. Ours records done work as done with its ids, lists only open requests the person actually
@@ -239,14 +258,13 @@ audience scope above, and its `ConversationIngestionNode` writes no tenant metad
 knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`. The
 reverse holds too: `TypesenseKnowledgeStore::search()` reads through `KnowledgeScope::knowledgeFilter()`,
 which leaves those kinds out, because an organization-wide knowledge read would otherwise return every
-user's turns in the company with no audience scope at all. Within the knowledge read, `KnowledgeRetrieval::rank()`
-fills the slots with the agent's own documents first and the record's rows second, and never returns
-the inbound question to itself: a record's messages repeat the words of the question and are already
-the agent's history through the rollup store, and ranked by raw score they pushed a dealership's lot
-guide (0.75) out of the top eight on "what's your address?" (Shepard Auto, 2026-10-06).
-`LeadKnowledgeSource::isIndexable()` keeps the agent's private rows out of a lead's knowledge in the
-first place: tool calls and results, summaries, notes, anything not public, and any payload whose only
-rendering is its raw JSON. A turn is written through
+user's turns in the company with no audience scope at all. The knowledge read is the agent's own
+documents plus the company's (two searches, `KnowledgeScope::documentFilter()`), never another agent's
+files, plus the record's cards for a customer-facing agent only. `KnowledgeRetrieval::rank()` gives the
+documents the first slots: ranked by raw score, a lead's indexed messages repeated the words of the
+question and pushed a dealership's lot guide (0.75) out of the top eight (Shepard Auto, 2026-10-06 and
+2026-11-05). A lead's messages are no longer indexed at all (`LeadKnowledgeSource` builds cards only);
+the rolling lead summary keeps what the window drops. A turn is written through
 `ConversationMemoryNode::transcript()`, live and from the reindex sweep alike, which drops a `NO_UPDATE`
 reply and strips `AgentTurnResponse::noOpGuidance()` from the human side: recalled with the guidance in
 it, a stored agent-to-agent turn told a later turn to answer a human with `NO_UPDATE`.
@@ -331,10 +349,16 @@ refuse new chats on its thread until `abandon()`. Renaming a tool strands any ru
 v4's `ToolNode` skips a call only when an approval policy rejected it, so there is no hook that says
 "don't run this one". `BoundToolResultsMiddleware::beforeAgentNode` therefore replaces the tool in
 `$resources->tools` with a `RefusedToolStub` that answers `NOT_EXECUTED`; the node runs the stub and
-the model is told, truthfully, that the call did not happen. `afterAgentNode` bounds the trailing
-`ToolResultMessage` in the history by character budget. The middleware is stateless on purpose: it
+the model is told, truthfully, that the call did not happen. The middleware is stateless on purpose: it
 derives "spent this turn" from the history, so a fresh instance per node sees the same budget.
-Registered once on `ToolNode::class`; `ParallelToolNode` extends it and matches by `instanceof`.
+Registered once on `ToolNode::class`; a subclass matches by `instanceof`.
+
+The output cut is not middleware. Since 4.1.17 `ToolNode` writes the `ToolResultMessage` to the history
+as soon as the batch settles and clears `$state->request->messages`, so an `afterAgentNode` runs too late
+and finds nothing to cut. `BoundedToolNode` overrides `addToChatHistory()` and calls
+`BoundToolResultsMiddleware::bound()` before the write; `HasKanvasAgentBehavior::nodes()` swaps it in.
+`ParallelToolNode` and `AwaitToolResultsNode` write results on their own path and are not bounded, which
+is safe only while nothing enables parallel calls or deferred tools.
 
 ## Two provider overrides v4 still needs
 

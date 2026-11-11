@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingSetupCheck;
+use Kanvas\Connectors\OpenCode\Services\CodingHostToolsService;
 use Kanvas\Connectors\OpenCode\Services\CodingRuntimeReadinessService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -38,7 +40,7 @@ class CheckHarnessCodingSetupTool extends Tool implements RequiresSystemAgent
     protected string $name = 'check_self_hosted_coding_setup';
 
     protected ?string $description = 'Check whether you can actually run coding jobs, and what is missing if you '
-        . 'cannot: the git token, the machine, the runtime image, the provider and model, and '
+        . 'cannot: the git token, the machine, the runtime, the provider and model, and '
         . 'the API key. Use it before the first job on a new setup, whenever a job fails for a '
         . 'reason that sounds like configuration, and whenever someone asks if you are ready to '
         . 'code. Report what it names verbatim — each item says which setting and who sets it.';
@@ -59,9 +61,9 @@ class CheckHarnessCodingSetupTool extends Tool implements RequiresSystemAgent
             new ToolProperty(
                 name: 'check_machine',
                 type: PropertyType::BOOLEAN,
-                description: 'Also check the machine itself — docker, disk permissions, whether the image '
-                    . 'is built there. Slower (one ssh round trip). Default true; pass false for a quick '
-                    . 'settings-only answer.',
+                description: 'Also check the machine itself — the runtime, disk permissions, whether the '
+                    . 'pinned opencode is there. Slower (one ssh round trip). Default true; pass false '
+                    . 'for a quick settings-only answer.',
                 required: false,
             ),
         ];
@@ -78,6 +80,7 @@ class CheckHarnessCodingSetupTool extends Tool implements RequiresSystemAgent
             $checks = $readiness->checksForAgent($this->agent);
             $problems = $readiness->failures($checks);
             $machine = $readiness->machineFor($this->agent, $problems);
+            $summary = $this->machineSummary($machine);
 
             if (($check_machine ?? true) && $machine !== null) {
                 $problems = [...$problems, ...$readiness->hostProblems($machine, $this->agent->app)];
@@ -104,16 +107,17 @@ class CheckHarnessCodingSetupTool extends Tool implements RequiresSystemAgent
 
         if ($problems === []) {
             return $this->ok(
-                ['ready' => true, 'machine' => $machine?->name, 'settings' => $settings],
+                ['ready' => true, 'machine' => $summary, 'settings' => $settings],
                 guidance: 'Everything needed is configured. Dispatch the work rather than asking anyone '
-                    . 'to check anything.'
+                    . 'to check anything. `machine.host_tools` says what the machine can build (`xcode` '
+                    . 'means iOS/macOS builds and the Simulator) — promise those only when listed.'
             );
         }
 
         return $this->noop(
             [
                 'ready' => false,
-                'machine' => $machine?->name,
+                'machine' => $summary,
                 'missing' => $problems,
                 'settings' => $settings,
                 'needs_administrator' => $needsAdmin,
@@ -125,5 +129,21 @@ class CheckHarnessCodingSetupTool extends Tool implements RequiresSystemAgent
                 . 'server access runs. `settings` shows what IS configured, so use it to say how far '
                 . 'along they are instead of only what is broken. Do not dispatch until it is resolved.'
         );
+    }
+
+    /**
+     * @return array{name: string, runtime: string, host_tools: list<string>}|null
+     */
+    private function machineSummary(?AgentMachine $machine): ?array
+    {
+        if ($machine === null) {
+            return null;
+        }
+
+        return [
+            'name' => (string) $machine->name,
+            'runtime' => $machine->runtimeMode()->value,
+            'host_tools' => CodingHostToolsService::forMachine($machine),
+        ];
     }
 }

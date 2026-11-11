@@ -104,7 +104,12 @@ class ScribeFollowUpActionsTest extends TestCase
                 billable: $billable,
                 lines: new DataCollection(InvoiceLineData::class, [
                     new InvoiceLineData(description: 'New A', quantity: 1, unit_price_native: 250.0),
-                    new InvoiceLineData(description: 'New B', quantity: 1, unit_price_native: 75.0, tax_amount_native: 13.5),
+                    new InvoiceLineData(
+                        description: 'New B',
+                        quantity: 1,
+                        unit_price_native: 75.0,
+                        tax_amount_native: 13.5,
+                    ),
                 ]),
                 currency: 'USD',
                 fx_rate_to_base: 1.0,
@@ -315,14 +320,14 @@ class ScribeFollowUpActionsTest extends TestCase
         $this->assertSame('2026-08-15', $amended->due_date->format('Y-m-d'));
         $this->assertSame('Approved by Maria', $amended->internal_notes);
 
-        $amendments = $amended->metadata['amendments'] ?? [];
+        $amendments = $amended->amendmentHistory();
         $this->assertCount(1, $amendments);
-        $this->assertSame('Customer requested 15-day extension', $amendments[0]['reason']);
+        $this->assertSame('Customer requested 15-day extension', $amendments[0]->reason);
         $this->assertSame(
             $originalDueDate?->format('Y-m-d'),
-            $amendments[0]['changes']['due_date']['from'] ?? null,
+            $amendments[0]->changes['due_date']['from'] ?? null,
         );
-        $this->assertSame('2026-08-15', $amendments[0]['changes']['due_date']['to']);
+        $this->assertSame('2026-08-15', $amendments[0]->changes['due_date']['to']);
     }
 
     public function test_amend_invoice_rejected_on_draft(): void

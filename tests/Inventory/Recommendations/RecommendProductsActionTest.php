@@ -16,7 +16,10 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Actions\RecommendProductsAction;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQuery;
+use Kanvas\Inventory\Recommendations\Discovery\NumericFilter;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryResolver;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -25,12 +28,15 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 class RecommendProductsActionTest extends TestCase
 {
     use DatabaseTransactions;
+    use ManagesAppSettings;
 
     protected $connectionsToTransact = [null, 'inventory'];
 
@@ -309,7 +315,17 @@ class RecommendProductsActionTest extends TestCase
         $engine = new class () implements ProductDiscoveryInterface {
             public bool $called = false;
 
-            public function search(ProductIntent $intent, int $limit, ?array $tasteVector = null): array
+            public function supportsVectors(): bool
+            {
+                return false;
+            }
+
+            public function canFilterOn(string $field): bool
+            {
+                return false;
+            }
+
+            public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
             {
                 $this->called = true;
 
@@ -334,7 +350,17 @@ class RecommendProductsActionTest extends TestCase
             {
             }
 
-            public function search(ProductIntent $intent, int $limit, ?array $tasteVector = null): array
+            public function supportsVectors(): bool
+            {
+                return false;
+            }
+
+            public function canFilterOn(string $field): bool
+            {
+                return false;
+            }
+
+            public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
             {
                 $this->calls++;
 
@@ -364,7 +390,17 @@ class RecommendProductsActionTest extends TestCase
             {
             }
 
-            public function search(ProductIntent $intent, int $limit, ?array $tasteVector = null): array
+            public function supportsVectors(): bool
+            {
+                return false;
+            }
+
+            public function canFilterOn(string $field): bool
+            {
+                return false;
+            }
+
+            public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
             {
                 $this->calls++;
 
@@ -389,7 +425,17 @@ class RecommendProductsActionTest extends TestCase
         $product->saveQuietly();
 
         $failing = new class () implements ProductDiscoveryInterface {
-            public function search(ProductIntent $intent, int $limit, ?array $tasteVector = null): array
+            public function supportsVectors(): bool
+            {
+                return false;
+            }
+
+            public function canFilterOn(string $field): bool
+            {
+                return false;
+            }
+
+            public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
             {
                 throw new RuntimeException('typesense unreachable');
             }
@@ -407,6 +453,162 @@ class RecommendProductsActionTest extends TestCase
         $this->assertSame($product->getId(), $result[0]['product']['id']);
     }
 
+    public function testReturnsOnlyTheVariantsThatSatisfyTheBudget(): void
+    {
+        [$app, $company] = $this->tenantWithChannels();
+        $product = $this->makeProduct($app, $company, 'Toyota RAV4');
+        $cheap = $product->variants()->firstOrFail();
+        $dear = $this->extraVariant($product);
+        $this->makeBuyable(
+            $app,
+            $company,
+            $product,
+            15000.0,
+            $cheap
+        );
+        $this->makeBuyable(
+            $app,
+            $company,
+            $product,
+            35000.0,
+            $dear
+        );
+
+        $intent = $this->intentFor($app, 'an SUV')->withOverrides(maxPrice: 20000.0);
+        $result = new RecommendProductsAction($app, $company, $this->engineReturning([$product->getId()]))
+            ->executeIntent($intent);
+
+        $this->assertCount(1, $result);
+        $this->assertSame([$cheap->getId()], array_column($result[0]['variants'], 'id'), 'The over-budget sibling must never reach the agent.');
+    }
+
+    #[Group('serial')]
+    public function testExcludesAProductWhosePriceAndMileageMatchOnDifferentVariants(): void
+    {
+        [$app, $company] = $this->tenantWithChannels();
+
+        $this->withMileageConfigured(function () use ($app, $company): void {
+            $product = $this->makeProduct($app, $company, 'Honda CRV');
+            $cheapHighMiles = $product->variants()->firstOrFail();
+            $dearLowMiles = $this->extraVariant($product);
+            $this->makeBuyable(
+                $app,
+                $company,
+                $product,
+                15000.0,
+                $cheapHighMiles
+            );
+            $this->makeBuyable(
+                $app,
+                $company,
+                $product,
+                35000.0,
+                $dearLowMiles
+            );
+            $cheapHighMiles->addAttributes(auth()->user(), [['name' => 'Mileage', 'value' => '120,000 mi']]);
+            $dearLowMiles->addAttributes(auth()->user(), [['name' => 'Mileage', 'value' => '40000']]);
+
+            $intent = $this->intentFor($app, 'an SUV')->withOverrides(
+                maxPrice: 20000.0,
+                numericFilters: [new NumericFilter('mileage', max: 100000.0)],
+            );
+
+            $result = new RecommendProductsAction($app, $company, $this->engineReturning([$product->getId()]))
+                ->executeIntent($intent);
+
+            $this->assertSame([], $result, 'A cheap variant and a low-mileage variant are not one car.');
+
+            $relaxed = new RecommendProductsAction($app, $company, $this->engineReturning([$product->getId()]))
+                ->executeIntent($intent->withOverrides(maxPrice: 40000.0));
+
+            $this->assertSame(
+                [$dearLowMiles->getId()],
+                array_column($relaxed[0]['variants'] ?? [], 'id'),
+                'With the budget relaxed, the low-mileage variant alone qualifies — proving the mileage values were read.',
+            );
+        });
+    }
+
+    #[Group('serial')]
+    public function testSqlFallbackNeverReturnsAVehicleOverTheMileageLimit(): void
+    {
+        [$app, $company] = $this->tenantWithChannels();
+
+        $this->withMileageConfigured(function () use ($app, $company): void {
+            $low = $this->makeProduct($app, $company, 'Zyxwv Explorer low');
+            $high = $this->makeProduct($app, $company, 'Zyxwv Explorer high');
+            $low->addAttributes(auth()->user(), [['name' => 'Mileage', 'value' => '62000']]);
+            $high->addAttributes(auth()->user(), [['name' => 'Mileage', 'value' => '150000']]);
+
+            // The SQL fallback knows nothing about numeric attributes; the DB recheck must.
+            $intent = $this->intentFor($app, 'zyxwv explorer')->withOverrides(numericFilters: [new NumericFilter('mileage', max: 100000.0)]);
+            $result = new RecommendProductsAction($app, $company, $this->resolverFallback($app, $company))
+                ->executeIntent($intent);
+
+            $this->assertSame([$low->getId()], array_column(array_column($result, 'product'), 'id'));
+        });
+    }
+
+    public function testDifferentStructuredFiltersNeverShareACacheEntry(): void
+    {
+        $app = app(Apps::class);
+        $company = Companies::factory()->create();
+        $product = $this->makeProduct($app, $company);
+
+        $engine = new class ([$product->getId()]) implements ProductDiscoveryInterface {
+            public int $calls = 0;
+
+            public function __construct(private readonly array $ids)
+            {
+            }
+
+            public function supportsVectors(): bool
+            {
+                return false;
+            }
+
+            public function canFilterOn(string $field): bool
+            {
+                return false;
+            }
+
+            public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
+            {
+                $this->calls++;
+
+                return $this->ids;
+            }
+        };
+
+        $action = new RecommendProductsAction($app, $company, $engine);
+        $action->executeIntent($this->intentFor($app, 'SUV')->withOverrides(maxPrice: 50000.0));
+        $action->executeIntent($this->intentFor($app, 'SUV')->withOverrides(maxPrice: 20000.0));
+
+        $this->assertSame(2, $engine->calls, '"SUV" under $50k and under $20k are different searches.');
+    }
+
+    private function intentFor(Apps $app, string $sentence): ProductIntent
+    {
+        return ProductIntent::fromSentence($sentence, new IntentLexiconService($app));
+    }
+
+    private function extraVariant(Products $product): Variants
+    {
+        /** @var Variants $variant */
+        $variant = Variants::factory()->withProductId($product->getId())->create(['is_deleted' => 0]);
+
+        return $variant;
+    }
+
+    private function withMileageConfigured(callable $test): void
+    {
+        $this->setAppSettings([
+            ConfigurationEnum::NUMERIC_ATTRIBUTES->value => ['mileage' => ['attribute' => 'Mileage', 'unit' => 'mi']],
+        ]);
+
+        $test();
+    }
+
     private function resolverFallback(Apps $app, Companies $company): ProductDiscoveryInterface
     {
         return new ProductDiscoveryResolver($app, $company)->fallback();
@@ -422,7 +624,17 @@ class RecommendProductsActionTest extends TestCase
             {
             }
 
-            public function search(ProductIntent $intent, int $limit, ?array $tasteVector = null): array
+            public function supportsVectors(): bool
+            {
+                return false;
+            }
+
+            public function canFilterOn(string $field): bool
+            {
+                return false;
+            }
+
+            public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
             {
                 return $this->ids;
             }
@@ -447,10 +659,15 @@ class RecommendProductsActionTest extends TestCase
         return [$app, $company];
     }
 
-    private function makeBuyable(Apps $app, Companies $company, Products $product): void
-    {
+    private function makeBuyable(
+        Apps $app,
+        Companies $company,
+        Products $product,
+        float $price = 25.00,
+        ?Variants $variant = null
+    ): void {
         /** @var Variants $variant */
-        $variant = $product->variants()->where('is_deleted', 0)->firstOrFail();
+        $variant ??= $product->variants()->where('is_deleted', 0)->firstOrFail();
 
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->firstOrFail();
         $channel = Channels::getDefault($company, $app);
@@ -462,7 +679,7 @@ class RecommendProductsActionTest extends TestCase
             ],
             [
                 'quantity' => 5,
-                'price' => 25.00,
+                'price' => $price,
                 'sku' => $variant->sku ?? 'SKU-' . fake()->unique()->uuid(),
                 'position' => 1,
                 'is_default' => 1,
@@ -477,7 +694,7 @@ class RecommendProductsActionTest extends TestCase
             [
                 'products_variants_id' => $variant->getId(),
                 'warehouses_id' => $warehouse->getId(),
-                'price' => 25.00,
+                'price' => $price,
                 'discounted_price' => 0,
                 'is_published' => 1,
             ],

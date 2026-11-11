@@ -10,10 +10,13 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
 use Kanvas\Connectors\Intras\Mappers\OrganizationMapper;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
+use Kanvas\Connectors\Intras\Support\LegacyIdMap;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
+use stdClass;
 use Throwable;
 
 class PullOrganizationsFromIntrasAction
@@ -21,12 +24,16 @@ class PullOrganizationsFromIntrasAction
     /** @var array<string, int>|null lowercased country name => kanvas countries.id */
     protected ?array $countryIdByName = null;
 
+    /**
+     * @param list<int>|null $onlyCompanyIds pull just these legacy companies (on-demand refresh)
+     */
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
         protected UserInterface $user,
         protected ?string $lastSyncAt = null,
-        protected ?int $agencyId = null
+        protected ?int $agencyId = null,
+        protected ?array $onlyCompanyIds = null
     ) {
     }
 
@@ -58,6 +65,10 @@ class PullOrganizationsFromIntrasAction
             $query->where('co.updated_at', '>=', $this->lastSyncAt);
         }
 
+        if ($this->onlyCompanyIds !== null) {
+            $query->whereIn('co.id', $this->onlyCompanyIds);
+        }
+
         $count = 0;
 
         $lookupNames = self::loadLookupNames($client);
@@ -68,7 +79,9 @@ class PullOrganizationsFromIntrasAction
             ->map(fn ($name) => trim((string) $name))
             ->all();
 
-        $query->orderBy('co.id')->chunk(500, function ($rows) use (&$count, $client, $lookupNames, $companyNames) {
+        $legacyIdMap = LegacyIdMap::load(Organization::class, CustomFieldEnum::INTRAS_COMPANY_ID, $this->company);
+
+        $query->orderBy('co.id')->chunk(500, function ($rows) use (&$count, $client, $lookupNames, $companyNames, &$legacyIdMap) {
             $legacyIds = array_map(fn ($r) => (int) $r->id, $rows->all());
             $customFieldMap = self::loadCompanyCustomFields($client, $legacyIds);
             $officeMap = self::loadOfficesByCompany($client, $legacyIds);
@@ -81,13 +94,11 @@ class PullOrganizationsFromIntrasAction
                     $companyNames,
                 );
 
-                $org = Organization::firstOrCreate([
-                    'name' => $mapped['name'],
-                    'companies_id' => $this->company->getId(),
-                    'apps_id' => $this->app->getId(),
-                ], [
-                    'users_id' => $this->user->getId(),
-                ]);
+                $org = $this->resolveOrganization($row, $mapped['name'], $legacyIdMap);
+                // An import is not an edit: every set() below would otherwise fire CREATE_CUSTOM_FIELD
+                // into the SIPGO sync rules (docs/sipgo/sipgo-push-back-spec.md).
+                $org->disableWorkflows();
+                $legacyIdMap[(int) $row->id] = $org->getId();
 
                 $org->set(CustomFieldEnum::INTRAS_COMPANY_ID->value, $row->id);
 
@@ -109,6 +120,38 @@ class PullOrganizationsFromIntrasAction
         });
 
         return $count;
+    }
+
+    /**
+     * By SIPGO id first, so an Organization renamed in Kanvas is updated rather than re-created
+     * under its old SIPGO name; by name only for a company never pulled before.
+     *
+     * @param array<int, int> $legacyIdMap
+     */
+    protected function resolveOrganization(stdClass $row, string $name, array $legacyIdMap): Organization
+    {
+        $organizationId = $legacyIdMap[(int) $row->id] ?? null;
+
+        if ($organizationId !== null) {
+            /** @var Organization|null $existing */
+            $existing = Organization::query()
+                ->where('id', $organizationId)
+                ->fromApp($this->app)
+                ->fromCompany($this->company)
+                ->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
+
+        return Organization::firstOrCreate([
+            'name' => $name,
+            'companies_id' => $this->company->getId(),
+            'apps_id' => $this->app->getId(),
+        ], [
+            'users_id' => $this->user->getId(),
+        ]);
     }
 
     /**
@@ -246,25 +289,6 @@ class PullOrganizationsFromIntrasAction
      */
     public static function loadCompanyCustomFields(Client $client, array $companyIds): array
     {
-        if ($companyIds === []) {
-            return [];
-        }
-
-        $rows = $client->table('companies_custom_fields as ccf')
-            ->join('custom_fields as cf', 'cf.id', '=', 'ccf.custom_fields_id')
-            ->whereIn('ccf.companies_id', $companyIds)
-            ->whereIn('cf.name', OrganizationMapper::customFieldNames())
-            ->whereNotNull('ccf.value')
-            ->where('ccf.value', '!=', '')
-            ->select('ccf.companies_id', 'cf.name', 'ccf.value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->companies_id][(string) $row->name] = (string) $row->value;
-        }
-
-        return $map;
+        return SipgoEntityEnum::COMPANY->loadCustomFields($client, $companyIds, OrganizationMapper::customFieldNames());
     }
 }

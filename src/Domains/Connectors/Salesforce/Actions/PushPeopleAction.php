@@ -10,6 +10,7 @@ use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\DataTransferObject\SalesforceContact;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Models\Organization;
 
 class PushPeopleAction
 {
@@ -26,7 +27,9 @@ class PushPeopleAction
             $people = People::where('id', $this->people->id)->lockForUpdate()->firstOrFail();
             $company = $people->company;
 
-            $organization = $people->organizations()->first();
+            // A Contact without an AccountId lands in Salesforce as a private contact nobody on the
+            // account team sees, so an unlinked person is matched by email domain before the push.
+            $organization = $people->organizations()->first() ?? $this->organizationFromEmailDomain($people);
             if ($organization !== null && ! $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value)) {
                 new PushOrganizationAction($organization)->execute();
                 $organization->refresh();
@@ -44,5 +47,12 @@ class PushPeopleAction
                 $data,
             );
         });
+    }
+
+    private function organizationFromEmailDomain(People $people): ?Organization
+    {
+        $matches = Organization::linkPersonByEmailDomain($people);
+
+        return $matches->count() === 1 ? $matches->first() : null;
     }
 }

@@ -51,6 +51,7 @@ class FacilitatorSearchTool extends Tool
             new ToolProperty(name: 'aliado', type: PropertyType::STRING, description: 'Aliado / marca.', required: false),
             new ToolProperty(name: 'historial', type: PropertyType::BOOLEAN, description: 'true para incluir las asignaciones del facilitador.', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Máximo de facilitadores. Por defecto 25.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -64,8 +65,13 @@ class FacilitatorSearchTool extends Tool
         ?string $pais = null,
         ?string $aliado = null,
         ?bool $historial = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('facilitator search');
         }
@@ -95,7 +101,7 @@ class FacilitatorSearchTool extends Tool
             $facilitators = $service->search(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->auditedReadScope(),
                 $filters,
                 select: ['facilitator_id', 'nombre_completo', 'estatus', 'aliado', 'pais', 'email', 'temas', 'idiomas', 'total_versiones', 'ultima_version'],
                 limit: $limit ?? 25
@@ -119,7 +125,7 @@ class FacilitatorSearchTool extends Tool
                 $result['asignaciones'] = $service->aggregate(
                     new ReportRegistry()->find($this->app, 'facilitador_asignacion'),
                     $this->app,
-                    $this->company,
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'COUNT', 'alias' => 'versiones'],

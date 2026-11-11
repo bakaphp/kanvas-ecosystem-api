@@ -86,7 +86,7 @@ class OrderStatsQuery
         $endDate = $input['endDate'] ?? null;
         $timezone = $input['timezone'] ?? 'UTC';
         $baseDate = $input['baseDate'] ?? null;
-        $groupPeriods    = $input['groupPeriods'] ?? null;
+        $groupPeriods = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
         $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
         $userEmail = $input['user_email'] ?? null;
@@ -143,7 +143,7 @@ class OrderStatsQuery
 
     public function exportPayments(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
-        $app   = app(Apps::class);
+        $app = app(Apps::class);
         $input = $args['input'];
 
         /** @var Users $user */

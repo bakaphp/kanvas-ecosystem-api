@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\ESim\Client;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
@@ -79,7 +80,7 @@ class OrderService
 
     protected function processEsimGoRefuelOrder(OrderItem $item): array
     {
-        $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
+        $esimBundle = $this->requiredAttributeValue($item, 'esim_bundle_type');
 
         // Get the specific ICCID from the refuel order metadata
         $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
@@ -98,14 +99,14 @@ class OrderService
 
         return $this->client->post('/api/v1/esimgo/recharge', [
             'iccid' => $targetIccid,
-            'name' => $esimBundle->value,
+            'name' => $esimBundle,
         ]);
     }
 
     protected function processEsimGoNewOrder(OrderItem $item): array
     {
-        $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
-        $totalDays = $item->variant->getAttributeByName('esim_days');
+        $esimBundle = $this->requiredAttributeValue($item, 'esim_bundle_type');
+        $totalDays = $this->requiredAttributeValue($item, 'esim_days');
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
         // For multiple eSim creation, use quantity of 1 per call
@@ -116,11 +117,11 @@ class OrderService
                 [
                     'type' => 'bundle',
                     'quantity' => $quantity,
-                    'item' => $esimBundle->value,
+                    'item' => $esimBundle,
                 ],
             ],
             'total' => $this->order->total_net_amount,
-            'total_days' => $totalDays->value,
+            'total_days' => $totalDays,
             'wc_order_id' => 0,
             'device_id' => $channelId,
             'from_mobile' => 1,
@@ -242,7 +243,7 @@ class OrderService
             ];
         }
 
-        $esimPlan = $item->variant->getAttributeByName('esim_bundle_type');
+        $esimPlan = $this->requiredAttributeValue($item, 'esim_bundle_type');
         $esimDays = $item->variant->getAttributeByName('esim_days');
         $totalDays = $esimDays ? $esimDays->value : 7;
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
@@ -259,10 +260,10 @@ class OrderService
 
         return $this->client->post('/api/v1/airalo/recharge', [
             'iccid' => $targetIccid,
-            'package_id' => $esimPlan->value,
-            'plan' => $esimPlan->value,
+            'package_id' => $esimPlan,
+            'plan' => $esimPlan,
             'type' => 'sim',
-            'description' => '1 ' . $esimPlan->value . ' refuel',
+            'description' => '1 ' . $esimPlan . ' refuel',
             'agent_name' => $agentName,
             'device_id' => $channelId,
             'total' => (string) $this->order->total_net_amount,
@@ -275,7 +276,7 @@ class OrderService
 
     protected function processAiraloNewOrder(OrderItem $item): array
     {
-        $esimPlan = $item->variant->getAttributeByName('esim_bundle_type');
+        $esimPlan = $this->requiredAttributeValue($item, 'esim_bundle_type');
         $esimDays = $item->variant->getAttributeByName('esim_days');
         $totalDays = $esimDays ? $esimDays->value : 7;
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
@@ -295,9 +296,9 @@ class OrderService
 
         return $this->client->post('/api/v2/airalo/create/order', [
             'quantity' => $quantity,
-            'plan' => $esimPlan->value,
+            'plan' => $esimPlan,
             'type' => 'sim',
-            'description' => $quantity . ' ' . $esimPlan->value,
+            'description' => $quantity . ' ' . $esimPlan,
             'agent_name' => $agentName,
             'device_id' => $channelId,
             'total' => (string) $this->order->total_net_amount,
@@ -306,6 +307,26 @@ class OrderService
             'from_mobile' => 1,
             'language' => 'en',
         ]);
+    }
+
+    /**
+     * A variant without its provider attributes is a catalog problem, not a fault: the activity
+     * records a ValidationException on the order instead of reporting it to Sentry.
+     */
+    protected function requiredAttributeValue(OrderItem $item, string $name): mixed
+    {
+        $value = $item->variant->getAttributeByName($name)?->value;
+
+        if ($value === null || $value === '') {
+            throw new ValidationException(sprintf(
+                'Variant %s (%s) has no %s attribute, needed to create the eSim order',
+                $item->variant->getId(),
+                $item->variant->sku,
+                $name
+            ));
+        }
+
+        return $value;
     }
 
     protected function getClientDetails(): array

@@ -6,6 +6,6 @@ namespace Kanvas\Connectors\EchoPay\Enums;
 
 enum MerchantDocumentTypesEnum: string
 {
-    case DNI = "CEDULA";
-    case PASSPORT = "PASAPORTE";
+    case DNI = 'CEDULA';
+    case PASSPORT = 'PASAPORTE';
 }

@@ -52,6 +52,7 @@ class ReIndexLatestProductCommand extends Command
             $this->info('Processing product: ' . $product->id);
             foreach ($product->variants as $variant) {
                 $this->info('Variant: ' . $variant->id);
+
                 try {
                     $repository = new ScrapperRepository($app);
                     $productScrapped = $repository->getByAsin($variant->sku);

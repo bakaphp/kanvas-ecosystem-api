@@ -134,4 +134,39 @@ class EmailDomainTest extends TestCase
         $this->assertSame('impossible_provider_address', EmailDomain::spamReason('dggie_l9pbrxc3ex@gmail.com'));
         $this->assertSame('random_local_part', EmailDomain::spamReason('dggie_l9pbrxc3ex@example.com'));
     }
+
+    public function testIsInDomainsMatchesTheExactDomainOnly(): void
+    {
+        $this->assertTrue(EmailDomain::isInDomains('Ana@MCTEKK.com', ['mctekk.com']));
+        $this->assertTrue(EmailDomain::isInDomains('ana@mctekk.com', ['@mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('ana@mctekk.com.evil.io', ['mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('ana@evilmctekk.com', ['mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('ana@sub.mctekk.com', ['mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('not-an-email', ['mctekk.com']));
+    }
+
+    public function testCompanyDomainReadsEmailsUrlsAndBareDomains(): void
+    {
+        $this->assertSame('acme.com', EmailDomain::companyDomain('Jane.Doe@ACME.com'));
+        $this->assertSame('acme.com', EmailDomain::companyDomain('https://www.acme.com/about'));
+        $this->assertSame('acme.com', EmailDomain::companyDomain('www.acme.com'));
+        $this->assertSame('acme.com', EmailDomain::companyDomain(' acme.com '));
+        $this->assertSame('gowww.acme.com', EmailDomain::companyDomain('gowww.acme.com'));
+    }
+
+    public function testCompanyDomainRejectsPublicProvidersAndJunk(): void
+    {
+        $this->assertNull(EmailDomain::companyDomain('someone@gmail.com'));
+        $this->assertNull(EmailDomain::companyDomain('localhost'));
+        $this->assertNull(EmailDomain::companyDomain(''));
+        $this->assertNull(EmailDomain::companyDomain(null));
+        $this->assertNull(EmailDomain::companyDomain('not a domain.com'));
+    }
+
+    public function testBlockedDomainStillCoversBuiltInAndExtraDomains(): void
+    {
+        $this->assertTrue(EmailDomain::isBlockedDomain('x@getnada.com'));
+        $this->assertTrue(EmailDomain::isBlockedDomain('x@spam.test', ['spam.test']));
+        $this->assertFalse(EmailDomain::isBlockedDomain('x@mctekk.com'));
+    }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -20,6 +21,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Mockery;
@@ -39,20 +41,43 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     public function testInternalEmailAppendsOwnerSignatureWithoutEnablingSallyTemplateSignature(): void
     {
         $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn(null);
         $owner->shouldReceive('get')->with('email_signature')->once()->andReturn([
             'append' => true,
             'text' => "Owner Name\nSales Manager",
         ]);
         $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
-        $this->sendSignatureTestEmail(true, $owner, function (array $data): bool {
-            $this->assertFalse($data['signature']);
-            $this->assertStringContainsString('<strong>quote</strong>', $data['content']);
-            $this->assertStringContainsString('Owner Name', $data['content']);
-            $this->assertStringContainsString('Sales Manager', $data['content']);
-            $this->assertStringNotContainsString('Sally', $data['content']);
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            function (array $data): bool {
+                $this->assertFalse($data['signature']);
+                $this->assertStringContainsString('<strong>quote</strong>', $data['content']);
+                $this->assertStringNotContainsString('Sally', $data['content']);
 
-            return true;
-        });
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature?->text === "Owner Name\nSales Manager"
+        );
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testTheCompanySpecificSignatureWinsOverTheGlobalOne(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn([
+            'append' => true,
+            'text' => "Owner Name\nRegional Director",
+        ]);
+        $owner->shouldNotReceive('get')->with('email_signature');
+        $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            fn (array $data): bool => true,
+            fn (?UserEmailSignature $signature): bool => $signature?->text === "Owner Name\nRegional Director"
+        );
     }
 
     #[RunInSeparateProcess]
@@ -61,16 +86,49 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     {
         $owner = Mockery::mock(Users::class);
         $owner->shouldNotReceive('get');
-        $this->sendSignatureTestEmail(false, $owner, function (array $data): bool {
-            $this->assertTrue($data['signature']);
-            $this->assertStringNotContainsString('<table', $data['content']);
+        $this->sendSignatureTestEmail(
+            false,
+            $owner,
+            function (array $data): bool {
+                $this->assertTrue($data['signature']);
+                $this->assertStringNotContainsString('<table', $data['content']);
 
-            return true;
-        });
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature === null
+        );
     }
 
-    private function sendSignatureTestEmail(bool $internal, Users $owner, callable $assertContent): void
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testInternalAssistantWithoutTheSigningGrantSendsNoSignatureAtAll(): void
     {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldNotReceive('get');
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            function (array $data): bool {
+                $this->assertFalse($data['signature']);
+                $this->assertStringNotContainsString('<table', $data['content']);
+
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature === null,
+            signs: false
+        );
+    }
+
+    private function sendSignatureTestEmail(
+        bool $internal,
+        Users $owner,
+        callable $assertContent,
+        callable $assertSignature,
+        ?bool $signs = null
+    ): void {
+        // CI's SMTP host may be Mailgun's, which files a delivery; that lane has its own suite.
+        config(['mail.mailers.smtp.host' => 'smtp.example.com']);
+
         // Intercept the delivery boundary: Blank's real constructor writes notification types.
         $notification = Mockery::mock('overload:' . Blank::class);
         $notification->shouldReceive('__construct')->once()->withArgs(
@@ -78,6 +136,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         );
         $notification->shouldReceive('setFromUser')->once();
         $notification->shouldReceive('setSubject')->once()->with('Your quote');
+        $notification->shouldReceive('setUserSignature')->once()->withArgs($assertSignature);
         Notification::shouldReceive('send')->once()->withArgs(
             fn ($notifiable): bool => $notifiable->routes['mail'] === 'prospect@example.com'
         );
@@ -86,6 +145,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $company = new Companies();
         $company->name = 'Test Company';
+        $company->id = 77;
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
         $lead->shouldReceive('getAttribute')->with('app')->andReturn(new Apps());
         $lead->shouldReceive('getAttribute')->with('user')->andReturn(new Users());
@@ -93,6 +153,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $lead->shouldReceive('getId')->andReturn(1);
         $agent = Mockery::mock(Agent::class);
         $agent->shouldReceive('conversesWithUser')->andReturn($internal);
+        $agent->shouldReceive('signsEmailsAsOwner')->andReturn($signs ?? $internal);
         $agent->shouldReceive('get')->andReturn(null);
 
         $result = new SendMessageToLeadAction($lead)->withSignatureOwner($owner)->execute(
@@ -219,6 +280,32 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $action->validateTwilioSenderRouteForTest('+1 (272) 291-7870');
     }
 
+    public function testTwilioSenderPrecheckAcceptsTheOnlyAllowedNumberStoredWithoutPlus(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value => 'ACdealer',
+            TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value => [12722917870],
+        ]);
+
+        $this->assertSame(
+            ['from' => '+12722917870'],
+            $action->validateTwilioSenderRouteForTest('12722917870'),
+        );
+    }
+
+    public function testTwilioSenderPrecheckRejectsANumberOffTheAllowedList(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value => 'ACdealer',
+            TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value => [12722917870],
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not registered for this dealership');
+
+        $action->validateTwilioSenderRouteForTest('+12722917871');
+    }
+
     public function testTwilioBodyPrecheckUsesConfiguredCarrierSafeLimit(): void
     {
         $action = $this->makeTwilioPrecheckAction([
@@ -265,9 +352,52 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $this->assertSame('+12722917870', $action->capturedFrom);
     }
 
-    private function makeTwilioPrecheckAction(array $configuration): SendMessageToLeadAction
+    /**
+     * A follow-up on a company with only twilio_from_phone_number reaches the send with an empty
+     * from and an agent that has no number.
+     */
+    public function testSmsResolvesConfiguredCompanySenderWhenFromIsEmptyAndTheAgentHasNoNumber(): void
     {
         $company = Mockery::mock();
+        $company->shouldReceive('get')
+            ->once()
+            ->with(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+            ->andReturn('+12722917870');
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
+
+        $agent = Mockery::mock(Agent::class);
+        $agent->shouldReceive('smsPhoneNumber')->andReturn(null);
+        $agent->shouldReceive('conversesWithUser')->andReturn(false);
+
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            public string $capturedFrom = '';
+
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                $this->capturedFrom = $from;
+
+                return [];
+            }
+        };
+
+        $action->execute(
+            channel: 'sms',
+            message: 'Scheduled touch',
+            from: '',
+            to: '+15551234567',
+            fromAgent: $agent,
+        );
+
+        $this->assertSame('+12722917870', $action->capturedFrom);
+    }
+
+    private function makeTwilioPrecheckAction(array $configuration): SendMessageToLeadAction
+    {
+        $company = Mockery::mock(CompanyInterface::class);
         $company->shouldReceive('get')
             ->zeroOrMoreTimes()
             ->andReturnUsing(static fn (string $key) => $configuration[$key] ?? null);

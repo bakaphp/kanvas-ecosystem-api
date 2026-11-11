@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Notifications;
 
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\Movipass\Services\TechniciansOneSignalService;
 use Kanvas\Notifications\Notification;
+use Kanvas\Notifications\Services\OneSignalService;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Templates\Enums\EmailTemplateEnum;
+use Throwable;
 
 class CustomOrderNotification extends Notification
 {
@@ -15,8 +18,9 @@ class CustomOrderNotification extends Notification
         array $data,
         array $via
     ) {
+        // No type here: a set type makes via() filter channels by the user's settings for it, and a
+        // setting saved for the shared "blank" email type would strip push/expo from roadside pushes.
         parent::__construct($order, $data);
-        $this->setType(EmailTemplateEnum::BLANK->value);
         if ($data['email_template'] !== null) {
             $this->setTemplateName($data['email_template']);
         }
@@ -26,5 +30,30 @@ class CustomOrderNotification extends Notification
         $this->setData($data);
         $this->setFromUser($data['fromUser'] ?? $order->user);
         $this->channels = $via;
+    }
+
+    /**
+     * The order owner uses the users app; anyone else on the order (the assigned or an
+     * available mechanic) uses the technicians app.
+     */
+    public function pushesToTechniciansApp(UserInterface $recipient): bool
+    {
+        return (int) $recipient->getId() !== (int) $this->entity->users_id;
+    }
+
+    /**
+     * Falls back to the users app keys while the technicians pair is not configured, so an
+     * environment without it keeps sending exactly as before.
+     */
+    public function oneSignalServiceFor(UserInterface $recipient): OneSignalService
+    {
+        if ($this->pushesToTechniciansApp($recipient)) {
+            try {
+                return new TechniciansOneSignalService($this->app);
+            } catch (Throwable) {
+            }
+        }
+
+        return new OneSignalService($this->app);
     }
 }

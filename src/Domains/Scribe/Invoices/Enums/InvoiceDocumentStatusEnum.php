@@ -33,6 +33,21 @@ enum InvoiceDocumentStatusEnum: string
         return $this === self::DRAFT;
     }
 
+    /**
+     * Issued and not voided: what a credit note, a debit note or an e-CF correction can apply to.
+     *
+     * @return list<self>
+     */
+    public static function effective(): array
+    {
+        return [self::ISSUED, self::SENT, self::PAID];
+    }
+
+    public function isEffective(): bool
+    {
+        return in_array($this, self::effective(), true);
+    }
+
     public function impactsBooks(): bool
     {
         // Drafts haven't posted a JE — no impact on the books.

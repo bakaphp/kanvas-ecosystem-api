@@ -39,6 +39,22 @@ trait CanUseWorkflow
     }
 
     /**
+     * Run bookkeeping writes (classification fields, import counters) without each save or set()
+     * reaching the rules, then restore whatever state the model was in.
+     */
+    public function withoutWorkflows(callable $callback): mixed
+    {
+        $wasEnabled = $this->enableWorkflows;
+        $this->enableWorkflows = false;
+
+        try {
+            return $callback();
+        } finally {
+            $this->enableWorkflows = $wasEnabled;
+        }
+    }
+
+    /**
      * Enable workflows.
      */
     public function enableWorkflows(): void

@@ -62,6 +62,48 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame('1 Infinite Loop', $lead->get('street'));
     }
 
+    public function testExistingLeadMergesNewContactsWithoutDroppingTheOldOnes(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $first = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $originalEmail = $first->people->getEmails()->first()->value;
+
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Phone' => '(939) 555-0113'])
+        );
+
+        $people = $lead->people->fresh();
+        $this->assertCount(2, $people->getEmails(), 'the first sync email stays, the second one is added');
+        $this->assertContains($originalEmail, $people->getEmails()->pluck('value')->all());
+        $this->assertSame('9395550113', $people->getPhones()->first()->value);
+    }
+
+    public function testExistingLeadKeepsThePersonNameWhenZohoSendsNone(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $record = $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace')->getData();
+        unset($record['First_Name'], $record['Last_Name'], $record['Full_Name']);
+        $lead = $this->syncAction($zohoLeadId)->execute(new Record($record, Mockery::mock(Module::class)));
+
+        $people = $lead->people->fresh();
+        $this->assertSame('Homer', $people->firstname);
+        $this->assertSame('Simpson', $people->lastname);
+    }
+
+    public function testMirrorsThePersonsAddressOntoTheLeadsCustomFields(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $this->assertSame('742 Evergreen Terrace', $lead->get('address'));
+        $this->assertSame('Springfield', $lead->get('city'));
+        $this->assertSame('IL', $lead->get('state'));
+        $this->assertEquals('62704', $lead->get('zip'));
+    }
+
     private function syncAction(string $zohoLeadId): SyncZohoLeadAction
     {
         $app = app(Apps::class);
@@ -98,9 +140,9 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         )->execute();
     }
 
-    private function zohoRecord(string $zohoLeadId, string $street): Record
+    private function zohoRecord(string $zohoLeadId, string $street, array $extra = []): Record
     {
-        return new Record([
+        return new Record($extra + [
             'id' => $zohoLeadId,
             'First_Name' => 'Homer',
             'Last_Name' => 'Simpson',

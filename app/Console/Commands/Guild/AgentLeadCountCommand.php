@@ -29,7 +29,7 @@ class AgentLeadCountCommand extends Command
             $this->overwriteAppService($app);
             $this->info("Processing app: {$app->name} (ID: {$app->id})");
 
-            $updated = DB::connection('crm')->statement("
+            $updated = DB::connection('crm')->statement('
                 UPDATE agents a
                 SET a.total_leads = (
                     SELECT COUNT(*)
@@ -41,7 +41,7 @@ class AgentLeadCountCommand extends Command
                 )
                 WHERE a.status_id = 1
                   AND a.is_deleted = 0
-            ", [$app->getId()]);
+            ', [$app->getId()]);
 
             $count = Agent::where('status_id', 1)
                 ->where('is_deleted', 0)

@@ -135,7 +135,7 @@ class ProductDiscoveryQueryTest extends TestCase
             productIds: [42, 7, 13],
             usersId: $user->getId(),
             engine: 'sql',
-            intent: $intent,
+            intent: $intent->summary(),
         )->execute();
 
         $stored = RecommendationImpression::query()

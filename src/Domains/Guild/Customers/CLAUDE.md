@@ -28,6 +28,7 @@ opting out at one dealer does not opt out at another.
 | Apply a stop request | `Actions/ApplyDoNotContactAction` |
 | Apply a START / re-subscribe | `Actions/RevokeDoNotContactAction` |
 | Detect + dispatch, for an inbound webhook | `Actions/ProcessInboundConsentAction` |
+| May this person / this address be contacted? (`SendMessageToLeadAction` and the Communication domain both read it) | `Services/ConsentGuard` |
 | The one permitted acknowledgement | `Guild\Leads\Actions\SendOptOutConfirmationAction` |
 | Natural-language stop requests | `Intelligence\...\Tools\CRM\StopContactTool` |
 | Inbound mail (both receivers) | `Connectors\Mailgun\Services\MailgunConsentService` |
@@ -51,10 +52,10 @@ it carries no flag. Every guard therefore checks both.
 | Guard | Covers |
 |---|---|
 | `SendMessageToLeadAction::guardDoNotContact()` | called once in `execute()`, ahead of the channel dispatch — so it covers SMS, WhatsApp, RespondIO, email and voice together |
-| `SendMessageToLeadAction::guardDestinationOptOut()` | per-address opt-outs a stop request never produced (a DMS `doNotEmail` push, a hard bounce) |
+| `SendMessageToLeadAction::guardDestinationOptOut()` | per-address opt-outs a stop request never produced (a DMS `doNotEmail` push, a Reynolds sync of Dealer Email/Text Consent = No, a hard bounce) |
 | `LeadOutboundChannelResolver::resolve()` | follow-up returns no channels for a flagged lead |
 | `AgentReachOutAction` | cold outreach skips a flagged lead |
-| `SendEmailTool` / `SendSmsTool` | agent-initiated sends |
+| `SendEmailTool` / `SendSmsTool` / `SendPersonEmailTool` | agent-initiated sends |
 
 The single `execute()`-level guard is deliberate: a per-channel `if` in each send method is how one
 channel ends up forgotten. `sendWhatsAppMessage` hands off to `sendRespondIoMessage` **before** its

@@ -11,6 +11,8 @@ use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Models\BaseModel;
 
 /**
@@ -28,6 +30,7 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property string $network_mode
  * @property string|null $docker_network
  * @property string|null $private_host
+ * @property string $runtime
  * @property int $port_range_start
  * @property int $port_range_end
  * @property int $max_agents
@@ -136,6 +139,20 @@ class AgentMachine extends BaseModel
     public function connectSsh(): SshClient
     {
         return SshClient::fromMachine($this);
+    }
+
+    /**
+     * Not `runtime()`: Eloquent resolves a method named like an unloaded attribute as a relation, and
+     * a model built in memory has no attributes loaded.
+     */
+    public function runtimeMode(): MachineRuntimeEnum
+    {
+        return MachineRuntimeEnum::tryFrom((string) $this->runtime) ?? MachineRuntimeEnum::CONTAINER;
+    }
+
+    public function networkMode(): MachineNetworkModeEnum
+    {
+        return MachineNetworkModeEnum::tryFrom((string) $this->network_mode) ?? MachineNetworkModeEnum::SSH_EXEC;
     }
 
     public function searchableAs(): string

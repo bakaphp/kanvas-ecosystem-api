@@ -89,6 +89,28 @@ class UniversalAgentToolsTest extends TestCase
     }
 
     /**
+     * A rep's drip on a lead is a sales-manager capability (Max, 2026-11-06): the plan tools are
+     * baseline on SalesManagerAgent only, and every other system-user agent gets them by catalog
+     * grant, never from the follow-through set.
+     */
+    public function testOnlyTheSalesManagerCarriesTheLeadFollowUpPlanToolsByDefault(): void
+    {
+        $planTools = ['set_lead_follow_up_plan', 'get_lead_follow_up_plan', 'cancel_lead_follow_up_plan', 'set_lead_follow_up_enabled'];
+
+        foreach ($this->systemUserHandlers() as $handler) {
+            $names = $this->toolNames($handler);
+
+            foreach ($planTools as $tool) {
+                if ($handler instanceof SalesManagerAgent) {
+                    $this->assertContains($tool, $names, 'The sales manager lost ' . $tool);
+                } else {
+                    $this->assertNotContains($tool, $names, $handler::class . ' got ' . $tool . ' without a grant');
+                }
+            }
+        }
+    }
+
+    /**
      * Waiting on a person is the one thing every internal agent must be able to do: ask them, park the
      * task, be woken. The agents that curate their own tool list are the ones that silently lost it.
      */

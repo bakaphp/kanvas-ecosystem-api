@@ -1,0 +1,46 @@
+type TaxCategory {
+    id: ID!
+    uuid: String!
+    code: String!
+    name: String!
+    description: String
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input TaxCategoryInput {
+    code: String!
+    name: String!
+    description: String
+}
+
+input UpdateTaxCategoryInput {
+    name: String
+    description: String
+}
+
+extend type Mutation @guardByAdmin {
+    createTaxCategory(input: TaxCategoryInput!): TaxCategory!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxCategoryMutation@create")
+
+    updateTaxCategory(id: ID!, input: UpdateTaxCategoryInput!): TaxCategory!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxCategoryMutation@update")
+
+    deleteTaxCategory(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxCategoryMutation@delete")
+
+    assignTaxCategoryToProducts(product_ids: [ID!]!, tax_category: String): Int!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxCategoryMutation@assignToProducts")
+}
+
+extend type Query @guard {
+    taxCategories(
+        where: _ @whereConditions(columns: ["id", "uuid", "code", "name"])
+        orderBy: _ @orderBy(columns: ["id", "code", "name", "created_at"])
+    ): [TaxCategory!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Taxes\\Models\\TaxCategory"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 50
+        )
+}

@@ -40,6 +40,8 @@ trait DrivesAgentWake
     /**
      * @param object $ledgerEntity a model using EmitsLedgerEventsForEntity (Project or Plan)
      * @param array<int, object> $tools board tools injected for this run only
+     * @param list<string> $images image URLs the model takes natively
+     * @param list<string> $documents non-image attachment URLs (PDF, audio, text) sent natively
      *
      * @return array{0: string, 1: int} the agent's response and the elapsed milliseconds
      */
@@ -52,6 +54,8 @@ trait DrivesAgentWake
         string $ledgerPrefix,
         array $failurePayload,
         array $tools = [],
+        array $images = [],
+        array $documents = [],
     ): ?array {
         $startedAt = microtime(true);
 
@@ -61,6 +65,8 @@ trait DrivesAgentWake
                 session: $session,
                 message: $message,
                 user: $owner,
+                images: $images,
+                documents: $documents,
                 additionalTools: $tools,
                 // The reply is posted explicitly by the caller; never persist the (large, scaffolded)
                 // wake prompt — it would be re-read as "context" on the next wake and re-trigger this

@@ -6,6 +6,7 @@ namespace App\Console\Commands\Approvals;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Apps\Models\Apps;
@@ -36,7 +37,8 @@ class SeedPeopleApprovalPolicyCommand extends Command
     use KanvasJobsTrait;
 
     protected $signature = 'kanvas:approvals:seed-people-policy {apps_id} {company_id}
-        {--connector=salesforce : Which sync gate to seed with the content review: salesforce or intras}';
+        {--connector=salesforce : Which sync gate to seed with the content review: salesforce or intras}
+        {--notify=all : ApprovalNotifyModeEnum value for the new policies; digest groups one email per approver per window}';
 
     protected $description = 'Creates the People approval policies (content review + a connector sync gate) for one company';
 
@@ -53,6 +55,14 @@ class SeedPeopleApprovalPolicyCommand extends Command
 
         if ($syncTypes === null) {
             $this->error('Unknown --connector. Use salesforce or intras.');
+
+            return self::FAILURE;
+        }
+
+        $notify = ApprovalNotifyModeEnum::tryFrom((string) $this->option('notify'));
+
+        if ($notify === null) {
+            $this->error('Unknown --notify. Use one of: ' . implode(', ', array_column(ApprovalNotifyModeEnum::cases(), 'value')));
 
             return self::FAILURE;
         }
@@ -81,7 +91,7 @@ class SeedPeopleApprovalPolicyCommand extends Command
                 'handler' => null,
                 'trigger' => ApprovalTriggerEnum::MANUAL,
                 'reject_policy' => 'any',
-                'notify' => 'all',
+                'notify' => $notify->value,
                 'allow_authority_override' => false,
                 'expires_after_hours' => null,
             ]);

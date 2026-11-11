@@ -105,6 +105,17 @@ services:
             - "-c"
             - "php artisan config:cache && exec php artisan queue:work
               --queue=agent-runtime --tries=3 --timeout=3750"
+    # Coding launches and polls only. They used to share agent-runtime with deployment builds and
+    # backups, and a launch queued behind a 15-minute build was swept as "no activity" before it ran.
+    coding-queue:
+        <<: *common-queue-settings
+        deploy:
+            replicas: 3
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && exec php artisan queue:work
+              --queue=coding --tries=3 --timeout=3750"
     product-enrichment-queue:
         <<: *common-queue-settings
         container_name: product-enrichment-queue
@@ -181,6 +192,14 @@ services:
             - "-c"
             - "php artisan config:cache && exec php artisan queue:work --queue=ledger
               --tries=3 --timeout=3750"
+    onboarding-queue:
+        <<: *common-queue-settings
+        container_name: onboarding-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && exec php artisan queue:work --queue=onboarding
+              --tries=3 --timeout=3750"
     slack-ingest-queue:
         <<: *common-queue-settings
         container_name: slack-ingest-queue
@@ -230,6 +249,14 @@ services:
             - "-c"
             - "php artisan config:cache && exec php artisan queue:work
               --queue=lead_follow_ups --tries=3 --timeout=3750"
+    souk-tax-queue:
+        <<: *common-queue-settings
+        container_name: souk-tax-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && exec php artisan queue:work
+              --queue=souk-tax --tries=3 --timeout=3750"
 
     reverb:
         container_name: reverb${APP_CONTAINER_NAME}

@@ -218,6 +218,7 @@ class Plan extends BaseModel implements HandlesAgentMention
             WakeAgentForProjectJob::REASON_MENTION,
             new ProjectMentionTriggerService()->buildTrigger($mention, $focus),
             $threadRootId,
+            mentionMessageId: (int) $mention->getId(),
         );
     }
 

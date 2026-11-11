@@ -56,12 +56,14 @@ class CreateAttributeTypeCommand extends Command
                 foreach ($validator->errors()->all() as $error) {
                     $this->error($error);
                 }
+
                 return;
             }
 
             $app = Apps::getById($this->option('app_id'));
             $this->overwriteAppService($app);
             $this->createPrivateAttributeTYpe($app, $data['name']);
+
             return;
         }
 
@@ -76,7 +78,7 @@ class CreateAttributeTypeCommand extends Command
             'companies_id' => 0,
         ], [
             'slug' => Str::slug(AttributeTypeEnum::INPUT->value),
-            'users_id' => 0
+            'users_id' => 0,
         ]);
 
         AttributesTypes::firstOrCreate([
@@ -85,7 +87,7 @@ class CreateAttributeTypeCommand extends Command
             'companies_id' => 0,
         ], [
             'slug' => Str::slug(AttributeTypeEnum::CHECKBOX->value),
-            'users_id' => 0
+            'users_id' => 0,
         ]);
 
         AttributesTypes::firstOrCreate([
@@ -94,7 +96,7 @@ class CreateAttributeTypeCommand extends Command
             'companies_id' => 0,
         ], [
             'slug' => Str::slug(AttributeTypeEnum::JSON->value),
-            'users_id' => 0
+            'users_id' => 0,
         ]);
 
         info('Attribute Types created for all apps');

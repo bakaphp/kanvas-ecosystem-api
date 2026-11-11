@@ -1,0 +1,58 @@
+{
+    "idDoc": {
+        "encf": "E310000000004",
+        "sequenceDueDate": "2028-12-31",
+        "incomeType": 1,
+        "paymentType": 2
+    },
+    "sender": {
+        "rnc": "130000001",
+        "companyName": "Empresa de Prueba SRL",
+        "address": "Av. Winston Churchill 1",
+        "municipality": "010100",
+        "province": "010000",
+        "mail": "facturas@example.com",
+        "stampDate": "2026-06-15"
+    },
+    "buyer": {
+        "rnc": "101000001",
+        "companyName": "Cliente Corporativo SRL",
+        "mail": "ap@cliente.example"
+    },
+    "totals": {
+        "totalTaxedAmount": 2000.0,
+        "i1AmountTaxed": 2000.0,
+        "exemptAmount": 500.0,
+        "itbisS1": 18,
+        "itbisTotal": 360.0,
+        "itbis1Total": 360.0,
+        "totalAmount": 2860.0
+    },
+    "itemDetails": [
+        {
+            "lineNumber": 1,
+            "itemCodeTable": [
+                {
+                    "codeType": "Interna",
+                    "itemCode": "SRV-01"
+                }
+            ],
+            "billingIndicator": 1,
+            "itemName": "Consultoria de implementacion",
+            "goodServiceIndicator": 2,
+            "quantityItem": 2.0,
+            "unitPriceItem": 1000.0,
+            "itemAmount": 2000.0
+        },
+        {
+            "lineNumber": 2,
+            "billingIndicator": 4,
+            "itemName": "Libro tecnico",
+            "goodServiceIndicator": 1,
+            "quantityItem": 1.0,
+            "unitPriceItem": 550.0,
+            "discountAmount": 50.0,
+            "itemAmount": 500.0
+        }
+    ]
+}

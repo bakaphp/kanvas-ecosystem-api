@@ -551,6 +551,11 @@ class Message extends BaseModel
         return $query->where('is_public', 0);
     }
 
+    public function scopeNotLocked(Builder $query): Builder
+    {
+        return $query->where($this->qualifyColumn('is_locked'), 0);
+    }
+
     /**
      * Scope to control cross-company message visibility.
      *

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Jobs\EnrichProductJob;
 use Kanvas\Inventory\Variants\Actions\DuplicateVariantAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
@@ -117,6 +118,8 @@ class DuplicateProductAction
                 true
             );
         }
+
+        EnrichProductJob::dispatchIfEnabled($products);
 
         return $products;
     }

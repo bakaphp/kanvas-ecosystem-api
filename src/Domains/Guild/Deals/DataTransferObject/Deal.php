@@ -34,6 +34,8 @@ class Deal extends Data
         public readonly ?PipelineStage $pipelineStage = null,
         public readonly ?int $statusId = null,
         public readonly ?int $status = null,
+        public readonly array $custom_fields = [],
+        public readonly array $files = [],
     ) {
     }
 
@@ -103,6 +105,8 @@ class Deal extends Data
             pipelineStage: $pipelineStage,
             statusId: isset($request['status_id']) ? (int) $request['status_id'] : null,
             status: isset($request['status']) ? (int) $request['status'] : null,
+            custom_fields: $request['custom_fields'] ?? [],
+            files: $request['files'] ?? [],
         );
     }
 }

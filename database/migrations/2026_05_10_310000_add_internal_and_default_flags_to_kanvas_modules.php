@@ -20,12 +20,12 @@ return new class () extends Migration {
         // provisioned); default=every new company auto-gets it.
         $now = now();
         $classification = [
-            1  => ['is_internal' => true,  'is_default' => true],  // ECOSYSTEM
-            2  => ['is_internal' => false, 'is_default' => true],  // INVENTORY
-            3  => ['is_internal' => false, 'is_default' => true],  // CRM
-            4  => ['is_internal' => false, 'is_default' => true],  // SOCIAL
-            5  => ['is_internal' => true,  'is_default' => true],  // WORKFLOW
-            6  => ['is_internal' => true,  'is_default' => true],  // ACTION_ENGINE
+            1 => ['is_internal' => true,  'is_default' => true],  // ECOSYSTEM
+            2 => ['is_internal' => false, 'is_default' => true],  // INVENTORY
+            3 => ['is_internal' => false, 'is_default' => true],  // CRM
+            4 => ['is_internal' => false, 'is_default' => true],  // SOCIAL
+            5 => ['is_internal' => true,  'is_default' => true],  // WORKFLOW
+            6 => ['is_internal' => true,  'is_default' => true],  // ACTION_ENGINE
             10 => ['is_internal' => false, 'is_default' => true],  // AI
             11 => ['is_internal' => false, 'is_default' => true],  // COMMERCE
         ];

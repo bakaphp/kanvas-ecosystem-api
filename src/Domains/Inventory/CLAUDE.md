@@ -67,8 +67,8 @@ $searchSettings      = $app->get($engine . '_search_settings') ?? [];     // e.g
 The engine is resolved from `$model->app` (falling back to `app(Apps::class)`),
 so indexing/searching must run in the correct app context.
 
-⚠️ Any tool that needs to know "is this tenant on Typesense?" must mirror this
-exact precedence. See `TypesenseProductRecommendationTool::typesenseConfigured()`.
+⚠️ Any tool that needs to know which engine a tenant is on must mirror this
+exact precedence. Use `ProductDiscoveryResolver::engine()` / `engineFor($app)` — never re-derive it.
 
 ---
 
@@ -257,43 +257,20 @@ model for ES/EN.
 
 ## 7. Product discovery
 
-One pipeline serves both the storefront and the agent, so they cannot drift:
-
-```
-discoverProducts (GraphQL, @guard)  ─┐
-ProductRecommendationLookupTool     ─┴─▶ RecommendProductsAction
-                                            ├ ProductIntent      — budget out of the sentence
-                                            ├ ProductDiscoveryResolver
-                                            │    ├ TypesenseProductDiscoveryService  (multi_search + RRF)
-                                            │    └ SqlProductDiscoveryService        (keyword fallback)
-                                            ├ cache (non-empty results only)
-                                            └ DB hydrate, tenant-pinned  ← the security boundary
-```
-
-Key points:
-- **The engine is resolved per tenant** (`ProductDiscoveryResolver`, same precedence as
-  `SearchEngineResolver`). There is no longer a separate tool per backend.
-- **Search only nominates ids.** Hydration re-reads them with an explicit
-  `where('companies_id', ...)` — deliberately NOT `fromCompany()`, which widens to
-  `companies_id > 0` under an AppKey binding.
-- **The vector half is opt-in via `query_by`.** Naming `embedding` when the collection does not
-  declare it makes Typesense reject the *whole* search, so it is only added when
-  `typesense_product_query_by` (or `config('inventory-discovery.typesense_query_by')`) includes it.
-  Until then discovery runs lexically over `search_blurb`.
-- **Out-of-stock / unpriced products stay in the result**, flagged `channel.is_available = false`.
-- **Every response is logged** (`product_recommendation_impressions`) with its ordered ids and a
-  `recommendation_uuid` for outcome attribution — including no-hit queries, which are the best
-  signal for catalog gaps.
-- `search_blurb` comes from the ProductEnrichment connector; the field name is owned by
-  `Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum` so the core model does not depend on
-  a connector.
-
-Scoring a change: `kanvas-inventory:evaluate-product-discovery {app} {company} --file=<golden-set>`
-reports recall@k and MRR, and exits non-zero under `--min-recall`.
+How the storefront and agents use it, how a search and an enrichment run, settings, index fields and
+the rules: **[`Recommendations/CLAUDE.md`](Recommendations/CLAUDE.md)** — the canonical guide. In one
+line: an engine-agnostic pipeline (`RecommendProductsAction` → `DiscoveryQueryBuilder` → Typesense /
+Algolia / SQL adapter) that answers from the engine's documents with no database read, re-checks every
+hard limit per variant, and falls back to SQL. Enrichment writes the `search_blurb` it matches on.
 
 ---
 
 ## 8. Turning discovery on for an app (production)
+
+**The activation sequence for any engine** (prepare → enable → reindex → verify) is in
+[`Recommendations/CLAUDE.md`](Recommendations/CLAUDE.md) "Turning it on". The rest of this section is
+the Typesense-specific detail.
+
 
 Everything is per-app settings — no deploy, no code. All of these are editable from the app
 settings UI; the `$app->set()` form is what the UI writes.
@@ -308,21 +285,10 @@ settings UI; the `$app->set()` form is what the UI writes.
 
 ### Enrichment (required for semantic quality)
 
-Discovery matches a shopper's sentence against `search_blurb`. With no blurb it degrades to keyword
-matching on the product name — see §7.
-
-1. Ensure the global **"Product Enrichment"** agent type exists: `php artisan kanvas:intelligence:sync-agent-types`
-2. Create an **Agent** of that type for the app (UI: Agents → New → type "Product Enrichment").
-   Set its LLM provider on the agent. **Gemini cannot be used for any structured-output agent that
-   also has tools** — it rejects `response_mime_type: application/json` combined with function
-   calling. Enrichment itself is tool-free so Gemini works there; the Inventory Recommendation agent
-   is not, and needs OpenAI/Anthropic.
-3. Optional per-app tuning on the agent record:
-   - `instructions` — **overrides the in-code prompt entirely** (`instructionsFromRecord`). Leave it
-     EMPTY to keep the shipped prompt. A generic instruction here is the single most common reason an
-     agent "ignores" its design.
-   - `config.enrichment.facets` — the controlled vocabulary
-4. Backfill: `php artisan kanvas-inventory:backfill-product-enrichment {app} [--company_id=] [--sync]`
+Discovery matches a shopper's sentence against `search_blurb`; with no blurb it degrades to keyword
+matching on the name. No Agent row is needed — enrichment runs on Flash-Lite by default and an Agent
+row or `product_enrichment_llm_config_id` only overrides the prompt or model. Setup, model choice and
+cost: [`Recommendations/Enrichment/CLAUDE.md`](Recommendations/Enrichment/CLAUDE.md).
 
 ### Recipient filtering (`audience`)
 

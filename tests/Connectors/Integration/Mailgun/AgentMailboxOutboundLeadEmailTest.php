@@ -8,9 +8,13 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
+use Kanvas\Guild\Campaigns\Models\Campaign;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -35,6 +39,12 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
     private Users $user;
 
     /**
+     * Unique per test: this suite runs without DatabaseTransactions, and the send files a delivery
+     * attempt under this id, so a fixed one would collide with the attempt an earlier run left behind.
+     */
+    private string $mailgunId;
+
+    /**
      * Credentials go on `config`, not on the app or the company: LeadObserver creates a channel and
      * needs Bouncer roles, which only the seeded app has, so the lead cannot move to an app of its
      * own — and writing Mailgun settings onto the SHARED app/company would leak into every sibling
@@ -54,8 +64,9 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
             'services.mailgun.domain' => self::DOMAIN,
         ]);
 
+        $this->mailgunId = 'sent-' . Str::lower(Str::random(12)) . '@' . self::DOMAIN;
         Http::fake([
-            'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<sent@' . self::DOMAIN . '>']),
+            'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<' . $this->mailgunId . '>']),
             '*' => Http::response([]),
         ]);
     }
@@ -96,6 +107,33 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function testTheSendIsFiledAsADeliveryForTheLeadsPerson(): void
+    {
+        $agent = $this->agentWithMailbox();
+        $lead = $this->leadWithEmail('prospect@example.com');
+
+        $result = new SendMessageToLeadAction($lead)->execute(
+            channel: LeadCommunicationChannelEnum::EMAIL->value,
+            message: 'Here is the quote.',
+            title: 'Your quote',
+            to: 'prospect@example.com',
+            fromAgent: $agent,
+        );
+
+        // The id the delivery webhook matches on, without the angle brackets the send API wraps it in.
+        $this->assertSame('mailgun', $result['provider']);
+        $this->assertSame($this->mailgunId, $result['provider_message_id']);
+
+        $delivery = Delivery::query()
+            ->where('provider', 'mailgun')
+            ->where('external_id', $result['provider_message_id'])
+            ->firstOrFail();
+        $this->assertSame('accepted', $delivery->status->value);
+        $this->assertSame('prospect@example.com', $delivery->to_address);
+        $this->assertSame($lead->people->getId(), (int) $delivery->request->people_id);
+        $this->assertSame($result['attempt_uuid'], $delivery->uuid);
+    }
+
     public function testTheAgentAddressIsAlsoTheReplyTo(): void
     {
         $agent = $this->agentWithMailbox();
@@ -132,6 +170,56 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
 
         Http::assertSent(fn ($request): bool => str_contains((string) $request->body(), 'name="cc"')
             && str_contains((string) $request->body(), 'spouse@example.com'));
+    }
+
+    public function testTracksOpensAndStampsThePeopleIdForTheLeadBeingEmailed(): void
+    {
+        $agent = $this->agentWithMailbox();
+        $lead = $this->leadWithEmail('prospect@example.com');
+
+        new SendMessageToLeadAction($lead)->execute(
+            channel: LeadCommunicationChannelEnum::EMAIL->value,
+            message: 'Here is the quote.',
+            title: 'Your quote',
+            to: 'prospect@example.com',
+            fromAgent: $agent,
+        );
+
+        $peopleId = (string) $lead->people->getId();
+
+        Http::assertSent(fn ($request): bool => str_contains((string) $request->body(), 'name="o:tracking-opens"')
+            && str_contains((string) $request->body(), 'name="v:people_id"')
+            && str_contains((string) $request->body(), $peopleId));
+    }
+
+    public function testACampaignSendStampsTheCampaignRecipientIdSoTheOpenFindsItsSlot(): void
+    {
+        $agent = $this->agentWithMailbox();
+        $lead = $this->leadWithEmail('prospect@example.com');
+
+        $campaign = new Campaign();
+        $campaign->apps_id = $this->kanvasApp->getId();
+        $campaign->companies_id = $lead->companies_id;
+        $campaign->users_id = $this->user->getId();
+        $campaign->channel = LeadCommunicationChannelEnum::EMAIL->value;
+        $campaign->message = 'Batch body';
+        $campaign->status = CampaignStatusEnum::SENDING->value;
+        $campaign->saveOrFail();
+        $recipient = CampaignRecipient::pending($campaign, $lead->getId(), (int) $lead->people_id);
+        $recipient->saveOrFail();
+
+        new SendMessageToLeadAction($lead)
+            ->forCampaignRecipient($recipient)
+            ->execute(
+                channel: LeadCommunicationChannelEnum::EMAIL->value,
+                message: 'Batch body',
+                title: 'Batch',
+                to: 'prospect@example.com',
+                fromAgent: $agent,
+            );
+
+        Http::assertSent(fn ($request): bool => str_contains((string) $request->body(), 'name="v:campaign_recipient_id"')
+            && str_contains((string) $request->body(), (string) $recipient->getId()));
     }
 
     public function testAnAgentWithoutAMailboxStillSendsOnTheCompanyIdentity(): void

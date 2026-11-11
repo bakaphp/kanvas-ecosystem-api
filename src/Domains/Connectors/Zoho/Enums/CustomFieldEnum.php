@@ -27,4 +27,32 @@ enum CustomFieldEnum: string
     case ZOHO_DEAL_FIELDS_MAP = 'ZOHO_DEAL_FIELDS_MAP';
     case ZOHO_DEAL_RAW = 'ZOHO_DEAL_RAW';
     case ZOHO_MESSAGE_SYNC_FILES = 'ZOHO_MESSAGE_SYNC_FILES';
+    case ZOHO_DEAL_SYNC_FILES = 'ZOHO_DEAL_SYNC_FILES';
+    case ZOHO_DEAL_PULLED_ATTACHMENTS = 'ZOHO_DEAL_PULLED_ATTACHMENTS';
+
+    /**
+     * Company maps of Zoho field => URL template, one per module. Placeholders: {zoho_lead_id},
+     * {lead_id}, {lead_uuid} (deal: {zoho_deal_id}, {deal_id}, {deal_uuid}).
+     */
+    case ZOHO_LEAD_ID_LINK_FIELDS = 'ZOHO_LEAD_ID_LINK_FIELDS';
+    case ZOHO_DEAL_ID_LINK_FIELDS = 'ZOHO_DEAL_ID_LINK_FIELDS';
+
+    /**
+     * Set by CreateLeadWithZohoDuplicateCheckJob on the existing lead it reassigns. If that lead's first
+     * push to Zoho is still queued, the push uses this owner.
+     */
+    case ZOHO_DUPLICATE_OWNER_ID = 'ZOHO_DUPLICATE_OWNER_ID';
+
+    /**
+     * Company setting: the Zoho Lead_Status picklist label (e.g. "Hot") a lead moves to once a Get Docs
+     * submission carries at least one file. Unset means the submission changes no status.
+     */
+    case ZOHO_GET_DOCS_LEAD_STATUS = 'ZOHO_GET_DOCS_LEAD_STATUS';
+
+    /**
+     * Zoho's `$converted_detail` (deal, contact, account ids) stored on the lead once Zoho reports
+     * it converted. A converted lead is read-only in Zoho, so anything that would write to it goes to
+     * the deal instead, and nothing asks Zoho twice.
+     */
+    case ZOHO_LEAD_CONVERTED_DETAIL = 'ZOHO_LEAD_CONVERTED_DETAIL';
 }

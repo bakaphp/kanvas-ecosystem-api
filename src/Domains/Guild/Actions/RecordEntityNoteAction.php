@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Actions;
 
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
@@ -24,8 +25,9 @@ abstract class RecordEntityNoteAction
     /**
      * @param  Users|null  $actingUser  Attribution. Null → AI agent user (agent-authored); pass a human for manager records.
      * @param  bool  $fromIa  AI-authored. Pair null actingUser + true for AI, or a human + false for manager records.
-     * @param  bool  $isPublic  Visibility. Pass false for a note the end user must never see — an internal
-     *                          failure, a sync error, anything only the team should read.
+     * @param  bool|null  $isPublic  Visibility. Null defers to the message type's `is_public` (the `system` verb
+     *                               is private, so an audit note stays out of the feed); pass a value to override
+     *                               it for this one note.
      * @param  string  $messageTypeVerb  Give a note kind its own verb when readers must filter it out of (or find it in) the activity.
      */
     public function execute(
@@ -33,7 +35,7 @@ abstract class RecordEntityNoteAction
         string $tag = 'note',
         ?Users $actingUser = null,
         bool $fromIa = true,
-        bool $isPublic = true,
+        ?bool $isPublic = null,
         string $messageTypeVerb = 'system'
     ): ?Message {
         try {
@@ -50,6 +52,7 @@ abstract class RecordEntityNoteAction
             }
 
             $messageType = MessageTypeService::getOrCreate($entity->app, $messageTypeVerb);
+            $isPublic ??= (bool) $messageType->is_public;
 
             $messagePayload = new AiChatMessagePayload(
                 content: $body,
@@ -82,5 +85,16 @@ abstract class RecordEntityNoteAction
 
             return null;
         }
+    }
+
+    public function recordAiControl(string $body): ?Message
+    {
+        return $this->execute(
+            body: $body,
+            tag: LeadMessageTypeEnum::AI_CONTROL->value,
+            actingUser: $this->entity()->user,
+            fromIa: false,
+            messageTypeVerb: LeadMessageTypeEnum::AI_CONTROL->value,
+        );
     }
 }

@@ -73,7 +73,7 @@ class ImportPromptsFromSheetsCommand extends Command
                     'prompt',
                     'tags',
                     'preview',
-                    'nugget'
+                    'nugget',
                 ];
 
                 foreach ($values as $row) {
@@ -83,6 +83,7 @@ class ImportPromptsFromSheetsCommand extends Command
                         if ($header !== 'preview' && (is_null($value) || empty($value))) {
                             echo "Null or Empty value for $header on sheet $sheetName.\n";
                             $skipSheet = true;
+
                             break 2;
                         }
                         $promptArray[$header] = $value;
@@ -90,11 +91,12 @@ class ImportPromptsFromSheetsCommand extends Command
                     $promptsCollection[] = $promptArray;
                 }
             } else {
-                echo "No data found.";
+                echo 'No data found.';
             }
 
             if ($skipSheet) {
                 echo "Skipping sheet $sheetName due to null or empty required values.\n";
+
                 continue;
             }
 
@@ -105,7 +107,6 @@ class ImportPromptsFromSheetsCommand extends Command
             $promptsCollection = [];
         }
     }
-
 
     public function insertPrompts(array $promptsCollection, int $appId, int $messageType, int $nuggetMessageType, int $companyId)
     {
@@ -164,19 +165,19 @@ class ImportPromptsFromSheetsCommand extends Command
                         'payment' => [
                             'price' => 0,
                             'is_locked' => false,
-                            'free_regeneration' => false
-                        ]
+                            'free_regeneration' => false,
+                        ],
                     ],
-                    "type" => "text-format",
-                    "nugget" => $prompt['nugget']
+                    'type' => 'text-format',
+                    'nugget' => $prompt['nugget'],
                 ]),
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             DB::connection('social')->table('messages')
                 ->where('id', $nuggestId)
-                ->update(['path' => $lastId . "." . $nuggestId]);
+                ->update(['path' => $lastId . '.' . $nuggestId]);
 
             // Handle tags
             $tags = array_merge(explode(',', $prompt['tags']), [$prompt['category']]);
@@ -254,8 +255,6 @@ class ImportPromptsFromSheetsCommand extends Command
 
         return $users[array_rand($users->toArray())];
     }
-
-
 
     private function processContent($rawContent)
     {

@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Agents\Exporters;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\AffiliateCommissionsRecordExporter;
@@ -69,6 +70,20 @@ final class AffiliateCommissionsRecordExporterTest extends TestCase
         // No filter returns the whole company — at least the 3 just created.
         $all = $exporter->rows($this->apps, $this->company, []);
         $this->assertGreaterThanOrEqual(3, count($all));
+    }
+
+    public function testExportsThroughACompanyScope(): void
+    {
+        $code = 'UAS' . uniqid();
+        $programId = $this->createProgram();
+        $affiliateId = $this->createAffiliate($programId, $code . ' Distributor');
+        $this->createConversion($affiliateId);
+
+        $scope = CompanyScope::ownCompanyOnly($this->apps, $this->company);
+        $rows = new AffiliateCommissionsRecordExporter()->rows($this->apps, $scope, ['affiliate' => $code]);
+
+        $this->assertCount(1, $rows);
+        $this->assertStringContainsString($code, (string) $rows[0][3]);
     }
 
     public function testUnknownAffiliateThrows(): void

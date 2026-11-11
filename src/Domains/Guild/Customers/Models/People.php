@@ -29,6 +29,7 @@ use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Guild\Concerns\HasNotesChannel;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -39,13 +40,13 @@ use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -75,7 +76,7 @@ use Override;
  * @property string|null $apple_contact_id
  */
 #[ObservedBy([PeopleObserver::class, ReportSourceObserver::class])]
-class People extends BaseModel
+class People extends BaseModel implements ExposesTemplateData
 {
     use HasAdminLink;
     use HasApprovals;
@@ -86,7 +87,7 @@ class People extends BaseModel
     }
     use HasEventResources;
     use HasLightHouseCache;
-    use HasNotesChannelTrait;
+    use HasNotesChannel;
     use HasTagsTrait;
     use LikableTrait;
     use Notifiable;
@@ -519,14 +520,27 @@ class People extends BaseModel
 
     public function optOutPhoneContacts(): int
     {
-        $phoneTypes = [
-            ContactTypeEnum::PHONE->value,
-            ContactTypeEnum::CELLPHONE->value,
-            ContactTypeEnum::WORK_PHONE->value,
-        ];
+        return $this->optOutContactsOfTypes(Contact::PHONE_TYPES);
+    }
 
+    public function optOutEmailContacts(): int
+    {
+        return $this->optOutContactsOfTypes(Contact::EMAIL_TYPES);
+    }
+
+    /**
+     * Returns how many contacts actually changed. Rows already opted out are left out of the
+     * UPDATE on purpose: Eloquent bumps `updated_at` on a bulk update, so without the guard a row
+     * that was already opted out counts as changed whenever the clock has moved a second, and the
+     * callers that act on `> 0` (the Reynolds consent note) would fire again.
+     *
+     * @param list<int> $types
+     */
+    private function optOutContactsOfTypes(array $types): int
+    {
         return $this->contacts()
-            ->whereIn('contacts_types_id', $phoneTypes)
+            ->whereIn('contacts_types_id', $types)
+            ->where('is_opt_out', 0)
             ->update(['is_opt_out' => 1]);
     }
 
@@ -547,6 +561,28 @@ class People extends BaseModel
                 $contact->set(ContactCustomFieldEnum::IS_LANDLINE->value, $isLandline);
             })
             ->count();
+    }
+
+    public function markEmailBounced(string $email): int
+    {
+        return $this->emailContactsMatching($email)
+            ->each(fn (Contact $contact): bool => $contact->markBounce(permanent: true))
+            ->count();
+    }
+
+    protected function emailContactsMatching(string $email): Collection
+    {
+        $normalizedEmail = Contact::normalizeValue($email, ContactTypeEnum::EMAIL->value);
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+            ->get()
+            ->filter(
+                fn (Contact $contact): bool => Contact::normalizeValue(
+                    $contact->value,
+                    $contact->contacts_types_id,
+                ) === $normalizedEmail,
+            );
     }
 
     protected function phoneContactsMatching(string $phoneNumber): Collection
@@ -1043,5 +1079,28 @@ class People extends BaseModel
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
 
         return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+    }
+
+    /**
+     * The row also holds a driving licence and third-party contact ids, which an HTML template could
+     * ship to any host through an image URL, so a template sees this list and nothing else.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
+            'lastname' => $this->lastname,
+            'dob' => $this->dob,
+            'email' => $this->getEmails()->first()?->value,
+            'phone' => $this->getAllPhones()->first()?->value,
+            'custom_fields' => $this->getAllCustomFields(),
+        ];
     }
 }

@@ -9,12 +9,15 @@ use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
+use Kanvas\Connectors\Zoho\Actions\Concerns\WritesZohoRecordWithCoercion;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Zoho\Services\ZohoFieldTypeService;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Sentry\Laravel\Facade as Sentry;
 use Throwable;
@@ -23,6 +26,9 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 class SyncLeadToZohoAction
 {
+    use TracksZohoSyncedFiles;
+    use WritesZohoRecordWithCoercion;
+
     public function __construct(
         protected AppInterface $app,
         protected Lead $lead
@@ -31,33 +37,36 @@ class SyncLeadToZohoAction
 
     public function execute(): array
     {
-        return DB::transaction(function () {
+        // The lead's own connection: on the default one the row lock below is released at once, and
+        // two pushes started together both create the lead in Zoho.
+        return DB::connection($this->lead->getConnectionName())->transaction(function () {
             $lead = Lead::where('id', $this->lead->id)->lockForUpdate()->first();
-            $zohoLead = ZohoLead::fromLead($this->lead);
+            $zohoLead = ZohoLead::fromLead($lead);
             $zohoData = $zohoLead->toArray();
             $company = $lead->company;
             $receiver = $lead->receiver;
             $leadRotation = $receiver ? $receiver->rotation : null;
             $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
-            $zohoCrm = Client::getInstance($this->app, $company);
-            $leadModule = ZohoService::resolveLeadModule($zohoCrm, $company);
+            $leadModule = $this->leadModule($company);
 
             if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
+                $defaultOwner = $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
+
+                if (! isset($zohoData['Owner']) && $lead->owner !== null && ! empty($defaultOwner)) {
+                    $zohoData['Owner'] = (string) $defaultOwner;
+                }
+
                 if ($usesAgentsModule && ! $leadRotation) {
                     $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
                 } elseif ($leadRotation) {
-                    /* $rotationOwner = $leadRotation->getAgent();
-                    $lead->users_id = $rotationOwner ? $rotationOwner->getId() : (int) $receiver->agents_id;
-                    $lead->leads_owner_id = $lead->users_id;
-                    $lead->disableWorkflows();
-                    $lead->saveOrFail();
-
-                    // Reload the owner relationship to ensure it's up-to-date
-                    $lead->load('owner'); */
-
                     $zohoData['Lead_Source'] = $receiver->name ?? 'Kanvas Api';
                     $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
+                }
+
+                $duplicateOwner = Str::trimToNull((string) $lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value));
+                if ($duplicateOwner !== null) {
+                    $zohoData['Owner'] = $duplicateOwner;
                 }
 
                 if (! isset($zohoData['Lead_Status'])) {
@@ -69,12 +78,18 @@ class SyncLeadToZohoAction
                 }
 
                 try {
-                    $zohoLead = $this->createLeadRecord($leadModule, $zohoData);
-                    $zohoLeadId = $zohoLead->getId();
+                    $zohoLead = $this->createRecord($leadModule, $zohoData);
+                    $zohoLeadId = $zohoLead?->getId();
 
                     $lead->set(
                         CustomFieldEnum::ZOHO_LEAD_ID->value,
                         $zohoLeadId
+                    );
+
+                    $this->writeRecordLinks(
+                        $leadModule,
+                        $zohoLeadId,
+                        ZohoFieldMapService::leadIdLinkFields($lead, $zohoLeadId)
                     );
                 } catch (ApiError $e) {
                     Sentry::withScope(function ($scope) use ($zohoData, $lead, $e) {
@@ -91,71 +106,45 @@ class SyncLeadToZohoAction
             } else {
                 $zohoLeadInfo = $leadModule->get((string) $zohoLeadId)->getData();
                 if (! empty($zohoLeadInfo)) {
-                    $zohoLead = $this->updateLeadRecord(
+                    $zohoData = [
+                        ...$zohoData,
+                        ...ZohoFieldMapService::leadIdLinkFields($lead, (string) $zohoLeadId),
+                    ];
+                    $zohoLead = $this->updateRecord(
                         $leadModule,
                         (string) $zohoLeadId,
                         $zohoData
                     );
                 } else {
+                    // Zoho answers empty both for a lead it deleted and for one it converted. The
+                    // converted one is read-only and lives on as a deal, so its files go there and
+                    // the Kanvas lead is left as it is.
+                    $convertedDeal = $this->pullConvertedLeadDeal($lead, $company);
+
+                    if ($convertedDeal !== null) {
+                        $pushed = $this->uploadAttachments(
+                            $this->dealModule($company),
+                            $lead,
+                            (string) $convertedDeal->get(CustomFieldEnum::ZOHO_DEAL_ID->value)
+                        );
+                        $this->mirrorUploadedFilesOnDeal($convertedDeal, $pushed['uploaded']);
+
+                        return $zohoData;
+                    }
+
                     $lead->close();
                 }
             }
 
-            $this->uploadAttachments($leadModule, $lead);
+            $this->uploadAttachments($leadModule, $lead, (string) $zohoLeadId);
 
             return $zohoData;
         });
     }
 
-    /**
-     * Zoho rejects the whole lead when a single value doesn't match its field type — the lead form
-     * hands us "$50,000" for a currency field, and 24 leads never reached the CRM because of it. We
-     * can't know each tenant's field types up front (the map is per-company config), so we let Zoho
-     * be the judge: on INVALID_DATA, coerce exactly the fields it named into the types it asked for
-     * and retry once, dropping any value we can't make fit rather than losing the lead over it.
-     */
-    protected function createLeadRecord(ZohoRecordsModule $leadModule, array &$zohoData): object
+    protected function leadModule(Companies $company): ZohoRecordsModule
     {
-        try {
-            return $leadModule->create($zohoData);
-        } catch (ApiError $e) {
-            $retryData = $this->coerceRejectedPayload($e, $zohoData);
-
-            if ($retryData === null) {
-                throw $e;
-            }
-
-            $zohoData = $retryData;
-
-            return $leadModule->create($zohoData);
-        }
-    }
-
-    protected function updateLeadRecord(
-        ZohoRecordsModule $leadModule,
-        string $zohoLeadId,
-        array &$zohoData
-    ): object {
-        try {
-            return $leadModule->update($zohoLeadId, $zohoData);
-        } catch (ApiError $e) {
-            $retryData = $this->coerceRejectedPayload($e, $zohoData);
-
-            if ($retryData === null) {
-                throw $e;
-            }
-
-            $zohoData = $retryData;
-
-            return $leadModule->update($zohoLeadId, $zohoData);
-        }
-    }
-
-    protected function coerceRejectedPayload(ApiError $e, array $zohoData): ?array
-    {
-        $body = json_decode((string) $e->response()->getBody(), true);
-
-        return ZohoFieldTypeService::coercePayload($zohoData, is_array($body) ? $body : null);
+        return ZohoService::resolveLeadModule(Client::getInstance($this->app, $company), $company);
     }
 
     protected function assignAgent(
@@ -241,50 +230,45 @@ class SyncLeadToZohoAction
         }
     }
 
-    protected function uploadAttachments(ZohoRecordsModule $zohoLead, Lead $lead): void
+    /**
+     * @return array{uploaded: int[], failed: array<int, string>}
+     */
+    protected function uploadAttachments(ZohoRecordsModule $module, Lead $lead, string $zohoRecordId): array
     {
-        $lead->load('files');
-        $attachmentString = $lead->get('Attachments');
-        $attachments = $attachmentString ? explode(',', $attachmentString) : [];
-
-        if (! $lead->files()->count() && empty($attachments)) {
-            return;
+        if (! ZohoLead::hasAttachments($lead)) {
+            return ['uploaded' => [], 'failed' => []];
         }
 
-        $syncFiles = $lead->get(CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value) ?? [];
-        $zohoLeadId = (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+        $attachmentUrls = array_filter(array_map('trim', explode(',', (string) $lead->get('Attachments'))));
 
-        if (! empty($attachments) && is_array($attachments)) {
-            foreach ($attachments as $attachment) {
-                $attachment = trim($attachment);
+        foreach ($attachmentUrls as $attachment) {
+            try {
+                $fileContent = SafeUrlFetcher::fetch($attachment);
+                $fileName = Str::fileNameFromUrl($attachment, 'attachment_' . uniqid());
 
-                if (empty($attachment)) {
-                    continue;
-                }
-
-                try {
-                    $fileContent = SafeUrlFetcher::fetch($attachment);
-                    $fileName = Str::fileNameFromUrl($attachment, 'attachment_' . uniqid());
-
-                    $zohoLead->uploadAttachment($zohoLeadId, $fileName, $fileContent);
-                } catch (Throwable $e) {
-                    report($e);
-                }
+                $module->uploadAttachment($zohoRecordId, $fileName, $fileContent);
+            } catch (Throwable $e) {
+                report($e);
             }
         }
 
-        $pushed = new PushFilesToZohoRecordAction($zohoLead, $zohoLeadId)->execute(
+        $pushed = $this->filePusher($module, $zohoRecordId)->execute(
             $lead->files()->get(),
-            array_keys($syncFiles)
+            $this->syncedFileIds($lead, CustomFieldEnum::ZOHO_LEAD_SYNC_FILES)
         );
 
-        foreach ($pushed['uploaded'] as $fileId) {
-            $syncFiles[$fileId] = $fileId;
-        }
+        $this->rememberSyncedFiles($lead, CustomFieldEnum::ZOHO_LEAD_SYNC_FILES, $pushed['uploaded']);
 
-        $lead->set(
-            CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value,
-            $syncFiles
-        );
+        return $pushed;
+    }
+
+    protected function dealModule(Companies $company): ZohoRecordsModule
+    {
+        return Client::getInstance($this->app, $company)->deals;
+    }
+
+    protected function pullConvertedLeadDeal(Lead $lead, Companies $company): ?Deal
+    {
+        return new PullConvertedLeadDealAction($lead, new ZohoService($this->app, $company))->execute();
     }
 }

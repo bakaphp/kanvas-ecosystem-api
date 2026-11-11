@@ -43,15 +43,13 @@ class InventoryShopifyCheckCommand extends Command
         [ 'variants' => $variants, 'products' => $products ] = $this->findMissingShopifyVariants($app, $company);
         $missingProducts = $this->findMissingShopifyProducts($app, $company);
 
-
         $this->info('Missing shopify id in variants' . $company->name . ': ' . count($variants));
         $this->info('Missing shopify variants grouped by products' . $company->name . ': ' . count($products));
         $this->info('Missing shopify id in products' . $company->name . ': ' . count($missingProducts));
         Storage::disk('local')->put('missing_variants_shopify.json', json_encode([
             'missing_barcodes' => $variants,
-            "missing_variants_grouped_by_product" => $products,
+            'missing_variants_grouped_by_product' => $products,
             'missing_products' => $missingProducts,
-
         ]));
     }
 
@@ -73,7 +71,7 @@ class InventoryShopifyCheckCommand extends Command
 
     protected function findMissingShopifyProducts(AppInterface $app, CompanyInterface $company): array
     {
-        $foundProducts  = Products::query()
+        $foundProducts = Products::query()
         ->whereDoesntHave('customFields', fn ($query) => $query->whereRaw('name like ?', '%' . CustomFieldEnum::SHOPIFY_PRODUCT_ID->value . '%'))
         ->where([
             'companies_id' => $company->getId(),

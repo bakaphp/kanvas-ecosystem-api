@@ -10,6 +10,8 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Jobs\EnrichProductJob;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -31,6 +33,8 @@ class UpdateProductAction
             $this->user
         );
 
+        TaxCategory::assertCodesExist($this->productDto->app, $this->productDto->tax_category);
+
         // Disabling BEFORE the update (not just guarding the explicit fire below) so
         // ProductsObserver::saved() — which fires on this same $this->product instance as part of
         // the update() call — also honors runWorkflow, instead of only the explicit call at the end.
@@ -41,11 +45,9 @@ class UpdateProductAction
         try {
             DB::connection('inventory')->beginTransaction();
 
-            $productType = $this->productDto?->productsType?->getId();
-
             $this->product->update(
                 [
-                    'products_types_id' => $productType,
+                    'products_types_id' => $this->productDto->productsType?->getId() ?? $this->product->products_types_id,
                     'name' => $this->productDto->name,
                     'slug' => $this->productDto->slug ?? $this->product->slug,
                     'description' => $this->productDto->getDescription() ?? $this->product->description,
@@ -61,6 +63,8 @@ class UpdateProductAction
                     'upc' => $this->productDto->upc ?? $this->product->upc,
                     'status_id' => $this->productDto->status_id ?? $this->product->status_id,
                     'weight' => $this->productDto->weight ?? $this->product->weight ?? 0,
+                    'tax_category' => $this->productDto->tax_category ?? $this->product->tax_category,
+                    'tax_code_override' => $this->productDto->tax_code_override ?? $this->product->tax_code_override,
                 ]
             );
 
@@ -103,6 +107,8 @@ class UpdateProductAction
             WorkflowEnum::UPDATED->value,
             true
         );
+
+        EnrichProductJob::dispatchIfEnabled($this->product);
 
         return $this->product;
     }

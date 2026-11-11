@@ -7,14 +7,12 @@ namespace Kanvas\Intelligence\Knowledge\Workflows;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Filesystem\Services\FileTextExtractor;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
-use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
+use Kanvas\Intelligence\Knowledge\Services\EntityFilesIndexer;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Throwable;
 
 #[WorkflowAction]
 class IndexKnowledgeDocumentActivity extends KanvasActivity
@@ -33,10 +31,8 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
             ]);
         }
 
-        $extractor = new FileTextExtractor();
-        $textFiles = $entity->files
-            ->filter(fn (Filesystem $file): bool => $extractor->supports($file) && $this->isStaffUpload($file, $entity))
-            ->values();
+        $filesIndexer = new EntityFilesIndexer();
+        $textFiles = $filesIndexer->indexableFiles($entity, fn (Filesystem $file): bool => $this->isStaffUpload($file, $entity));
 
         if ($textFiles->isEmpty()) {
             return $this->failWorkflow([
@@ -50,28 +46,10 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
-            integrationOperation: function (Agent $agent) use ($extractor, $textFiles): array {
+            integrationOperation: function (Agent $agent) use ($filesIndexer, $textFiles): array {
                 // Scope the docs to THIS agent (not company-wide) so an upload to one
                 // agent isn't retrievable by another.
-                $indexer = KnowledgeComponents::indexer($agent->app);
-                $scope = KnowledgeScope::forModel($agent);
-                $chunks = 0;
-
-                foreach ($textFiles as $file) {
-                    try {
-                        $content = $extractor->extract($file);
-                    } catch (Throwable) {
-                        // A corrupt/unreadable upload is a business condition, not a
-                        // system fault — skip this file, keep going, don't report.
-                        continue;
-                    }
-
-                    if (trim($content) === '') {
-                        continue;
-                    }
-
-                    $chunks += $indexer->indexDocument($scope, self::SOURCE_TYPE, $file->uuid, $content);
-                }
+                $chunks = $filesIndexer->index($agent->app, KnowledgeScope::forModel($agent), self::SOURCE_TYPE, $textFiles);
 
                 return [
                     'success' => true,

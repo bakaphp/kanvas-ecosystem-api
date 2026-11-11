@@ -8,12 +8,16 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQuery;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQueryBuilder;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Kanvas\Inventory\Recommendations\Services\TypesenseProductDiscoveryService;
 use Mockery;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 use Typesense\Client;
 use Typesense\Collection;
 use Typesense\Collections;
@@ -22,6 +26,7 @@ use Typesense\MultiSearch;
 class TypesenseProductDiscoveryServiceTest extends TestCase
 {
     use DatabaseTransactions;
+    use ManagesAppSettings;
 
     private array $capturedSearches = [];
 
@@ -38,7 +43,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
     {
         $service = $this->service($this->response([[10, 11]]));
 
-        $service->search($this->intent('un regalo elegante'), 5, [0.1, 0.2]);
+        $service->search($this->discoveryQuery($service, 'un regalo elegante'), 5, [0.1, 0.2]);
 
         $this->assertCount(1, $this->capturedSearches, 'Two searches must ride in ONE call — separate calls pay the network round trip twice.');
         $this->assertCount(2, $this->capturedSearches[0]['searches']);
@@ -48,7 +53,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
     {
         $service = $this->service($this->response([[10]]));
 
-        $service->search($this->intent('un regalo elegante'), 5);
+        $service->search($this->discoveryQuery($service, 'un regalo elegante'), 5);
 
         $this->assertCount(1, $this->capturedSearches[0]['searches']);
     }
@@ -59,7 +64,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
         $company = Companies::factory()->create();
         $service = $this->service($this->response([[10]]), $app, $company);
 
-        $service->search($this->intent('reloj'), 5);
+        $service->search($this->discoveryQuery($service, 'reloj'), 5);
 
         $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
         $this->assertStringContainsString('apps_id:=' . $app->getId(), $filter);
@@ -69,7 +74,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
     {
         $service = $this->service($this->response([[10]]));
 
-        $service->search($this->intent('un reloj under $80'), 5);
+        $service->search($this->discoveryQuery($service, 'un reloj under $80'), 5);
 
         $this->assertStringContainsString('price:<=80', $this->capturedSearches[0]['searches'][0]['filter_by']);
     }
@@ -81,7 +86,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
         // "de lujo" sets a floor with no explicit number. Unpriced products index
         // price as 0, so a bare `price:>=N` would drop the whole catalogue —
         // observed against a real 172-product index that returned nothing.
-        $service->search($this->intent('algo de lujo'), 5);
+        $service->search($this->discoveryQuery($service, 'algo de lujo'), 5);
 
         $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
         $this->assertStringContainsString('|| price:=0', $filter);
@@ -91,7 +96,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
     {
         $service = $this->service($this->response([[10]]));
 
-        $service->search($this->intent('a gift for my girlfriend'), 5);
+        $service->search($this->discoveryQuery($service, 'a gift for my girlfriend'), 5);
 
         $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
 
@@ -106,7 +111,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
 
         // "grandmother" contains "mother"; a first-match parse reads a query for a
         // grandmother as one for a mother and filters on the wrong audience.
-        $service->search($this->intent('a gift for my grandmother'), 5);
+        $service->search($this->discoveryQuery($service, 'a gift for my grandmother'), 5);
 
         $this->assertStringContainsString('audience:[senior,', $this->capturedSearches[0]['searches'][0]['filter_by']);
     }
@@ -124,7 +129,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
 
         try {
             $service = $this->service($this->response([[10]]), $app);
-            $service->search($this->intent('un regalo para mi suegra'), 5);
+            $service->search($this->discoveryQuery($service, 'un regalo para mi suegra'), 5);
 
             $this->assertStringContainsString(
                 'audience:[female,',
@@ -142,7 +147,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
         // an undeclared field with NOTHING, not with everything.
         $service = $this->service($this->response([[10]]), collectionFields: ['search_blurb', 'price']);
 
-        $ids = $service->search($this->intent('a gift for my girlfriend'), 5);
+        $ids = $service->search($this->discoveryQuery($service, 'a gift for my girlfriend'), 5);
 
         $this->assertStringNotContainsString('audience:', $this->capturedSearches[0]['searches'][0]['filter_by']);
         $this->assertSame([10], $ids);
@@ -152,7 +157,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
     {
         $service = $this->service($this->response([[10]]));
 
-        $service->search($this->intent('algo bonito'), 5);
+        $service->search($this->discoveryQuery($service, 'algo bonito'), 5);
 
         $this->assertStringNotContainsString('audience:', $this->capturedSearches[0]['searches'][0]['filter_by']);
     }
@@ -164,7 +169,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
         config(['inventory-discovery.typesense_query_by' => 'search_blurb,name,description']);
 
         $service = $this->service($this->response([[10]]));
-        $service->search($this->intent('algo bonito'), 5);
+        $service->search($this->discoveryQuery($service, 'algo bonito'), 5);
 
         $this->assertArrayNotHasKey('vector_query', $this->capturedSearches[0]['searches'][0]);
     }
@@ -174,7 +179,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
         config(['inventory-discovery.typesense_query_by' => 'search_blurb,name,embedding']);
 
         $service = $this->service($this->response([[10]]));
-        $service->search($this->intent('algo bonito'), 5);
+        $service->search($this->discoveryQuery($service, 'algo bonito'), 5);
 
         $this->assertStringContainsString(
             'embedding:([], alpha:',
@@ -192,7 +197,7 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
             [11, 10],
         ]));
 
-        $ids = $service->search($this->intent('algo bonito'), 5, [0.1]);
+        $ids = $service->search($this->discoveryQuery($service, 'algo bonito'), 5, [0.1]);
 
         $this->assertSame(10, $ids[0]);
         $this->assertContains(11, $ids);
@@ -203,13 +208,13 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
     {
         $service = $this->service($this->response([[10, 11, 12, 13, 14]]));
 
-        $this->assertCount(2, $service->search($this->intent('algo'), 2));
+        $this->assertCount(2, $service->search($this->discoveryQuery($service, 'algo'), 2));
     }
 
     public function testExcludesTheEmbeddingFromTheResponsePayload(): void
     {
         $service = $this->service($this->response([[10]]));
-        $service->search($this->intent('algo'), 5);
+        $service->search($this->discoveryQuery($service, 'algo'), 5);
 
         // Without this every hit ships a 384-float array back.
         $this->assertSame('embedding', $this->capturedParams['exclude_fields'] ?? null);
@@ -217,9 +222,48 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
 
     private array $capturedParams = [];
 
+    public function testUsesTheRangeFieldsOnceTheIndexMigrationIsVerified(): void
+    {
+        $this->setAppSettings([ConfigurationEnum::RANGE_FILTERS->value => Products::DISCOVERY_SCHEMA_VERSION]);
+
+        $service = $this->service($this->response([[10]]));
+        $intent = $this->intent('a car')->withOverrides(minPrice: 30000.0, maxPrice: 40000.0);
+        $service->search($this->builder()->build($intent, $service), 5);
+
+        $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
+        $this->assertStringContainsString('(price_max:>=30000 || price_max:=0)', $filter, 'A $20k/$35k product must survive a $30k floor.');
+        $this->assertStringContainsString('price_min:<=40000', $filter);
+    }
+
+    public function testCatalogTermsDriveTheKeywordHalfAndTheSentenceTheVectorHalf(): void
+    {
+        config(['inventory-discovery.typesense_query_by' => 'search_blurb,name,embedding']);
+        $service = $this->service($this->response([[10], [11]]));
+
+        $intent = $this->intent('do you have an SUV under 100k miles')->withOverrides(query: 'SUV');
+        $service->search($this->builder()->build($intent, $service), 5);
+
+        [$keyword, $semantic] = $this->capturedSearches[0]['searches'];
+        $this->assertSame('SUV', $keyword['q']);
+        $this->assertArrayNotHasKey('vector_query', $keyword);
+        $this->assertSame('search_blurb,name', $keyword['query_by']);
+        $this->assertSame('do you have an SUV under 100k miles', $semantic['q']);
+        $this->assertArrayHasKey('vector_query', $semantic);
+    }
+
     private function intent(string $sentence): ProductIntent
     {
         return ProductIntent::fromSentence($sentence, new IntentLexiconService(app(Apps::class)));
+    }
+
+    private function discoveryQuery(TypesenseProductDiscoveryService $service, string $sentence): DiscoveryQuery
+    {
+        return $this->builder()->build($this->intent($sentence), $service);
+    }
+
+    private function builder(): DiscoveryQueryBuilder
+    {
+        return new DiscoveryQueryBuilder(app(Apps::class), auth()->user()->getCurrentCompany());
     }
 
     /**

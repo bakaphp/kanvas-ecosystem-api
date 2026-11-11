@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Contracts;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Models\People;
 
 /**
@@ -29,5 +30,5 @@ interface PeopleCandidateSourceInterface
      *
      * @return Collection<int, People>
      */
-    public function candidatesFor(Apps $app, Companies $company, array $terms): Collection;
+    public function candidatesFor(Apps $app, Companies|CompanyScope $company, array $terms): Collection;
 }

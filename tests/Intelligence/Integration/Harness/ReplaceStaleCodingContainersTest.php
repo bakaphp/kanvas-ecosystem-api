@@ -7,11 +7,13 @@ namespace Tests\Intelligence\Integration\Harness;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Connectors\OpenCode\Actions\ReplaceStaleCodingContainersAction;
 use Kanvas\Connectors\OpenCode\SshClient;
+use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingRuntimeDriver;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesAgentMachines;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
 use Tests\Intelligence\Integration\Harness\Fakes\FakeCodingSshClient;
+use Tests\Intelligence\Integration\Harness\Fakes\ImpatientContainerRuntimeDriver;
 use Tests\TestCase;
 
 /**
@@ -117,6 +119,23 @@ class ReplaceStaleCodingContainersTest extends TestCase
         $this->assertContains($session->refresh()->status, HarnessStatusEnum::terminalValues());
     }
 
+    /**
+     * The handle is derived from the agent id, so the same agent on another machine carries the same
+     * name for a different runtime — and that session is still running there.
+     */
+    public function testForcingNeverClosesTheSameAgentsSessionOnAnotherMachine(): void
+    {
+        $machine = $this->createAgentMachine();
+        $this->sessionOn($machine, HarnessStatusEnum::RUNNING);
+        $elsewhere = $this->sessionOn($this->createAgentMachine(), HarnessStatusEnum::RUNNING);
+        $ssh = $this->sshListing(self::CONTAINER . '|' . self::AGENT . '|' . self::OLD_IMAGE);
+
+        $result = $this->replace($machine, $ssh, force: true)->execute();
+
+        $this->assertSame(1, $result['sessions_closed']);
+        $this->assertSame(HarnessStatusEnum::RUNNING->value, $elsewhere->refresh()->status);
+    }
+
     public function testADryRunReportsButRemovesNothing(): void
     {
         $machine = $this->createAgentMachine();
@@ -140,6 +159,26 @@ class ReplaceStaleCodingContainersTest extends TestCase
         $this->assertSame([], $ssh->commands);
     }
 
+    /**
+     * A container that is still there after `docker rm -f` has not been replaced: its sessions keep
+     * running in it, and saying otherwise would close them under a live job.
+     */
+    public function testAContainerThatWillNotGoIsKeptAndItsSessionsStayOpen(): void
+    {
+        $machine = $this->createAgentMachine();
+        $this->sessionOn($machine, HarnessStatusEnum::RUNNING);
+        $ssh = new FakeCodingSshClient([
+            'docker ps -aq' => 'abc123',
+            'docker ps -a' => self::CONTAINER . '|' . self::AGENT . '|' . self::OLD_IMAGE,
+        ]);
+
+        $result = $this->replace($machine, $ssh, force: true)->execute();
+
+        $this->assertSame([], $result['replaced']);
+        $this->assertSame([self::CONTAINER], $result['kept']);
+        $this->assertSame(0, $result['sessions_closed']);
+    }
+
     private function sessionOn(AgentMachine $machine, HarnessStatusEnum $status)
     {
         return $this->createTaskSession($status, [
@@ -151,7 +190,7 @@ class ReplaceStaleCodingContainersTest extends TestCase
 
     private function sshListing(string $listing): FakeCodingSshClient
     {
-        return new FakeCodingSshClient(['docker ps -a' => $listing]);
+        return new FakeCodingSshClient(['docker ps -aq' => '', 'docker ps -a' => $listing]);
     }
 
     private function replace(
@@ -164,6 +203,7 @@ class ReplaceStaleCodingContainersTest extends TestCase
             $machine,
             self::NEW_IMAGE,
             $ssh,
+            new ImpatientContainerRuntimeDriver($machine),
             $force,
             $dryRun
         ) extends ReplaceStaleCodingContainersAction {
@@ -171,15 +211,26 @@ class ReplaceStaleCodingContainersTest extends TestCase
                 AgentMachine $machine,
                 string $image,
                 private readonly FakeCodingSshClient $ssh,
+                private readonly CodingRuntimeDriver $driver,
                 bool $force,
                 bool $dryRun
             ) {
-                parent::__construct($machine, $image, $force, $dryRun);
+                parent::__construct(
+                    $machine,
+                    $image,
+                    $force,
+                    $dryRun
+                );
             }
 
             protected function openSshClient(AgentMachine $machine): SshClient
             {
                 return $this->ssh;
+            }
+
+            protected function driver(): CodingRuntimeDriver
+            {
+                return $this->driver;
             }
         };
     }

@@ -135,7 +135,7 @@ class SendBatchMessageTool extends Tool
             message: $message,
             subject: $subject !== null && trim($subject) !== '' ? trim($subject) : null,
             eligibleRecipients: $resolved['eligible'],
-            criteria: ['lead_ids' => $ids, 'channel' => $channel],
+            criteria: ['lead_ids' => $ids, 'channel' => $channel, 'agents_id' => $this->contextAgent()?->getId()],
             scheduledAt: $scheduledAt,
         )->execute();
 

@@ -183,7 +183,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         $firstLeadMessage['message'] = SmsOptOutNoticeService::appendTo($firstLeadMessage['message']);
                     }
 
-                    $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
+                    $leadContext = $lead->getAiContextInfo();
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                     $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
@@ -306,7 +306,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $createMessage->setLock();
                                     $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
-                                    $createMessage->set('from_number', $params['from'] ?? null);
+                                    $createMessage->set(
+                                        'from_number',
+                                        $this->resolveOutreachAgent($params, $app)?->smsPhoneNumber() ?? ($params['from'] ?? null)
+                                    );
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
 
                                     $stopTheClock = false;

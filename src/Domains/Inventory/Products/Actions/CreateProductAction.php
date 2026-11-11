@@ -13,7 +13,9 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Jobs\EnrichProductJob;
 use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateProductAction
@@ -33,6 +35,8 @@ class CreateProductAction
             $this->productDto->company,
             $this->user
         );
+
+        TaxCategory::assertCodesExist($this->productDto->app, $this->productDto->tax_category);
 
         $products = DB::connection('inventory')->transaction(function () {
             $productType = $this->productDto?->productsType?->getId();
@@ -58,6 +62,8 @@ class CreateProductAction
                 'status_id' => $this->productDto->status_id,
                 'users_id' => $this->user->getId(),
                 'weight' => $this->productDto->weight ?? $existingProduct?->weight ?? 0,
+                'tax_category' => $this->productDto->tax_category,
+                'tax_code_override' => $this->productDto->tax_code_override,
             ];
 
             //for now use isAdmin until we have the full role online
@@ -122,6 +128,8 @@ class CreateProductAction
                 true
             );
         }
+
+        EnrichProductJob::dispatchIfEnabled($products);
 
         return $products;
     }

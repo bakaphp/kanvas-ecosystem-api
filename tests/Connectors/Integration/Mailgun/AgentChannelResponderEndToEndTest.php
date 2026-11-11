@@ -30,10 +30,12 @@ use ReflectionProperty;
 use Tests\Stubs\Intelligence\PartlessNeuronAgentStub;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
+use Tests\Traits\AttachesMediaToMessage;
 use Throwable;
 
 class AgentChannelResponderEndToEndTest extends TestCase
 {
+    use AttachesMediaToMessage;
     use DatabaseTransactions;
 
     public function testInboundEmailTriggersAgentReplyPersistedOnChannel(): void
@@ -259,6 +261,32 @@ class AgentChannelResponderEndToEndTest extends TestCase
         ['inbound' => $inbound] = $this->seedInboundEmailScenario();
 
         $this->assertSame('', AttachmentPromptBuilder::withFilesystemMarkers('', $inbound->files));
+    }
+
+    /**
+     * Both shapes at once: the marker is what an internal agent opens with its file tools, the
+     * native block is the only way a customer-facing agent (no file tools) ever sees the picture.
+     */
+    public function testAnAttachedImageReachesTheAgentNativelyAndAsAMarker(): void
+    {
+        Notification::fake();
+
+        ['channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario();
+        $file = $this->attachImage($inbound, 'lot-photo.png');
+
+        try {
+            new AgentChannelResponderAction(
+                $channel,
+                $inbound->fresh(),
+                $agent,
+                $session,
+            )->execute([]);
+        } catch (Throwable) {
+            // Outbound email delivery may throw in test env — the turn ran first.
+        }
+
+        $this->assertModelSawAnImageWithText('filesystem_id: ' . $file->getId());
     }
 
     private function makeFilesystemRow(string $name): Filesystem

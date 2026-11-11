@@ -11,6 +11,11 @@ use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\SyncPayablePaymentStatusAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
+use Kanvas\Souk\Taxes\Enums\TaxReversalStatusEnum;
+use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
+use Kanvas\Souk\Taxes\Jobs\ReverseTaxTransactionJob;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
+use Kanvas\Souk\Taxes\Models\TaxOperation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -22,7 +27,9 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  * @property float $amount
  * @property string|null $currency
  * @property string|null $reason
+ * @property string|null $note
  * @property string|null $processor_refund_id
+ * @property string|null $idempotency_key
  * @property string $status
  * @property array|null $metadata
  */
@@ -45,6 +52,11 @@ class PaymentRefund extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
+    public function attempt(): int
+    {
+        return (int) ($this->metadata['attempt'] ?? 1);
     }
 
     public function isCompleted(): bool
@@ -81,7 +93,9 @@ class PaymentRefund extends BaseModel
             'refund_id' => $this->id,
             'amount' => $this->amount,
             'fully_refunded' => $payment->isFullyRefunded(),
-        ]);
+        ], actor: $this->user);
+
+        $this->dispatchTaxReversal($payment);
 
         // Partial refunds change no status, so this is the one event a connector can hang on to
         // hear about every completed refund.
@@ -92,6 +106,51 @@ class PaymentRefund extends BaseModel
                 'payment_refund_id' => $this->getId(),
             ]);
         }
+    }
+
+    private function dispatchTaxReversal(Payments $payment): void
+    {
+        $payable = $payment->payable;
+
+        if ($payable === null) {
+            return;
+        }
+
+        $snapshot = OrderTaxSnapshot::query()
+            ->where('order_id', $payable->id)
+            ->whereNotIn('status', [TaxStatusEnum::VOIDED->value, TaxStatusEnum::SUPERSEDED->value])
+            ->first();
+
+        if ($snapshot === null) {
+            return;
+        }
+
+        $isFullReversal = (float) $this->amount >= (float) $snapshot->remaining_reversible_amount;
+
+        $idempotencyKey = TaxOperation::reversalIdempotencyKey($snapshot, $this->uuid);
+
+        $existing = TaxOperation::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->whereNotIn('status', [TaxReversalStatusEnum::REVERSED->value, TaxReversalStatusEnum::REVERSAL_FAILED->value])
+            ->first();
+
+        if ($existing === null) {
+            $operation = new TaxOperation();
+            $operation->snapshot_id = $snapshot->id;
+            $operation->kind = 'reverse';
+            $operation->idempotency_key = $idempotencyKey;
+            $operation->status = TaxReversalStatusEnum::PENDING->value;
+            $operation->provider_response = ['refund_uuid' => $this->uuid];
+            $operation->saveOrFail();
+        }
+
+        ReverseTaxTransactionJob::dispatch(
+            $snapshot,
+            $this,
+            (float) $this->amount,
+            $isFullReversal,
+            $this->app,
+        );
     }
 
     public function markAsFailed(array $metadata = []): void

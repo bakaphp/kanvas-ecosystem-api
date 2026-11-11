@@ -26,8 +26,31 @@ class ModelPricingCalculator
         int $cacheWriteTokens = 0,
         ?Carbon $on = null,
     ): float {
-        if ($model === null || $model === '') {
+        $pricing = $this->pricingFor($provider, $model, $on);
+
+        if ($pricing === null) {
             return 0.0;
+        }
+
+        return (float) $inputTokens / 1_000_000.0 * (float) $pricing->input_per_million
+            + (float) $outputTokens / 1_000_000.0 * (float) $pricing->output_per_million
+            + (float) $cacheReadTokens / 1_000_000.0 * (float) ($pricing->cache_read_per_million ?? 0)
+            + (float) $cacheWriteTokens / 1_000_000.0 * (float) ($pricing->cache_write_per_million ?? 0);
+    }
+
+    /**
+     * costFor() answers 0.0 for an unknown model, which reads the same as a free one. Callers that
+     * print a cost use this to say "n/a" instead.
+     */
+    public function hasPricingFor(?string $provider, ?string $model): bool
+    {
+        return $this->pricingFor($provider, $model) !== null;
+    }
+
+    private function pricingFor(?string $provider, ?string $model, ?Carbon $on = null): ?ModelPricing
+    {
+        if ($model === null || $model === '') {
+            return null;
         }
 
         // Match on model first. The inferred provider (e.g. "google" for gemini)
@@ -48,16 +71,7 @@ class ModelPricingCalculator
                 ->first();
         }
 
-        $pricing ??= $base->orderByDesc('effective_from')->first();
-
-        if ($pricing === null) {
-            return 0.0;
-        }
-
-        return (float) $inputTokens / 1_000_000.0 * (float) $pricing->input_per_million
-            + (float) $outputTokens / 1_000_000.0 * (float) $pricing->output_per_million
-            + (float) $cacheReadTokens / 1_000_000.0 * (float) ($pricing->cache_read_per_million ?? 0)
-            + (float) $cacheWriteTokens / 1_000_000.0 * (float) ($pricing->cache_write_per_million ?? 0);
+        return $pricing ?? $base->orderByDesc('effective_from')->first();
     }
 
     /**

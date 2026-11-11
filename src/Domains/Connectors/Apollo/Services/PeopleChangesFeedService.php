@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
+use Kanvas\Connectors\Apollo\Services\Concerns\LabelsTenantCompany;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -23,6 +25,8 @@ use Kanvas\NervousSystem\Ledger\Models\Event;
  */
 class PeopleChangesFeedService
 {
+    use LabelsTenantCompany;
+
     private const string EVENT_TYPE = 'people.enriched';
     private const string SOURCE_DOMAIN = 'Guild';
 
@@ -40,7 +44,7 @@ class PeopleChangesFeedService
 
     public function __construct(
         private readonly Apps $app,
-        private readonly Companies $company,
+        private readonly Companies|CompanyScope $company,
     ) {
     }
 
@@ -109,7 +113,7 @@ class PeopleChangesFeedService
                 $seen[$dedupeKey] = true;
 
                 $rows[] = [
-                    'crm' => $this->company->name,
+                    'crm' => $person['crm'] ?? $this->ownCompanyName(),
                     'person' => $person['name'] ?? '—',
                     'company' => (string) ($payload['company'] ?? '—'),
                     'type' => $type,
@@ -117,6 +121,7 @@ class PeopleChangesFeedService
                     'to' => $toValue,
                     'occurred_at' => $occurredAt,
                     'deliverability' => $person['deliverability'] ?? '—',
+                    ...(isset($person['tenant_company_id']) ? ['tenant_company_id' => $person['tenant_company_id']] : []),
                 ];
 
                 if ($limit !== null && count($rows) >= $limit) {
@@ -165,11 +170,13 @@ class PeopleChangesFeedService
             ->with([
                 'contacts' => fn ($query) => $query->where('contacts_types_id', ContactTypeEnum::EMAIL->value),
             ])
-            ->get(['id', 'firstname', 'lastname'])
+            ->get(['id', 'firstname', 'lastname', 'companies_id'])
             ->mapWithKeys(fn (People $person): array => [
                 (int) $person->getId() => [
                     'name' => $person->getName(),
                     'deliverability' => $this->deliverabilityLabel($person),
+                    'crm' => $this->tenantName((int) $person->companies_id),
+                    ...$this->tenantIdLabel((int) $person->companies_id),
                 ],
             ])
             ->all();

@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Webhooks;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
+use Kanvas\Connectors\Mailgun\Services\AccountingInboxService;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Scribe\PdfIngest\Jobs\ProcessAccountingPdfJob;
+use Kanvas\Scribe\PdfIngest\Services\InboxActingUserService;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -22,35 +22,17 @@ use Override;
 use Throwable;
 
 /**
- * Mailgun inbound webhook for the Scribe accounting inbox.
+ * The accounting inbox receiver (provisioned by EnsureAccountingInboxAction). The attachments are already
+ * Filesystem rows by the time this runs (`payload.uploaded_files`, see capturesFiles()); each PDF becomes
+ * its own ProcessAccountingPdfJob, processed as the company's AP agent user so the bill is submitted for
+ * approval like one the agent filed itself.
  *
- * Production routing:
- *   1. Tenant sets up a Mailgun route forwarding `accounting@<tenant>.example.com` to
- *      POST {API_BASE}/receiver/{receiver_uuid}.
- *   2. ReceiverController (routes/api.php) looks up the ReceiverWebhook row by uuid, calls
- *      `authenticateRequest()`, and dispatches an instance of this class (it's ShouldQueue
- *      via the parent ProcessWebhookJob).
- *   3. `execute()` iterates the email's PDF attachments — already stored as Filesystem rows
- *      by the receiver pipeline at `payload.uploaded_files` — and dispatches one
- *      ProcessAccountingPdfJob per PDF.
+ * One job per PDF, not inline: Mailgun retries a slow 200, a Gemini classify takes 5-15s, and one slow
+ * attachment must not hold up the email's others. The Mailgun message id rides on each job for dedup
+ * across re-deliveries.
  *
- * Each PDF lands as its own PdfIngestLog row + its own draft Expense / Bill (the operator
- * resolves multi-PDF emails by approving each separately).
- *
- * Why a webhook + a SEPARATE per-PDF job:
- *   - The webhook returns 200 fast (Mailgun retries on slow responses)
- *   - Each Gemini classify can take 5-15s — fanning out per attachment means one slow PDF
- *     doesn't hold up the email's other attachments
- *   - Mailgun message_id is captured per-job so dedup (Path 1) works across re-deliveries
- *
- * Tenant ReceiverWebhook config (JSON column `configuration`):
- *   {
- *     "scribe_pdf_inbox": true,             # gate so non-accounting Mailgun routes don't trigger
- *     "default_from_email_when_missing": "ops@example.com"
- *   }
- *
- * Auth: `authenticateRequest()` verifies Mailgun's HMAC signature using the signing key stored
- * on the receiver's app (per `VerifyMailgunWebhookSignatureAction`).
+ * Receiver configuration: `scribe_pdf_inbox: true` is the gate (any other Mailgun route pointed here is
+ * ignored); `default_from_email_when_missing` may be added by hand for senders Mailgun does not name.
  */
 #[WorkflowAction(
     name: 'Mailgun Accounting PDF Inbox',
@@ -77,6 +59,17 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
     {
         $app = $this->receiver->app;
         $company = $this->receiver->company;
+
+        if (! AccountingInboxService::isAccountingInbox($this->receiver)) {
+            Log::warning('Scribe.Mailgun.PdfInbound — receiver is not flagged scribe_pdf_inbox, ignoring email', [
+                'receiver_id' => $this->receiver->getId(),
+            ]);
+
+            return [
+                'dispatched' => 0,
+                'reason' => 'not_an_accounting_inbox',
+            ];
+        }
 
         $payload = $this->webhookRequest->payload ?? [];
         $messageId = $this->extractMessageId($payload);
@@ -106,6 +99,8 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        $actingUser = InboxActingUserService::resolve($app, $company, $this->receiver->user);
+
         $dispatched = 0;
         foreach ($pdfFilesystemIds as $filesystemId) {
             $pdf = Filesystem::query()
@@ -131,18 +126,14 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
                 $fromName,
                 $subject,
                 $inboundMetadata,
+                $actingUser,
             );
-            $this->recordArrival(
-                $app,
-                $company,
-                $pdf,
-                [
-                    'message_id' => $messageId,
-                    'from_email' => $fromEmail,
-                    'from_name' => $fromName,
-                    'subject' => $subject,
-                ]
-            );
+            $this->recordArrival($pdf, [
+                'message_id' => $messageId,
+                'from_email' => $fromEmail,
+                'from_name' => $fromName,
+                'subject' => $subject,
+            ]);
 
             $dispatched++;
         }
@@ -172,17 +163,13 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
      *
      * @param array<string, mixed> $payload
      */
-    private function recordArrival(
-        AppInterface $app,
-        CompanyInterface $company,
-        Filesystem $pdf,
-        array $payload
-    ): void {
+    private function recordArrival(Filesystem $pdf, array $payload): void
+    {
         try {
             new AppendEventAction(
                 new EventData(
-                    app: $app,
-                    company: $company,
+                    app: $this->receiver->app,
+                    company: $this->receiver->company,
                     sourceDomain: 'Scribe',
                     eventType: 'scribe.document.email_received',
                     status: EventStatusEnum::INFO,
@@ -210,12 +197,8 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
     }
 
     /**
-     * Walk `payload.uploaded_files` for entries whose mime/extension says "this is a PDF".
-     * The receiver pipeline runs BEFORE this job — it has already stored attachments as
-     * Filesystem rows and dropped their ids into the payload under that key.
-     *
-     * Filters to PDFs only — emails commonly carry inline images and other attachment types
-     * we don't process here. Non-PDF attachments are silently skipped (no dropped warning).
+     * Inline images and other attachment types are skipped without a warning: an email signature is not
+     * a document.
      *
      * @param  array<string, mixed>  $payload
      * @return list<int>
@@ -229,20 +212,14 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
 
         $ids = [];
         foreach ($files as $file) {
-            if (! is_array($file)) {
-                continue;
-            }
-
-            $isPdf = $this->isPdfAttachment($file);
-            if (! $isPdf) {
+            if (! is_array($file) || ! $this->isPdfAttachment($file)) {
                 continue;
             }
 
             $filesystemId = $file['filesystem_id'] ?? $file['id'] ?? null;
-            if ($filesystemId === null) {
-                continue;
+            if ($filesystemId !== null) {
+                $ids[] = (int) $filesystemId;
             }
-            $ids[] = (int) $filesystemId;
         }
 
         return $ids;
@@ -268,19 +245,12 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
      */
     private function extractMessageId(array $payload): ?string
     {
-        $candidates = [
+        return $this->firstString(
             $payload['Message-Id'] ?? null,
             $payload['message-id'] ?? null,
             $payload['message_id'] ?? null,
             $payload['message_headers'][0][1] ?? null,
-        ];
-        foreach ($candidates as $candidate) {
-            if (is_string($candidate) && $candidate !== '') {
-                return $candidate;
-            }
-        }
-
-        return null;
+        );
     }
 
     /**
@@ -288,19 +258,12 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
      */
     private function extractFromEmail(array $payload): ?string
     {
-        $candidates = [
+        return $this->firstString(
             $payload['sender'] ?? null,
             $payload['from'] ?? null,
             $payload['From'] ?? null,
             $this->receiver->configuration['default_from_email_when_missing'] ?? null,
-        ];
-        foreach ($candidates as $candidate) {
-            if (is_string($candidate) && $candidate !== '') {
-                return $candidate;
-            }
-        }
-
-        return null;
+        );
     }
 
     /**
@@ -308,17 +271,7 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
      */
     private function extractFromName(array $payload): ?string
     {
-        $candidates = [
-            $payload['sender_name'] ?? null,
-            $payload['from-name'] ?? null,
-        ];
-        foreach ($candidates as $candidate) {
-            if (is_string($candidate) && $candidate !== '') {
-                return $candidate;
-            }
-        }
-
-        return null;
+        return $this->firstString($payload['sender_name'] ?? null, $payload['from-name'] ?? null);
     }
 
     /**
@@ -326,8 +279,17 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
      */
     private function extractSubject(array $payload): ?string
     {
-        $subject = $payload['subject'] ?? $payload['Subject'] ?? null;
+        return $this->firstString($payload['subject'] ?? null, $payload['Subject'] ?? null);
+    }
 
-        return is_string($subject) && $subject !== '' ? $subject : null;
+    private function firstString(mixed ...$candidates): ?string
+    {
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

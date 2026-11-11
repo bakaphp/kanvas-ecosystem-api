@@ -41,12 +41,14 @@ class UsersAssociatedCompanies extends BaseModel
     public function deActive(): bool
     {
         $this->user_active = 0;
+
         return $this->saveOrFail();
     }
 
     public function active(): bool
     {
         $this->user_active = 1;
+
         return $this->saveOrFail();
     }
 }

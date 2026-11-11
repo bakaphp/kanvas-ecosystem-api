@@ -20,6 +20,27 @@ class RefundPayment extends Data
         public readonly float $amount,
         public readonly ?string $reason = null,
         public readonly ?string $processorRefundId = null,
+        public readonly ?string $note = null,
+        public readonly ?string $idempotencyKey = null,
     ) {
+    }
+
+    public static function forProcessor(
+        AppInterface $app,
+        CompanyInterface $company,
+        Payments $payment,
+        ?float $amount,
+        array $context = []
+    ): self {
+        return new self(
+            app: $app,
+            company: $company,
+            user: $context['user'] ?? $payment->user,
+            payment: $payment,
+            amount: $amount ?? $payment->getRefundableAmount(),
+            reason: $context['reason'] ?? null,
+            note: $context['note'] ?? null,
+            idempotencyKey: $context['idempotency_key'] ?? null,
+        );
     }
 }

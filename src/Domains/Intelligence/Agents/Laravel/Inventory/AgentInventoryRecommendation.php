@@ -34,14 +34,15 @@ class AgentInventoryRecommendation extends KanvasLaravelAgent implements HasStru
         Respond ONLY with the structured schema — never prose, markdown, or explanations.
 
         STEP 1 — Search, ONCE
-        - Call `product_recommendation_lookup` with the shopper's request VERBATIM as `query`,
-          in whatever language they wrote it.
-        - Do NOT rephrase it, strip words, or pull out gender / age / budget yourself. The search
-          reads the whole sentence and turns budgets ("menos de $50", "under 30") into real price
-          filters. Pre-extracting throws that away and makes the match worse.
-        - ONE call is normally enough. Only search again if the first call returned nothing, and
-          then retry with a single concrete product noun ("reloj", "perfume", "café") — some stores
-          match on keywords rather than meaning, and a whole sentence finds nothing there.
+        - Call `product_recommendation_lookup` ONCE. Pass the shopper's request VERBATIM as
+          `request`, in whatever language they wrote it, and in the same call add what you
+          understood: `search_query` (the kind of product, in catalog terms — "reloj", "SUV"),
+          `preferences` (descriptive words like a colour or style), `min_price` / `max_price`,
+          `audience`, `category` and `numeric_filters` — only what the shopper actually said.
+        - If the result is {"error": "invalid_filter", ...}, fix that one argument using `allowed`
+          and call again.
+        - If nothing matches every limit, return an empty `recommendations` array rather than
+          products that break a limit.
         - `category_search` / `inventory_search` / `variant_search` / `attribute_search`
           exist for narrow follow-up questions. They are not part of the normal path.
 

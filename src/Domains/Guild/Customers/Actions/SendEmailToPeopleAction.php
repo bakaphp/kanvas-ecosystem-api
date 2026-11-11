@@ -5,17 +5,29 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
+use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 
 /**
  * The People-only counterpart of SendMessageToLeadAction's email path, for a recipient that has no
- * Lead behind it (a bulk-imported campaign recipient). Deliberately a thin subset — no SMS, no
- * agent-mailbox lane — those stay Lead-shaped until a real need for them shows up here. Defaults to
- * the same `first-time-agent-engagement` template Leads already use, so the common case needs no new
- * `templates` row — but the caller can point at any other template it owns (see create_template).
+ * Lead behind it (a bulk-imported campaign recipient). No SMS lane — that stays Lead-shaped until a
+ * real need shows up here. Defaults to the same `first-time-agent-engagement` template Leads already
+ * use, so the common case needs no new `templates` row — but the caller can point at any other
+ * template it owns (see create_template).
+ *
+ * Mirrors SendMessageToLeadAction's dual path: an agent with a mailbox sends through Mailgun's API
+ * with open tracking on (SendAsAgentMailboxAction's trackingPerson), everyone else falls back to the
+ * company's SMTP identity via Notification, same as before this existed.
  */
 class SendEmailToPeopleAction
 {
@@ -28,6 +40,10 @@ class SendEmailToPeopleAction
 
     /**
      * @param  list<string>  $attachmentUrls
+     * @param  list<string>  $cc  already filtered by the caller; this action sends to whatever it is given
+     * @param  array<string, mixed>  $variables  Extra template context laid over `content` and `people`;
+     *     the company and the signature keys stay the sender's own.
+     * @param  bool  $trackOpens  Off for a test send to a teammate, so their open never lands on the person.
      */
     public function execute(
         string $to,
@@ -36,9 +52,43 @@ class SendEmailToPeopleAction
         array $attachmentUrls = [],
         ?string $templateName = null,
         bool $important = false,
+        ?Agent $fromAgent = null,
+        ?Users $signatureOwner = null,
+        array $cc = [],
+        ?CampaignRecipient $campaignRecipient = null,
+        array $variables = [],
+        bool $trackOpens = true,
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
+        }
+
+        $subject ??= 'Message from ' . $this->people->company->name;
+        $mailboxAddress = $fromAgent !== null ? new AgentMailboxService()->addressFor($fromAgent) : null;
+        $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
+
+        if ($mailboxAddress !== null) {
+            $mailgunMessageId = new SendAsAgentMailboxAction(
+                agent: $fromAgent,
+                to: $to,
+                subject: $subject,
+                markdownBody: $message,
+                cc: $cc,
+                attachmentUrls: $attachmentUrls,
+                signature: $ownerSignature,
+                trackingPerson: $trackOpens ? $this->people : null,
+                trackingCampaignRecipient: $trackOpens ? $campaignRecipient : null,
+            )->execute();
+
+            return [
+                'channel' => 'email',
+                'to' => $to,
+                'template' => 'agent-mailbox',
+                'from' => $mailboxAddress,
+                'people_id' => $this->people->getId(),
+                'provider' => IntegrationsEnum::MAILGUN->value,
+                'provider_message_id' => FileEmailDeliveryAction::normalizeMessageId($mailgunMessageId),
+            ];
         }
 
         $templateName = $templateName !== null && trim($templateName) !== '' ? trim($templateName) : self::DEFAULT_TEMPLATE;
@@ -48,6 +98,8 @@ class SendEmailToPeopleAction
             $templateName,
             [
                 'content' => $html,
+                'people' => $this->people,
+                ...$variables,
                 'noHi' => true,
                 'company' => $this->people->company,
                 'signature' => false,
@@ -56,9 +108,13 @@ class SendEmailToPeopleAction
             $this->people,
             $attachmentUrls !== [] ? $attachmentUrls : null,
         );
-        $notification->setSubject($subject ?? 'Message from ' . $this->people->company->name);
+        $notification->setSubject($subject);
+        $notification->setUserSignature($ownerSignature);
         if ($important) {
             $notification->setImportant();
+        }
+        if ($cc !== []) {
+            $notification->setCc($cc);
         }
 
         Notification::route('mail', $to)->notify($notification);

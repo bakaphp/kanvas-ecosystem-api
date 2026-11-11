@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Neuron\Exporters\RecordExporterRegistry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportRecordsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleBulkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleDuplicatesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
@@ -36,7 +37,7 @@ final class PeopleToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
 
     private Apps $currentApp;
     private Companies $currentCompany;
@@ -115,6 +116,73 @@ final class PeopleToolsTest extends TestCase
      * custom_fields is declared as a JSON-object STRING because Gemini rejects an OBJECT
      * schema with no `properties` — so the string form is what the model actually sends.
      */
+    public function test_create_person_links_the_organization_its_email_domain_points_at(): void
+    {
+        $domain = 'acme' . uniqid() . '.test';
+        $org = $this->seedOrg('Acme, Inc. DomainUniq');
+        $org->addEmailDomains([$domain]);
+
+        $created = $this->tool(new CreatePersonTool())->__invoke(
+            firstname: 'Domainuniq',
+            lastname: 'Linked',
+            email: 'jane@' . $domain,
+        );
+
+        $this->assertSame((int) $org->getId(), $created['organization']['organization_id']);
+        $this->assertSame('email_domain', $created['organization_source']);
+        $this->assertTrue(
+            OrganizationPeople::where('organizations_id', $org->getId())
+                ->where('peoples_id', $created['person_id'])
+                ->exists()
+        );
+    }
+
+    public function test_create_person_returns_candidates_when_the_domain_is_shared(): void
+    {
+        $domain = 'shared' . uniqid() . '.test';
+        $this->seedOrg('Shared Brand A')->addEmailDomains([$domain]);
+        $this->seedOrg('Shared Brand B')->addEmailDomains([$domain]);
+
+        $created = $this->tool(new CreatePersonTool())->__invoke(
+            firstname: 'Shareduniq',
+            email: 'jane@' . $domain,
+        );
+
+        $this->assertCount(2, $created['organization_candidates']);
+        $this->assertArrayNotHasKey('organization', $created);
+        $this->assertFalse(People::find($created['person_id'])->organizations()->exists());
+    }
+
+    public function test_update_person_links_an_unlinked_person_by_email_domain(): void
+    {
+        $domain = 'update' . uniqid() . '.test';
+        $person = $this->tool(new CreatePersonTool())->__invoke(firstname: 'Updatedomainuniq', email: 'jane@' . $domain);
+        $this->assertArrayNotHasKey('organization', $person);
+
+        $org = $this->seedOrg('Late Domain Org');
+        $org->addEmailDomains([$domain]);
+
+        $updated = $this->tool(new UpdatePersonTool())->__invoke(person_id: (int) $person['person_id']);
+
+        $this->assertSame((int) $org->getId(), $updated['organization']['organization_id']);
+        $this->assertSame('email_domain', $updated['organization_source']);
+        $this->assertTrue(People::find($person['person_id'])->organizations()->where('organizations.id', $org->getId())->exists());
+    }
+
+    public function test_update_person_leaves_a_linked_person_alone(): void
+    {
+        $domain = 'keep' . uniqid() . '.test';
+        $employer = $this->seedOrg('Current Employer');
+        $person = $this->tool(new CreatePersonTool())->__invoke(firstname: 'Keepuniq', email: 'jane@' . $domain);
+        $employer->addPeople(People::find($person['person_id']));
+        $this->seedOrg('Domain Owner')->addEmailDomains([$domain]);
+
+        $updated = $this->tool(new UpdatePersonTool())->__invoke(person_id: (int) $person['person_id'], title: 'Lead');
+
+        $this->assertArrayNotHasKey('organization', $updated);
+        $this->assertSame([$employer->getId()], People::find($person['person_id'])->organizations()->pluck('organizations.id')->all());
+    }
+
     public function test_custom_fields_accept_a_json_object_string(): void
     {
         $created = $this->tool(new CreatePersonTool())->__invoke(
@@ -242,6 +310,38 @@ final class PeopleToolsTest extends TestCase
 
         $this->assertSame((int) $target->getId(), $result['person_id']);
         $this->assertTrue((bool) $source->refresh()->is_deleted);
+    }
+
+    public function test_find_people_duplicates_reports_members_with_their_contacts(): void
+    {
+        $lastname = 'Dupreport' . uniqid();
+        $first = $this->makePerson('Ismael', $lastname);
+        $second = $this->makePerson('Ismael', $lastname);
+        $email = 'ismael-' . uniqid() . '@x.test';
+        $first->addEmail($email, 0, 0);
+
+        $result = $this->tool(new FindPeopleDuplicatesTool())->__invoke(max_groups: 100, refresh: true);
+
+        $this->assertTrue($result['success']);
+        $group = collect($result['groups'])->first(
+            fn (array $group): bool => collect($group['members'])->pluck('person_id')->sort()->values()->all()
+                === [(int) $first->getId(), (int) $second->getId()]
+        );
+        $this->assertNotNull($group);
+        $this->assertSame((int) $first->getId(), $group['canonical_id']);
+        $member = collect($group['members'])->firstWhere('person_id', (int) $first->getId());
+        $this->assertSame([$email], $member['emails']);
+        $this->assertSame('keep', $member['role']);
+        $this->assertSame('safe_to_merge', $group['recommendation'], 'The second record is an empty copy.');
+        $this->assertSame(['emails'], collect($group['members'])->firstWhere('role', 'merge')['differs_from_keep']);
+    }
+
+    public function test_find_people_duplicates_rejects_an_unknown_reason(): void
+    {
+        $result = $this->tool(new FindPeopleDuplicatesTool())->__invoke(reason: 'same_vibe');
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('exact_name', $result['error']);
     }
 
     public function test_get_person_unknown_id_returns_error(): void
@@ -444,6 +544,7 @@ final class PeopleToolsTest extends TestCase
             [
                 'people',
                 'people_match',
+                'people_duplicates',
                 'organizations',
                 'event_participants',
                 'products',

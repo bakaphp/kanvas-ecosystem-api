@@ -5,22 +5,41 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Integrations\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 
+/**
+ * @property int $id
+ * @property int|null $apps_id null on rows written before the column existed
+ * @property int $companies_id
+ * @property int $integrations_id
+ * @property int $status_id
+ * @property int $region_id
+ * @property array|null $config
+ * @property bool $is_active
+ */
 class IntegrationsCompany extends BaseModel
 {
+    /**
+     * Config key an OAuth handler stores its receiver's uuid under, from persistedConfig().
+     */
+    public const string OAUTH_RECEIVER = 'oauth_receiver_uuid';
+
     protected $table = 'integration_companies';
 
     protected $fillable = [
+        'apps_id',
         'companies_id',
         'integrations_id',
         'status_id',
         'region_id',
+        'config',
         'is_active',
     ];
 
@@ -55,6 +74,30 @@ class IntegrationsCompany extends BaseModel
         return $this->hasMany(EntityIntegrationHistory::class, 'integrations_company_id');
     }
 
+    /**
+     * The receiver an OAuth integration's consent starts from, when its handler created one.
+     */
+    public function getOAuthReceiver(): ?ReceiverWebhook
+    {
+        $uuid = $this->config[self::OAUTH_RECEIVER] ?? null;
+        $company = $this->company;
+
+        if (! is_string($uuid) || $uuid === '' || ! $company instanceof Companies) {
+            return null;
+        }
+
+        return ReceiverWebhook::query()
+            ->where('uuid', $uuid)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->first();
+    }
+
+    public function getOAuthUrl(): ?string
+    {
+        return $this->getOAuthReceiver()?->getOAuthUrl();
+    }
+
     public function setStatus(Status $status): void
     {
         $this->status_id = $status->getId();
@@ -70,7 +113,20 @@ class IntegrationsCompany extends BaseModel
     }
 
     /**
-     * Get the integration company using the integration name
+     * A row with no recorded app predates app ownership. It is not this app's row, but nothing says
+     * it is another app's either, so it stays manageable from any app the company lives in — which is
+     * what every row allowed before — until its owner is established.
+     */
+    public function isManageableFrom(AppInterface $app): bool
+    {
+        return $this->apps_id === null || (int) $this->apps_id === (int) $app->getId();
+    }
+
+    /**
+     * Get the integration company using the integration name.
+     *
+     * With $app the lookup is strict: only that app's row, never a row with no recorded app. Without
+     * it the lookup is the pre-ownership one, kept for the connectors that have not been moved yet.
      *
      * @param Status $status Current status of the integration company
      * @param string $name name of the integration
@@ -80,16 +136,17 @@ class IntegrationsCompany extends BaseModel
         Companies $company,
         Status $status,
         string $name,
-        Regions $region
+        Regions $region,
+        ?AppInterface $app = null
     ): ?IntegrationsCompany {
-        $integration = Integrations::where('name', $name)->firstOrFail();
-        $query = IntegrationsCompany::fromCompany($company)
+        $integration = Integrations::getByName($name);
+
+        return IntegrationsCompany::fromCompany($company)
+            ->when($app, fn ($query) => $query->fromApp($app))
             ->where('integrations_id', $integration->getId())
             ->where('status_id', $status->getId())
             ->where('region_id', $region->getId())
-            ->where('is_active', 1);
-
-        return $query->first();
-        // ->first();
+            ->where('is_active', 1)
+            ->first();
     }
 }

@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Recommendations\Enums;
 
 /**
- * Canonical here, not in the connector that writes them: `Products` reads these
- * while indexing, and a core model must not depend on a connector.
+ * The fields `Products` indexes for discovery. Enrichment writes them;
+ * `Enrichment\Enums\AttributeEnum::AUDIENCE` must stay equal to AUDIENCE, since that enum
+ * also drives which attributes are kept out of the enrichment prompt.
  */
 enum SearchFieldEnum: string
 {

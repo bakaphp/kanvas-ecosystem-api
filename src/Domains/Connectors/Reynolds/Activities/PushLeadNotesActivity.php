@@ -6,16 +6,16 @@ namespace Kanvas\Connectors\Reynolds\Activities;
 
 use Baka\Support\Url;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Intellicheck\Services\PeopleService;
 use Kanvas\Connectors\Reynolds\Actions\AddNoteToLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Actions\AddTradeInAction;
 use Kanvas\Connectors\SalesAssist\Services\MessageNoteService;
 use Kanvas\Connectors\SalesAssist\Services\MessageNotificationTextService;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -49,10 +49,16 @@ use Throwable;
 )]
 class PushLeadNotesActivity extends KanvasActivity
 {
+    use SkipsNonLeadEngagements;
+
     public $tries = 3;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
+        if ($skip = $this->skipNonLeadEngagement($message)) {
+            return $skip;
+        }
+
         $company = $message->company;
 
         if (empty($company->get(ConfigurationEnum::REYNOLDS_ENDPOINT->value))
@@ -111,10 +117,10 @@ class PushLeadNotesActivity extends KanvasActivity
         if ($verb === ActionEnum::ID_VERIFICATION->value
             && $status === ActionStatusEnum::OPEN->value
             && ! empty($messageData['data']['address']['address'])) {
-            $updated = $this->idVerificationUpdatePeople($lead->people, $messageData);
+            PeopleService::updatePeopleAddressFromForm($lead->people, $messageData['data']['address']);
             $lead->set('dont-run-id-verification-manual', 1);
 
-            return ['verb' => $verb, 'local' => true, 'idVerification' => $updated];
+            return ['verb' => $verb, 'local' => true, 'idVerification' => $messageData['data']];
         }
 
         if ($verb === ActionEnum::ESIGN_DOCS->value
@@ -159,7 +165,7 @@ class PushLeadNotesActivity extends KanvasActivity
         $messageData = $message->getMessage();
 
         try {
-            $linkPreview = Url::getShortUrl($messageData['link'] ?? '', $lead->app);
+            $linkPreview = Url::getShortUrl($messageData['link'] ?? '', $lead->app, company: $lead->company);
         } catch (Throwable $e) {
             $linkPreview = $messageData['link'] ?? null;
         }
@@ -214,18 +220,6 @@ class PushLeadNotesActivity extends KanvasActivity
         }
 
         return ['verb' => $verb, 'note' => $result];
-    }
-
-    public function idVerificationUpdatePeople(People $people, array $message): array
-    {
-        $people->addDefaultAddress(Address::from([
-            'address' => $message['data']['address']['address'],
-            'city' => $message['data']['address']['city'],
-            'state' => $message['data']['address']['state'],
-            'zip' => $message['data']['address']['zipcode'],
-        ]));
-
-        return $message['data'];
     }
 
     public function cleanEsignature(Lead $lead): void

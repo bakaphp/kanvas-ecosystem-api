@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Recommendations\Services;
 
+use Algolia\AlgoliaSearch\Api\SearchClient;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Search\SearchEngineResolver;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Connectors\ProductEnrichment\Agents\ProductEnrichmentAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Agents\ProductEnrichmentAgent;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
-use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Throwable;
 
 /**
@@ -31,15 +31,37 @@ class ProductDiscoveryStatusService
     public function __construct(
         private readonly AppInterface $app,
         private readonly CompanyInterface $company,
+        private ?SearchClient $algolia = null,
     ) {
     }
 
     /**
-     * @return array{ready: bool, checks: list<array{key: string, ok: bool, detail: string, fix: ?string}>}
+     * `flags` carry where each value came from, because "off" at the app and "off" because the
+     * company said so need different fixes.
+     *
+     * @return array{
+     *     ready: bool,
+     *     checks: list<array{key: string, ok: bool, detail: string, fix: ?string}>,
+     *     flags: array<string, array{value: ?bool, source: string}>
+     * }
      */
     public function report(): array
     {
-        $checks = [
+        $checks = match (ProductDiscoveryResolver::engineFor($this->app)) {
+            ProductDiscoveryResolver::ENGINE_ALGOLIA => $this->algoliaChecks(),
+            default => $this->typesenseChecks(),
+        };
+
+        return [
+            'ready' => ! in_array(false, array_column($checks, 'ok'), true),
+            'checks' => $checks,
+            'flags' => $this->flags(),
+        ];
+    }
+
+    private function typesenseChecks(): array
+    {
+        return [
             $this->engineCheck(),
             $this->credentialsCheck(),
             $this->indexNameCheck(),
@@ -48,13 +70,157 @@ class ProductDiscoveryStatusService
             $this->strategyCheck(),
             $this->enrichmentAgentCheck(),
             $this->blurbCoverageCheck(),
-            $this->workflowRuleCheck(),
+            $this->enrichmentTriggerCheck(),
         ];
+    }
+
+    private function algoliaChecks(): array
+    {
+        $settings = $this->algoliaSettings();
 
         return [
-            'ready' => ! in_array(false, array_column($checks, 'ok'), true),
-            'checks' => $checks,
+            $this->check('search_engine', true, 'resolved engine: algolia', null),
+            $this->algoliaCredentialsCheck(),
+            $this->indexNameCheck(),
+            $this->algoliaIndexCheck($settings),
+            $this->algoliaSearchableBlurbCheck($settings),
+            $this->algoliaAudienceFacetCheck($settings),
+            $this->rangeFiltersCheck(),
+            $this->strategyCheck(),
+            $this->enrichmentAgentCheck(),
+            $this->blurbCoverageCheck(),
+            $this->enrichmentTriggerCheck(),
         ];
+    }
+
+    /**
+     * @return array<string, array{value: ?bool, source: string}>
+     */
+    private function flags(): array
+    {
+        $settings = ProductDiscoverySettings::for($this->app, $this->company);
+
+        return [
+            ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED->value => [
+                'value' => $settings->enrichmentEnabled(),
+                'source' => $settings->source(ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED->value),
+            ],
+            ConfigurationEnum::PRODUCT_DISCOVERY_ENABLED->value => [
+                'value' => $settings->discoveryEnabled(),
+                'source' => $settings->source(ConfigurationEnum::PRODUCT_DISCOVERY_ENABLED->value),
+            ],
+        ];
+    }
+
+    private function algoliaCredentialsCheck(): array
+    {
+        try {
+            $this->algoliaClient()->listIndices(0, 1);
+
+            return $this->check(
+                'algolia_credentials',
+                true,
+                'Algolia reachable',
+                null
+            );
+        } catch (Throwable $e) {
+            return $this->check(
+                'algolia_credentials',
+                false,
+                'Algolia rejected the call: ' . $e->getMessage(),
+                'set algolia_search_settings.algolia_app_id and algolia_api_key (an admin key, since setup writes index settings)',
+            );
+        }
+    }
+
+    /**
+     * @return array{settings: array<string, mixed>, error: ?string}
+     */
+    private function algoliaSettings(): array
+    {
+        try {
+            return [
+                'settings' => (array) $this->algoliaClient()->getSettings(ProductDiscoveryResolver::collectionName($this->app)),
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            return ['settings' => [], 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * @param array{settings: array<string, mixed>, error: ?string} $settings
+     */
+    private function algoliaIndexCheck(array $settings): array
+    {
+        $name = ProductDiscoveryResolver::collectionName($this->app);
+
+        return $this->check(
+            'algolia_index',
+            $settings['error'] === null,
+            $settings['error'] === null ? "'{$name}' readable" : "'{$name}' unreadable: " . $settings['error'],
+            'reindex to create it: kanvas-inventory:scout-product-index-process ' . $this->app->getId() . ' --action=reindex',
+        );
+    }
+
+    /**
+     * @param array{settings: array<string, mixed>, error: ?string} $settings
+     */
+    private function algoliaSearchableBlurbCheck(array $settings): array
+    {
+        $searchable = AlgoliaDiscoveryIndexService::settingList($settings['settings'], 'searchableAttributes');
+
+        if ($settings['error'] === null && $searchable === []) {
+            return $this->check(
+                'algolia_searchable_blurb',
+                true,
+                'no explicit list: every attribute is searched, blurb included',
+                null
+            );
+        }
+
+        return $this->check(
+            'algolia_searchable_blurb',
+            AlgoliaDiscoveryIndexService::declares($searchable, SearchFieldEnum::BLURB->value),
+            SearchFieldEnum::BLURB->value . ' in searchableAttributes',
+            'run kanvas-inventory:prepare-discovery-index ' . $this->app->getId(),
+        );
+    }
+
+    /**
+     * @param array{settings: array<string, mixed>, error: ?string} $settings
+     */
+    private function algoliaAudienceFacetCheck(array $settings): array
+    {
+        $facets = AlgoliaDiscoveryIndexService::settingList($settings['settings'], 'attributesForFaceting');
+
+        return $this->check(
+            'algolia_audience_facet',
+            AlgoliaDiscoveryIndexService::declares($facets, SearchFieldEnum::AUDIENCE->value),
+            SearchFieldEnum::AUDIENCE->value . ' in attributesForFaceting',
+            'run kanvas-inventory:prepare-discovery-index ' . $this->app->getId(),
+        );
+    }
+
+    private function rangeFiltersCheck(): array
+    {
+        $verified = $this->app->get(ConfigurationEnum::RANGE_FILTERS->value);
+        $needed = Products::DISCOVERY_SCHEMA_VERSION;
+        $ok = is_numeric($verified) && (int) $verified >= $needed;
+
+        return $this->check(
+            'range_filters',
+            $ok,
+            'verified version ' . (is_numeric($verified) ? (int) $verified : 'none') . ", code needs {$needed}",
+            'prepare, reindex, then verify: kanvas-inventory:prepare-discovery-index ' . $this->app->getId()
+                . '; kanvas-inventory:scout-product-index-process ' . $this->app->getId() . ' --action=reindex'
+                . '; kanvas-inventory:verify-discovery-index ' . $this->app->getId(),
+        );
+    }
+
+    private function algoliaClient(): SearchClient
+    {
+        return $this->algolia ??= SearchEngineResolver::algoliaClient($this->app);
     }
 
     private function engineCheck(): array
@@ -249,26 +415,32 @@ class ProductDiscoveryStatusService
             'blurb_coverage',
             $pct >= 90,
             "{$enriched}/{$total} ({$pct}%)",
-            $pct >= 90 ? null : 'run kanvas-inventory:backfill-product-enrichment — below full coverage the un-enriched majority outranks the rest',
+            'run ' . $this->backfillCommand() . ' — below full coverage the un-enriched majority outranks the rest',
         );
     }
 
-    private function workflowRuleCheck(): array
+    /**
+     * Enrichment runs from the product actions only when the flag is explicitly on; without it new and
+     * edited products keep their old blurb (or none) after the backfill.
+     */
+    private function enrichmentTriggerCheck(): array
     {
-        $action = Action::where('model_name', 'like', '%EnrichProductActivity')->first();
-
-        if ($action === null) {
-            return $this->check('workflow_rule', false, 'action not registered', 'run kanvas:workflow-sync-actions');
-        }
-
-        $wired = RuleWorkflowAction::where('actions_id', $action->getId())->exists();
+        $settings = ProductDiscoverySettings::for($this->app, $this->company);
+        $on = $settings->enrichmentExplicitlyOn();
 
         return $this->check(
-            'workflow_rule',
-            $wired,
-            $wired ? 'wired' : 'no rule uses it',
-            'add a rule on Products created + updated running "' . $action->name . '", or the catalog goes stale after the backfill',
+            'enrichment_trigger',
+            $on,
+            $on
+                ? 'on (' . $settings->source(ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED->value) . ')'
+                : 'off — new and edited products are not enriched',
+            'set the company setting ' . ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED->value . ' = true, then run ' . $this->backfillCommand(),
         );
+    }
+
+    private function backfillCommand(): string
+    {
+        return 'kanvas-inventory:backfill-product-enrichment ' . $this->app->getId() . ' --company_id=' . $this->company->getId();
     }
 
     private function check(string $key, bool $ok, string $detail, ?string $fix): array

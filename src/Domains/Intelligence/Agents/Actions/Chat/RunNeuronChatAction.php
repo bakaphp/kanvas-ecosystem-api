@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
@@ -23,11 +24,13 @@ use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Services\AgentTurnCancellationService;
+use Kanvas\Intelligence\Agents\Services\AgentTurnTimingService;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
 use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
+use Kanvas\Intelligence\Agents\Services\UnbackedRecordClaimsService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -40,6 +43,8 @@ use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Exceptions\RunInFlightException;
 use NeuronAI\Exceptions\ToolRunsExceededException;
+use NeuronAI\Observability\ObservabilityEvent;
+use NeuronAI\Workflow\Workflow;
 use Throwable;
 
 class RunNeuronChatAction
@@ -63,6 +68,8 @@ class RunNeuronChatAction
     private int $threadWaitSeconds = 0;
 
     private bool $endedOnToolBudget = false;
+
+    private AgentTurnTimingService $timing;
 
     /** @var list<string> */
     private array $executedToolCalls = [];
@@ -110,12 +117,23 @@ class RunNeuronChatAction
         // on every exit; the thread is the key the cancel mutation and the middleware share.
         $threadId = $this->handler instanceof BehavesAsKanvasAgent ? $this->handler->getThreadId() : null;
 
+        $this->timing = new AgentTurnTimingService();
+        if ($this->handler instanceof Workflow) {
+            $this->handler->subscribe(ObservabilityEvent::class, $this->timing);
+        }
+
         try {
             return $this->runTurn($sessionId, $selfRecords, $allowStructuredText, $budget);
         } finally {
             if ($threadId !== null) {
                 AgentTurnCancellationService::clear($threadId);
             }
+
+            $this->timing->logIfSlow($this->agent, $this->threadWaitMs(), [
+                'session_id' => $sessionId,
+                'thread_id' => $threadId,
+                'handler' => $this->handler::class,
+            ]);
         }
     }
 
@@ -141,7 +159,15 @@ class RunNeuronChatAction
                 continue;
             }
 
-            $block = AttachmentDescriptionService::contentBlockFor($binary, allowStructuredText: $allowStructuredText);
+            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
+
+            if ($this->handler instanceof BehavesAsKanvasAgent && $this->needsTranscript($this->handler, $mimeType)) {
+                $userMessage->addContent(new TextContent($this->voiceNoteText($this->handler, $binary, $mimeType)));
+
+                continue;
+            }
+
+            $block = AttachmentDescriptionService::contentBlockFor($binary, $mimeType, allowStructuredText: $allowStructuredText);
             if ($block !== null) {
                 $userMessage->addContent($block);
             }
@@ -169,6 +195,7 @@ class RunNeuronChatAction
             // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
             // surfaces here, inside the try, and never bubbles as a 500.
             $state = $this->chatOnceTheThreadSettles($userMessage);
+            $this->timing->mark('chat-returned');
             $responseMessage = $state->getMessage() ?? new AssistantMessage('');
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
@@ -198,7 +225,7 @@ class RunNeuronChatAction
                 'companies_id' => $this->agent->companies_id,
                 'users_id' => $this->user->getId(),
                 'session_id' => $sessionId,
-                'handler' => get_class($this->handler),
+                'handler' => $this->handler::class,
                 'exception' => $e::class,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile() . ':' . $e->getLine(),
@@ -236,10 +263,46 @@ class RunNeuronChatAction
             return $fallback;
         }
 
-        // A block the client cannot draw costs the reader the whole card, so it is removed here
-        // and the prose around it kept. `render_artifact` validates what it produces, but the
-        // model is free to write the fence by hand and routinely does — see stripInvalidBlocks().
-        $content = new ArtifactBlockService()->stripInvalidBlocks($responseMessage->getContent() ?? '');
+        $thisTurn = [$responseMessage];
+        [$content, $unbacked, $stateClaim] = $this->assessReply(
+            $responseMessage,
+            $thisTurn,
+            $toolCalls,
+            $toolResults
+        );
+
+        $this->timing->mark('reply-assessed');
+
+        // A reply naming records no tool returned, or denying earlier work or declaring work done with no tool to back
+        // it, is answered once more with a correction before anyone reads it; only a repeat reaches the person, flagged.
+        // The draft and the correction are this turn's own words, so neither counts as evidence for the ids they repeat.
+        $correction = $this->correctionFor($unbacked, $stateClaim);
+        if ($correction !== null && $this->handler instanceof BehavesAsKanvasAgent) {
+            $thisTurn[] = $correction;
+            $retried = $this->retryWithCorrection($correction);
+
+            if ($retried !== null) {
+                $responseMessage = $retried->getMessage() ?? new AssistantMessage('');
+                [$retryCalls, $retryResults, $retryUsage] = $this->extractTurnTelemetry($retried, $responseMessage);
+                $toolCalls = [...$toolCalls, ...$retryCalls];
+                $toolResults = [...$toolResults, ...$retryResults];
+                foreach ($retryUsage as $key => $count) {
+                    $usage[$key] = ($usage[$key] ?? 0) + $count;
+                }
+                $this->endedOnToolBudget = $this->endedOnToolBudget || BoundToolResultsMiddleware::exhausted($retried);
+                $this->executedToolCalls = [...$this->executedToolCalls, ...BoundToolResultsMiddleware::executedCalls($retried)];
+
+                $thisTurn[] = $responseMessage;
+                [$content, $unbacked, $stateClaim] = $this->assessReply(
+                    $responseMessage,
+                    $thisTurn,
+                    $toolCalls,
+                    $toolResults
+                );
+            }
+        }
+
+        $content = $this->flagUnverified($content, $unbacked, $stateClaim);
 
         if (! $selfRecords) {
             // Record the model the agent resolved to so the daily rollup can price the
@@ -262,9 +325,12 @@ class RunNeuronChatAction
             );
         }
 
+        $this->timing->mark('turn-logged');
+
         // Idempotent backfill so EntityRollupMessageStore (entity-keyed query)
         // sees every channel message on the next turn.
         $this->backfillChannelMessagesToLead();
+        $this->timing->mark('channel-backfilled');
 
         return $content;
     }
@@ -354,6 +420,168 @@ class RunNeuronChatAction
     protected function pause(int $seconds): void
     {
         Sleep::for($seconds)->seconds();
+    }
+
+    /**
+     * The reply as the person will read it, plus what in it nothing backs: record ids no tool returned, and a
+     * denial or completion stated with no tool call.
+     *
+     * @param list<Message> $thisTurn
+     * @param list<array<string, mixed>> $toolCalls
+     * @param list<array<string, mixed>> $toolResults
+     * @return array{0: string, 1: list<string>, 2: ?string}
+     */
+    private function assessReply(
+        Message $reply,
+        array $thisTurn,
+        array $toolCalls,
+        array $toolResults
+    ): array {
+        $content = $this->presentable($reply, $toolResults);
+
+        return [
+            $content,
+            $this->unbackedClaims($content, $thisTurn, $toolResults),
+            new UnbackedRecordClaimsService()->unverifiedStateClaim($content, $toolCalls),
+        ];
+    }
+
+    /**
+     * A block the client cannot draw costs the reader the whole card, and a block no tool returned can show a
+     * record that does not exist, so both are removed and the prose kept.
+     *
+     * @param list<array<string, mixed>> $toolResults
+     */
+    private function presentable(Message $reply, array $toolResults): string
+    {
+        $artifacts = new ArtifactBlockService();
+
+        return $artifacts->stripUnissuedBlocks($artifacts->stripInvalidBlocks($reply->getContent() ?? ''), $toolResults);
+    }
+
+    /**
+     * Never fails the turn: a check that cannot run reports and lets the reply through.
+     *
+     * @param list<Message> $thisTurn the model's own words this turn, which back nothing
+     * @param list<array<string, mixed>> $toolResults
+     * @return list<string>
+     */
+    private function unbackedClaims(string $content, array $thisTurn, array $toolResults): array
+    {
+        try {
+            return new UnbackedRecordClaimsService()->find($content, $this->evidence($thisTurn, $toolResults));
+        } catch (Throwable $e) {
+            report($e);
+
+            return [];
+        }
+    }
+
+    /**
+     * @param list<string> $unbacked
+     */
+    private function correctionFor(array $unbacked, ?string $stateClaim): ?UserMessage
+    {
+        $claims = new UnbackedRecordClaimsService();
+
+        return match (true) {
+            $unbacked !== [] => new UserMessage($claims->correction($unbacked, hasAttachment: $this->media !== [])),
+            $stateClaim !== null => new UserMessage($claims->stateClaimCorrection($stateClaim)),
+            default => null,
+        };
+    }
+
+    /**
+     * One more model round with the correction as a private user turn (the person never typed it); the model sees
+     * its own draft and the correction. A retry that fails leaves the original reply to be flagged.
+     */
+    private function retryWithCorrection(UserMessage $correction): ?AgentState
+    {
+        Log::warning('Agent reply is not backed by the conversation; retrying with a correction', [
+            'agent_id' => $this->agent->getId(),
+            'session_id' => $this->session?->getId(),
+            'correction' => $correction->getContent(),
+        ]);
+
+        $this->handler->setPrivateUserTurn(true);
+
+        try {
+            return $this->chatOnceTheThreadSettles($correction);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        } finally {
+            $this->handler->setPrivateUserTurn(false);
+        }
+    }
+
+    /**
+     * A record the reply still names, or a denial or completion it still states, after the correction is flagged
+     * where a staff member reads it, and logged; a customer never sees the flag.
+     *
+     * @param list<string> $unbacked
+     */
+    private function flagUnverified(string $content, array $unbacked, ?string $stateClaim): string
+    {
+        if ($unbacked === [] && $stateClaim === null) {
+            return $content;
+        }
+
+        Log::warning('Agent reply is not backed by the conversation', [
+            'agent_id' => $this->agent->getId(),
+            'session_id' => $this->session?->getId(),
+            'records' => $unbacked,
+            'state_claim' => $stateClaim,
+        ]);
+
+        if ($this->agent->conversesWithCustomer()) {
+            return $content;
+        }
+
+        $claims = new UnbackedRecordClaimsService();
+
+        return rtrim($content) . "\n\n" . ($unbacked !== [] ? $claims->warning($unbacked) : $claims->stateClaimWarning($stateClaim));
+    }
+
+    /**
+     * Everything that could back a claim: the person's message, this turn's tool results and the thread the model
+     * read, earlier cards included as markers with their ids. This turn's own drafts and corrections are left out.
+     *
+     * @param list<Message> $thisTurn
+     * @param list<array<string, mixed>> $toolResults
+     */
+    private function evidence(array $thisTurn, array $toolResults): string
+    {
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+        $history = method_exists($this->handler, 'getChatHistory') ? $this->handler->getChatHistory()->getMessages() : [];
+
+        return implode("\n", [
+            $this->message,
+            (string) json_encode($toolResults, $flags),
+            ...array_map(
+                fn (Message $message): string => self::isOneOf($message, $thisTurn) ? '' : (string) json_encode($message, $flags),
+                $history
+            ),
+        ]);
+    }
+
+    /**
+     * The history holds its own copies, so a message is matched by id or by role and text, not by instance.
+     *
+     * @param list<Message> $messages
+     */
+    private static function isOneOf(Message $message, array $messages): bool
+    {
+        foreach ($messages as $candidate) {
+            if ($message === $candidate
+                || ($message->getId() !== '' && $message->getId() === $candidate->getId())
+                || ($message->getRole() === $candidate->getRole() && $message->getContent() === $candidate->getContent())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function humanizedFallback(Throwable $e): string
@@ -449,6 +677,12 @@ class RunNeuronChatAction
             return;
         }
 
+        // An AI Assist or Notes session is staff talking about the lead; copying that channel onto
+        // the lead and people channels would put internal chatter in the customer-facing thread.
+        if ($channel->isInternalChannel()) {
+            return;
+        }
+
         $people = $lead->people;
         $peopleChannelService = $people !== null ? new PeopleChannelService() : null;
         $leadChannelService = new LeadChannelService();
@@ -472,6 +706,25 @@ class RunNeuronChatAction
                 );
             }
         }
+    }
+
+    /**
+     * A voice note on a model that cannot listen is sent as words instead of bytes: the block would
+     * be dropped on the floor and the agent would answer a customer it never heard.
+     */
+    private function needsTranscript(BehavesAsKanvasAgent $handler, string $mimeType): bool
+    {
+        return AttachmentDescriptionService::nativeKind($mimeType) === 'audio'
+            && ! AttachmentDescriptionService::providerHearsAudio($handler->getProvider());
+    }
+
+    private function voiceNoteText(BehavesAsKanvasAgent $handler, string $binary, string $mimeType): string
+    {
+        $transcript = AttachmentDescriptionService::forHandler($handler, $this->agent)->transcribeAudio($binary, $mimeType);
+
+        return $transcript === ''
+            ? 'The customer sent a voice note that could not be transcribed. Say you could not listen to it and ask them to type it.'
+            : 'The customer sent a voice note. Transcript: ' . $transcript;
     }
 
     /**

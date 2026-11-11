@@ -44,7 +44,7 @@ class SetLeadStatusToolTest extends TestCase
         $this->assertSame('Cold - no response', $lead->reason_lost);
     }
 
-    public function testRecordsTheChangeAsAVisibleNoteOnTheLead(): void
+    public function testRecordsTheChangeAsAnInternalNoteOnTheLead(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -60,9 +60,11 @@ class SetLeadStatusToolTest extends TestCase
 
         $this->assertTrue($result['note_recorded']);
 
-        $content = $this->latestLeadNoteContent($lead);
-        $this->assertStringContainsString('Lost Test', $content);
-        $this->assertStringContainsString('Bought elsewhere', $content);
+        $note = $this->latestLeadNote($lead);
+        $this->assertNotNull($note);
+        $this->assertStringContainsString('Lost Test', (string) ($note->message['content'] ?? ''));
+        $this->assertStringContainsString('Bought elsewhere', (string) ($note->message['content'] ?? ''));
+        $this->assertSame(0, $note->is_public);
     }
 
     public function testUnknownStatusReturnsTheValidOptionsAndLeavesTheLeadUntouched(): void

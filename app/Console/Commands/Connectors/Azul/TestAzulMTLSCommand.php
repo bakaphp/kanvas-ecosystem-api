@@ -27,6 +27,7 @@ class TestAzulMTLSCommand extends Command
 
             if (! $app) {
                 $this->error('No app found in database');
+
                 return 1;
             }
 
@@ -34,6 +35,7 @@ class TestAzulMTLSCommand extends Command
 
             if (! $company) {
                 $this->error('No company found');
+
                 return 1;
             }
 
@@ -43,10 +45,10 @@ class TestAzulMTLSCommand extends Command
             $this->info('Initializing Azul client...');
             $config = $this->readEnvConfig();
             $config['verify_ssl'] = false;
-            $this->line("Debug - AUTH1: " . (! empty($config['auth1']) ? '(set)' : 'NOT SET'));
-            $this->line("Debug - AUTH2: " . (! empty($config['auth2']) ? '(set)' : 'NOT SET'));
-            $this->line("Debug - Cert path: " . ($config['cert_path'] ?? 'NOT SET'));
-            $this->line("Debug - Key path: " . ($config['key_path'] ?? 'NOT SET'));
+            $this->line('Debug - AUTH1: ' . (! empty($config['auth1']) ? '(set)' : 'NOT SET'));
+            $this->line('Debug - AUTH2: ' . (! empty($config['auth2']) ? '(set)' : 'NOT SET'));
+            $this->line('Debug - Cert path: ' . ($config['cert_path'] ?? 'NOT SET'));
+            $this->line('Debug - Key path: ' . ($config['key_path'] ?? 'NOT SET'));
             $this->newLine();
 
             $client = new Client($app, $company, $config);
@@ -66,20 +68,24 @@ class TestAzulMTLSCommand extends Command
             return 0;
         } catch (ValidationException $e) {
             $this->error("Configuration Error: {$e->getMessage()}");
+
             return 1;
         } catch (ConnectException $e) {
             $this->error("Connection Failed (possible IP whitelist issue): {$e->getMessage()}");
+
             return 1;
         } catch (RequestException $e) {
             $msg = $e->getMessage();
             if ($e->getResponse()) {
                 $msg .= " | Status: {$e->getResponse()->getStatusCode()}";
-                $msg .= " | Body: " . $e->getResponse()->getBody();
+                $msg .= ' | Body: ' . $e->getResponse()->getBody();
             }
             $this->error("Request Failed: $msg");
+
             return 1;
         } catch (Exception $e) {
             $this->error("Error: {$e->getMessage()}");
+
             return 1;
         }
     }

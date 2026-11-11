@@ -18,14 +18,20 @@ use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
 final class ApplyDoNotContactActionTest extends TestCase
@@ -42,6 +48,11 @@ final class ApplyDoNotContactActionTest extends TestCase
         parent::setUp();
         $this->kanvasApp = app(Apps::class);
         $this->company = static::$cachedUser->getCurrentCompany();
+
+        SystemModules::firstOrCreate(
+            ['model_name' => Lead::class],
+            ['name' => 'Leads', 'slug' => 'leads', 'description' => 'Leads system module']
+        );
     }
 
     public function test_opts_out_every_contact_and_flags_every_lead_of_the_person(): void
@@ -99,6 +110,56 @@ final class ApplyDoNotContactActionTest extends TestCase
         $this->assertTrue($second->alreadyOptedOut);
         $this->assertFalse($second->applied);
         $this->assertSame(0, $second->contactsOptedOut);
+    }
+
+    public function test_every_flagged_lead_gets_an_opt_out_ai_control_note(): void
+    {
+        $people = $this->seedPeople();
+        $this->seedContact($people, ContactTypeEnum::CELLPHONE, '+18095550122');
+        $lead = $this->seedLead($people);
+
+        new ApplyDoNotContactAction(
+            people: $people,
+            sourceChannel: 'manual',
+        )->execute();
+
+        $this->assertSame(1, $this->optOutControlNotes($lead));
+    }
+
+    /**
+     * A contact opted back in by hand, or a lead turned back on, leaves the person flag standing — so
+     * marking the contact again has to re-silence them rather than return early.
+     */
+    public function test_an_already_opted_out_person_is_silenced_again(): void
+    {
+        $people = $this->seedPeople();
+        $phone = $this->seedContact($people, ContactTypeEnum::CELLPHONE, '+18095550123');
+        $lead = $this->seedLead($people);
+
+        new ApplyDoNotContactAction(
+            people: $people,
+            sourceChannel: 'manual',
+        )->execute();
+
+        $phone->refresh()->optIn();
+        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_FON->value)->execute();
+
+        $outcome = new ApplyDoNotContactAction(
+            people: $people,
+            sourceChannel: 'manual',
+        )->execute();
+
+        $this->assertTrue($outcome->alreadyOptedOut);
+        $this->assertFalse($outcome->applied, 'a repeat must not send a second acknowledgement.');
+        $this->assertSame(1, $outcome->contactsOptedOut);
+        $this->assertTrue($phone->refresh()->isOptedOut());
+
+        $lead->refresh();
+        $this->assertSame(
+            IntelligenceModeEnum::IDLE->value,
+            $lead->get(new LeadConfigurationService()->getAiModeKey($lead)),
+        );
+        $this->assertSame(2, $this->optOutControlNotes($lead));
     }
 
     /**
@@ -446,6 +507,15 @@ final class ApplyDoNotContactActionTest extends TestCase
             respectLeadOptOuts: true,
             writeSystemMessageOnStageChange: false,
         );
+    }
+
+    private function optOutControlNotes(Lead $lead): int
+    {
+        return $lead->systemNotes()->firstOrFail()->messages()->get()
+            ->filter(fn ($message): bool => $message->hasTag([LeadMessageTypeEnum::AI_CONTROL->value])
+                && $message->messageType->verb === LeadMessageTypeEnum::AI_CONTROL->value
+                && $message->message['content'] === 'Opt Out')
+            ->count();
     }
 
     private function seedPeople(): People

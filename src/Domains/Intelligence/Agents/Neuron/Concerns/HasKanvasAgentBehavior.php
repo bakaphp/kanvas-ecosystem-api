@@ -8,15 +8,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Summary\Actions\PrepareLeadTurnMemoryAction;
+use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
+use Kanvas\Guild\Leads\Summary\LeadTurnMemory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
+use Kanvas\Intelligence\Agents\Neuron\Observability\TurnSetupStage;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
@@ -26,6 +33,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
+use Kanvas\Intelligence\Agents\Support\AgentReadAccessCompanies;
 use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -40,6 +48,7 @@ use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Exceptions\ToolException;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Tools\ProviderToolInterface;
@@ -122,6 +131,15 @@ trait HasKanvasAgentBehavior
     protected array $turnMedia = [];
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
+    protected ?int $inboundMessageId = null;
+
+    /** Set by resources() when the turn runs on a lead with the rolling summary on; read by the recall. */
+    protected ?LeadTurnMemory $leadTurnMemory = null;
+
+    /**
+     * Built lazily at tool wiring: the mention job names the human after setConfiguration().
+     */
+    private ?CompanyScope $companyScope = null;
 
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void
     {
@@ -139,6 +157,44 @@ trait HasKanvasAgentBehavior
         $this->app = $agent->app;
         $this->company = $agent->companyFor($user);
         $this->user = $user;
+        $this->companyScope = null;
+    }
+
+    protected function companyScope(): ?CompanyScope
+    {
+        if ($this->agent === null || $this->company === null) {
+            return null;
+        }
+
+        $human = $this->requestingHuman();
+
+        if ($human === null) {
+            return null;
+        }
+
+        return $this->companyScope ??= AgentReadAccessCompanies::scopeFor($this->agent, $this->company, $human);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function crossCompanyLines(): array
+    {
+        $scope = $this->companyScope();
+
+        if ($scope === null || ! $scope->isCrossCompany()) {
+            return [];
+        }
+
+        return [
+            sprintf(
+                'You can read records from these companies: %s. Every row you read carries tenant_company, '
+                . 'so say which company a result belongs to; the same person may appear once per company. '
+                . 'Anything you create or change goes to %s only.',
+                implode(', ', $scope->companyNames()),
+                $scope->ownCompany->name,
+            ),
+        ];
     }
 
     /**
@@ -161,6 +217,7 @@ trait HasKanvasAgentBehavior
     public function setConversationHuman(?Users $user): void
     {
         $this->conversationHuman = $user;
+        $this->companyScope = null;
     }
 
     /**
@@ -176,6 +233,22 @@ trait HasKanvasAgentBehavior
     public function requestingHuman(): ?Users
     {
         return $this->conversationHuman ?? $this->user;
+    }
+
+    /**
+     * requestingHuman() falls back to the turn's actor, which on inbound-email and scheduled turns is the
+     * agent's own user or the company AI user. Tools that book money or answer DGII must not load on those
+     * turns, or an outside sender's email could trigger them; this returns null there.
+     */
+    public function personAsking(): ?Users
+    {
+        $human = $this->requestingHuman();
+
+        if ($human === null || $this->agent === null) {
+            return null;
+        }
+
+        return KanvasConversationStore::actsAsAi($human, $this->agent) ? null : $human;
     }
 
     /**
@@ -234,6 +307,11 @@ trait HasKanvasAgentBehavior
     public function setTurnMedia(array $media): void
     {
         $this->turnMedia = array_values($media);
+    }
+
+    public function setInboundMessageId(?int $messageId): void
+    {
+        $this->inboundMessageId = $messageId;
     }
 
     public function setPrivateUserTurn(bool $private): void
@@ -347,6 +425,7 @@ trait HasKanvasAgentBehavior
             $this->agent,
             $this->resolveLeadForTurn(),
             $this->entity,
+            $this->companyScope(),
         ]));
     }
 
@@ -395,7 +474,12 @@ trait HasKanvasAgentBehavior
     {
         /** @var list<ToolInterface> $configured */
         $configured = array_map(
-            fn (object $tool): object => $tool->withContext($this->app, $this->company, $this->actingUser()),
+            fn (object $tool): object => $tool->withContext(
+                $this->app,
+                $this->company,
+                $this->actingUser(),
+                scope: $this->companyScope(),
+            ),
             $tools,
         );
 
@@ -432,16 +516,26 @@ trait HasKanvasAgentBehavior
     #[Override]
     protected function resources(): AgentResources
     {
-        [$instructions, $tools] = $this->resolveTools();
-        [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
-        $this->registeredToolNames = self::toolNames($tools);
-
+        // History first: on a lead, what the window drops decides the summary the instructions carry,
+        // and the retrieval built after this reads the same window.
+        $contextWindow = $this->contextWindow ?? $this->contextWindow();
         $history = new KanvasChatHistory(
             $this->resolveMessageStore(),
             $this->requireWorkflowId(),
-            $this->contextWindow ?? $this->contextWindow(),
+            $contextWindow,
             KanvasHistoryTrimmer::make(),
         );
+        $this->leadTurnMemory = $this->prepareLeadTurnMemory($history, $contextWindow);
+        $this->markSetupStage('lead-memory-ready');
+
+        [$instructions, $tools] = $this->resolveTools();
+        [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
+        $this->markSetupStage('tools-resolved');
+        $this->registeredToolNames = self::toolNames($tools);
+
+        if ($this->leadTurnMemory !== null && $this->leadTurnMemory->block !== '') {
+            $instructions = new SystemMessage($instructions->getContent() . "\n\n" . $this->leadTurnMemory->block);
+        }
 
         return new AgentResources(
             $this->getProvider(),
@@ -449,6 +543,51 @@ trait HasKanvasAgentBehavior
             $instructions,
             new ToolRegistry($tools),
         );
+    }
+
+    /**
+     * The rolling lead summary, when this turn reads a lead's rollup and the app has it on. Off the
+     * lead path it costs nothing: no load, no query.
+     */
+    private function prepareLeadTurnMemory(KanvasChatHistory $history, int $historyBudget): ?LeadTurnMemory
+    {
+        $lead = $this->entity;
+
+        if (
+            ! $lead instanceof Lead
+            || $this->agent === null
+            || ! $this->resolveMessageStore() instanceof EntityRollupMessageStore
+            || ! $this->leadSummaryActive()
+        ) {
+            return null;
+        }
+
+        $history->getMessages();
+        $this->markSetupStage('history-loaded');
+
+        return new PrepareLeadTurnMemoryAction(
+            agent: $this->agent,
+            lead: $lead,
+            window: $history->window(),
+            historyBudget: $historyBudget,
+            customerFacing: $this instanceof ConversesWithCustomer,
+            summaryProvider: fn (): AIProviderInterface => $this->leadSummaryProvider(),
+        )->execute();
+    }
+
+    private function markSetupStage(string $stage): void
+    {
+        $this->getEventDispatcher()->dispatch(new TurnSetupStage($stage));
+    }
+
+    protected function leadSummaryActive(): bool
+    {
+        return $this->app !== null && LeadSummaryRepository::enabledFor($this->app);
+    }
+
+    protected function leadSummaryProvider(): AIProviderInterface
+    {
+        return AgentProviderService::summaryProviderOrOwn($this->requireAgent());
     }
 
     /**
@@ -544,6 +683,24 @@ trait HasKanvasAgentBehavior
     }
 
     /**
+     * Swaps the node rather than rebuilding the list, so the rest of the graph stays Neuron's. Matched by
+     * exact class: ParallelToolNode and AwaitToolResultsNode write results too, and nothing here enables
+     * parallel calls or deferred tools. Turning either on needs the same bound on that node.
+     *
+     * @return array<int, NodeInterface>
+     */
+    #[Override]
+    protected function nodes(): array
+    {
+        return array_map(
+            fn (NodeInterface $node): NodeInterface => $node::class === ToolNode::class
+                ? new BoundedToolNode($this->toolMaxRuns, $this->toolErrorHandler ?? $this->resolveToolErrorHandler())
+                : $node,
+            parent::nodes(),
+        );
+    }
+
+    /**
      * A model that names a tool it was never given is a recoverable mistake, not a platform fault. The
      * provider answers the parse with an UnknownToolStub (RecoversUnknownToolCalls) so the response
      * loads, but ToolNode resolves the call against the agent's registry, where the stub is not, and
@@ -636,6 +793,7 @@ trait HasKanvasAgentBehavior
                 ...$this->temporalContextLines($this->resolveTenantTimezone()),
                 ...$this->memoryRecallLines(),
                 ...self::platformContext(),
+                ...$this->crossCompanyLines(),
                 ...$this->waitingOnPersonLines(),
             ],
             steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),
@@ -764,7 +922,14 @@ trait HasKanvasAgentBehavior
             'NEVER REPORT AN ACTION AS DONE UNLESS THE TOOL SAID IT WAS. A tool result carrying '
             . '"success": false, an "error", or an outcome of denied/not_found/invalid_args means it did '
             . 'NOT happen. Say what was blocked and why, in the same words the tool gave you. Reporting a '
-            . 'refused write as done is worse than the refusal: the person stops checking.',
+            . 'refused write as done is worse than the refusal: the person stops checking. Something you '
+            . 'did not call a tool for in this turn did not happen at all: never describe a record as '
+            . 'created, drafted, sent, approved or cancelled, and never give an id, number or link, unless '
+            . 'a tool returned it in this turn. Earlier messages and memory are not this turn. The reverse '
+            . 'holds too: the tool calls behind your earlier turns are not shown to you, and a "[card shown: …]" '
+            . 'line in one of them is a card a tool produced then. Never call an earlier turn a hallucination or '
+            . 'declare a record missing or unchanged because you cannot see its tool calls: asked whether '
+            . 'something was done or what state a record is in, look it up and answer from the result.',
             'A DELIVERABLE IS NEVER THE BODY OF A MESSAGE. When you produce a document — an HTML '
             . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
             . '(create_template, then update_template to revise it and generate_template_pdf to render '

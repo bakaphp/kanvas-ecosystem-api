@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Services;
 use Baka\Contracts\CompanyInterface;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -114,6 +115,31 @@ class LeadConfigurationService
         $startDate = $this->getFollowUpStartDate($lead->company);
 
         return $startDate !== null && $startDate->greaterThan($lead->created_at);
+    }
+
+    /**
+     * A person turned follow-up on for this lead by hand (ApplyLeadAiModeAction pins it), so the
+     * automatic follow-up's admin config — start date, lead-type default — no longer applies to it.
+     */
+    public function hasManualFollowUp(Lead $lead): bool
+    {
+        return (bool) $lead->get(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value)
+            && $lead->isAiFollowUpEnabled();
+    }
+
+    /**
+     * Only a person's "on" pins; any "off" clears it, so the row exists only while the pin is
+     * active and the fan-out can find pinned leads by name alone.
+     */
+    public function setManualFollowUp(Lead $lead, bool $enabled): void
+    {
+        if ($enabled) {
+            $lead->set(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value, true);
+
+            return;
+        }
+
+        $lead->del(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value);
     }
 
     public function getFollowUpActiveDefaultKey(Lead $lead): string

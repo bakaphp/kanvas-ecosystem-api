@@ -8,6 +8,7 @@ use Baka\Search\Contracts\NameSearchInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Laravel\Scout\Builder as ScoutBuilder;
 use Laravel\Scout\Engines\Engine;
 use Override;
@@ -29,7 +30,7 @@ class EngineNameSearch implements NameSearchInterface
     public function idsFor(
         Model $model,
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         string $queryBy,
         array $terms,
         int $perTerm,
@@ -39,14 +40,19 @@ class EngineNameSearch implements NameSearchInterface
         // call throws and catches a BadMethodCallException before re-reading the app settings.
         $model->setRelation('app', $app);
         $queryByIsRequired = method_exists($model, 'isTypesense') && $model->isTypesense();
+        $companyIds = CompanyScope::companyIdsOf($company);
 
         $ids = [];
 
         foreach ($terms as $term) {
             $builder = new ScoutBuilder($model, $term['query']);
-            $builder->where('apps_id', $app->getId())
-                ->where('companies_id', $company->getId())
-                ->take($perTerm);
+            $builder->where('apps_id', $app->getId())->take($perTerm);
+
+            if (count($companyIds) === 1) {
+                $builder->where('companies_id', $companyIds[0]);
+            } else {
+                $builder->whereIn('companies_id', $companyIds);
+            }
 
             if ($queryByIsRequired) {
                 $builder->options(['query_by' => $queryBy]);

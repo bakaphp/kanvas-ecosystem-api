@@ -60,7 +60,7 @@ class ExportOrderPaymentsAction
 
             $stats['totals'] = [
                 'total_transactions' => $stats['ordersInPeriod']['count'] ?? 0,
-                'total_amount'       => $stats['ordersInPeriod']['totalAmount'] ?? 0,
+                'total_amount' => $stats['ordersInPeriod']['totalAmount'] ?? 0,
             ];
         }
 
@@ -87,8 +87,8 @@ class ExportOrderPaymentsAction
             ->orderBy('orders.created_at', 'asc')
             ->get();
 
-        $timestamp    = Carbon::now()->format('Y-m-d');
-        $filename     = "order_payments_export_{$timestamp}";
+        $timestamp = Carbon::now()->format('Y-m-d');
+        $filename = "order_payments_export_{$timestamp}";
         $tempFilePath = "exports/{$filename}.xlsx";
 
         Excel::store(
@@ -115,7 +115,7 @@ class ExportOrderPaymentsAction
             true
         );
 
-        $filesystem        = new FilesystemServices($this->app);
+        $filesystem = new FilesystemServices($this->app);
         $uploadedFileEntry = $filesystem->upload($uploadedFile, $this->user);
 
         $isSavedInFileSystem = ! empty($uploadedFileEntry->url) && $uploadedFileEntry->url !== '/';
@@ -127,11 +127,11 @@ class ExportOrderPaymentsAction
         $this->cleanupTempImages();
 
         return [
-            'status'       => 'success',
+            'status' => 'success',
             'download_url' => $isSavedInFileSystem ? $uploadedFileEntry->url : Storage::disk('public')->url($tempFilePath),
-            'file_name'    => "{$filename}.xlsx",
-            'file_path'    => $uploadedFileEntry->url ?? $tempFilePath,
-            'message'      => 'Excel export completed successfully',
+            'file_name' => "{$filename}.xlsx",
+            'file_path' => $uploadedFileEntry->url ?? $tempFilePath,
+            'message' => 'Excel export completed successfully',
         ];
     }
 

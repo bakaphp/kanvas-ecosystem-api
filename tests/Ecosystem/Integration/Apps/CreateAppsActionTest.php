@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Integration\Apps;
 
+use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Actions\CreateAppsAction;
@@ -69,6 +70,7 @@ final class CreateAppsActionTest extends TestCase
             RolesEnums::DEVELOPER,
             RolesEnums::INVENTORY_MANAGER,
             RolesEnums::ENGAGEMENT_USAGE_REPORT,
+            RolesEnums::FOLLOW_UP_DEV,
         ] as $role) {
             $this->assertTrue(
                 Role::where('name', $role->value)->where('scope', $scope)->exists(),
@@ -108,6 +110,32 @@ final class CreateAppsActionTest extends TestCase
                 ->where('companies_id', $company->getId())
                 ->exists(),
             'The default company was not associated to the newly created app.'
+        );
+    }
+
+    public function testCreateAppsActionMakesTheCreatingUserOwnerOfTheNewApp(): void
+    {
+        $user = auth()->user();
+
+        $app = new CreateAppsAction(
+            AppInput::from([
+                'url' => 'owner-role.com',
+                'is_actived' => '1',
+                'ecosystem_auth' => '1',
+                'payments_active' => '1',
+                'is_public' => '1',
+                'domain_based' => '1',
+                'name' => 'Owner Role app ' . fake()->unique()->uuid(),
+                'description' => 'Kanvas Application',
+                'domain' => 'owner-role.com',
+            ]),
+            $user
+        )->execute();
+
+        $this->assertTrue($user->isOwnerOf($app), 'The creating user is not Owner in the new app\'s scope.');
+        $this->assertTrue(
+            Bouncer::scope()->onceTo(RolesEnums::getScope($app), fn () => $user->isAdmin()),
+            'The creating user does not pass isAdmin() in the new app\'s scope.'
         );
     }
 }
