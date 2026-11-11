@@ -593,7 +593,7 @@ class CreateEngagementAction
 
     protected function createEngagement(Message $message): Engagement
     {
-        $pipeline = Pipeline::getBySlug($this->actionSlug, $this->app, $this->company);
+        $pipeline = $this->resolvePipeline();
         $stage = $pipeline->stages()->where('slug', $this->engagementData->status->value)->firstOrFail();
 
         return Engagement::firstOrCreate([
@@ -611,6 +611,19 @@ class CreateEngagementAction
             'pipelines_stages_id' => $stage->getId(),
             'parent_id' => $this->engagementData->parentEngagement?->getId(),
         ]);
+    }
+
+    /**
+     * A company action's pipeline is slugged from its display name ("Video Link" → video-link), so it
+     * need not match the action slug the lookup uses.
+     */
+    protected function resolvePipeline(): Pipeline
+    {
+        try {
+            return Pipeline::getBySlug($this->actionSlug, $this->app, $this->company);
+        } catch (ModelNotFoundException $e) {
+            return $this->companyActionParent->pipeline ?? throw $e;
+        }
     }
 
     protected function getActionInfo(AppInterface $app, string $childSlug): array
