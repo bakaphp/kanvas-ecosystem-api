@@ -63,6 +63,12 @@ type VoiceAgentTool {
     parameters: Mixed
 }
 
+"The voice agent's company Twilio account, for the runtime to place and end that company's calls."
+type VoiceAgentTwilio {
+    account_sid: String!
+    auth_token: String!
+}
+
 type VoiceAgentByNumber {
     agent_id: String!
 }
@@ -85,6 +91,11 @@ extend type Query @guardByAppKey {
     voiceAgentSpec(uuid: String!): VoiceAgentSpec!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentSpecQuery"
+        )
+    "The agent's company Twilio credentials. Besides the app key, needs the runtime's token in X-Voice-Runtime-Token."
+    voiceAgentTwilio(agent_uuid: String!): VoiceAgentTwilio!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentTwilioQuery"
         )
     "Inbound routing: which agent owns this dialed number? Null if none."
     voiceAgentByNumber(phone_number: String!): VoiceAgentByNumber

@@ -34,4 +34,15 @@ final class VoiceRuntimeConfig
     {
         return self::url() !== '' && self::apiToken() !== '';
     }
+
+    /**
+     * Whether a request carries the runtime's own token. The runtime sends back the token Kanvas
+     * calls it with, so it proves the caller is the runtime and not just someone holding an app key.
+     */
+    public static function acceptsToken(?string $token): bool
+    {
+        $expected = self::apiToken();
+
+        return $expected !== '' && $token !== null && hash_equals($expected, $token);
+    }
 }
