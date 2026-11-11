@@ -15,6 +15,7 @@ use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DeliverCodingChatTurnAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatProgressAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\ReportFactoryProblemsAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryHealth;
@@ -909,6 +910,56 @@ class CodingChatTest extends TestCase
         $this->assertSame(['Medium_Phone_API_37.0'], $health->emulators);
         $this->assertSame(26, $health->crashes[0]['count']);
         $this->assertStringEndsWith("'health' '1794340000' 2>/dev/null", $client->commands[0]);
+    }
+
+    public function testALongTurnSaysEveryMinuteThatItIsStillWorkingAndOnWhat(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChat($agent, $chat, HarnessStatusEnum::RUNNING);
+        Cache::forget('coding-chat-progress:' . $live->getId());
+        $tick = new HarnessTick(
+            status: HarnessStatusEnum::RUNNING,
+            usage: new HarnessUsage(),
+            narration: ['Metro is up, building the app now.'],
+            activity: 'running `.kanvas/device android`',
+            turnStartedAt: Carbon::now()->subMinutes(3)->getTimestamp(),
+        );
+
+        $update = new PostCodingChatProgressAction($live, $tick)->execute();
+
+        $this->assertSame(
+            "⏳ Still working · 3 min · running `.kanvas/device android`\n\n> Metro is up, building the app now.",
+            $update
+        );
+        $this->assertNull(
+            new PostCodingChatProgressAction($live, $tick)->execute(),
+            'a second poller in the same minute stays quiet'
+        );
+    }
+
+    public function testATurnInItsFirstMinuteAndAWorkflowTaskRunPostNoProgress(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChat($agent, $chat, HarnessStatusEnum::RUNNING);
+        Cache::forget('coding-chat-progress:' . $live->getId());
+        $justStarted = new HarnessTick(
+            status: HarnessStatusEnum::RUNNING,
+            usage: new HarnessUsage(),
+            turnStartedAt: Carbon::now()->subSeconds(10)->getTimestamp(),
+        );
+
+        $this->assertNull(new PostCodingChatProgressAction($live, $justStarted)->execute());
+
+        $run = $this->startFactoryRun($this->factoryTask($this->factoryAgent(), 'Build the login screen'));
+        $longRun = new HarnessTick(
+            status: HarnessStatusEnum::RUNNING,
+            usage: new HarnessUsage(),
+            turnStartedAt: Carbon::now()->subMinutes(5)->getTimestamp(),
+        );
+
+        $this->assertNull(new PostCodingChatProgressAction($run, $longRun)->execute());
     }
 
     public function testAMessageToAStoppedFactoryServerRestartsItAndStillReachesTheAgent(): void

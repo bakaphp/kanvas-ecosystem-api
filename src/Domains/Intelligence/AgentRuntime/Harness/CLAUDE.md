@@ -210,6 +210,10 @@ go through those two (plan-owner wakes, `VerifyPlanAction`, receivers, "run agen
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
+- **A running chat turn says so every minute.** Narration goes to the plan board, not the chat, so a long
+  turn showed only "On it" until it ended. `PostCodingChatProgressAction` (from the poller, on RUNNING)
+  posts "⏳ Still working · N min · <latest step>" plus the agent's latest note; quiet for the first 45s,
+  at most once per ~minute per session, never for a workflow task run.
 - **A stopped factory server is Kanvas's to restart, never the agent's** (the agent runs inside it).
   `RestartFactoryServerAction::retrying()` wraps every call that reaches it (the chat relay, the launch's
   first prompt): on `RuntimeNotListeningException` it runs `serve.sh start`, posts "⚙️ restarted" and

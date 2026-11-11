@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenCode;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
@@ -112,7 +113,67 @@ class OpenCodeHarness implements CodingHarness
             closedTurns: count($idle),
             lastSaid: $this->lastSaid($assistant),
             turnReply: $this->lastSaid($currentTurn),
+            activity: $this->latestStep($currentTurn, $this->directory($session)),
+            turnStartedAt: $this->turnStartedAt($currentTurn),
         );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $currentTurn
+     */
+    private function latestStep(array $currentTurn, ?string $directory): ?string
+    {
+        foreach (array_reverse($currentTurn) as $message) {
+            $content = is_array($message['content'] ?? null) ? $message['content'] : [];
+
+            foreach (array_reverse($content) as $part) {
+                if (is_array($part) && ($part['type'] ?? '') === 'tool') {
+                    return $this->describeStep($part, $directory);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $part
+     */
+    private function describeStep(array $part, ?string $directory): string
+    {
+        $tool = is_string($part['tool'] ?? null) ? $part['tool'] : 'a tool';
+        $input = is_array($part['input'] ?? null) ? $part['input'] : [];
+        $path = $input['path'] ?? $input['filePath'] ?? null;
+        $path = is_string($path) ? ($directory !== null ? Str::after($path, rtrim($directory, '/') . '/') : $path) : null;
+        $command = is_string($input['command'] ?? null) ? trim(strtok($input['command'], "\n") ?: '') : '';
+
+        return match (true) {
+            in_array($tool, ['shell', 'bash'], true) && $command !== '' => 'running `' . Str::limit($command, 80) . '`',
+            $tool === 'read' && $path !== null => 'reading `' . $path . '`',
+            in_array($tool, ['edit', 'write', 'patch', 'multiedit', 'apply_patch'], true) => 'editing ' . ($path !== null ? '`' . $path . '`' : 'files'),
+            in_array($tool, ['grep', 'glob', 'list', 'codesearch'], true) => 'searching the code',
+            default => 'using ' . $tool,
+        };
+    }
+
+    /**
+     * opencode writes `time.created` in milliseconds.
+     *
+     * @param list<array<string, mixed>> $currentTurn
+     */
+    private function turnStartedAt(array $currentTurn): ?int
+    {
+        $first = null;
+
+        foreach ($currentTurn as $message) {
+            $createdAt = (int) ($message['time']['created'] ?? 0);
+
+            if ($createdAt > 0 && ($first === null || $createdAt < $first)) {
+                $first = $createdAt;
+            }
+        }
+
+        return $first === null ? null : intdiv($first, 1000);
     }
 
     /**

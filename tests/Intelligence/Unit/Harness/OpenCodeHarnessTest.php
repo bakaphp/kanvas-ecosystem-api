@@ -283,6 +283,34 @@ class OpenCodeHarnessTest extends TestCase
      * A coding chat posts `turnReply` after every turn. A turn that only ran tools must not repost the
      * previous turn's answer as if it were new.
      */
+    public function testTheTickSaysTheCurrentTurnsLatestStepAndWhenTheTurnStarted(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+        $step = fn (int $at, string $tool, array $input): array => [
+            ...$this->assistantMessage(createdAt: $at, text: ''),
+            'content' => [['type' => 'tool', 'tool' => $tool, 'input' => $input]],
+        ];
+
+        $tick = $this->harness([
+            'message' => $this->page([
+                $step(1_000, 'shell', ['command' => 'git status']),
+                ['type' => 'idle', 'time' => ['created' => 1_100], 'outcome' => 'succeeded'],
+                $step(1_794_400_000_000, 'read', ['path' => '/workspaces/task-a/src/App.tsx']),
+                $step(1_794_400_060_000, 'shell', ['command' => ".kanvas/device android\nsleep 5"]),
+            ], idle: null),
+        ])->poll($session);
+
+        $this->assertSame('running `.kanvas/device android`', $tick->activity);
+        $this->assertSame(1_794_400_000, $tick->turnStartedAt);
+
+        $reading = $this->harness([
+            'message' => $this->page([$step(1_794_400_000_000, 'read', ['path' => '/workspaces/task-a/src/App.tsx'])], idle: null),
+        ])->poll($this->taskSession());
+
+        $this->assertSame('reading `src/App.tsx`', $reading->activity);
+    }
+
     public function testTurnReplyIsTheCurrentTurnsLastTextAndNullWhenItSaidNothing(): void
     {
         $session = $this->taskSession();

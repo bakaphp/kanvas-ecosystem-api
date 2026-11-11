@@ -18,6 +18,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\AbsorbHarnessTickAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DeliverCodingChatTurnAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatProgressAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\FinalizeHarnessSessionAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RequestSessionExtensionAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
@@ -108,6 +109,10 @@ class PollHarnessSessionJob implements ShouldQueue
             $this->pollAgain($this->attempt);
 
             return;
+        }
+
+        if ($tick->status === HarnessStatusEnum::RUNNING) {
+            new PostCodingChatProgressAction($session, $tick)->execute();
         }
 
         $maxMinutes = new SessionCostService()->maxActiveMinutesFor($session);
