@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Roles;
 
-use Illuminate\Support\Facades\Redis;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -31,12 +29,6 @@ class RoleAbilitiesQuery
 
     public function getAllAbilitiesByRoles(mixed $root, array $request): array
     {
-        $roles = RolesRepository::getMapAbilityInModules($request['role']);
-
-        // if ($map = Redis::get(RolesEnums::KEY_MAP->value)) {
-        //     return $map;
-        // }
-        // Redis::set(RolesEnums::KEY_MAP->value, $roles);
-        return $roles;
+        return RolesRepository::getMapAbilityInModules($request['role']);
     }
 }

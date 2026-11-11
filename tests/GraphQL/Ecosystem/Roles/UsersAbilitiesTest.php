@@ -36,7 +36,18 @@ class UsersAbilitiesTest extends TestCase
     {
         // The app only logs warnings, so the request succeeds either way; escalate them to see one.
         set_error_handler(
-            static fn (int $level, string $message, string $file, int $line) => throw new ErrorException($message, 0, $level, $file, $line),
+            static fn (
+                int $level,
+                string $message,
+                string $file,
+                int $line
+            ) => throw new ErrorException(
+                $message,
+                0,
+                $level,
+                $file,
+                $line
+            ),
             E_WARNING
         );
 

@@ -63,7 +63,12 @@ final class DrEcfValidatorForeignPaymentTest extends TestCase
                     tax: 0.0,
                 ),
             ],
-            totals: new EcfTotals(exempt: 500.0, taxed: 0.0, itbis: 0.0, total: 500.0),
+            totals: new EcfTotals(
+                exempt: 500.0,
+                taxed: 0.0,
+                itbis: 0.0,
+                total: 500.0
+            ),
             foreignPayment: $payment,
         );
     }

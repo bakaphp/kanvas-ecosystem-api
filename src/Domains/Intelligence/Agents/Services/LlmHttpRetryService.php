@@ -105,7 +105,7 @@ class LlmHttpRetryService
                     Log::warning('LLM provider call failed', [
                         ...$context(),
                         'exception' => $reason instanceof Throwable ? $reason::class : get_debug_type($reason),
-                        'error' => $reason instanceof Throwable ? $reason->getMessage() : null,
+                        'error' => $reason instanceof Throwable ? self::withoutUrlQueries($reason->getMessage()) : null,
                     ]);
 
                     return Create::rejectionFor($reason);
@@ -157,6 +157,14 @@ class LlmHttpRetryService
             // march the whole fleet back to the provider in the same millisecond.
             return random_int((int) ($backoff / 2), $backoff);
         };
+    }
+
+    /**
+     * cURL repeats the full request URL in its messages, and Gemini carries the API key in the query string.
+     */
+    private static function withoutUrlQueries(string $message): string
+    {
+        return preg_replace('~(https?://[^\s?#]+)\?\S*~', '$1', $message) ?? $message;
     }
 
     private static function retryAfterMs(?ResponseInterface $response): ?int

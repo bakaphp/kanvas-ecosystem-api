@@ -26,7 +26,7 @@ use NeuronAI\Workflow\Observability\WorkflowStart;
  */
 final class AgentTurnTimingService
 {
-    private const int SLOWEST_LISTED = 6;
+    private const int SLOWEST_GAPS = 6;
 
     private const int MIN_GAP_MS = 250;
 
@@ -72,13 +72,7 @@ final class AgentTurnTimingService
 
     public function __invoke(ObservabilityEvent $event): void
     {
-        $now = ($this->clock)();
-        $label = $this->label($event);
-        $gapMs = self::ms($now - $this->lastAt);
-
-        if ($gapMs >= self::MIN_GAP_MS) {
-            $this->gaps[] = ['step' => $this->lastLabel . ' -> ' . $label, 'ms' => $gapMs];
-        }
+        $now = $this->step($this->label($event));
 
         match (true) {
             $event instanceof WorkflowStart => $this->workflowStarted($now),
@@ -90,9 +84,31 @@ final class AgentTurnTimingService
             $event instanceof ToolCalled => $this->toolCalled($event, $now),
             default => null,
         };
+    }
+
+    /**
+     * A step outside the handler's own events: what the chat action does once the model has answered
+     * (reply checks, the turn log, the channel backfill) emits nothing, and that is where a turn can
+     * spend minutes with every Neuron stage reading fast.
+     */
+    public function mark(string $label): void
+    {
+        $this->step($label);
+    }
+
+    private function step(string $label): float
+    {
+        $now = ($this->clock)();
+        $gapMs = self::ms($now - $this->lastAt);
+
+        if ($gapMs >= self::MIN_GAP_MS) {
+            $this->gaps[] = ['step' => $this->lastLabel . ' -> ' . $label, 'ms' => $gapMs];
+        }
 
         $this->lastAt = $now;
         $this->lastLabel = $label;
+
+        return $now;
     }
 
     /**
@@ -118,8 +134,8 @@ final class AgentTurnTimingService
             'tools_ms' => $stageMs['tools'],
             'other_ms' => max(0, $totalMs - array_sum($stageMs)),
             'runs' => $this->runs,
-            'slowest_tools' => array_slice($toolMs, 0, self::SLOWEST_LISTED, true),
-            'slowest_steps' => array_slice($gaps, 0, self::SLOWEST_LISTED),
+            'slowest_tools' => array_slice($toolMs, 0, self::SLOWEST_GAPS, true),
+            'slowest_steps' => array_slice($gaps, 0, self::SLOWEST_GAPS),
         ];
     }
 
