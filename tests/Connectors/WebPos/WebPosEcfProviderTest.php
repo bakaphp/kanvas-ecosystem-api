@@ -30,7 +30,7 @@ final class WebPosEcfProviderTest extends TestCase
     use HasWebPosConfiguration;
 
     private const string ENCF = 'E310000000004';
-    private const string SYSTEM_REF = 'b3f1c2d4-0000-4000-8000-000000000031';
+    private const string SYSTEM_REF = 'KREF000000000031';
     private const string QR = 'https://fc.dgii.gov.do/testecf/ConsultaTimbre?RncEmisor=130000001&RncComprador=101000001'
         . '&ENCF=E310000000004&FechaEmision=15-06-2026&MontoTotal=354.00&FechaFirma=15-06-2026%2010:00:00&CodigoSeguridad=Ab12Cd';
 
@@ -69,6 +69,33 @@ final class WebPosEcfProviderTest extends TestCase
 
         $this->assertSame($expected, $submission->status);
         $this->assertSame(self::ENCF, $submission->encf);
+    }
+
+    public function testARefusalWithNoMessageStillCarriesWebPosRawAnswer(): void
+    {
+        $response = ['received' => false, 'accepted' => false, 'status' => 1, 'feNumber' => self::ENCF, 'msg' => '', 'dgiErrMsg' => ''];
+        $this->fakeSubmit($response);
+
+        try {
+            $this->provider()->submit($this->document());
+            $this->fail('A refusal must be a ProviderRejectedException.');
+        } catch (ProviderRejectedException $e) {
+            $this->assertSame('WebPOS did not accept the document: no message', $e->getMessage());
+            $this->assertSame($response, $e->rawResponse);
+        }
+    }
+
+    public function testAnAcceptanceWithDgiiEmptyCodeZeroMessageCarriesNoMessages(): void
+    {
+        $this->fakeSubmit([
+            'received' => true,
+            'accepted' => true,
+            'status' => 2,
+            'feNumber' => self::ENCF,
+            'dgiResp' => json_encode(['estado' => 'Aceptado', 'mensajes' => [['codigo' => '0', 'valor' => '']]]),
+        ]);
+
+        $this->assertSame([], $this->provider()->submit($this->document())->messages);
     }
 
     public function testAnAcceptedResultCarriesTrackIdQrLegendsSecurityCodeAndPdf(): void

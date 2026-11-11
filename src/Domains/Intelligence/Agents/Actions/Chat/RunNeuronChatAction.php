@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Services\AgentTurnCancellationService;
+use Kanvas\Intelligence\Agents\Services\AgentTurnTimingService;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
@@ -42,6 +43,8 @@ use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Exceptions\RunInFlightException;
 use NeuronAI\Exceptions\ToolRunsExceededException;
+use NeuronAI\Observability\ObservabilityEvent;
+use NeuronAI\Workflow\Workflow;
 use Throwable;
 
 class RunNeuronChatAction
@@ -112,12 +115,23 @@ class RunNeuronChatAction
         // on every exit; the thread is the key the cancel mutation and the middleware share.
         $threadId = $this->handler instanceof BehavesAsKanvasAgent ? $this->handler->getThreadId() : null;
 
+        $timing = new AgentTurnTimingService();
+        if ($this->handler instanceof Workflow) {
+            $this->handler->subscribe(ObservabilityEvent::class, $timing);
+        }
+
         try {
             return $this->runTurn($sessionId, $selfRecords, $allowStructuredText, $budget);
         } finally {
             if ($threadId !== null) {
                 AgentTurnCancellationService::clear($threadId);
             }
+
+            $timing->logIfSlow($this->agent, $this->threadWaitMs(), [
+                'session_id' => $sessionId,
+                'thread_id' => $threadId,
+                'handler' => $this->handler::class,
+            ]);
         }
     }
 
@@ -208,7 +222,7 @@ class RunNeuronChatAction
                 'companies_id' => $this->agent->companies_id,
                 'users_id' => $this->user->getId(),
                 'session_id' => $sessionId,
-                'handler' => get_class($this->handler),
+                'handler' => $this->handler::class,
                 'exception' => $e::class,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile() . ':' . $e->getLine(),

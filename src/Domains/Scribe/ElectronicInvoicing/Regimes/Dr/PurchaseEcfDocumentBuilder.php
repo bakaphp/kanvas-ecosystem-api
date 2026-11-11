@@ -156,7 +156,7 @@ class PurchaseEcfDocumentBuilder
         }
 
         return new EcfForeignPayment(
-            accountType: Str::trimToNull((string) ($payment['account_type'] ?? '')),
+            accountType: Str::trimToNull(strtoupper((string) ($payment['account_type'] ?? ''))),
             accountNumber: Str::trimToNull((string) ($payment['account_number'] ?? '')),
             bank: Str::trimToNull((string) ($payment['bank'] ?? '')),
             foreignCurrency: Str::trimToNull(strtoupper((string) ($payment['currency'] ?? ''))),
