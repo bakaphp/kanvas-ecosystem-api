@@ -33,7 +33,11 @@ Must allow **personal and organizational** accounts, with redirect `{app.url}/v1
 to `ReceiverWebhook::sharedOAuthCallbackUrl()` and finds the receiver from `state`), delegated
 permissions `Files.ReadWrite` and `User.Read` (plus the mail scopes) and a client secret. For personal
 accounts `microsoft_tenant_id` must be `common` (or `consumers`); a specific tenant id rejects them.
-App settings: `microsoft_client_id`, `microsoft_client_secret`, `microsoft_tenant_id`; optional
+Kanvas's own registration lives in `.env` (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`,
+`MICROSOFT_TENANT_ID`, default `common`) and serves every app; an app (or a company, for its own
+account) only sets `microsoft_client_id`, `microsoft_client_secret`, `microsoft_tenant_id` to use its
+own registration, e.g. to show its own name on the consent screen. `MicrosoftTokenStore::credential()`
+reads company → app → Kanvas per key, so set all three together or none. Optional app settings:
 `microsoft-oauth-redirect-url` (an explicit redirect URI) and `microsoft_oauth_return_url` (the
 frontend screen the browser returns to after consent).
 
