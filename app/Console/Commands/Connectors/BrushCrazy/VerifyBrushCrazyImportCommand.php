@@ -178,7 +178,7 @@ class VerifyBrushCrazyImportCommand extends Command
         $calendarables = [];
         foreach (CalendarableTypeEnum::cases() as $morph) {
             foreach ($client->table($morph->table())->where('studio_id', $bcStudioId)->pluck('id') as $id) {
-                $calendarables[] = $morph->value . ':' . $id;
+                $calendarables[] = $morph->key($id);
             }
         }
 

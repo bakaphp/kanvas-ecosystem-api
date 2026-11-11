@@ -47,43 +47,54 @@ class PushUserToBrushCrazyActivity extends BrushCrazyPushActivity
             return $this->failWorkflow(['message' => 'No company to run the BrushCrazy integration under.', 'entity' => null]);
         }
 
-        return $this->runPush($user, $app, $company, $params, function () use ($user, $app, $email, $people, $paramCompany) {
-            if ($email === '') {
-                return $this->failWorkflow(['message' => 'User has no email.', 'entity' => null]);
-            }
-
-            $linked = $people->filter(fn (People $p) => ! empty($p->get(CustomFieldEnum::BRUSHCRAZY_USER_ID->value)));
-            $fromSite = $people->contains(fn (People $p) => $p->get(CustomFieldEnum::BRUSHCRAZY_ORIGIN->value) === SyncSaleFromBrushCrazyAction::ORIGIN_KANVAS);
-
-            if ($linked->isNotEmpty() && ! $fromSite) {
-                return $this->skip('User is a mirrored BrushCrazy customer; BrushCrazy owns it.');
-            }
-
-            $studioId = ($paramCompany instanceof Companies ? SiteBooking::studioId($paramCompany) : null)
-                ?? ($people->first() !== null ? SiteBooking::studioId($people->first()->company) : null);
-            $phone = trim((string) ($user->cell_phone_number ?: $user->phone_number));
-
-            $body = [
-                'email' => $email,
-                'first_name' => trim((string) $user->firstname),
-                'last_name' => trim((string) $user->lastname),
-                'phone' => $phone !== '' ? $phone : null,
-                'studio_id' => $studioId,
-            ];
-
-            return $this->post($app, 'api/kanvas/users', $body, function (array $response) use ($people) {
-                if (! empty($response['user_id'])) {
-                    $people->each(fn (People $p) => SiteBooking::stampUser($p, (int) $response['user_id']));
+        return $this->runPush(
+            $user,
+            $app,
+            $company,
+            $params,
+            function () use ($user, $app, $email, $people, $paramCompany) {
+                if ($email === '') {
+                    return $this->failWorkflow(['message' => 'User has no email.', 'entity' => null]);
                 }
 
-                return [
-                    'message' => 'User pushed to BrushCrazy.',
-                    'user_id' => $response['user_id'] ?? null,
-                    'linked_people' => $people->map(fn (People $p) => $p->getId())->values()->all(),
-                    'entity' => null,
+                $linked = $people->filter(fn (People $p) => ! empty($p->get(CustomFieldEnum::BRUSHCRAZY_USER_ID->value)));
+                $fromSite = $people->contains(fn (People $p) => $p->get(CustomFieldEnum::BRUSHCRAZY_ORIGIN->value) === SyncSaleFromBrushCrazyAction::ORIGIN_KANVAS);
+
+                if ($linked->isNotEmpty() && ! $fromSite) {
+                    return $this->skip('User is a mirrored BrushCrazy customer; BrushCrazy owns it.');
+                }
+
+                $studioId = ($paramCompany instanceof Companies ? SiteBooking::studioId($paramCompany) : null)
+                    ?? ($people->first() !== null ? SiteBooking::studioId($people->first()->company) : null);
+                $phone = trim((string) ($user->cell_phone_number ?: $user->phone_number));
+
+                $body = [
+                    'email' => $email,
+                    'first_name' => trim((string) $user->firstname),
+                    'last_name' => trim((string) $user->lastname),
+                    'phone' => $phone !== '' ? $phone : null,
+                    'studio_id' => $studioId,
                 ];
-            });
-        });
+
+                return $this->post(
+                    $app,
+                    'api/kanvas/users',
+                    $body,
+                    function (array $response) use ($people) {
+                        if (! empty($response['user_id'])) {
+                            $people->each(fn (People $p) => SiteBooking::stampUser($p, (int) $response['user_id']));
+                        }
+
+                        return [
+                            'message' => 'User pushed to BrushCrazy.',
+                            'user_id' => $response['user_id'] ?? null,
+                            'linked_people' => $people->map(fn (People $p) => $p->getId())->values()->all(),
+                            'entity' => null,
+                        ];
+                    }
+                );
+            }
+        );
     }
 
     /**

@@ -53,9 +53,13 @@ enum CalendarableTypeEnum: string
         return $this === self::EVENT;
     }
 
+    /** The BRUSHCRAZY_CALENDARABLE_KEY on an EventVersion; parseKey() reads it back. */
+    public function key(int|string $id): string
+    {
+        return $this->value . ':' . $id;
+    }
+
     /**
-     * A calendarable key is "{morph}:{id}", the BRUSHCRAZY_CALENDARABLE_KEY on an EventVersion.
-     *
      * @return array{0: self, 1: int}|null
      */
     public static function parseKey(string $key): ?array

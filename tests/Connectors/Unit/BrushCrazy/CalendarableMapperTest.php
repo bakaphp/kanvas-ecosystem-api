@@ -39,7 +39,13 @@ final class CalendarableMapperTest extends TestCase
 
     private function map(CalendarableTypeEnum $morph, array $overrides = [], string $tz = 'America/Denver'): array
     {
-        return CalendarableMapper::map($morph, $this->row($overrides), 3, $tz, $this->cutoff());
+        return CalendarableMapper::map(
+            $morph,
+            $this->row($overrides),
+            3,
+            $tz,
+            $this->cutoff()
+        );
     }
 
     /** The version column is the source id, so the composite unique key needs no lookup. */
@@ -63,8 +69,20 @@ final class CalendarableMapperTest extends TestCase
 
     public function testDifferentStudiosNeverShareAnEvent(): void
     {
-        $a = CalendarableMapper::map(CalendarableTypeEnum::LESSON, $this->row(), 1, 'America/Denver', $this->cutoff());
-        $b = CalendarableMapper::map(CalendarableTypeEnum::LESSON, $this->row(), 3, 'America/Denver', $this->cutoff());
+        $a = CalendarableMapper::map(
+            CalendarableTypeEnum::LESSON,
+            $this->row(),
+            1,
+            'America/Denver',
+            $this->cutoff()
+        );
+        $b = CalendarableMapper::map(
+            CalendarableTypeEnum::LESSON,
+            $this->row(),
+            3,
+            'America/Denver',
+            $this->cutoff()
+        );
 
         $this->assertNotSame($a['group_key'], $b['group_key']);
         $this->assertNotSame($a['event']['slug'], $b['event']['slug']);

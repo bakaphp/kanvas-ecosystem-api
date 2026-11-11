@@ -255,6 +255,7 @@ final class SiteBooking
         if (is_numeric($eventVersionId)) {
             $eventVersion = EventVersion::query()
                 ->where('id', (int) $eventVersionId)
+                ->where('apps_id', $order->apps_id)
                 ->where('companies_id', $order->companies_id)
                 ->first();
 
@@ -270,6 +271,7 @@ final class SiteBooking
         }
 
         return EventVersion::query()
+            ->where('apps_id', $order->apps_id)
             ->where('companies_id', $order->companies_id)
             ->whereJsonContains('metadata->brushcrazy_booking->allowed_variant_ids', (string) $variantId)
             ->first();

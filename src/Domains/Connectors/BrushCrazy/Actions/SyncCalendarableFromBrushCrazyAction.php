@@ -13,7 +13,6 @@ use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Concerns\SyncsAttachedPhotos;
 use Kanvas\Connectors\BrushCrazy\Concerns\UpsertsMirroredRows;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
-use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\CalendarableMapper;
 use Kanvas\Connectors\BrushCrazy\Mappers\EventClassMapper;
@@ -81,7 +80,7 @@ class SyncCalendarableFromBrushCrazyAction
         protected ?Client $client = null,
     ) {
         $this->idMaps = $idMaps ?? new IdMapRepository();
-        $this->mediaBaseUrl = $app->get(ConfigurationEnum::BRUSHCRAZY_MEDIA_BASE_URL->value) ?: null;
+        $this->mediaBaseUrl = self::mediaBaseUrlOf($app);
     }
 
     /**
@@ -100,7 +99,7 @@ class SyncCalendarableFromBrushCrazyAction
 
         $this->photos = PaintingMapper::photos($media, $this->mediaBaseUrl);
         $this->photosLoaded = array_fill_keys(
-            array_map(fn (int $id) => $morph->value . ':' . $id, $bcIds),
+            array_map(fn (int $id) => $morph->key($id), $bcIds),
             true
         );
     }
@@ -188,7 +187,7 @@ class SyncCalendarableFromBrushCrazyAction
      */
     protected function photoFor(CalendarableTypeEnum $morph, int $bcId): array
     {
-        $key = $morph->value . ':' . $bcId;
+        $key = $morph->key($bcId);
 
         if (! isset($this->photosLoaded[$key])) {
             $this->preloadPhotos($morph, [$bcId]);
@@ -267,7 +266,7 @@ class SyncCalendarableFromBrushCrazyAction
         );
 
         $this->writeMirroredFields($version, [
-            CustomFieldEnum::BRUSHCRAZY_CALENDARABLE_KEY->value => $morph->value . ':' . $mapped['version']['version'],
+            CustomFieldEnum::BRUSHCRAZY_CALENDARABLE_KEY->value => $morph->key($mapped['version']['version']),
         ]);
 
         return $version;

@@ -26,6 +26,7 @@ class ProductMapper
     public static function map(object $product, ?object $studioSetting = null): array
     {
         $name = Str::trimToNull($product->name ?? null) ?? 'Product ' . (int) $product->id;
+        $slug = self::slug((int) $product->id);
         $barcode = Str::trimToNull($product->barcode ?? null);
         $fitsVariant = $barcode !== null && mb_strlen($barcode) <= self::VARIANT_CODE_MAX;
         $isDeleted = ($product->deleted_at ?? null) !== null;
@@ -33,7 +34,7 @@ class ProductMapper
         return [
             'product' => [
                 'name' => $name,
-                'slug' => self::slug((int) $product->id),
+                'slug' => $slug,
                 'description' => (string) ($product->description ?? ''),
                 'upc' => $barcode,
                 'is_published' => ! $isDeleted
@@ -44,8 +45,8 @@ class ProductMapper
             ],
             'variant' => [
                 'name' => $name,
-                'slug' => self::slug((int) $product->id),
-                'sku' => $fitsVariant ? $barcode : self::slug((int) $product->id),
+                'slug' => $slug,
+                'sku' => $fitsVariant ? $barcode : $slug,
                 'barcode' => $fitsVariant ? $barcode : null,
                 'description' => Str::trimToNull($product->description ?? null),
                 'is_published' => true,

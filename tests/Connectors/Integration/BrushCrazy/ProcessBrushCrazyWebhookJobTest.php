@@ -150,8 +150,8 @@ final class ProcessBrushCrazyWebhookJobTest extends TestCase
     }
 
     /**
-     * Regression: CorrectionCutoff::pinned() threw inside the loop, so the first class pointer
-     * aborted the batch half-way and reported the expected "not imported yet" state to Sentry.
+     * "Not imported yet" is an expected state: it must skip the class pointers, not abort the batch
+     * half-way or reach Sentry.
      */
     public function testClassPointersAreSkippedWithAReasonWhileNoCutoffIsPinned(): void
     {

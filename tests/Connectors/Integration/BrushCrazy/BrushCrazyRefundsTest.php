@@ -45,7 +45,7 @@ final class BrushCrazyRefundsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce', 'workflow'];
+    protected $connectionsToTransact = [null, 'commerce', 'workflow', 'ecosystem'];
 
     private const string PROCESSOR = 'bc-refund-test';
     private const string API_URL = 'https://93.184.216.34';

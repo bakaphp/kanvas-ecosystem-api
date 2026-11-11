@@ -9,7 +9,6 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Concerns\SyncsAttachedPhotos;
 use Kanvas\Connectors\BrushCrazy\Concerns\UpsertsMirroredRows;
-use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
@@ -49,7 +48,7 @@ class SyncPaintingFromBrushCrazyAction
     ) {
         $this->relations = $relations ?? new PaintingRelations(new Client($app));
         $this->idMaps = $idMaps ?? new IdMapRepository();
-        $this->mediaBaseUrl = $app->get(ConfigurationEnum::BRUSHCRAZY_MEDIA_BASE_URL->value) ?: null;
+        $this->mediaBaseUrl = self::mediaBaseUrlOf($app);
     }
 
     /**

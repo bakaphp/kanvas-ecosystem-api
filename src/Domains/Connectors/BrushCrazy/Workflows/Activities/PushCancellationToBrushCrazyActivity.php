@@ -33,54 +33,65 @@ class PushCancellationToBrushCrazyActivity extends BrushCrazyPushActivity
     #[Override]
     public function execute(Model $eventVersion, AppInterface $app, array $params): array
     {
-        return $this->runPush($eventVersion, $app, $eventVersion->company, $params, function () use ($eventVersion, $app, $params) {
-            if (($params['event_version_change'] ?? null) !== 'participant-removed') {
-                return $this->skip('Not a participant removal.');
+        return $this->runPush(
+            $eventVersion,
+            $app,
+            $eventVersion->company,
+            $params,
+            function () use ($eventVersion, $app, $params) {
+                if (($params['event_version_change'] ?? null) !== 'participant-removed') {
+                    return $this->skip('Not a participant removal.');
+                }
+
+                $evp = EventVersionParticipant::withTrashed()
+                    ->where('id', (int) ($params['event_version_participant_id'] ?? 0))
+                    ->where('event_version_id', $eventVersion->getId())
+                    ->with('participant.people')
+                    ->first();
+                $metadata = is_array($evp?->metadata) ? $evp->metadata : [];
+
+                if (($metadata['schema'] ?? null) !== SiteBooking::RESERVATION_SCHEMA || ($metadata['state'] ?? null) !== SiteBooking::STATE_CONFIRMED) {
+                    return $this->skip('Released participant was a hold, not a confirmed booking.');
+                }
+
+                $order = SiteBooking::findOrder($eventVersion, $metadata['order_uuid'] ?? null);
+
+                if ($order === null || ! SiteBooking::wasPushed($order)) {
+                    return $this->skip('The participant order was never booked in BrushCrazy.');
+                }
+
+                [$booking, $reason] = SiteBooking::resolve($order);
+
+                if ($booking === null) {
+                    return $this->failWorkflow(['message' => $reason, 'entity' => null]);
+                }
+
+                $remaining = $booking->participants()
+                    ->filter(fn (EventVersionParticipant $p) => ($p->metadata['state'] ?? null) === SiteBooking::STATE_CONFIRMED)
+                    ->count();
+                $name = trim((string) $evp->participant?->people?->getName());
+
+                $body = [
+                    'kanvas_order_uuid' => $order->uuid,
+                    'calendarable_type' => $booking->calendarableType->value,
+                    'calendarable_id' => $booking->calendarableId,
+                    'attendee_count' => 1,
+                    'remaining_attendees' => $remaining,
+                    'removed_attendees' => $name !== '' ? [['name' => $name]] : [],
+                ];
+
+                return $this->post(
+                    $app,
+                    'api/kanvas/cancellations',
+                    $body,
+                    fn (array $response) => [
+                        'message' => 'Cancellation sent to BrushCrazy.',
+                        'status' => $response['status'] ?? null,
+                        'response' => $response,
+                        'entity' => $order,
+                    ]
+                );
             }
-
-            $evp = EventVersionParticipant::withTrashed()
-                ->where('id', (int) ($params['event_version_participant_id'] ?? 0))
-                ->where('event_version_id', $eventVersion->getId())
-                ->with('participant.people')
-                ->first();
-            $metadata = is_array($evp?->metadata) ? $evp->metadata : [];
-
-            if (($metadata['schema'] ?? null) !== SiteBooking::RESERVATION_SCHEMA || ($metadata['state'] ?? null) !== SiteBooking::STATE_CONFIRMED) {
-                return $this->skip('Released participant was a hold, not a confirmed booking.');
-            }
-
-            $order = SiteBooking::findOrder($eventVersion, $metadata['order_uuid'] ?? null);
-
-            if ($order === null || ! SiteBooking::wasPushed($order)) {
-                return $this->skip('The participant order was never booked in BrushCrazy.');
-            }
-
-            [$booking, $reason] = SiteBooking::resolve($order);
-
-            if ($booking === null) {
-                return $this->failWorkflow(['message' => $reason, 'entity' => null]);
-            }
-
-            $remaining = $booking->participants()
-                ->filter(fn (EventVersionParticipant $p) => ($p->metadata['state'] ?? null) === SiteBooking::STATE_CONFIRMED)
-                ->count();
-            $name = trim((string) $evp->participant?->people?->getName());
-
-            $body = [
-                'kanvas_order_uuid' => $order->uuid,
-                'calendarable_type' => $booking->calendarableType->value,
-                'calendarable_id' => $booking->calendarableId,
-                'attendee_count' => 1,
-                'remaining_attendees' => $remaining,
-                'removed_attendees' => $name !== '' ? [['name' => $name]] : [],
-            ];
-
-            return $this->post($app, 'api/kanvas/cancellations', $body, fn (array $response) => [
-                'message' => 'Cancellation sent to BrushCrazy.',
-                'status' => $response['status'] ?? null,
-                'response' => $response,
-                'entity' => $order,
-            ]);
-        });
+        );
     }
 }

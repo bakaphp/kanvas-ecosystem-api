@@ -7,7 +7,9 @@ namespace Kanvas\Connectors\BrushCrazy\Support;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
+use Kanvas\Souk\Payments\Models\Payments;
 
 /**
  * Which refunds of a site order have moved money, and who moved it. Lives in the order's
@@ -51,7 +53,7 @@ final class RefundLedger
     {
         $ledger = $order->private_metadata['brushcrazy']['refunds'] ?? [];
 
-        // Before the ledger, this key held the refund summary list.
+        // Orders synced before the ledger existed hold a plain refund summary list here.
         return is_array($ledger) && ! array_is_list($ledger) ? $ledger : [];
     }
 
@@ -117,6 +119,21 @@ final class RefundLedger
     public static function pendingKeys(array $ledger): array
     {
         return array_keys(array_filter($ledger, fn (array $entry) => ($entry['status'] ?? null) === self::PENDING));
+    }
+
+    /**
+     * Azul and CardNet mark the payment REVERSED without writing a PaymentRefund row, so a REVERSED
+     * payment with nothing recorded counts as refunded in full.
+     */
+    public static function paymentRefundedCents(Payments $payment): int
+    {
+        $refunded = SiteBooking::cents($payment->getRefundedAmount());
+
+        if ($refunded === 0 && $payment->status === PaymentStatusEnum::REVERSED->value) {
+            return SiteBooking::cents($payment->amount);
+        }
+
+        return $refunded;
     }
 
     /**

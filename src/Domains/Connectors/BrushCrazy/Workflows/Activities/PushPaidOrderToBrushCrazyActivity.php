@@ -29,45 +29,56 @@ class PushPaidOrderToBrushCrazyActivity extends BrushCrazyPushActivity
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params): array
     {
-        return $this->runPush($order, $app, $order->company, $params, function () use ($order, $app) {
-            if (SiteBooking::isMirroredOrder($order)) {
-                return $this->skip('Order came from the BrushCrazy mirror; nothing to push back.');
+        return $this->runPush(
+            $order,
+            $app,
+            $order->company,
+            $params,
+            function () use ($order, $app) {
+                if (SiteBooking::isMirroredOrder($order)) {
+                    return $this->skip('Order came from the BrushCrazy mirror; nothing to push back.');
+                }
+
+                if (SiteBooking::wasPushed($order)) {
+                    return $this->skip('Order was already booked in BrushCrazy.');
+                }
+
+                if (! SiteBooking::isSiteOrder($order)) {
+                    return $this->failWorkflow([
+                        'message' => 'Not a site event order (no brushcrazy.event-order.v1 metadata or bc-event: reference).',
+                        'entity' => null,
+                    ]);
+                }
+
+                [$booking, $reason] = SiteBooking::resolve($order);
+
+                if ($booking === null) {
+                    return $this->failWorkflow(['message' => $reason, 'entity' => null]);
+                }
+
+                $lines = $booking->seatLines();
+
+                if ($lines === []) {
+                    return $this->failWorkflow(['message' => 'The order has no seat lines.', 'entity' => null]);
+                }
+
+                return $this->post(
+                    $app,
+                    'api/kanvas/sales',
+                    $this->body($booking, $lines),
+                    function (array $response) use ($order) {
+                        SiteBooking::stampPushed($order, $response);
+
+                        return [
+                            'message' => 'Order booked in BrushCrazy.',
+                            'sale_id' => $response['sale_id'] ?? null,
+                            'response' => $response,
+                            'entity' => $order,
+                        ];
+                    }
+                );
             }
-
-            if (SiteBooking::wasPushed($order)) {
-                return $this->skip('Order was already booked in BrushCrazy.');
-            }
-
-            if (! SiteBooking::isSiteOrder($order)) {
-                return $this->failWorkflow([
-                    'message' => 'Not a site event order (no brushcrazy.event-order.v1 metadata or bc-event: reference).',
-                    'entity' => null,
-                ]);
-            }
-
-            [$booking, $reason] = SiteBooking::resolve($order);
-
-            if ($booking === null) {
-                return $this->failWorkflow(['message' => $reason, 'entity' => null]);
-            }
-
-            $lines = $booking->seatLines();
-
-            if ($lines === []) {
-                return $this->failWorkflow(['message' => 'The order has no seat lines.', 'entity' => null]);
-            }
-
-            return $this->post($app, 'api/kanvas/sales', $this->body($booking, $lines), function (array $response) use ($order) {
-                SiteBooking::stampPushed($order, $response);
-
-                return [
-                    'message' => 'Order booked in BrushCrazy.',
-                    'sale_id' => $response['sale_id'] ?? null,
-                    'response' => $response,
-                    'entity' => $order,
-                ];
-            });
-        });
+        );
     }
 
     private function body(SiteBooking $booking, array $lines): array

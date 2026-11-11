@@ -42,12 +42,6 @@ final class CorrectionCutoff
         return $pinned;
     }
 
-    public static function pinned(AppInterface $app): Carbon
-    {
-        return self::stored($app)
-            ?? throw new ValidationException('BrushCrazy timezone correction cutoff is not pinned; run kanvas:brushcrazy-import first.');
-    }
-
     public static function stored(AppInterface $app): ?Carbon
     {
         return self::instantSetting($app, ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF);
@@ -67,11 +61,7 @@ final class CorrectionCutoff
         return self::instantSetting($app, ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT);
     }
 
-    /**
-     * BRUSHCRAZY_CUTOVER_AT is an app-wide kill switch, set only by hand: the mirror is permanent
-     * and bidirectional, so there is no handover moment for code to set it at. From that instant
-     * the webhook, the scheduled pull and any import without --force stop; clearing it resumes them.
-     */
+    /** See ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT: an app-wide kill switch, set only by hand. */
     public static function isPastCutover(AppInterface $app, ?Carbon $now = null): bool
     {
         $cutoverAt = self::cutoverAt($app);

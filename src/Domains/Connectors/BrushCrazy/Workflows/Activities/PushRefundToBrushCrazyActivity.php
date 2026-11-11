@@ -36,61 +36,72 @@ class PushRefundToBrushCrazyActivity extends BrushCrazyPushActivity
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params): array
     {
-        return $this->runPush($order, $app, $order->company, $params, function () use ($order, $app, $params) {
-            if (! SiteBooking::wasPushed($order)) {
-                return $this->skip('Order was never booked in BrushCrazy.');
-            }
+        return $this->runPush(
+            $order,
+            $app,
+            $order->company,
+            $params,
+            function () use ($order, $app, $params) {
+                if (! SiteBooking::wasPushed($order)) {
+                    return $this->skip('Order was never booked in BrushCrazy.');
+                }
 
-            /** @var PaymentRefund|null $refund */
-            $refund = PaymentRefund::query()
-                ->where('id', (int) ($params['payment_refund_id'] ?? 0))
-                ->whereIn('payments_id', $order->payments()->reorder()->select('id'))
-                ->first();
+                /** @var PaymentRefund|null $refund */
+                $refund = PaymentRefund::query()
+                    ->where('id', (int) ($params['payment_refund_id'] ?? 0))
+                    ->whereIn('payments_id', $order->payments()->reorder()->select('id'))
+                    ->first();
 
-            if ($refund === null) {
-                return $this->failWorkflow(['message' => 'The refund does not belong to this order.', 'entity' => null]);
-            }
+                if ($refund === null) {
+                    return $this->failWorkflow(['message' => 'The refund does not belong to this order.', 'entity' => null]);
+                }
 
-            if (! $refund->isCompleted()) {
-                return $this->skip('The refund has not completed.');
-            }
+                if (! $refund->isCompleted()) {
+                    return $this->skip('The refund has not completed.');
+                }
 
-            if (RefundLedger::isMirrorRefund($order, $refund)) {
-                return $this->skip('Kanvas made this refund because BrushCrazy refunded it; nothing to push back.');
-            }
+                if (RefundLedger::isMirrorRefund($order, $refund)) {
+                    return $this->skip('Kanvas made this refund because BrushCrazy refunded it; nothing to push back.');
+                }
 
-            if (RefundLedger::wasPushed($order, (string) $refund->uuid)) {
-                return $this->skip('The refund was already recorded in BrushCrazy.');
-            }
+                if (RefundLedger::wasPushed($order, (string) $refund->uuid)) {
+                    return $this->skip('The refund was already recorded in BrushCrazy.');
+                }
 
-            $cents = SiteBooking::cents($refund->amount);
-            $full = $this->isFullyRefunded($order);
+                $cents = SiteBooking::cents($refund->amount);
+                $full = $this->isFullyRefunded($order);
 
-            $body = [
-                'kanvas_order_uuid' => $order->uuid,
-                'kanvas_refund_id' => (string) $refund->uuid,
-                'amount_cents' => $cents,
-                'full' => $full,
-                'reason' => $refund->reason,
-            ];
-
-            return $this->post($app, 'api/kanvas/refunds', $body, function (array $response) use ($order, $refund, $cents, $full) {
-                RefundLedger::recordPushed(
-                    $order,
-                    $refund,
-                    $cents,
-                    $full,
-                    $response
-                );
-
-                return [
-                    'message' => 'Refund recorded in BrushCrazy.',
-                    'status' => $response['status'] ?? null,
-                    'response' => $response,
-                    'entity' => $order,
+                $body = [
+                    'kanvas_order_uuid' => $order->uuid,
+                    'kanvas_refund_id' => (string) $refund->uuid,
+                    'amount_cents' => $cents,
+                    'full' => $full,
+                    'reason' => $refund->reason,
                 ];
-            });
-        });
+
+                return $this->post(
+                    $app,
+                    'api/kanvas/refunds',
+                    $body,
+                    function (array $response) use ($order, $refund, $cents, $full) {
+                        RefundLedger::recordPushed(
+                            $order,
+                            $refund,
+                            $cents,
+                            $full,
+                            $response
+                        );
+
+                        return [
+                            'message' => 'Refund recorded in BrushCrazy.',
+                            'status' => $response['status'] ?? null,
+                            'response' => $response,
+                            'entity' => $order,
+                        ];
+                    }
+                );
+            }
+        );
     }
 
     private function isFullyRefunded(Order $order): bool
@@ -104,7 +115,7 @@ class PushRefundToBrushCrazyActivity extends BrushCrazyPushActivity
         }
 
         $captured = $payments->sum(fn (Payments $payment) => SiteBooking::cents($payment->amount));
-        $refunded = $payments->sum(fn (Payments $payment) => SiteBooking::cents($payment->getRefundedAmount()));
+        $refunded = $payments->sum(fn (Payments $payment) => RefundLedger::paymentRefundedCents($payment));
 
         return $refunded >= $captured;
     }

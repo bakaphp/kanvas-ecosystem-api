@@ -43,7 +43,7 @@ final class BrushCrazyWriteBackActivitiesTest extends TestCase
     use BuildsEventVersionFixtures;
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce', 'event', 'crm', 'workflow'];
+    protected $connectionsToTransact = [null, 'commerce', 'event', 'crm', 'workflow', 'ecosystem'];
 
     /** A public literal: SafeUrl resolves the host, and a made-up name would not resolve. */
     private const string API_URL = 'https://93.184.216.34';
@@ -53,7 +53,7 @@ final class BrushCrazyWriteBackActivitiesTest extends TestCase
 
     private Companies $company;
 
-    private ?string $previousStudioId = null;
+    private mixed $previousStudioId = null;
 
     protected function setUp(): void
     {

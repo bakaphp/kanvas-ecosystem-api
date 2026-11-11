@@ -296,11 +296,17 @@ final class RetireMovedBrushCrazyEntityActionTest extends TestCase
     }
 
     /**
-     * Stands in for the source: this user is no longer staff of the old studio.
+     * Stands in for the source: this user is no longer staff of the old studio. The credits fake
+     * keeps fromRow() off the BrushCrazy database.
      */
     private function staff(): SyncStaffFromBrushCrazyAction
     {
-        return new class (app(Apps::class), auth()->user(), $this->context) extends SyncStaffFromBrushCrazyAction {
+        return new class (
+            app(Apps::class),
+            auth()->user(),
+            $this->context,
+            credits: new FakeStudioCredits()
+        ) extends SyncStaffFromBrushCrazyAction {
             public function fromUserId(Client $client, int $bcUserId): ?Facilitator
             {
                 return $this->deactivate($bcUserId);

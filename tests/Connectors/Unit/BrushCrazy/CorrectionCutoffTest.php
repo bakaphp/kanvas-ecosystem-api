@@ -23,12 +23,13 @@ final class CorrectionCutoffTest extends TestCase
     {
         parent::setUp();
 
-        app(Apps::class)->del(ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF->value);
+        $this->clearSettings();
     }
 
     protected function tearDown(): void
     {
-        app(Apps::class)->del(ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF->value);
+        Carbon::setTestNow();
+        $this->clearSettings();
 
         parent::tearDown();
     }
@@ -57,14 +58,10 @@ final class CorrectionCutoffTest extends TestCase
         $app = app(Apps::class);
         $app->set(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value, '2026-12-01T00:00:00-05:00');
 
-        try {
-            $this->assertSame(
-                '2026-12-01T05:00:00+00:00',
-                CorrectionCutoff::instantSetting($app, ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT)->toIso8601String()
-            );
-        } finally {
-            $app->del(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value);
-        }
+        $this->assertSame(
+            '2026-12-01T05:00:00+00:00',
+            CorrectionCutoff::instantSetting($app, ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT)->toIso8601String()
+        );
     }
 
     public function testPastCutoverOnlyFromTheCutoverInstantOn(): void
@@ -74,19 +71,8 @@ final class CorrectionCutoffTest extends TestCase
 
         $app->set(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value, '2026-12-01T00:00:00+00:00');
 
-        try {
-            $this->assertFalse(CorrectionCutoff::isPastCutover($app, Carbon::parse('2026-11-30T23:59:59+00:00')));
-            $this->assertTrue(CorrectionCutoff::isPastCutover($app, Carbon::parse('2026-12-01T00:00:00+00:00')));
-        } finally {
-            $app->del(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value);
-        }
-    }
-
-    public function testPinnedFailsBeforeTheFirstImport(): void
-    {
-        $this->expectException(ValidationException::class);
-
-        CorrectionCutoff::pinned(app(Apps::class));
+        $this->assertFalse(CorrectionCutoff::isPastCutover($app, Carbon::parse('2026-11-30T23:59:59+00:00')));
+        $this->assertTrue(CorrectionCutoff::isPastCutover($app, Carbon::parse('2026-12-01T00:00:00+00:00')));
     }
 
     public function testFirstPinDefaultsToNowAndLaterRunsReuseIt(): void
@@ -99,9 +85,7 @@ final class CorrectionCutoffTest extends TestCase
 
         $this->assertSame('2026-10-08T12:00:00+00:00', $first->toIso8601String());
         $this->assertTrue($second->equalTo($first));
-        $this->assertTrue(CorrectionCutoff::pinned(app(Apps::class))->equalTo($first));
-
-        Carbon::setTestNow();
+        $this->assertTrue(CorrectionCutoff::stored(app(Apps::class))->equalTo($first));
     }
 
     public function testRequestedCutoffIsHonouredOnlyOnTheFirstPin(): void
@@ -114,5 +98,11 @@ final class CorrectionCutoffTest extends TestCase
         $this->expectException(ValidationException::class);
 
         CorrectionCutoff::pin(app(Apps::class), Carbon::parse('2026-10-01 00:00:00', 'UTC'));
+    }
+
+    private function clearSettings(): void
+    {
+        app(Apps::class)->del(ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF->value);
+        app(Apps::class)->del(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value);
     }
 }

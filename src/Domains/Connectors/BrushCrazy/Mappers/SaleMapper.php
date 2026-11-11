@@ -277,7 +277,7 @@ class SaleMapper
     /** The exact shape `registrations.calendarable_type`/`calendarable_id` stores. */
     protected static function calendarableKey(object $item): string
     {
-        return CalendarableTypeEnum::from((string) $item->option_type)->value . ':' . (int) $item->option_id;
+        return CalendarableTypeEnum::from((string) $item->option_type)->key((int) $item->option_id);
     }
 
     /**

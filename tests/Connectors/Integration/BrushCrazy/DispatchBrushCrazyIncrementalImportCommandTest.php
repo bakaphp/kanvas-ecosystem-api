@@ -34,6 +34,13 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
 
     private const int STUDIO_ID = 2;
 
+    private const array APP_SETTINGS = [
+        ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF,
+        ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT,
+        ConfigurationEnum::BRUSHCRAZY_DB_HOST,
+        ConfigurationEnum::BRUSHCRAZY_DB_DATABASE,
+    ];
+
     protected $connectionsToTransact = [null, 'workflow'];
 
     private Apps $app;
@@ -61,7 +68,7 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
         $this->originalStudioId = $this->company->get(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value);
         $this->originalSyncEnabled = $this->company->get(ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value);
 
-        foreach ([ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF, ConfigurationEnum::BRUSHCRAZY_DB_HOST, ConfigurationEnum::BRUSHCRAZY_DB_DATABASE] as $key) {
+        foreach (self::APP_SETTINGS as $key) {
             $this->originalAppSettings[$key->value] = $this->app->get($key->value);
         }
 
@@ -154,21 +161,14 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
 
     public function testAppPastCutoverIsNotPulled(): void
     {
-        $key = ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value;
-        $original = $this->app->get($key);
         $now = Carbon::now('UTC');
+        $this->app->set(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value, $now->copy()->addDay()->toIso8601String());
 
-        try {
-            $this->app->set($key, $now->copy()->addDay()->toIso8601String());
-
-            $this->assertArrayHasKey($this->app->getId(), DispatchBrushCrazyIncrementalImportCommand::targets($now));
-            $this->assertArrayNotHasKey(
-                $this->app->getId(),
-                DispatchBrushCrazyIncrementalImportCommand::targets($now->copy()->addDays(2))
-            );
-        } finally {
-            $original !== null ? $this->app->set($key, $original) : $this->app->del($key);
-        }
+        $this->assertArrayHasKey($this->app->getId(), DispatchBrushCrazyIncrementalImportCommand::targets($now));
+        $this->assertArrayNotHasKey(
+            $this->app->getId(),
+            DispatchBrushCrazyIncrementalImportCommand::targets($now->copy()->addDays(2))
+        );
     }
 
     private function provisionReceiver(): void

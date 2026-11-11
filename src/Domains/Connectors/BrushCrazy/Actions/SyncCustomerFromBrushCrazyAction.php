@@ -97,7 +97,7 @@ class SyncCustomerFromBrushCrazyAction
         $emails = [];
 
         foreach ($rows as $row) {
-            $email = Str::lower(trim((string) ($row->email ?? '')));
+            $email = $this->emailKey((string) ($row->email ?? ''));
 
             if ($email !== '' && ! isset($mapped[(string) $row->id]) && ($row->deleted_at ?? null) === null) {
                 $emails[] = $email;
@@ -229,7 +229,7 @@ class SyncCustomerFromBrushCrazyAction
      */
     protected function adoptablePeopleId(string $email): ?int
     {
-        $email = Str::lower(trim($email));
+        $email = $this->emailKey($email);
 
         if (! array_key_exists($email, $this->adoptable)) {
             $this->adoptable += $this->findAdoptable([$email]);
@@ -246,7 +246,7 @@ class SyncCustomerFromBrushCrazyAction
      * minus those already carrying a BRUSHCRAZY_USER_ID. Several matches are a duplicate the site
      * itself would refuse to book; the oldest is adopted, deterministically, and it is logged.
      *
-     * @param  array<int, string>  $emails  lowercased and trimmed
+     * @param  array<int, string>  $emails  emailKey() form
      * @return array<string, int|null>
      */
     protected function findAdoptable(array $emails): array
@@ -279,7 +279,7 @@ class SyncCustomerFromBrushCrazyAction
         $byEmail = [];
 
         foreach ($candidates as $candidate) {
-            $email = Str::lower(trim((string) $candidate->value));
+            $email = $this->emailKey((string) $candidate->value);
 
             if (array_key_exists($email, $found) && ! isset($stamped[(int) $candidate->id])) {
                 $byEmail[$email][(int) $candidate->id] = true;
@@ -454,6 +454,15 @@ class SyncCustomerFromBrushCrazyAction
             PeopleType::class,
             'people-type:customer'
         );
+    }
+
+    /**
+     * The form syncContacts() matches contacts by, so adoption and the contact sync agree on what
+     * "the same email" is.
+     */
+    protected function emailKey(string $email): string
+    {
+        return Contact::normalizeValue($email, $this->contactTypeId(ContactTypeEnum::EMAIL));
     }
 
     protected function contactTypeId(ContactTypeEnum $type): int

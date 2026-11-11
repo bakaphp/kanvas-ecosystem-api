@@ -83,24 +83,6 @@ class SaleSource
     }
 
     /**
-     * @param  array<int, int>  $saleIds
-     * @return array<int, string> sale id => Kanvas order uuid, only for the sales the site pushed
-     */
-    public function kanvasOrderUuids(array $saleIds): array
-    {
-        if ($saleIds === [] || ! $this->hasKanvasOrderUuid()) {
-            return [];
-        }
-
-        return $this->client->table('sales')
-            ->whereIn('id', $saleIds)
-            ->whereNotNull('kanvas_order_uuid')
-            ->pluck('kanvas_order_uuid', 'id')
-            ->mapWithKeys(fn ($uuid, $id) => [(int) $id => (string) $uuid])
-            ->all();
-    }
-
-    /**
      * @param  iterable<object>  $saleRows
      * @return array<int, SaleRows> keyed by sale id
      */

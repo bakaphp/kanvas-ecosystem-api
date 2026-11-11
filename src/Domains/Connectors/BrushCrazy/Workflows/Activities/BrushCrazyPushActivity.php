@@ -32,13 +32,11 @@ abstract class BrushCrazyPushActivity extends KanvasActivity implements Workflow
         array $params,
         Closure $operation
     ): array {
-        $this->overwriteAppService($app);
-
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::BRUSHCRAZY,
-            integrationOperation: fn () => $operation(),
+            integrationOperation: $operation,
             additionalParams: $params,
             company: $company,
             throwException: true,

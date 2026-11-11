@@ -244,11 +244,8 @@ class RefundOrderFromBrushCrazyAction
         $refunded = 0;
 
         foreach ($payments as $payment) {
-            $amount = SiteBooking::cents($payment->amount);
-            $paymentRefunded = SiteBooking::cents($payment->getRefundedAmount());
-
-            $captured += $amount;
-            $refunded += $payment->status === PaymentStatusEnum::REVERSED->value && $paymentRefunded === 0 ? $amount : $paymentRefunded;
+            $captured += SiteBooking::cents($payment->amount);
+            $refunded += RefundLedger::paymentRefundedCents($payment);
         }
 
         $refunded += RefundLedger::refundedWithoutRecordCents(RefundLedger::of($this->order), $this->key);

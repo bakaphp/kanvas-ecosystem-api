@@ -21,6 +21,8 @@ final class ProvisionBrushCrazyReceiverActionTest extends TestCase
 
     protected $connectionsToTransact = [null, 'workflow'];
 
+    private mixed $originalSyncEnabled;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,6 +31,21 @@ final class ProvisionBrushCrazyReceiverActionTest extends TestCase
             ['model_name' => ProcessBrushCrazyWebhookJob::class],
             ['name' => 'BrushCrazy Mirror Webhook'],
         );
+
+        $this->originalSyncEnabled = auth()->user()->getCurrentCompany()->get(ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value);
+    }
+
+    /**
+     * Creating a receiver turns the company's sync flag on, and company settings land in Redis and
+     * on `ecosystem`, which the transaction does not roll back.
+     */
+    protected function tearDown(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $key = ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value;
+        $this->originalSyncEnabled !== null ? $company->set($key, $this->originalSyncEnabled) : $company->del($key);
+
+        parent::tearDown();
     }
 
     public function testCreatesAReceiverWithASigningSecret(): void
@@ -67,19 +84,14 @@ final class ProvisionBrushCrazyReceiverActionTest extends TestCase
     {
         $company = auth()->user()->getCurrentCompany();
         $key = ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value;
-        $original = $company->get($key);
 
-        try {
-            $company->del($key);
-            $this->action()->execute();
-            $this->assertTrue($company->getBool($key));
+        $company->del($key);
+        $this->action()->execute();
+        $this->assertTrue($company->getBool($key));
 
-            $company->set($key, false);
-            $this->action()->execute();
-            $this->assertFalse($company->getBool($key));
-        } finally {
-            $original !== null ? $company->set($key, $original) : $company->del($key);
-        }
+        $company->set($key, false);
+        $this->action()->execute();
+        $this->assertFalse($company->getBool($key));
     }
 
     public function testOnlyACorrectSignatureAuthenticates(): void

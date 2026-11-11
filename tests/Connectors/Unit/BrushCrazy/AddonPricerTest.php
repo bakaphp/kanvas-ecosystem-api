@@ -21,7 +21,7 @@ final class AddonPricerTest extends TestCase
     /** Bubble Art prices off "Bubble Art Formula", and a tagged formula is "tag|expression". */
     public function testFormulaAddonUsesTheUnitPriceInDollars(): void
     {
-        $pricer = AddonPricer::fromRows([$this->setting('Bubble Art Formula', 'formula', null, 'product,special|a * 0.25')]);
+        $pricer = AddonPricer::fromRows([$this->formula('Bubble Art Formula', 'product,special|a * 0.25')]);
 
         $this->assertSame(
             [['name' => 'Bubble Art', 'cents' => 1000]],
@@ -34,9 +34,9 @@ final class AddonPricerTest extends TestCase
     {
         $item = $this->item(['price' => $this->money(300), 'addons' => '{"Mosaic":true}']);
 
-        $this->assertSame(900, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, 'a^2')])->unitCents($item));
-        $this->assertSame(600, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, '2a')])->unitCents($item));
-        $this->assertSame(75, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, '.25*a')])->unitCents($item));
+        $this->assertSame(900, AddonPricer::fromRows([$this->formula('Mosaic Formula', 'a^2')])->unitCents($item));
+        $this->assertSame(600, AddonPricer::fromRows([$this->formula('Mosaic Formula', '2a')])->unitCents($item));
+        $this->assertSame(75, AddonPricer::fromRows([$this->formula('Mosaic Formula', '.25*a')])->unitCents($item));
     }
 
     /** The source parser's number token takes a comma as the decimal point. */
@@ -44,8 +44,8 @@ final class AddonPricerTest extends TestCase
     {
         $item = $this->item(['price' => $this->money(300), 'addons' => '{"Mosaic":true}']);
 
-        $this->assertSame(450, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, 'a * 1,5')])->unitCents($item));
-        $this->assertSame(75, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, ',25a')])->unitCents($item));
+        $this->assertSame(450, AddonPricer::fromRows([$this->formula('Mosaic Formula', 'a * 1,5')])->unitCents($item));
+        $this->assertSame(75, AddonPricer::fromRows([$this->formula('Mosaic Formula', ',25a')])->unitCents($item));
     }
 
     /** A studio-typed formula that does not evaluate is free at the source, not an error. */
@@ -53,9 +53,9 @@ final class AddonPricerTest extends TestCase
     {
         $item = $this->item(['addons' => '{"Mosaic":true}']);
 
-        $this->assertSame(0, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, 'a * (')])->unitCents($item));
-        $this->assertSame(0, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, 'sqrt(a)')])->unitCents($item));
-        $this->assertSame(0, AddonPricer::fromRows([$this->setting('Mosaic Formula', 'formula', null, 'a / 0')])->unitCents($item));
+        $this->assertSame(0, AddonPricer::fromRows([$this->formula('Mosaic Formula', 'a * (')])->unitCents($item));
+        $this->assertSame(0, AddonPricer::fromRows([$this->formula('Mosaic Formula', 'sqrt(a)')])->unitCents($item));
+        $this->assertSame(0, AddonPricer::fromRows([$this->formula('Mosaic Formula', 'a / 0')])->unitCents($item));
     }
 
     public function testStudioCreatedAddonCanBeAPercentOfThePrice(): void
@@ -80,7 +80,7 @@ final class AddonPricerTest extends TestCase
 
     public function testDoubleSidedUsesItsFormula(): void
     {
-        $pricer = AddonPricer::fromRows([$this->setting('Double-sided Formula', 'formula', null, 'a * 0.5')]);
+        $pricer = AddonPricer::fromRows([$this->formula('Double-sided Formula', 'a * 0.5')]);
 
         $this->assertSame(1250, $pricer->unitCents($this->item(['double_sided' => 1])));
     }
@@ -112,9 +112,14 @@ final class AddonPricerTest extends TestCase
         $this->assertSame(0, $pricer->unitCents($this->item(['addons' => '{"Gold Accent":true}'])));
     }
 
-    private function setting(string $name, string $type, ?string $amount, ?string $value = null): object
+    private function setting(string $name, string $type, ?string $amount): object
     {
-        return (object) ['name' => $name, 'type' => $type, 'amount' => $amount, 'value' => $value];
+        return (object) ['name' => $name, 'type' => $type, 'amount' => $amount, 'value' => null];
+    }
+
+    private function formula(string $name, string $expression): object
+    {
+        return (object) ['name' => $name, 'type' => 'formula', 'amount' => null, 'value' => $expression];
     }
 
     /**

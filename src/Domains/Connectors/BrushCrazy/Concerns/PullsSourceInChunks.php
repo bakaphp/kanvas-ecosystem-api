@@ -14,6 +14,14 @@ use Throwable;
 trait PullsSourceInChunks
 {
     /**
+     * `$since` as the UTC wall clock BrushCrazy stores its timestamps in; null on a full pull.
+     */
+    protected function sourceSince(): ?string
+    {
+        return $this->since?->copy()->utc()->format('Y-m-d H:i:s');
+    }
+
+    /**
      * One failing row is recorded and the walk goes on. A Model returned by `$syncRow` is indexed
      * with its chunk in one batch: the syncs write with model events off, so Scout never saw it.
      *

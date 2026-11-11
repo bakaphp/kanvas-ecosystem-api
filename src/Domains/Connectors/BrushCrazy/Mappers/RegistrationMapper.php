@@ -289,22 +289,16 @@ class RegistrationMapper
 
     /**
      * A giveaway line is free at the source (SaleItem::total() is zero), so its whole price is the
-     * discount. A discount without a name or with a scalar amount is ignored, as
-     * SaleItem::discountAmount() does.
+     * discount.
      *
      * @return array<string, mixed>
      */
     private static function saleItem(object $item): array
     {
         $priceCents = Money::fromRaw($item->price ?? null)->cents;
-        $discount = Str::jsonToArray($item->discount ?? null);
-        $giveaway = Str::jsonToArray($item->giveaway ?? null);
-
-        $discountCents = match (true) {
-            is_array($giveaway) && ! empty($giveaway['type']) => $priceCents,
-            is_array($discount) && ! empty($discount['name']) && is_array($discount['amount'] ?? null) => min($priceCents, Money::fromRaw($discount['amount'])->cents),
-            default => 0,
-        };
+        $discountCents = SaleMapper::giveaway($item) !== null
+            ? $priceCents
+            : min($priceCents, SaleMapper::itemDiscountCents($item));
 
         return [
             'id' => (int) $item->id,

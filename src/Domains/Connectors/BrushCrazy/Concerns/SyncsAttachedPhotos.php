@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\BrushCrazy\Concerns;
 
+use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
+use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -11,6 +14,17 @@ use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 
 trait SyncsAttachedPhotos
 {
+    /**
+     * Trimmed the way PaintingMapper::photos() trims it: a blank setting read as set would map no
+     * photos and detach every one a previous run attached.
+     */
+    protected static function mediaBaseUrlOf(AppInterface $app): ?string
+    {
+        $url = $app->get(ConfigurationEnum::BRUSHCRAZY_MEDIA_BASE_URL->value);
+
+        return is_string($url) ? Str::trimToNull($url) : null;
+    }
+
     /**
      * Attaching through addFileFromUrl() records the URL only, but the link row fires its own
      * `created` workflow (and, on an EventVersion, a Lighthouse cache clear), so a photo is attached

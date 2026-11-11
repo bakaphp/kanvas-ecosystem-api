@@ -155,7 +155,11 @@ class SyncStaffFromBrushCrazyAction
             ->where('companies_id', $this->context->companyId())
             ->first();
 
-        $facilitator?->set(CustomFieldEnum::BRUSHCRAZY_STAFF_ACTIVE->value, false);
+        if ($facilitator === null) {
+            return null;
+        }
+
+        $this->writeMirroredFields($facilitator, [CustomFieldEnum::BRUSHCRAZY_STAFF_ACTIVE->value => false]);
 
         return $facilitator;
     }

@@ -57,7 +57,7 @@ class CustomerMapper
      */
     public static function address(object $row): ?array
     {
-        $street = Str::trimToNull(trim(($row->street_number ?? '') . ' ' . ($row->route ?? '')));
+        $street = Str::trimToNull(($row->street_number ?? '') . ' ' . ($row->route ?? ''));
 
         if ($street === null) {
             return null;

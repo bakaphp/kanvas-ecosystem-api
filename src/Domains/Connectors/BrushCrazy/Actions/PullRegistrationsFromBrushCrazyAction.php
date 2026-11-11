@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\BrushCrazy\Client;
+use Kanvas\Connectors\BrushCrazy\Concerns\PullsSourceInChunks;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 
@@ -26,6 +27,8 @@ use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
  */
 class PullRegistrationsFromBrushCrazyAction
 {
+    use PullsSourceInChunks;
+
     public function __construct(
         protected AppInterface $app,
         protected UserInterface $user,
@@ -54,7 +57,7 @@ class PullRegistrationsFromBrushCrazyAction
                 $this->applySince(
                     $query,
                     $morph,
-                    $this->since->copy()->utc()->format('Y-m-d H:i:s')
+                    $this->sourceSince()
                 );
             }
 
@@ -63,7 +66,7 @@ class PullRegistrationsFromBrushCrazyAction
                 function ($rows) use ($client, $sync, $morph, &$results, $onProgress) {
                     $chunk = $sync->syncCalendarables(
                         $client,
-                        array_map(fn ($row) => $morph->value . ':' . $row->id, $rows->all())
+                        array_map(fn ($row) => $morph->key($row->id), $rows->all())
                     );
 
                     $results['synced'] += $chunk['synced'];

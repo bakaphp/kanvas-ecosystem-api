@@ -21,6 +21,7 @@ use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
+use Kanvas\Connectors\BrushCrazy\Support\BrushCrazyApi;
 use Kanvas\Connectors\BrushCrazy\Support\CorrectionCutoff;
 use Kanvas\Connectors\BrushCrazy\Support\PaintingRelations;
 use Kanvas\Connectors\BrushCrazy\Support\SaleSource;
@@ -76,7 +77,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
 
     public static function signature(string $timestamp, string $rawBody, string $secret): string
     {
-        return hash_hmac('sha256', $timestamp . '.' . $rawBody, $secret);
+        return BrushCrazyApi::signature($timestamp, $rawBody, $secret);
     }
 
     /**
@@ -88,6 +89,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
      * taxes) points at the same order, and one registrations call means one total_attendees
      * recount per class.
      */
+    #[Override]
     public function execute(): array
     {
         $events = $this->webhookRequest->payload['events'] ?? [];
@@ -183,8 +185,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
             } catch (Throwable $e) {
                 [$morph, $calendarableId] = [null, 0];
                 $handled = true;
-                $results['failed']++;
-                $results['errors'][] = $entityType . ':' . $entityId . ' — ' . $e->getMessage();
+                $this->recordFailure($results, "{$entityType}:{$entityId}", $e);
             }
 
             if ($entityType === self::SUBSTRATE_MORPH && $morph === null && ! $handled) {
@@ -221,7 +222,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
                 // A transfer moves a registration to another class, so the old class only drops
                 // the moved seats when its own registrations are re-read on its pointer.
                 if (! $elsewhere) {
-                    $calendarableKeys[] = $morph->value . ':' . $calendarableId;
+                    $calendarableKeys[] = $morph->key($calendarableId);
                 }
             }
 
@@ -234,8 +235,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
                         ...SyncRegistrationFromBrushCrazyAction::calendarablesFor($client, $entityType, $entityId),
                     ];
                 } catch (Throwable $e) {
-                    $results['failed']++;
-                    $results['errors'][] = $entityType . ':' . $entityId . ' — ' . $e->getMessage();
+                    $this->recordFailure($results, "{$entityType}:{$entityId}", $e);
                 }
             }
 
@@ -252,8 +252,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
                         $saleIds[$saleId] = true;
                     }
                 } catch (Throwable $e) {
-                    $results['failed']++;
-                    $results['errors'][] = $entityType . ':' . $entityId . ' — ' . $e->getMessage();
+                    $this->recordFailure($results, "{$entityType}:{$entityId}", $e);
                 }
             }
 
@@ -413,9 +412,17 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
         try {
             $results[$sync()]++;
         } catch (Throwable $e) {
-            $results['failed']++;
-            $results['errors'][] = $entityType . ':' . $entityId . ' — ' . $e->getMessage();
+            $this->recordFailure($results, "{$entityType}:{$entityId}", $e);
         }
+    }
+
+    /**
+     * @param  array<string, int|array<int, string>>  $results
+     */
+    protected function recordFailure(array &$results, string $label, Throwable $e): void
+    {
+        $results['failed']++;
+        $results['errors'][] = $label . ' — ' . $e->getMessage();
     }
 
     /**
@@ -431,8 +438,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
         try {
             $outcome = $sync->syncCalendarables($client, $calendarableKeys);
         } catch (Throwable $e) {
-            $results['failed']++;
-            $results['errors'][] = 'registrations — ' . $e->getMessage();
+            $this->recordFailure($results, 'registrations', $e);
 
             return;
         }
@@ -488,8 +494,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
 
             $results[$staff->fromUserId($client, (int) $row->user_id) !== null ? 'synced' : 'misrouted']++;
         } catch (Throwable $e) {
-            $results['failed']++;
-            $results['errors'][] = self::STUDIO_EMPLOYEE_MORPH . ':' . $employmentId . ' — ' . $e->getMessage();
+            $this->recordFailure($results, self::STUDIO_EMPLOYEE_MORPH . ':' . $employmentId, $e);
         }
     }
 
@@ -550,7 +555,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
             // moved away and the pointer is the vacated-studio one, so the copy is retired;
             // otherwise the row's own studio receiver gets its own pointer.
             if ((int) ($row->studio_id ?? 0) !== $bcStudioId) {
-                $results[$retire->calendarable($morph->value . ':' . $entityId)]++;
+                $results[$retire->calendarable($morph->key($entityId))]++;
 
                 return true;
             }
@@ -561,8 +566,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
         } catch (Throwable $e) {
             // One bad pointer must not abandon the rest of the batch. The source will re-emit on
             // the next change, and the periodic --since pull repairs whatever stays broken.
-            $results['failed']++;
-            $results['errors'][] = $morph->value . ':' . $entityId . ' — ' . $e->getMessage();
+            $this->recordFailure($results, $morph->key($entityId), $e);
         }
 
         return false;
@@ -608,8 +612,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
 
             $results['synced']++;
         } catch (Throwable $e) {
-            $results['failed']++;
-            $results['errors'][] = self::USER_MORPH . ':' . $entityId . ' — ' . $e->getMessage();
+            $this->recordFailure($results, self::USER_MORPH . ':' . $entityId, $e);
         }
     }
 
@@ -652,8 +655,7 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
             $sync->fromRow($row);
             $results['synced']++;
         } catch (Throwable $e) {
-            $results['failed']++;
-            $results['errors'][] = $entityType . ':' . $entityId . ' — ' . $e->getMessage();
+            $this->recordFailure($results, "{$entityType}:{$entityId}", $e);
         }
     }
 

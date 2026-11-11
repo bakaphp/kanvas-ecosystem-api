@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\BrushCrazy\Client;
+use Kanvas\Connectors\BrushCrazy\Concerns\PullsSourceInChunks;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
 use Kanvas\Connectors\BrushCrazy\Support\SaleSource;
@@ -27,6 +28,8 @@ use Throwable;
  */
 class PullSalesFromBrushCrazyAction
 {
+    use PullsSourceInChunks;
+
     public function __construct(
         protected AppInterface $app,
         protected UserInterface $user,
@@ -76,7 +79,7 @@ class PullSalesFromBrushCrazyAction
             ->whereNull('sales.original_sale');
 
         if ($this->since !== null) {
-            $this->applySince($query, $this->since->copy()->utc()->format('Y-m-d H:i:s'));
+            $this->applySince($query, $this->sourceSince());
         }
 
         $query->chunkById(

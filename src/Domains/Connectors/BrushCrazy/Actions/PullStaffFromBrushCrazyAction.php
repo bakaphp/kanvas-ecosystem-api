@@ -126,9 +126,10 @@ class PullStaffFromBrushCrazyAction
         $results = ['synced' => 0, 'failed' => 0, 'errors' => []];
 
         $query = self::staffOfStudio($client, $bcStudioId);
+        $since = $this->sourceSince();
 
-        if ($this->since !== null) {
-            $this->applySince($query, $this->since->copy()->utc()->format('Y-m-d H:i:s'));
+        if ($since !== null) {
+            $this->applySince($query, $since);
         }
 
         $visited = [];
@@ -183,15 +184,15 @@ class PullStaffFromBrushCrazyAction
     protected function departedCandidates(Client $client, array $visited): array
     {
         $idMaps = new IdMapRepository();
+        $since = $this->sourceSince();
 
-        if ($this->since === null) {
+        if ($since === null) {
             $candidates = array_map('intval', array_keys($idMaps->load(
                 $this->context->companyId(),
                 Facilitator::class,
                 CustomFieldEnum::BRUSHCRAZY_USER_ID
             )));
         } else {
-            $since = $this->since->copy()->utc()->format('Y-m-d H:i:s');
             $userIds = fn (Builder $query) => $query->distinct()->pluck('user_id')->filter()->map(fn ($userId) => (int) $userId)->all();
 
             $movedAway = $userIds(

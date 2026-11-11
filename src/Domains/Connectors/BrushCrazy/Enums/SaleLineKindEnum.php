@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\BrushCrazy\Enums;
 
+use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
+
 /**
  * What a `sale_items` row sold. BrushCrazy has no column for it: `product_name` and
  * `category_name` are the real classifiers, plus the `option_type` morph for seats and paintings.
@@ -39,7 +41,7 @@ enum SaleLineKindEnum: string
             $productName === 'Gift Card' || $category === 'Gift Cards' => self::GIFT_CARD,
             $productName === 'Event Deposit' || in_array($category, ['Event Deposits', 'Party Deposits'], true) => self::EVENT_DEPOSIT,
             CalendarableTypeEnum::tryFrom((string) $optionType) !== null && ($item->option_id ?? null) !== null => self::CLASS_SEAT,
-            $optionType === 'painting' => self::PAINTING,
+            $optionType === PaintingMapper::PAINTING_MORPH => self::PAINTING,
             default => self::MISC,
         };
     }

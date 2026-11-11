@@ -249,7 +249,7 @@ class RetireMovedBrushCrazyEntityAction
                     ->where('studio_id', '<>', $bcStudioId)
                     ->pluck('id')
                     ->each(function ($id) use ($morph, &$elsewhere) {
-                        $elsewhere[] = $morph . ':' . (int) $id;
+                        $elsewhere[] = CalendarableTypeEnum::from($morph)->key((int) $id);
                     });
             }
         }

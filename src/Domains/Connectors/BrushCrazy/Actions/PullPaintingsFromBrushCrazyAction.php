@@ -74,9 +74,10 @@ class PullPaintingsFromBrushCrazyAction
         $results = ['synced' => 0, 'failed' => 0, 'errors' => []];
 
         $query = self::paintingsOfStudio($client, $this->context->bcStudioId);
+        $since = $this->sourceSince();
 
-        if ($this->since !== null) {
-            $this->applySince($query, $this->since->copy()->utc()->format('Y-m-d H:i:s'));
+        if ($since !== null) {
+            $this->applySince($query, $since);
         }
 
         $this->pullChunks(

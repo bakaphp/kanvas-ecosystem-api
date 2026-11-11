@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\BrushCrazy\Client;
+use Kanvas\Connectors\BrushCrazy\Concerns\PullsSourceInChunks;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
@@ -26,6 +27,8 @@ use Throwable;
  */
 class PullCalendarablesFromBrushCrazyAction
 {
+    use PullsSourceInChunks;
+
     public function __construct(
         protected AppInterface $app,
         protected UserInterface $user,
@@ -59,30 +62,33 @@ class PullCalendarablesFromBrushCrazyAction
                 $this->applySince(
                     $query,
                     $morph,
-                    $this->since->copy()->utc()->format('Y-m-d H:i:s')
+                    $this->sourceSince()
                 );
             }
 
-            $query->chunkById($this->chunkSize, function ($rows) use ($client, $sync, $morph, &$results, &$visited, $onProgress) {
-                SyncCalendarableFromBrushCrazyAction::attachSubstrates($client, $morph, $rows->all());
-                $sync->preloadPhotos($morph, $rows->map(fn ($row) => (int) $row->id)->all());
+            $query->chunkById(
+                $this->chunkSize,
+                function ($rows) use ($client, $sync, $morph, &$results, &$visited, $onProgress) {
+                    SyncCalendarableFromBrushCrazyAction::attachSubstrates($client, $morph, $rows->all());
+                    $sync->preloadPhotos($morph, $rows->map(fn ($row) => (int) $row->id)->all());
 
-                foreach ($rows as $row) {
-                    $visited[$morph->value . ':' . $row->id] = true;
+                    foreach ($rows as $row) {
+                        $visited[$morph->key($row->id)] = true;
 
-                    try {
-                        $sync->fromRow($morph, $row);
-                        $results['synced']++;
-                    } catch (Throwable $e) {
-                        $results['failed']++;
-                        $results['errors'][] = $morph->value . ':' . $row->id . ' — ' . $e->getMessage();
+                        try {
+                            $sync->fromRow($morph, $row);
+                            $results['synced']++;
+                        } catch (Throwable $e) {
+                            $results['failed']++;
+                            $results['errors'][] = $morph->key($row->id) . ' — ' . $e->getMessage();
+                        }
+                    }
+
+                    if ($onProgress !== null) {
+                        $onProgress($morph, $rows->count());
                     }
                 }
-
-                if ($onProgress !== null) {
-                    $onProgress($morph, $rows->count());
-                }
-            });
+            );
         }
 
         if ($this->since === null) {
