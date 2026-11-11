@@ -146,6 +146,9 @@ class DispatchHarnessTaskAction
             ->fromCompany($company)
             ->notDeleted()
             ->live()
+            // A coding chat runs in the factory's own checkout, not on a runtime this cap protects, and
+            // the factory's per-checkout lock already bounds it.
+            ->whereNull('chat_session_id')
             ->count();
 
         if ($live >= $limit) {

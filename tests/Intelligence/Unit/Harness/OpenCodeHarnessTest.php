@@ -279,6 +279,129 @@ class OpenCodeHarnessTest extends TestCase
         $this->assertSame('picking up where I stopped', $tick->lastSaid);
     }
 
+    /**
+     * A coding chat posts `turnReply` after every turn. A turn that only ran tools must not repost the
+     * previous turn's answer as if it were new.
+     */
+    public function testAMessageAfterATurnsIdleKeepsTheChatRunningInsteadOfDeliveringTheOldTurn(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+        $prompt = fn (int $at): array => ['type' => 'user', 'time' => ['created' => $at], 'content' => [['type' => 'text', 'text' => 'run the app']]];
+
+        $pending = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: 'second answer'),
+                ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'succeeded'],
+                $prompt(2200),
+            ], idle: null),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::RUNNING, $pending->status);
+
+        $settled = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: 'second answer'),
+                ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'succeeded'],
+                $prompt(2200),
+                $this->assistantMessage(createdAt: 2300, text: 'third answer'),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2400], 'outcome' => 'succeeded']),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $settled->status);
+        $this->assertSame('third answer', $settled->turnReply, 'the reply is the newest turn, not the one the chat missed');
+        $this->assertSame(3, $settled->closedTurns, 'delivering it puts the chat back in step');
+    }
+
+    public function testATurnAfterAStoppedOneRunsAndThenSucceedsInsteadOfReportingTheStop(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+        $history = [
+            $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+            ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+            $this->assistantMessage(createdAt: 2000, text: 'working on it'),
+            ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'interrupted'],
+            ['type' => 'user', 'time' => ['created' => 2200], 'content' => [['type' => 'text', 'text' => 'now add a test']]],
+        ];
+
+        $running = $this->harness(['message' => $this->page($history, idle: null)])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::RUNNING, $running->status, 'the stop belongs to the turn before');
+        $this->assertNull($running->error);
+
+        $done = $this->harness([
+            'message' => $this->page(
+                [...$history, $this->assistantMessage(createdAt: 2300, text: 'test added')],
+                idle: ['type' => 'idle', 'time' => ['created' => 2400], 'outcome' => 'succeeded']
+            ),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $done->status);
+        $this->assertNull($done->error);
+        $this->assertSame('test added', $done->turnReply);
+    }
+
+    public function testTheTickSaysTheCurrentTurnsLatestStepAndWhenTheTurnStarted(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+        $step = fn (int $at, string $tool, array $input): array => [
+            ...$this->assistantMessage(createdAt: $at, text: ''),
+            'content' => [['type' => 'tool', 'tool' => $tool, 'input' => $input]],
+        ];
+
+        $tick = $this->harness([
+            'message' => $this->page([
+                $step(1_000, 'shell', ['command' => 'git status']),
+                ['type' => 'idle', 'time' => ['created' => 1_100], 'outcome' => 'succeeded'],
+                $step(1_794_400_000_000, 'read', ['path' => '/workspaces/task-a/src/App.tsx']),
+                $step(1_794_400_060_000, 'shell', ['command' => ".kanvas/device android\nsleep 5"]),
+            ], idle: null),
+        ])->poll($session);
+
+        $this->assertSame('running `.kanvas/device android`', $tick->activity);
+        $this->assertSame(1_794_400_000, $tick->turnStartedAt);
+
+        $reading = $this->harness([
+            'message' => $this->page([$step(1_794_400_000_000, 'read', ['path' => '/workspaces/task-a/src/App.tsx'])], idle: null),
+        ])->poll($this->taskSession());
+
+        $this->assertSame('reading `src/App.tsx`', $reading->activity);
+    }
+
+    public function testTurnReplyIsTheCurrentTurnsLastTextAndNullWhenItSaidNothing(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+
+        $said = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: 'looking'),
+                $this->assistantMessage(createdAt: 2100, text: 'second answer'),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2200], 'outcome' => 'succeeded']),
+        ])->poll($session);
+
+        $silent = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: ''),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2200], 'outcome' => 'succeeded']),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $said->status);
+        $this->assertSame('second answer', $said->turnReply);
+        $this->assertNull($silent->turnReply);
+        $this->assertSame('first answer', $silent->lastSaid);
+    }
+
     public function testAResumedTurnThatClosesIsIdle(): void
     {
         $session = $this->taskSession();
@@ -289,7 +412,7 @@ class OpenCodeHarnessTest extends TestCase
                 $this->assistantMessage(createdAt: 1000, text: 'working'),
                 ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'interrupted'],
                 $this->assistantMessage(createdAt: 2000, text: 'finished'),
-            ]),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2200], 'outcome' => 'succeeded']),
         ])->poll($session);
 
         $this->assertSame(HarnessStatusEnum::IDLE, $tick->status);

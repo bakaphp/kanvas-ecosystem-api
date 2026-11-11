@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenCode;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
@@ -90,12 +91,14 @@ class OpenCodeHarness implements CodingHarness
         $turnOffset = (int) $session->turn_offset;
         $currentTurnIdle = array_slice($idle, $turnOffset);
         $questions = $this->mapForms($forms);
-        $error = $this->lastError($currentTurnIdle, $this->currentTurn($assistant, $idle, $turnOffset));
+        $currentTurn = $this->currentTurn($assistant, $idle, $turnOffset);
+        $settledIdle = $this->settledIdle($page['messages'], $currentTurnIdle);
+        $error = $this->lastError($settledIdle, $currentTurn);
 
         return new HarnessTick(
             status: $this->resolveStatus(
                 $assistant,
-                $currentTurnIdle,
+                $settledIdle,
                 $permissions,
                 $questions,
                 $error
@@ -110,7 +113,80 @@ class OpenCodeHarness implements CodingHarness
             error: $error,
             closedTurns: count($idle),
             lastSaid: $this->lastSaid($assistant),
+            turnReply: $this->lastSaid($currentTurn),
+            activity: $this->latestStep($currentTurn, $this->directory($session)),
+            turnStartedAt: $this->turnStartedAt($currentTurn),
         );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $currentTurn
+     */
+    private function latestStep(array $currentTurn, ?string $directory): ?string
+    {
+        foreach (array_reverse($currentTurn) as $message) {
+            $content = is_array($message['content'] ?? null) ? $message['content'] : [];
+
+            foreach (array_reverse($content) as $part) {
+                if (is_array($part) && ($part['type'] ?? '') === 'tool') {
+                    return $this->describeStep($part, $directory);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $part
+     */
+    private function describeStep(array $part, ?string $directory): string
+    {
+        $tool = is_string($part['tool'] ?? null) ? $part['tool'] : 'a tool';
+        $input = is_array($part['input'] ?? null) ? $part['input'] : [];
+        $path = $input['path'] ?? $input['filePath'] ?? null;
+        $path = is_string($path) ? ($directory !== null ? Str::after($path, rtrim($directory, '/') . '/') : $path) : null;
+        $command = is_string($input['command'] ?? null) ? trim(strtok($input['command'], "\n") ?: '') : '';
+
+        return match (true) {
+            in_array($tool, ['shell', 'bash'], true) && $command !== '' => 'running `' . Str::limit($command, 80) . '`',
+            $tool === 'read' && $path !== null => 'reading `' . $path . '`',
+            in_array($tool, ['edit', 'write', 'patch', 'multiedit', 'apply_patch'], true) => 'editing ' . ($path !== null ? '`' . $path . '`' : 'files'),
+            in_array($tool, ['grep', 'glob', 'list', 'codesearch'], true) => 'searching the code',
+            default => 'using ' . $tool,
+        };
+    }
+
+    /**
+     * opencode writes `time.created` in milliseconds.
+     *
+     * @param list<array<string, mixed>> $currentTurn
+     */
+    private function turnStartedAt(array $currentTurn): ?int
+    {
+        $times = self::createdTimes($currentTurn);
+
+        return $times === [] ? null : intdiv(min($times), 1000);
+    }
+
+    /**
+     * @param array<string, mixed> $message
+     */
+    private static function createdAt(array $message): int
+    {
+        return (int) ($message['time']['created'] ?? 0);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $messages
+     * @return list<int>
+     */
+    private static function createdTimes(array $messages): array
+    {
+        return array_values(array_filter(
+            array_map(self::createdAt(...), $messages),
+            static fn (int $at): bool => $at > 0
+        ));
     }
 
     /**
@@ -327,6 +403,27 @@ class OpenCodeHarness implements CodingHarness
     }
 
     /**
+     * The current turn's idles, or none while a prompt or step is newer than the last of them: a message
+     * that reaches the runtime after a turn's `idle` starts another turn, and that idle must not end it,
+     * or the chat delivers the old reply and stops polling the turn still running.
+     *
+     * @param list<array<string, mixed>> $messages
+     * @param list<array<string, mixed>> $currentTurnIdle
+     * @return list<array<string, mixed>>
+     */
+    private function settledIdle(array $messages, array $currentTurnIdle): array
+    {
+        $lastIdleAt = max([0, ...self::createdTimes($currentTurnIdle)]);
+        $workAfterIt = array_filter(
+            $messages,
+            static fn (array $message): bool => in_array($message['type'] ?? '', ['user', 'assistant'], true)
+                && self::createdAt($message) > $lastIdleAt
+        );
+
+        return $workAfterIt === [] ? $currentTurnIdle : [];
+    }
+
+    /**
      * @param list<array<string, mixed>> $assistant
      * @param list<array<string, mixed>> $idle
      * @param list<array<string, mixed>> $permissions
@@ -401,13 +498,13 @@ class OpenCodeHarness implements CodingHarness
         $ordered = $assistant;
         usort(
             $ordered,
-            static fn (array $a, array $b): int => ((int) ($a['time']['created'] ?? 0)) <=> ((int) ($b['time']['created'] ?? 0))
+            static fn (array $a, array $b): int => self::createdAt($a) <=> self::createdAt($b)
         );
 
         $narration = [];
 
         foreach ($ordered as $message) {
-            $createdAt = (int) ($message['time']['created'] ?? 0);
+            $createdAt = self::createdAt($message);
 
             if ($lastMessageAt !== null && $createdAt <= $lastMessageAt) {
                 continue;
@@ -450,17 +547,9 @@ class OpenCodeHarness implements CodingHarness
      */
     private function newestMessageAt(array $assistant): ?int
     {
-        $newest = null;
+        $times = self::createdTimes($assistant);
 
-        foreach ($assistant as $message) {
-            $createdAt = (int) ($message['time']['created'] ?? 0);
-
-            if ($createdAt > 0 && ($newest === null || $createdAt > $newest)) {
-                $newest = $createdAt;
-            }
-        }
-
-        return $newest;
+        return $times === [] ? null : max($times);
     }
 
     /**
@@ -594,26 +683,23 @@ class OpenCodeHarness implements CodingHarness
      * and appears only in the container log. Absence of an error here is not evidence of health — the
      * poller's wall clock is what catches the rest.
      *
+     * Only the newest idle decides: a turn the person stopped, followed by one that succeeded, succeeded.
+     *
      * @param list<array<string, mixed>> $idle      the current turn's idle messages
      * @param list<array<string, mixed>> $assistant the current turn's assistant messages
      */
     private function lastError(array $idle, array $assistant): ?string
     {
-        $error = null;
+        $newest = $idle === [] ? [] : $idle[array_key_last($idle)];
+        $outcome = $newest['outcome'] ?? null;
 
-        foreach ($idle as $message) {
-            $outcome = $message['outcome'] ?? null;
-
-            if (! is_string($outcome) || $outcome === 'succeeded') {
-                continue;
-            }
-
-            $error = $this->describeError($message['error'] ?? null)
-                ?? $this->lastAssistantError($assistant)
-                ?? 'the run ended as "' . $outcome . '"';
+        if (! is_string($outcome) || $outcome === 'succeeded') {
+            return null;
         }
 
-        return $error;
+        return $this->describeError($newest['error'] ?? null)
+            ?? $this->lastAssistantError($assistant)
+            ?? 'the run ended as "' . $outcome . '"';
     }
 
     /**
@@ -660,11 +746,11 @@ class OpenCodeHarness implements CodingHarness
      */
     private function currentTurn(array $messages, array $idle, int $turnOffset): array
     {
-        $turnStartedAt = (int) ($idle[$turnOffset - 1]['time']['created'] ?? 0);
+        $turnStartedAt = self::createdAt($idle[$turnOffset - 1] ?? []);
 
         return array_values(array_filter(
             $messages,
-            static fn (array $message): bool => (int) ($message['time']['created'] ?? 0) > $turnStartedAt
+            static fn (array $message): bool => self::createdAt($message) > $turnStartedAt
         ));
     }
 }

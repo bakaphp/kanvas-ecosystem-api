@@ -16,7 +16,10 @@ use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\AbsorbHarnessTickAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DeliverCodingChatTurnAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\FinalizeHarnessSessionAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatProgressAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RequestSessionExtensionAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -45,6 +48,7 @@ class PollHarnessSessionJob implements ShouldQueue
     public const int EXTENSION_WAIT_MINUTES = 30;
     /** How long an approved request may take to flip the session back before the resume is judged failed. */
     private const int RESUME_GRACE_MINUTES = 2;
+    private const int CHAT_STOP_GRACE_TICKS = 5;
 
     public function __construct(
         public readonly Apps $app,
@@ -58,8 +62,7 @@ class PollHarnessSessionJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        /** @var AgentTaskSession|null $session */
-        $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
+        $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
         if ($session === null || ! $session->isLive()) {
             return;
@@ -89,6 +92,12 @@ class PollHarnessSessionJob implements ShouldQueue
             return;
         }
 
+        if ($session->isChat() && in_array($tick->status, [HarnessStatusEnum::IDLE, HarnessStatusEnum::FAILED], true)) {
+            new DeliverCodingChatTurnAction($session, $tick)->execute();
+
+            return;
+        }
+
         if ($tick->status === HarnessStatusEnum::IDLE || $tick->status->isTerminal()) {
             new FinalizeHarnessSessionAction($session, $tick)->execute();
 
@@ -99,6 +108,10 @@ class PollHarnessSessionJob implements ShouldQueue
             $this->pollAgain($this->attempt);
 
             return;
+        }
+
+        if ($tick->status === HarnessStatusEnum::RUNNING) {
+            new PostCodingChatProgressAction($session, $tick)->execute();
         }
 
         $maxMinutes = new SessionCostService()->maxActiveMinutesFor($session);
@@ -169,6 +182,12 @@ class PollHarnessSessionJob implements ShouldQueue
      */
     private function reachLimit(AgentTaskSession $session, HarnessTick $tick, string $limit): void
     {
+        if ($session->isChat()) {
+            $this->stopChatTurn($session, $limit);
+
+            return;
+        }
+
         $postMortem = new SessionPostMortemService()->describe($session, $tick, $limit);
 
         if (new RequestSessionExtensionAction($session, $limit, $postMortem)->execute() !== null) {
@@ -178,6 +197,25 @@ class PollHarnessSessionJob implements ShouldQueue
         }
 
         $this->fail($session, $postMortem['text'], HarnessStatusEnum::CANCELLED);
+    }
+
+    /**
+     * A person is in a coding chat, so a limit stops the turn rather than asking for an extension or
+     * closing the conversation: the interrupt closes the turn with an `interrupted` idle, which the next
+     * tick delivers like any other turn. Only a runtime that never closes it ends the chat.
+     */
+    private function stopChatTurn(AgentTaskSession $session, string $limit): void
+    {
+        $maxAttempts = $this->maxAttempts(new SessionCostService()->maxActiveMinutesFor($session));
+
+        if ($this->attempt >= $maxAttempts + self::CHAT_STOP_GRACE_TICKS) {
+            $this->fail($session, 'The turn hit its ' . $limit . ' and did not stop when asked.', HarnessStatusEnum::FAILED);
+
+            return;
+        }
+
+        HarnessFactory::interrupt($session);
+        $this->pollAgain($this->attempt + 1);
     }
 
     /**
@@ -284,6 +322,17 @@ class PollHarnessSessionJob implements ShouldQueue
         bool $interrupt = true,
         bool $silence = false,
     ): void {
+        if ($session->isChat()) {
+            new CloseCodingChatAction(
+                session: $session,
+                reason: $reason,
+                status: $status,
+                interrupt: $interrupt,
+            )->execute();
+
+            return;
+        }
+
         if ($interrupt) {
             HarnessFactory::interrupt($session);
         }

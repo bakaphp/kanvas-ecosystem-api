@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Jobs;
 
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -11,8 +12,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
@@ -21,6 +27,7 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
@@ -106,13 +113,15 @@ class RunTaskWorkerJob implements ShouldQueue
         $startedAt = microtime(true);
 
         try {
-            $response = WorkerToolPolicy::within(fn (): string => new AgentChatKernel(
-                agent: $agent,
-                session: $this->workerSession(),
-                message: $this->resumeFact !== null ? $this->resumeBrief() : $this->brief(),
-                user: $owner,
-                persistConversation: false,
-            )->execute());
+            $response = CodingChatSettingEnum::isEnabledFor($agent)
+                ? $this->workInTheFactory($agent, $owner)
+                : WorkerToolPolicy::within(fn (): string => new AgentChatKernel(
+                    agent: $agent,
+                    session: $this->workerSession(),
+                    message: $this->resumeFact !== null ? $this->resumeBrief() : $this->brief(),
+                    user: $owner,
+                    persistConversation: false,
+                )->execute());
         } catch (Throwable $e) {
             $this->markBlocked($e->getMessage());
 
@@ -202,6 +211,95 @@ class RunTaskWorkerJob implements ShouldQueue
             WakeAgentForPlanJob::REASON_TASK_COMPLETED,
             sprintf('Task #%d ("%s") is now %s.', $this->task->getId(), (string) $this->task->title, (string) $this->task->status),
         );
+    }
+
+    /**
+     * An agent in factory mode has no model of its own here: the opencode agent in the factory checkout
+     * does the task. Started, the run becomes this task's child, so the flow below parks the task as
+     * waiting on it. Resumed, the run has ended and its answer IS the result — running the factory
+     * again would start the same work twice, so the answer goes straight into the same done/blocked
+     * decision a model worker's reply does.
+     */
+    private function workInTheFactory(Agent $agent, Users $owner): string
+    {
+        if ($this->resumeFact !== null) {
+            return $this->factoryAnswer();
+        }
+
+        $repo = new CodingChatCheckouts($agent)->namedIn($this->task->title . "\n" . $this->task->description)
+            ?? CodingChatSettingEnum::defaultRepoFor($agent);
+
+        if ($repo === null) {
+            throw new ValidationException(
+                'No checkout to work in: name the app in the task (for example Quorum-app), '
+                . 'or set CODING_CHAT_DEFAULT_REPO on ' . $agent->name . '.'
+            );
+        }
+
+        // Two assigns can queue two of these jobs before either has created the run, and two runs would
+        // work one ticket on one branch. Under the lock the second sees the first's run and waits on it.
+        return Cache::lock('factory-run:task-' . $this->task->getId(), 120)->block(
+            30,
+            function () use ($agent, $owner, $repo): string {
+                if ($this->task->children()->open()->exists()) {
+                    return 'Already in the factory.';
+                }
+
+                new OpenCodingChatAction(
+                    agent: $agent,
+                    chat: $this->workerSession(),
+                    repo: $repo,
+                    instruction: $this->factoryBrief(),
+                    requestedBy: $owner,
+                    parentTask: $this->task,
+                )->execute();
+
+                return 'Handed to the factory: working in ' . $repo . '.';
+            }
+        );
+    }
+
+    /**
+     * The run's own words when it finished, else why it did not. A run that did not end DONE is
+     * reported as BLOCKED whatever it said, so its last cheerful line cannot close the task as done.
+     */
+    private function factoryAnswer(): string
+    {
+        /** @var Task|null $run */
+        $run = $this->task->children()->latest('id')->first();
+        $result = is_array($run?->result) ? $run->result : [];
+        $said = Str::trimToNull(is_string($result['worker_summary'] ?? null) ? $result['worker_summary'] : null)
+            ?? (string) $this->resumeFact;
+
+        if ($run?->status === TaskStatusEnum::DONE->value) {
+            return $said;
+        }
+
+        return 'BLOCKED — ' . (Str::trimToNull((string) $run?->blocked_reason) ?? $said);
+    }
+
+    /**
+     * The brief for a coding agent that has none of the board tools `brief()` talks about, and nobody
+     * to ask: everything it needs to finish or to say clearly that it could not.
+     */
+    private function factoryBrief(): string
+    {
+        $plan = $this->task->plan;
+
+        return implode("\n\n", array_filter([
+            'You are working ONE task of the plan "' . $plan->title . '", handed to you by '
+            . ($plan->agent?->name ?? 'the team') . '. You are working unattended: nobody will answer a '
+            . 'question, so do not ask one. The task\'s instructions count as the person\'s request.',
+            'Task: ' . $this->task->title,
+            Str::trimToNull((string) $this->task->description) !== null ? 'Detail: ' . $this->task->description : null,
+            'You are in a worktree of your own, on a branch made for this task from the app\'s base branch '
+            . '(usually develop). Finish the task end to end: commit your work with Conventional Commit '
+            . 'messages, and once the checks pass, push the branch and open a draft pull request into that '
+            . 'base branch, unless the task says otherwise.',
+            'When you finish, reply with what you did and where it is: branch, commits, pull request link, '
+            . 'reports. IF YOU COULD NOT DO IT, START YOUR REPLY WITH THE WORD BLOCKED, then say exactly '
+            . 'what stopped you and what someone has to do.',
+        ]));
     }
 
     private function resumeBrief(): string
