@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Delivery\Actions;
 use Illuminate\Support\Str;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\ShortIo\Services\ShortIoConfigurationService;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -14,6 +15,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Scribe\Delivery\DataTransferObject\DocumentLink;
 use Kanvas\Scribe\Delivery\Enums\DocumentActionEnum;
 use Kanvas\Scribe\Delivery\Exceptions\DocumentDeliveryException;
+use Kanvas\Scribe\Delivery\Services\DocumentHtmlService;
 use Kanvas\Scribe\Delivery\Support\DocumentActionsSetup;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Models\Quote;
@@ -36,6 +38,7 @@ class OpenDocumentEngagementAction
         private readonly DocumentActionEnum $action,
         private readonly string $via = 'copy',
         private readonly array $files = [],
+        private readonly DocumentHtmlService $html = new DocumentHtmlService(),
     ) {
     }
 
@@ -65,6 +68,7 @@ class OpenDocumentEngagementAction
     public function execute(): DocumentLink
     {
         $this->assertSetUp();
+        $data = $this->html->for($this->document, $this->action);
 
         $engagement = new CreateEngagementAction(
             EngagementData::from(
@@ -77,12 +81,13 @@ class OpenDocumentEngagementAction
                     'source' => 'scribe',
                     'status' => ActionStatusEnum::SENT->value,
                     'via' => $this->via,
-                    'data' => ['document_number' => $this->document->documentNumber()],
+                    'data' => $data,
                     'files' => $this->files,
                 ]
             ),
             allowDuplicate: false,
         )->execute();
+        $this->refreshSnapshot($engagement, $data);
 
         $link = (string) ($engagement->message?->getMessage()['action_link'] ?? '');
         if ($link === '') {
@@ -95,6 +100,30 @@ class OpenDocumentEngagementAction
             people: $this->people,
             action: $this->action,
         );
+    }
+
+    /**
+     * A reused engagement keeps the message it was opened with, so a document edited between two shares
+     * would show its first body forever; only the page data is rewritten, the link and the rest stay.
+     *
+     * @param array<string, string> $data
+     */
+    private function refreshSnapshot(Engagement $engagement, array $data): void
+    {
+        $message = $engagement->message;
+        if ($message === null) {
+            return;
+        }
+
+        $body = $message->getMessage();
+        $current = is_array($body['data'] ?? null) ? $body['data'] : [];
+        if (array_intersect_key($current, $data) === $data) {
+            return;
+        }
+
+        $body['data'] = [...$current, ...$data];
+        $message->message = $body;
+        $message->saveOrFail();
     }
 
     private function notSetUp(): DocumentDeliveryException
