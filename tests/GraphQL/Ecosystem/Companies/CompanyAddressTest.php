@@ -282,7 +282,6 @@ class CompanyAddressTest extends TestCase
         $addressData = $this->addAddress($company['id'], $this->addressInputData());
         $address = CompaniesAddress::find($addressData['id']);
 
-
         $response = $this->graphQL( /** @lang GraphQL */
             '
             mutation updateCompanyAddress($id: ID!, $address_id: ID!, $input: CompanyAddressInput!) {
@@ -295,9 +294,9 @@ class CompanyAddressTest extends TestCase
                 'id' => $company['id'],
                 'address_id' => $addressData['id'],
                 'input' => [
-                    "fullname" => "John Doe",
-                    "phone" => "1234567890",
-                    "address" => $addressData['address'],
+                    'fullname' => 'John Doe',
+                    'phone' => '1234567890',
+                    'address' => $addressData['address'],
                     'country_id' => 55,
                     'state_id' => 1,
                     'city_id' => 1,
@@ -309,7 +308,7 @@ class CompanyAddressTest extends TestCase
             ]
         );
 
-        $this->assertEquals("John Doe", $address->refresh()->fullname);
-        $this->assertEquals("1234567890", $address->refresh()->phone);
+        $this->assertEquals('John Doe', $address->refresh()->fullname);
+        $this->assertEquals('1234567890', $address->refresh()->phone);
     }
 }

@@ -79,7 +79,7 @@ class PullNetSuiteProductPriceAction
         }
 
         $config = [
-            'map_price' => $product["map_price"],
+            'map_price' => $product['map_price'],
             ...(isset($product['minimum_quantity']) && $setMinimumQuantity ? ['minimum_quantity' => $product['minimum_quantity']] : []),
         ];
 
@@ -94,11 +94,11 @@ class PullNetSuiteProductPriceAction
         $variant->addAttributes($this->user, [
             [
                 'name' => 'color_code',
-                'value' => $product["color_code"],
+                'value' => $product['color_code'],
             ],
             [
                 'name' => 'minimum_order_quantity',
-                'value' => $product["minimum_order_quantity"] ?? 0,
+                'value' => $product['minimum_order_quantity'] ?? 0,
             ],
         ]);
 
@@ -162,7 +162,6 @@ class PullNetSuiteProductPriceAction
             'minimum_order_quantity' => (int) $minimumOrderQuantity,
         ];
     }
-
 
     private function customSearchProductByItemNumber(string $itemNumber, int|string|null $locationId = null): array
     {

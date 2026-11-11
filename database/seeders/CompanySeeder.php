@@ -20,7 +20,7 @@ class CompanySeeder extends Seeder
             'apps_id' => 1,
             'is_default' => 1,
             'created_at' => date('Y-m-d H:i:s'),
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ]);
 
         DB::table('companies')->insert([
@@ -29,7 +29,7 @@ class CompanySeeder extends Seeder
             'system_modules_id' => 1,
             'language' => 'EN',
             'created_at' => date('Y-m-d H:i:s'),
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ]);
 
         DB::table('companies_associations')->insert([
@@ -38,7 +38,7 @@ class CompanySeeder extends Seeder
             'system_modules_id' => 1,
             'language' => 'EN',
             'created_at' => date('Y-m-d H:i:s'),
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ]);
     }
 }

@@ -33,7 +33,7 @@ class CreateNotificationTypeAction
             'key' => $this->notificationType->name,
             'weight' => $this->notificationType->weight,
             'system_modules_id' => 1, //deprecated
-            'parent_id' => 0
+            'parent_id' => 0,
         ]);
     }
 }

@@ -81,13 +81,11 @@ class ExportOrderTest extends OrderBase
         }
     }
 
-
-
     public function testExportOrdersWithFieldMapping(): void
     {
         // Create product and variant
         $productResponse = $this->createProduct(attributes: [
-            ['name' => 'slots', 'value' => 100]
+            ['name' => 'slots', 'value' => 100],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -119,8 +117,8 @@ class ExportOrderTest extends OrderBase
                     'vehiclePlate' => 'ABC123',
                     'vehicleBrand' => 'Toyota',
                     'vehicleColor' => 'Red',
-                    'start_at' => '2024-01-15 10:30:00'
-                ]
+                    'start_at' => '2024-01-15 10:30:00',
+                ],
             ],
             orderType: $this->orderTypeName
         );
@@ -167,11 +165,11 @@ class ExportOrderTest extends OrderBase
                 'Estado' => 'orderStatus.name',
                 'Total' => 'total_net_amount',
                 'Fecha' => 'metadata.data.start_at',
-                'ID Orden' => 'id'
+                'ID Orden' => 'id',
             ],
             'metadata' => [
-                'custom_title' => 'Reporte de Vehículos Retenidos'
-            ]
+                'custom_title' => 'Reporte de Vehículos Retenidos',
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,
@@ -199,8 +197,8 @@ class ExportOrderTest extends OrderBase
         ', [
             'search' => $order->user_email,
             'metadata' => [
-                'custom_title' => 'Filtered Orders Report'
-            ]
+                'custom_title' => 'Filtered Orders Report',
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,
@@ -256,7 +254,7 @@ class ExportOrderTest extends OrderBase
                     'vehiclePlate' => 'ABC123',
                     'vehicleBrand' => 'Toyota',
                     'vehicleColor' => 'Red',
-                ]
+                ],
             ],
             orderType: $this->orderTypeName
         );
@@ -280,8 +278,8 @@ class ExportOrderTest extends OrderBase
                 'Non Existent' => 'non.existent.field',
                 'Deep Non Existent' => 'metadata.data.nonExistent',
                 'Array Out of Bounds' => 'items[99].product_name',
-                'Valid Field' => 'order_number'
-            ]
+                'Valid Field' => 'order_number',
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,

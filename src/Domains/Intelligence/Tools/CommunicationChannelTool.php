@@ -20,17 +20,17 @@ class CommunicationChannelTool implements ContextToolInterface
     public function execute(array $params = []): array
     {
         return [
-            "selected_channel" => $this->entity->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-            "available_channels" => [
-                "email",
-                "sms",
-                "whatsapp",
+            'selected_channel' => $this->entity->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+            'available_channels' => [
+                'email',
+                'sms',
+                'whatsapp',
             ],
-            "selection_reason" => "",
-            "contact" => [
-                "email" => $this->entity->people->getEmails()->first()?->value,
-                "phone_e164" => $this->entity->people->getPhones()->first()?->value,
-            ]
+            'selection_reason' => '',
+            'contact' => [
+                'email' => $this->entity->people->getEmails()->first()?->value,
+                'phone_e164' => $this->entity->people->getPhones()->first()?->value,
+            ],
         ];
     }
 }

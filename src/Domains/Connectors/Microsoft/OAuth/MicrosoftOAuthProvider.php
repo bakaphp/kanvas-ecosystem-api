@@ -58,6 +58,7 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
 
         if ($code === '') {
             $error = (string) ($request->input('error_description') ?? $request->input('error') ?? 'Unknown error');
+
             throw new ValidationException('Microsoft authorization failed: ' . $error);
         }
 

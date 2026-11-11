@@ -20,7 +20,7 @@ return new class () extends Migration {
             WHERE JSON_EXTRACT(metadata, '$.operation_day') IS NOT NULL
         ");
 
-        DB::connection('event')->statement("
+        DB::connection('event')->statement('
             DELETE sr FROM schedule_rules sr
             INNER JOIN (
                 SELECT id FROM (
@@ -34,7 +34,7 @@ return new class () extends Migration {
                 ) ranked
                 WHERE ranked.rn > 1
             ) dup ON sr.id = dup.id
-        ");
+        ');
 
         Schema::connection('event')->table('schedule_rules', function (Blueprint $table) {
             $table->index('operation_day');

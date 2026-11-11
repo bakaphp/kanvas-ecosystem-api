@@ -43,7 +43,6 @@ class SmtpRuntimeConfiguration
         //return $provider;
     }
 
-
     /**
      * Load SMTP settings from the app.
      */

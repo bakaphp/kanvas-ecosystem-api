@@ -64,6 +64,7 @@ class SyncNetSuiteProductsAction
             if (! $variant) {
                 $missed[] = $bardCodeId->item->name;
                 $totalProcessed++;
+
                 continue;
             }
 
@@ -86,17 +87,18 @@ class SyncNetSuiteProductsAction
                 if (empty($product)) {
                     $missed[] = $bardCodeId->item->name;
                     $totalProcessed++;
+
                     continue;
                 }
 
                 $minimumQuantity = $product['minimum_quantity'];
 
                 $config = [
-                    'map_price' => $product["map_price"],
+                    'map_price' => $product['map_price'],
                     ...($minimumQuantity && $setMinimumQuantity ? ['minimum_quantity' => $minimumQuantity] : []),
                 ];
 
-                $variantWarehouse->quantity = $product["quantity_available"];
+                $variantWarehouse->quantity = $product['quantity_available'];
                 $variantWarehouse->price = $warehouseOptions['price'] ?? 0;
 
                 // Link NetSuite MAP PRICE (custitem40) to the warehouse's UMAP Price (cost) column
@@ -160,10 +162,8 @@ class SyncNetSuiteProductsAction
             'color_code' => $colorCode,
             'minimum_quantity' => $netsuiteProductInfo->minimumQuantity,
             'quantity_available' => $quantity,
-
         ];
     }
-
 
     private function customSearchProductByItemNumber(string $itemNumber, ?string $locationId = null): array
     {

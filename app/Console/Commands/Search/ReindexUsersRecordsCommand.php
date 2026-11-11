@@ -29,7 +29,6 @@ class ReindexUsersRecordsCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle(): void
     {

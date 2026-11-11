@@ -21,8 +21,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * @property string $payment_methods_brand
  * @property string $expiration_date
  * @property string $zip_code
- * @property boolean $is_default
- * @property boolean $is_deleted
+ * @property bool $is_default
+ * @property bool $is_deleted
  * @property string|null $processor
  * @property string|null $metadata
  * @property \Illuminate\Support\Carbon|null $created_at

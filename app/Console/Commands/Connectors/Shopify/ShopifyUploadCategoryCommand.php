@@ -12,9 +12,9 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class ShopifyUploadCategoryCommand extends Command
 {
-    protected $signature = "kanvas:upload-categories-to-shopify {app_id} {categories_id} {warehouse_id} {shopify_id}";
-    protected $description = "
-    ";
+    protected $signature = 'kanvas:upload-categories-to-shopify {app_id} {categories_id} {warehouse_id} {shopify_id}';
+    protected $description = '
+    ';
 
     public function handle()
     {

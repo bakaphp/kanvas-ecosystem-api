@@ -21,7 +21,6 @@ class CreateRegionAction
 
     /**
      * execute.
-     *
      */
     public function execute(): RegionModel
     {

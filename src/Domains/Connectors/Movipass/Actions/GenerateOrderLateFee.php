@@ -43,7 +43,7 @@ class GenerateOrderLateFee
                     ->orWhere('payment_status', '!=', PaymentStatusEnum::PAID->value)
             )
             ->whereNotNull('metadata')
-            ->whereRaw("JSON_VALID(metadata)")
+            ->whereRaw('JSON_VALID(metadata)')
             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
             ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.late_fee_grace_start_at')) is not null")
             ->when($orderIds, function ($query) use ($orderIds) {
@@ -93,11 +93,11 @@ class GenerateOrderLateFee
         $completeOrders = Order::whereIn('id', $orders->pluck('id'))->get();
         $orders->each(function ($order) use ($completeOrders, $timeZonedNow) {
             $completeOrder = $completeOrders->where('id', $order->id)->first();
-            if (! isset($completeOrder->metadata["data"]["late-fee-variant-id"])) {
+            if (! isset($completeOrder->metadata['data']['late-fee-variant-id'])) {
                 return;
             }
 
-            $lateFee = Variants::find($completeOrder->metadata["data"]["late-fee-variant-id"]);
+            $lateFee = Variants::find($completeOrder->metadata['data']['late-fee-variant-id']);
             $lateFeePrice = $lateFee?->getPriceInfoFromDefaultChannel()?->price;
 
             if (! $lateFeePrice) {
@@ -130,10 +130,10 @@ class GenerateOrderLateFee
                 // Record the latest snapshot every late run so business_days_late stays current,
                 // even when the fee quantity itself didn't change.
                 $completeOrder->metadata = [
-                    "data" => [
-                        ...$completeOrder->metadata["data"],
-                        "late_fee_charged_at" => $timeZonedNow,
-                        "business_days_late" => $order->days_late,
+                    'data' => [
+                        ...$completeOrder->metadata['data'],
+                        'late_fee_charged_at' => $timeZonedNow,
+                        'business_days_late' => $order->days_late,
                     ],
                 ];
                 $completeOrder->calculateTotal(false);

@@ -11,7 +11,6 @@ class IndexController extends BaseController
 {
     /**
      * Welcome to Kanvas
-     *
      */
     public function index(): JsonResponse
     {

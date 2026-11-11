@@ -98,6 +98,7 @@ class ReceiversBuilder
                 }
             }
         }
+
         return $query;
     }
 

@@ -10,7 +10,6 @@ class Status
 {
     /**
      * Get all lead source.
-     *
      */
     public static function getAll(): array
     {
