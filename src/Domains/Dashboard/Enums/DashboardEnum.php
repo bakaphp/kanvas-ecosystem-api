@@ -6,5 +6,5 @@ namespace Kanvas\Dashboard\Enums;
 
 enum DashboardEnum: string
 {
-    case DEFAULT_ENUM = "default_enum";
+    case DEFAULT_ENUM = 'default_enum';
 }

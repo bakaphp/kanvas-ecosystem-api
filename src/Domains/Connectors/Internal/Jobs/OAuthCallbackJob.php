@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Internal\Jobs;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\WorkflowAction as WorkflowActionModel;
 use Override;
 
 #[WorkflowAction(
@@ -17,6 +19,20 @@ use Override;
 )]
 class OAuthCallbackJob extends ProcessWebhookJob
 {
+    /**
+     * The action every OAuth consent receiver points at.
+     */
+    public static function workflowAction(): WorkflowActionModel
+    {
+        $action = WorkflowActionModel::query()->where('model_name', self::class)->first();
+
+        if (! $action instanceof WorkflowActionModel) {
+            throw new ValidationException('The OAuth callback workflow action is not registered — run kanvas:workflow-sync-actions.');
+        }
+
+        return $action;
+    }
+
     #[Override]
     public function execute(): array
     {

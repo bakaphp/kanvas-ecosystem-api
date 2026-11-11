@@ -375,7 +375,7 @@ class ImageFilterService
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your recent creation couldn’t be completed as it didn’t comply with the content provider’s policies.",
+                message: 'Your recent creation couldn’t be completed as it didn’t comply with the content provider’s policies.',
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [

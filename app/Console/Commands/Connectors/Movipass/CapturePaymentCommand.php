@@ -46,6 +46,7 @@ class CapturePaymentCommand extends Command
 
         if (! $order) {
             $this->error("No order found for ID {$orderId}");
+
             return;
         }
 
@@ -53,6 +54,7 @@ class CapturePaymentCommand extends Command
 
         if (! $payment) {
             $this->error("No payment found for ID {$paymentId} on order {$order->order_number}");
+
             return;
         }
 
@@ -70,6 +72,7 @@ class CapturePaymentCommand extends Command
 
             if ($result['status'] === 'error') {
                 $this->error("Error capturing payment for order({$order->id}) {$order->order_number} : {$result['message']}");
+
                 return;
             }
 

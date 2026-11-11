@@ -23,7 +23,8 @@ use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
  */
 class FiscalDocMapperService
 {
-    private const int MAX_SYSTEM_REF = 50;
+    // WebPOS takes 50, but it copies systemRef into DGII's NumeroFacturaInterna, which takes 20 alphanumerics.
+    private const int MAX_SYSTEM_REF = 20;
     private const int MAX_CUSTOMER_NAME = 150;
     private const int MAX_ITEM_CODE = 35;
     private const int MAX_ITEM_DESCRIPTION = 80;
@@ -143,6 +144,16 @@ class FiscalDocMapperService
             ],
         ];
 
+        // WebPOS sums the items' ITBIS withholding into the header itself but not the ISR one: without this
+        // total DGII observes 11174 (TotalISRRetencion is not the sum of MontoISRRetenido). Test host, 2026-11-10.
+        $itbisWithheld = Money::cents(Money::sum(...array_map(fn (EcfLine $line): float => $line->itbisWithheld, $document->lines)));
+        $isrWithheld = Money::cents(Money::sum(...array_map(fn (EcfLine $line): float => $line->isrWithheld, $document->lines)));
+
+        if ($itbisWithheld > 0 || $isrWithheld > 0 || self::isWithholdingType($document->type)) {
+            $fedo['totales']['totalItbisRetenido'] = $this->money($itbisWithheld);
+            $fedo['totales']['totalIsrRetenido'] = $this->money($isrWithheld);
+        }
+
         if ($document->reference !== null) {
             $fedo['codigoModificacion'] = (string) $document->reference->modificationCode;
         }
@@ -183,10 +194,7 @@ class FiscalDocMapperService
             $item['damt'] = $this->money($line->discountAmount);
         }
 
-        $withholds = $line->itbisWithheld > 0 || $line->isrWithheld > 0;
-
-        // E41 (purchases) and E47 (payments abroad) are withholding documents by definition.
-        if ($withholds || in_array($type, [EcfTypeEnum::COMPRAS, EcfTypeEnum::PAGOS_EXTERIOR], true)) {
+        if ($line->itbisWithheld > 0 || $line->isrWithheld > 0 || self::isWithholdingType($type)) {
             $item['retperInd'] = 1;
             $item['retItbis'] = $this->money($line->itbisWithheld);
             $item['retIsr'] = $this->money($line->isrWithheld);
@@ -196,9 +204,18 @@ class FiscalDocMapperService
     }
 
     /**
+     * E41 (purchases) and E47 (payments abroad) are withholding documents by definition.
+     */
+    private static function isWithholdingType(EcfTypeEnum $type): bool
+    {
+        return in_array($type, [EcfTypeEnum::COMPRAS, EcfTypeEnum::PAGOS_EXTERIOR], true);
+    }
+
+    /**
      * E47 payment details have no fedo field; v9 sends them as addInfo lines addressed to the DGII field by
-     * group + name. Group/names follow the DGII e-CF XSD (IdDoc payment account, OtraMoneda); confirm on the
-     * test host with the first E47.
+     * group + name. Only the IdDoc account lines go: WebPOS builds OtraMoneda itself from `currency` and
+     * `currencyRate`, and an OtraMoneda group sent here (which carries no TipoCambio) makes it drop the whole
+     * document with `received: false` and no message. Test host, 2026-11-10.
      *
      * @return list<array{id: int, value: string, grp: string, name: string}>
      */
@@ -214,8 +231,6 @@ class FiscalDocMapperService
             ['IdDoc', 'TipoCuentaPago', $payment->accountType],
             ['IdDoc', 'NumeroCuentaPago', $payment->accountNumber],
             ['IdDoc', 'BancoPago', $payment->bank],
-            ['OtraMoneda', 'TipoMoneda', $payment->foreignCurrency],
-            ['OtraMoneda', 'MontoTotalOtraMoneda', $payment->foreignAmount !== null ? number_format($payment->foreignAmount, 2, '.', '') : null],
         ], fn (array $field): bool => $field[2] !== null && $field[2] !== '');
 
         $addInfo = [];
@@ -252,8 +267,8 @@ class FiscalDocMapperService
             throw new ValidationException("e-CF {$document->encf}: WebPOS takes at most " . DrEcfValidator::MAX_LINES . " items, got {$count}.");
         }
 
-        if ($document->systemRef === '' || strlen($document->systemRef) > self::MAX_SYSTEM_REF) {
-            throw new ValidationException("e-CF {$document->encf}: systemRef must be 1 to " . self::MAX_SYSTEM_REF . ' characters.');
+        if (preg_match('/^[A-Za-z0-9]{1,' . self::MAX_SYSTEM_REF . '}$/', $document->systemRef) !== 1) {
+            throw new ValidationException("e-CF {$document->encf}: systemRef must be 1 to " . self::MAX_SYSTEM_REF . ' alphanumeric characters (DGII NumeroFacturaInterna).');
         }
 
         if (mb_strlen($document->buyer->name) > self::MAX_CUSTOMER_NAME) {

@@ -27,7 +27,7 @@ class AppSeeder extends Seeder
             'payments_active' => 1,
             'ecosystem_auth' => 1,
             'is_actived' => 1,
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ]);
 
         DB::table('apps_keys')->insert([
@@ -37,7 +37,7 @@ class AppSeeder extends Seeder
             'apps_id' => 1,
             'users_id' => 1,
             'created_at' => date('Y-m-d H:i:s'),
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ]);
     }
 }

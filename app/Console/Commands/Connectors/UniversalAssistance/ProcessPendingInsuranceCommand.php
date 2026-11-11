@@ -280,9 +280,9 @@ class ProcessPendingInsuranceCommand extends Command
 
         if (! $silent) {
             $this->line('');
-            $this->info("═══════════════════════════════════════════════════════════");
+            $this->info('═══════════════════════════════════════════════════════════');
             $this->info("Processing Order #{$orderId}");
-            $this->info("═══════════════════════════════════════════════════════════");
+            $this->info('═══════════════════════════════════════════════════════════');
         }
 
         // Get metadata
@@ -311,7 +311,7 @@ class ProcessPendingInsuranceCommand extends Command
         }
 
         if (! $silent) {
-            $this->info("Found " . count($insurancePendingData) . " pending insurance entries (multi-eSIM order)");
+            $this->info('Found ' . count($insurancePendingData) . ' pending insurance entries (multi-eSIM order)');
 
             // Show summary of what will be processed
             foreach ($insurancePendingData as $idx => $pd) {
@@ -381,7 +381,7 @@ class ProcessPendingInsuranceCommand extends Command
 
             // Log if order is marked processed but message has no voucher (we'll process)
             if (! $silent && $orderMarkedProcessed) {
-                $this->info("  [INFO] Order marked processed but message has no voucher - will process");
+                $this->info('  [INFO] Order marked processed but message has no voucher - will process');
             }
 
             // Validate and adjust dates
@@ -468,7 +468,7 @@ class ProcessPendingInsuranceCommand extends Command
             if (! $silent) {
                 $this->line('');
                 $this->info("  Multi-eSIM Summary for Order #{$orderId}:");
-                $this->line("    - Total eSIMs processed: " . count($successfulVouchers));
+                $this->line('    - Total eSIMs processed: ' . count($successfulVouchers));
                 foreach ($successfulVouchers as $key => $voucher) {
                     $vId = $voucher['voucher_id'] ?? 'N/A';
                     $mId = $voucher['message_id'] ?? 'N/A';
@@ -623,21 +623,21 @@ class ProcessPendingInsuranceCommand extends Command
         if ($messageId) {
             $this->line("     ├─ Message ID: {$messageId}");
         }
-        $this->line("     ├─ Name: " . ($titular['firstname'] ?? 'N/A') . ' ' . ($titular['lastname'] ?? ''));
-        $this->line("     ├─ Email: " . ($titular['email'] ?? 'N/A'));
-        $this->line("     ├─ DOB: " . ($titular['dob'] ?? 'N/A'));
-        $this->line("     ├─ ID: " . ($titular['idType'] ?? '') . ' ' . ($titular['idNumber'] ?? 'N/A'));
-        $this->line("     ├─ Origin: " . ($titular['originCountryCode'] ?? 'N/A'));
-        $this->line("     ├─ Destination: " . ($titular['destinationCountryCode'] ?? 'N/A'));
-        $this->line("     ├─ Activation: " . ($titular['activationDate'] ?? 'N/A'));
-        $this->line("     ├─ Expiration: " . ($titular['expirationDate'] ?? 'N/A'));
+        $this->line('     ├─ Name: ' . ($titular['firstname'] ?? 'N/A') . ' ' . ($titular['lastname'] ?? ''));
+        $this->line('     ├─ Email: ' . ($titular['email'] ?? 'N/A'));
+        $this->line('     ├─ DOB: ' . ($titular['dob'] ?? 'N/A'));
+        $this->line('     ├─ ID: ' . ($titular['idType'] ?? '') . ' ' . ($titular['idNumber'] ?? 'N/A'));
+        $this->line('     ├─ Origin: ' . ($titular['originCountryCode'] ?? 'N/A'));
+        $this->line('     ├─ Destination: ' . ($titular['destinationCountryCode'] ?? 'N/A'));
+        $this->line('     ├─ Activation: ' . ($titular['activationDate'] ?? 'N/A'));
+        $this->line('     ├─ Expiration: ' . ($titular['expirationDate'] ?? 'N/A'));
 
         $plan = $titular['plan'] ?? [];
-        $this->line("     └─ Plan: " . ($plan['name'] ?? 'N/A') . ' (' . ($plan['duration'] ?? '?') . ' days)');
+        $this->line('     └─ Plan: ' . ($plan['name'] ?? 'N/A') . ' (' . ($plan['duration'] ?? '?') . ' days)');
 
         $dependents = $insurance['dependents'] ?? [];
         if (! empty($dependents)) {
-            $this->line("     └─ Dependents: " . count($dependents));
+            $this->line('     └─ Dependents: ' . count($dependents));
         }
     }
 
@@ -748,10 +748,10 @@ class ProcessPendingInsuranceCommand extends Command
                 $storageResult = $this->storeUniversalAssistanceData($groupResult, $messageId, $insurance, $silent);
             } elseif (! $silent) {
                 if (! $messageId) {
-                    $this->warn("  [WARN] No message ID available - cannot save universalAssistanceData");
+                    $this->warn('  [WARN] No message ID available - cannot save universalAssistanceData');
                 }
                 if (! $voucherId) {
-                    $this->warn("  [WARN] No voucher ID extracted - cannot save universalAssistanceData");
+                    $this->warn('  [WARN] No voucher ID extracted - cannot save universalAssistanceData');
                 }
             }
 
@@ -854,6 +854,7 @@ class ProcessPendingInsuranceCommand extends Command
 
         // Get the message and update its message content
         $saved = false;
+
         try {
             $message = Message::find($messageId);
             if (! $message) {
@@ -885,7 +886,7 @@ class ProcessPendingInsuranceCommand extends Command
                 $this->info("  [SAVED] Message ID {$messageId} updated with universalAssistanceData");
                 $this->line("     ├─ Voucher: {$voucherNumber}");
                 $this->line("     ├─ Holder: {$holderData['firstName']} {$holderData['lastName']}");
-                $this->line("     ├─ Dependents: " . count($dependentsData));
+                $this->line('     ├─ Dependents: ' . count($dependentsData));
                 $this->line("     └─ Error: {$errorCode} - {$errorMsg}");
             }
         } catch (Exception $e) {
@@ -992,7 +993,7 @@ class ProcessPendingInsuranceCommand extends Command
         }
 
         if (! $silent) {
-            $this->info("  [FALLBACK] Found " . count($esims) . " eSIMs in order, extracting insurance data...");
+            $this->info('  [FALLBACK] Found ' . count($esims) . ' eSIMs in order, extracting insurance data...');
         }
 
         $insurancePendingData = [];
@@ -1006,6 +1007,7 @@ class ProcessPendingInsuranceCommand extends Command
                 if (! $silent) {
                     $this->line("    - eSIM[{$esimIndex}]: No insurance data, skipping");
                 }
+
                 continue;
             }
 

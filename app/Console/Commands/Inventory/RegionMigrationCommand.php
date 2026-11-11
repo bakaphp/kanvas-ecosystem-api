@@ -27,7 +27,6 @@ class RegionMigrationCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

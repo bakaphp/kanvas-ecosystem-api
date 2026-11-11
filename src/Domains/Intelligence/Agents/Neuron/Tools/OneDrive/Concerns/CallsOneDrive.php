@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\OneDrive\Concerns;
 
+use Baka\Support\Str;
 use Closure;
+use Kanvas\Connectors\Microsoft\OneDrive\Enums\OneDriveDriveEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Exceptions\OneDriveException;
 use Kanvas\Connectors\Microsoft\OneDrive\OneDriveClient;
 use Kanvas\Intelligence\Agents\Neuron\Tools\OneDrive\Exceptions\InvalidToolInputException;
+use NeuronAI\Tools\PropertyType;
+use NeuronAI\Tools\ToolProperty;
 use Throwable;
 
 /** Requires the using tool to also use HasKanvasContext. */
@@ -22,9 +26,36 @@ trait CallsOneDrive
         return $this;
     }
 
-    protected function oneDrive(): OneDriveClient
+    protected function oneDrive(?string $drive = null): OneDriveClient
     {
-        return $this->oneDriveClient ??= OneDriveClient::forCompany($this->app, $this->company);
+        return $this->oneDriveClient ??= OneDriveClient::resolve($this->app, $this->company, $this->driveFrom($drive));
+    }
+
+    /**
+     * Every OneDrive tool takes it, so the model can reach either drive when a company has both.
+     */
+    protected function driveProperty(): ToolProperty
+    {
+        return new ToolProperty(
+            name: 'drive',
+            type: PropertyType::STRING,
+            description: 'Which OneDrive: "company" (this company\'s own) or "app" (shared by every company of the '
+                . 'app). Omit it to use the company\'s own when it has one, otherwise the app\'s. Each result says '
+                . 'which drive it came from; keep using that drive for the same files.',
+            required: false,
+        );
+    }
+
+    private function driveFrom(?string $drive): ?OneDriveDriveEnum
+    {
+        $drive = Str::trimToNull($drive);
+
+        if ($drive === null) {
+            return null;
+        }
+
+        return OneDriveDriveEnum::tryFrom(strtolower($drive))
+            ?? throw new InvalidToolInputException('drive must be "company" or "app".');
     }
 
     /**
@@ -34,9 +65,13 @@ trait CallsOneDrive
     {
         $result = $this->run($call);
 
+        if ($this->oneDriveClient !== null) {
+            $result['drive'] = $this->oneDriveClient->drive()->value;
+        }
+
         // Without it the model reports a file outside the folder as one that does not exist.
         if ($this->oneDriveClient?->isConfined()) {
-            $result['scope'] = 'Your OneDrive access is limited to one folder the company chose, and "/" is that folder. '
+            $result['scope'] = 'Your access to this OneDrive is limited to one folder, and "/" is that folder. '
                 . 'Nothing outside it can be reached: when something is not found, tell the user it may be outside '
                 . 'the folder you can access, never that it does not exist.';
         }

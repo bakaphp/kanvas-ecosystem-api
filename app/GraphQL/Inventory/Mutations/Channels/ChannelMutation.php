@@ -14,7 +14,6 @@ class ChannelMutation
 {
     /**
      * create.
-     *
      */
     public function create(mixed $rootValue, array $request): ChannelsModel
     {
@@ -27,7 +26,6 @@ class ChannelMutation
 
     /**
      * update.
-     *
      */
     public function update(mixed $rootValue, array $request): ChannelsModel
     {
@@ -41,7 +39,6 @@ class ChannelMutation
 
     /**
      * delete.
-     *
      */
     public function delete(mixed $rootValue, array $request): bool
     {
@@ -53,7 +50,6 @@ class ChannelMutation
 
     /**
      * Unpublish all variants from channel.
-     *
      */
     public function unPublishAllVariantsFromChannel(mixed $rootValue, array $request): bool
     {

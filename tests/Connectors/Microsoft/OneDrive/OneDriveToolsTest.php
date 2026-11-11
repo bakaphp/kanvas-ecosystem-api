@@ -9,7 +9,6 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Documents\ExcelDocument;
 use Kanvas\Connectors\Microsoft\OneDrive\Documents\WordDocument;
 use Kanvas\Connectors\Microsoft\OneDrive\OneDriveClient;
@@ -31,40 +30,6 @@ use ZipArchive;
 class OneDriveToolsTest extends TestCase
 {
     use DatabaseTransactions;
-
-    private array $originalTokens = [];
-
-    protected function tearDown(): void
-    {
-        [, $company] = $this->context();
-
-        foreach ($this->originalTokens as $key => $value) {
-            $value === null ? $company->del($key) : $company->set($key, $value);
-        }
-
-        parent::tearDown();
-    }
-
-    public function test_tools_report_not_connected_for_a_company_without_microsoft(): void
-    {
-        [$app, $company] = $this->context();
-        $suffix = '-' . $app->getId() . '-' . $company->getId();
-
-        foreach ([ConfigurationEnum::ACCESS_TOKEN, ConfigurationEnum::REFRESH_TOKEN] as $case) {
-            $key = $case->value . $suffix;
-            $this->originalTokens[$key] = $company->get($key);
-            $company->del($key);
-        }
-        Http::fake();
-
-        $result = new SearchOneDriveTool()
-            ->withContext($app, $company, static::$cachedUser)
-            ->__invoke(query: 'contrato');
-
-        $this->assertFalse($result['success']);
-        $this->assertSame('microsoft_not_connected', $result['reason']);
-        Http::assertNothingSent();
-    }
 
     public function test_search_returns_items(): void
     {

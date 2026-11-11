@@ -12,14 +12,17 @@ use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\CreateRefundAction;
 use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\ActivateResult;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
+use Kanvas\Souk\Payments\DataTransferObject\RefundPayment;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
@@ -182,16 +185,18 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             );
         }
 
+        $capturedAmount = $amount ?? $order->getTotalDueAmount();
         $start = hrtime(true);
 
         try {
             $response = $this->service->commit(
                 $purchaseId,
-                $this->toCardNetAmount($amount ?? $order->getTotalDueAmount()),
+                $this->toCardNetAmount($capturedAmount),
             );
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->authorization_code = $response->getApprovalCode();
+            $payment->captured_amount = $capturedAmount;
 
             $payment->markAsPaid([
                 'data' => [
@@ -209,7 +214,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 'order_id' => $order->id,
                 'hold_purchase_id' => $purchaseId,
                 'capture_purchase_id' => $response->getPurchaseId(),
-                'amount' => $amount ?? $order->getTotalDueAmount(),
+                'amount' => $capturedAmount,
                 'response_time_ms' => $responseTimeMs,
                 'response' => $response->getResponseMessage(),
             ]);
@@ -259,55 +264,90 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             );
         }
 
+        try {
+            $refund = new CreateRefundAction(
+                RefundPayment::forProcessor(
+                    $this->app,
+                    $payment->company,
+                    $payment,
+                    $amount,
+                    $context
+                )
+            )->execute();
+        } catch (ValidationException $e) {
+            return new RefundResult(
+                success: false,
+                message: $e->getMessage(),
+                transactionId: '',
+            );
+        }
+
+        if ($refund->isCompleted()) {
+            return new RefundResult(
+                success: true,
+                message: 'Refund already completed',
+                transactionId: (string) ($refund->metadata['cardnet_purchase_id'] ?? $purchaseId),
+                raw: $refund->metadata ?? [],
+            );
+        }
+
         $start = hrtime(true);
 
         try {
             $response = $this->service->refund(
                 $purchaseId,
-                $this->buildRefundRequest($payment, $order, $amount),
+                $this->buildRefundRequest($payment, $order, (float) $refund->amount),
             );
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
-            $payment->update(['status' => PaymentStatusEnum::REVERSED->value]);
-            $payment->addMetadata([
-                'data' => [
-                    'refund_purchase_id' => $response->getPurchaseId(),
-                    'response_message' => $response->getResponseMessage(),
-                    'response_code' => $response->getResponseCode(),
-                ],
+            $raw = [
+                'purchase_id' => $response->getPurchaseId(),
+                'response_code' => $response->getResponseCode(),
+                'response_message' => $response->getResponseMessage(),
+                'transaction_id' => $response->getTransactionId(),
+                'status' => $response->getStatus(),
+            ];
+
+            $refund->markAsCompleted([
+                'cardnet_purchase_id' => $response->getPurchaseId(),
+                'cardnet_transaction_id' => $response->getTransactionId(),
+                'response_code' => $response->getResponseCode(),
+                'response_message' => $response->getResponseMessage(),
             ]);
 
             $payment->addLog('refund_success', [
                 'processor' => $this->name(),
                 'order_id' => $order->id,
+                'refund_id' => $refund->getId(),
+                'amount' => (float) $refund->amount,
                 'original_purchase_id' => $purchaseId,
                 'refund_purchase_id' => $response->getPurchaseId(),
                 'response_time_ms' => $responseTimeMs,
                 'response' => $response->getResponseMessage(),
-            ]);
+            ], actor: $refund->user);
 
             return new RefundResult(
                 success: true,
                 message: $response->getResponseMessage(),
                 transactionId: (string) $response->getPurchaseId(),
-                raw: [
-                    'purchase_id' => $response->getPurchaseId(),
-                    'response_code' => $response->getResponseCode(),
-                    'response_message' => $response->getResponseMessage(),
-                    'transaction_id' => $response->getTransactionId(),
-                    'status' => $response->getStatus(),
-                ],
+                raw: $raw,
             );
         } catch (CardNetException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
+            $refund->markAsFailed([
+                'error' => $e->getMessage(),
+                'error_body' => $e->responseBody,
+            ]);
+
             $payment->addLog('refund_failed', [
                 'processor' => $this->name(),
                 'order_id' => $order->id,
+                'refund_id' => $refund->getId(),
                 'error' => $e->getMessage(),
                 'error_body' => $e->responseBody,
                 'response_time_ms' => $responseTimeMs,
-            ]);
+            ], actor: $refund->user);
 
             return new RefundResult(
                 success: false,
@@ -698,6 +738,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 // MMYYYY → MM/YY
                 return substr($clean, 0, 2) . '/' . substr($clean, 4, 2);
             }
+
             // YYYYMM → MM/YY
             return substr($clean, 4, 2) . '/' . substr($clean, 2, 2);
         }

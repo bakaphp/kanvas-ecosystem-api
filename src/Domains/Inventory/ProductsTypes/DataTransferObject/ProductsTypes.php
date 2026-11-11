@@ -30,7 +30,6 @@ class ProductsTypes extends Data
 
     /**
      * fromArray.
-     *
      */
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {

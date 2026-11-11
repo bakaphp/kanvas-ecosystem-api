@@ -79,6 +79,7 @@ class NetSuiteProductService
         foreach ($product->basic->inventoryLocation as $index => $assignment) {
             if ($assignment->searchValue->internalId == $locationId) {
                 $inventoryIndex = $index;
+
                 break;
             }
         }
@@ -165,6 +166,7 @@ class NetSuiteProductService
     public function searchProductByItemNumberFromSearch(string|int $itemNumber): array
     {
         $searchService = new NetSuiteProductSearchService($this->app, $this->company);
+
         return $searchService->searchProductByItemNumberFromSavedSearch($itemNumber);
     }
 
@@ -220,10 +222,11 @@ class NetSuiteProductService
         foreach ($barcodeList as $index => $barcode) {
             $product = $this->searchProductByItemNumber($barcode);
             $product = $this->getProductById($product[0]->internalId);
-            $productSkus[$barcode] = $this->getCustomField($product, "custitem5");
+            $productSkus[$barcode] = $this->getCustomField($product, 'custitem5');
             echo 'Product ' . $index . ' of ' . count($barcodeList) . ' processed';
             echo PHP_EOL;
         }
+
         return $productSkus;
     }
 }

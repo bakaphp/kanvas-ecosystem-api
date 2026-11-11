@@ -49,7 +49,7 @@ final class FiscalDocMapperTypeFieldsTest extends TestCase
             EcfTypeEnum::PAGOS_EXTERIOR,
             buyer: new EcfParty(name: 'Acme Ltd', taxId: 'GB123456789', isForeign: true),
             foreignPayment: new EcfForeignPayment(
-                accountType: '1',
+                accountType: 'CT',
                 accountNumber: '000123',
                 bank: 'Banco Popular',
                 foreignCurrency: 'USD',
@@ -61,12 +61,10 @@ final class FiscalDocMapperTypeFieldsTest extends TestCase
         $this->assertSame('GB123456789', $fiscalDoc['customerRUC']);
         $this->assertSame(1, $fiscalDoc['items'][0]['retperInd']);
         $this->assertSame([
-            ['id' => 1, 'value' => '1', 'grp' => 'IdDoc', 'name' => 'TipoCuentaPago'],
+            ['id' => 1, 'value' => 'CT', 'grp' => 'IdDoc', 'name' => 'TipoCuentaPago'],
             ['id' => 2, 'value' => '000123', 'grp' => 'IdDoc', 'name' => 'NumeroCuentaPago'],
             ['id' => 3, 'value' => 'Banco Popular', 'grp' => 'IdDoc', 'name' => 'BancoPago'],
-            ['id' => 4, 'value' => 'USD', 'grp' => 'OtraMoneda', 'name' => 'TipoMoneda'],
-            ['id' => 5, 'value' => '500.00', 'grp' => 'OtraMoneda', 'name' => 'MontoTotalOtraMoneda'],
-        ], $fiscalDoc['addInfo']);
+        ], $fiscalDoc['addInfo'], 'No OtraMoneda lines: WebPOS builds that block from currency + currencyRate and drops a document that carries one.');
     }
 
     public function testADebitNoteReferencesTheInvoiceWithCode3(): void
@@ -106,7 +104,7 @@ final class FiscalDocMapperTypeFieldsTest extends TestCase
             encf: $type->series() . '0000000001',
             sequenceExpiresAt: '2028-12-31',
             issueDate: '2026-06-15',
-            systemRef: 'b0b6f6c5-0000-4000-8000-000000000001',
+            systemRef: 'KREF000000000001',
             buyer: $buyer ?? new EcfParty(name: 'Ministerio de Prueba', taxId: '401000000'),
             currency: 'DOP',
             exchangeRate: 1.0,

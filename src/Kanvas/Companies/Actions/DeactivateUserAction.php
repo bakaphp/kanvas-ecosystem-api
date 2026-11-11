@@ -21,6 +21,7 @@ class DeactivateUserAction
     {
         $userAssociate = UsersRepository::belongsToThisApp($this->user, $this->app);
         AuthenticationService::logoutFromAllDevices($userAssociate->user, $this->app);
+
         return $userAssociate->deActive();
     }
 }

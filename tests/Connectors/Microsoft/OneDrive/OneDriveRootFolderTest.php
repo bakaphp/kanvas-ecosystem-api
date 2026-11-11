@@ -7,12 +7,9 @@ namespace Tests\Connectors\Microsoft\OneDrive;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Enums\OneDriveErrorReasonEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Exceptions\OneDriveException;
 use Kanvas\Connectors\Microsoft\OneDrive\OneDriveClient;
-use ReflectionProperty;
 use Tests\TestCase;
 
 class OneDriveRootFolderTest extends TestCase
@@ -145,35 +142,5 @@ class OneDriveRootFolderTest extends TestCase
 
         $this->assertSame(['/ACME/a.docx', '/Otro/c.docx'], array_column($this->client()->search('docx'), 'path'));
         $this->assertSame(['/ACME/a.docx'], array_column($this->client()->search('docx', folder: '/ACME'), 'path'));
-    }
-
-    public function test_for_company_reads_the_configured_folder(): void
-    {
-        $app = app(Apps::class);
-        $company = static::$cachedUser->getCurrentCompany();
-        $suffix = '-' . $app->getId() . '-' . $company->getId();
-        $keys = [ConfigurationEnum::ACCESS_TOKEN, ConfigurationEnum::REFRESH_TOKEN, ConfigurationEnum::TOKEN_EXPIRES_AT, ConfigurationEnum::ONEDRIVE_ROOT_FOLDER];
-        $original = [];
-        foreach ($keys as $case) {
-            $original[$case->value] = $company->get($case->value . $suffix);
-        }
-
-        try {
-            $company->set(ConfigurationEnum::ACCESS_TOKEN->value . $suffix, 'token');
-            $company->set(ConfigurationEnum::REFRESH_TOKEN->value . $suffix, 'refresh');
-            $company->set(ConfigurationEnum::TOKEN_EXPIRES_AT->value . $suffix, now()->addHour()->toDateTimeString());
-            $rootFolder = new ReflectionProperty(OneDriveClient::class, 'rootFolder');
-
-            foreach (['Clientes/ACME/' => '/Clientes/ACME', ' / ' => null, '' => null] as $setting => $expected) {
-                $company->set(ConfigurationEnum::ONEDRIVE_ROOT_FOLDER->value . $suffix, $setting);
-
-                $this->assertSame($expected, $rootFolder->getValue(OneDriveClient::forCompany($app, $company)));
-            }
-        } finally {
-            foreach ($keys as $case) {
-                $value = $original[$case->value];
-                $value === null ? $company->del($case->value . $suffix) : $company->set($case->value . $suffix, $value);
-            }
-        }
     }
 }

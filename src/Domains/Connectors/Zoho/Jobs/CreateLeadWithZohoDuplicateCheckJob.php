@@ -26,15 +26,16 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 /**
  * A receiver for forms that reach leads living only in Zoho. When the contact already has a lead in
  * Kanvas or in the Zoho Leads module, no lead is created: the most recent existing one is reassigned
- * to the configured owner, in Kanvas and in Zoho, and nothing else on it changes: it keeps the source
- * it first came in with. A Zoho-only match is pulled into Kanvas first, so it is tracked from then on like any other
- * synced lead. Without `duplicate_zoho_owner_id` in the webhook configuration it is the standard receiver.
+ * to the configured owner on both sides, keeping its source and appending the form origin to its description.
+ * A Zoho-only match is pulled into Kanvas first so later submissions find it locally.
+ * Without `duplicate_zoho_owner_id` in the webhook configuration it is the standard receiver.
  */
 #[WorkflowAction(
     name: 'Zoho Lead Receiver With Duplicate Check',
     description: 'Creates a lead from a form, first checking Kanvas and the Zoho Leads module for an existing '
         . 'lead with the same email or phone. On a match no lead is created: the existing lead is reassigned to '
-        . 'the configured owner and keeps its lead source. Only useful if this company runs Zoho.',
+        . 'the configured owner, keeps its lead source, and records the form origin in its description. '
+        . 'Only useful if this company runs Zoho.',
     integration: IntegrationsEnum::ZOHO,
 )]
 class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
