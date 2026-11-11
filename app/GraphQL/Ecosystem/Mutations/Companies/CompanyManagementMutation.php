@@ -23,6 +23,7 @@ use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AddAdminsToCompanyAction;
 use Kanvas\Users\Actions\AddUserCompanyAction;
+use Kanvas\Users\Actions\ReassignDefaultCompanyAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -240,7 +241,9 @@ class CompanyManagementMutation
                         ->where('apps_id', '=', $app->getId())
                         ->delete();
 
-                    (new DeactivateUserAction($user, $app))->execute();
+                    if (! new ReassignDefaultCompanyAction($user, $app, $company)->execute()) {
+                        new DeactivateUserAction($user, $app)->execute();
+                    }
                 }
             });
 

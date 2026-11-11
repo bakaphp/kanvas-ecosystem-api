@@ -7,7 +7,6 @@ namespace Kanvas\Companies\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class DeactivateUserAction
 {
@@ -19,9 +18,9 @@ class DeactivateUserAction
 
     public function execute(): bool
     {
-        $userAssociate = UsersRepository::belongsToThisApp($this->user, $this->app);
-        AuthenticationService::logoutFromAllDevices($userAssociate->user, $this->app);
+        $profile = $this->user->getAppProfile($this->app);
+        AuthenticationService::logoutFromAllDevices($this->user, $this->app);
 
-        return $userAssociate->deActive();
+        return $profile->deActive();
     }
 }
