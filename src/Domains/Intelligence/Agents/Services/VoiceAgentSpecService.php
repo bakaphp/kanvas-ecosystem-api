@@ -129,7 +129,7 @@ class VoiceAgentSpecService
     /**
      * The agent's persona prompt, then the legacy structured `role` for records that predate it.
      */
-    private function systemInstruction(): string
+    public function systemInstruction(): string
     {
         $persona = $this->agent->personaPrompt();
 

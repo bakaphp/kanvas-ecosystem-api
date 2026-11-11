@@ -56,7 +56,6 @@ class SetAgentPhoneNumberAction
         ) {
             new ReleaseInboundWebhookForNumberAction(
                 number: $previous,
-                app: $this->agent->app,
                 company: $this->agent->company,
                 channel: $this->channel,
                 exceptAgentId: $this->agent->getId(),
