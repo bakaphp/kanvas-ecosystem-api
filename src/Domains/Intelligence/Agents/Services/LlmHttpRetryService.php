@@ -6,9 +6,12 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
+use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Support\Facades\Log;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 /**
  * Retry policy for Neuron LLM provider calls.
@@ -58,7 +61,64 @@ class LlmHttpRetryService
         $retry = Middleware::retry(self::decider(), self::delay());
         $stack->push($retry);
 
+        // Pushed after the retry, so it wraps the transport alone and sees each attempt on its own.
+        $stack->push(self::attemptLog());
+
         return $stack;
+    }
+
+    /**
+     * Retries are otherwise invisible: three slow attempts read as one six-minute model call. Every
+     * failed attempt is logged, and a successful one only when it ran long.
+     */
+    private static function attemptLog(): callable
+    {
+        return static fn (callable $handler): callable => static function (
+            RequestInterface $request,
+            array $options
+        ) use ($handler): PromiseInterface {
+            $started = microtime(true);
+            $context = static fn (): array => [
+                'host' => $request->getUri()->getHost(),
+                'path' => $request->getUri()->getPath(),
+                'elapsed_ms' => (int) round((microtime(true) - $started) * 1000),
+            ];
+
+            return $handler($request, $options)->then(
+                static function (ResponseInterface $response) use ($context): ResponseInterface {
+                    $log = $context();
+                    $status = $response->getStatusCode();
+
+                    if ($status >= 400) {
+                        Log::warning('LLM provider call failed', [
+                            ...$log,
+                            'status' => $status,
+                            'retry_after' => $response->getHeaderLine('Retry-After'),
+                        ]);
+                    } elseif (self::isSlow($log['elapsed_ms'])) {
+                        Log::warning('LLM provider call was slow', [...$log, 'status' => $status]);
+                    }
+
+                    return $response;
+                },
+                static function (mixed $reason) use ($context): PromiseInterface {
+                    Log::warning('LLM provider call failed', [
+                        ...$context(),
+                        'exception' => $reason instanceof Throwable ? $reason::class : get_debug_type($reason),
+                        'error' => $reason instanceof Throwable ? $reason->getMessage() : null,
+                    ]);
+
+                    return Create::rejectionFor($reason);
+                }
+            );
+        };
+    }
+
+    private static function isSlow(int $elapsedMs): bool
+    {
+        $threshold = (int) config('kanvas.agents.slow_llm_call_log_ms', 30_000);
+
+        return $threshold > 0 && $elapsedMs >= $threshold;
     }
 
     private static function decider(): callable
