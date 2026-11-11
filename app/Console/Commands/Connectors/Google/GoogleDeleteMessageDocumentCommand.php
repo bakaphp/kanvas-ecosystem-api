@@ -32,7 +32,6 @@ class GoogleDeleteMessageDocumentCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

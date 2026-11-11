@@ -17,10 +17,37 @@ type PaymentLog @model(class: "Kanvas\\Souk\\Payments\\Models\\PaymentLogs") {
     company: Company! @belongsTo
     user: User! @belongsTo
     status: String
+    event_type: String
+    error_code: String
+    error_message: String
+    processor_response_code: String
+    response_insight: String
     metadata: Mixed
     created_at: String!
     updated_at: String
     is_deleted: Boolean!
+}
+
+enum RefundReason {
+    DUPLICATE @enum(value: "duplicate")
+    FRAUDULENT @enum(value: "fraudulent")
+    REQUESTED_BY_CUSTOMER @enum(value: "requested_by_customer")
+    OUT_OF_STOCK @enum(value: "out_of_stock")
+    OTHER @enum(value: "other")
+}
+
+type PaymentRefund @model(class: "Kanvas\\Souk\\Payments\\Models\\PaymentRefund") {
+    id: ID!
+    uuid: String!
+    amount: Money
+    currency: String
+    reason: String
+    note: String
+    status: String!
+    processor_refund_id: String
+    user: User @belongsTo(relation: "user")
+    created_at: String!
+    updated_at: String
 }
 
 type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
@@ -45,10 +72,16 @@ type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
     notes: String
     number: String
     amount: Money
+    captured_amount: Money @method(name: "getCapturedAmount")
+    refunded_amount: Money @method(name: "getRefundedAmount")
+    refundable_amount: Money @method(name: "getRefundableAmount")
     currency: String
     status: String
+    processor: String
+    authorization_code: String
     metadata: Mixed
     payment_logs: [PaymentLog!] @hasMany(relation: "paymentLogs")
+    refunds: [PaymentRefund!]! @hasMany(relation: "refunds")
     created_at: String!
     updated_at: String
     is_deleted: Boolean!
@@ -252,7 +285,13 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@processPayment"
         )
-    refundPayment(paymentId: ID!, amount: Float): PaymentActionResult!
+    refundPayment(
+        paymentId: ID!
+        amount: Float
+        reason: RefundReason
+        note: String
+        idempotency_key: String
+    ): PaymentActionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@refundPayment"
         )

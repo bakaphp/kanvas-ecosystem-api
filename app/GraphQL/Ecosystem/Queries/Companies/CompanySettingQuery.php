@@ -8,7 +8,6 @@ class CompanySettingQuery
 {
     /**
      * Get user from the current company.
-     *
      */
     public function getAllSettings($rootValue, array $request): array
     {

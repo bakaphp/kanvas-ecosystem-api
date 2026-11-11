@@ -51,6 +51,7 @@ class FacebookOAuthProvider implements OAuthProviderInterface
 
         if ($code === '') {
             $error = (string) ($request->input('error_message') ?? $request->input('error') ?? 'Unknown error');
+
             throw new ValidationException('Facebook authorization failed: ' . $error);
         }
 

@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Integration\Harness\Concerns;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingModelResolver;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Mockery;
 
@@ -31,8 +32,9 @@ trait MocksCodingApp
     /**
      * @param array<string, string> $settings
      * @param array<string, string> $appOverrides
+     * @param array<string, string> $companyOverrides
      */
-    private function agent(array $settings, array $appOverrides = []): Agent
+    private function agent(array $settings, array $appOverrides = [], array $companyOverrides = []): Agent
     {
         $agent = Agent::factory()
             ->withAppId(app(Apps::class)->getId())
@@ -40,13 +42,18 @@ trait MocksCodingApp
             ->create();
 
         $agent->setRelation('app', $this->app($appOverrides));
-        $agent->setRelation('company', $this->holder(Companies::class, []));
+        $agent->setRelation('company', $this->holder(Companies::class, $companyOverrides));
 
         foreach ($settings as $key => $value) {
             $agent->set($key, $value);
         }
 
         return $agent;
+    }
+
+    private function fingerprint(Agent $agent): string
+    {
+        return new CodingModelResolver($agent->app, $agent)->keyFingerprint();
     }
 
     /**

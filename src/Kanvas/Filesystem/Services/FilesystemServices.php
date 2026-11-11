@@ -89,6 +89,12 @@ class FilesystemServices
             );
         }
 
+        // The disk is built without `throw`, so a failed write (a dead key, a network blip) comes back as false;
+        // saving the row anyway leaves a file whose url is the bucket root, which every reader then 403s on.
+        if (! is_string($uploadedFile) || $uploadedFile === '') {
+            throw new RuntimeException("The file {$file->getClientOriginalName()} could not be written to storage; nothing was saved.");
+        }
+
         $createFileSystem = new CreateFilesystemAction(
             $file,
             $user,
@@ -393,6 +399,29 @@ class FilesystemServices
         } finally {
             TempFile::delete($tempFilePath);
         }
+    }
+
+    /**
+     * Stores bytes a caller already holds (a provider's base64 PDF, a generated export) as a file.
+     */
+    public function uploadContents(string $contents, string $fileName, Users $user): ModelsFilesystem
+    {
+        return TempFile::using(
+            function (string $tempFilePath) use ($contents, $fileName, $user): ModelsFilesystem {
+                file_put_contents($tempFilePath, $contents);
+
+                return $this->upload(
+                    new UploadedFile(
+                        path: $tempFilePath,
+                        originalName: basename(str_replace('\\', '/', $fileName)),
+                        mimeType: self::detectMimeTypeFromBytes($contents),
+                        test: true
+                    ),
+                    $user
+                );
+            },
+            extension: pathinfo($fileName, PATHINFO_EXTENSION)
+        );
     }
 
     protected function downloadFileFromUrl(string $fileUrl): ?string

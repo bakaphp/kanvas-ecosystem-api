@@ -18,6 +18,8 @@ use Wearepixel\Cart\Cart;
 
 class BuildShipmentRequestAction
 {
+    public const float MISSING_WEIGHT = 0.1;
+
     public function __construct(
         protected Apps $app,
         protected Cart $cart,
@@ -62,10 +64,7 @@ class BuildShipmentRequestAction
 
         foreach ($items as $item) {
             $weight = (float) $this->findVariant($item['id'])->weight;
-
-            if ($weight <= 0) {
-                return null;
-            }
+            $weight = $weight > 0 ? $weight : self::MISSING_WEIGHT;
 
             $total += $weight * (float) $item['quantity'];
         }

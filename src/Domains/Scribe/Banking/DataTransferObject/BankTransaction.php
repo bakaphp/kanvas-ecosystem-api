@@ -43,6 +43,7 @@ class BankTransaction extends Data
         public readonly string $source = 'kanvas',
         public readonly ?string $externalId = null,
         public readonly ?array $metadata = null,
+        public readonly ?int $bankStatementId = null,
     ) {
     }
 }

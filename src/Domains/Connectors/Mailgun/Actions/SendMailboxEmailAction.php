@@ -53,6 +53,7 @@ class SendMailboxEmailAction
             ],
             trackingPerson: $trackingPerson,
             trackingLead: $trackingLead,
+            trackingMessage: $message,
         )->execute();
     }
 }

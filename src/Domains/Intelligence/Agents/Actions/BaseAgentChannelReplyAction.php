@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Baka\Support\DateHelper;
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
@@ -17,6 +21,8 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -49,6 +55,7 @@ class BaseAgentChannelReplyAction
     protected string $communicationChannel = '';
     protected bool $supportsHumanApproval = false;
     protected bool $respectsLeadAiMode = true;
+    protected bool $mirrorsReplyToLeadChannels = true;
 
     public function __construct(
         protected Channel $channel,
@@ -76,6 +83,12 @@ class BaseAgentChannelReplyAction
             }
         }
 
+        // A person's plan ends on the reply itself, not an hour later at the next pass.
+        if ($lead instanceof Lead) {
+            $inboundAt = DateHelper::tryParseCarbon($this->message->created_at) ?? Carbon::now();
+            new LeadFollowUpEligibilityService()->concludeRepliedPlan($lead, $inboundAt);
+        }
+
         if ($this->respectsLeadAiMode) {
             $isAiMuted = $lead instanceof Lead
                 ? $lead->isAiMuted()
@@ -91,6 +104,22 @@ class BaseAgentChannelReplyAction
         }
 
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
+    }
+
+    /**
+     * @return array{text: string, images: list<string>, documents: list<string>}
+     */
+    protected function inboundContent(?string $text): array
+    {
+        $media = $this->message->attachmentUrls();
+        $text = Str::trimToNull($text) ?? '';
+
+        // Gemini requires a non-empty text part alongside attachments (KANVAS-ECOSYSTEM-6QC).
+        if ($text === '' && ($media['images'] !== [] || $media['documents'] !== [])) {
+            $text = 'The customer sent an attachment without any text. Look at it and answer about it.';
+        }
+
+        return ['text' => $text, ...$media];
     }
 
     /**
@@ -188,8 +217,10 @@ class BaseAgentChannelReplyAction
             // channel dual-write so the CRM deal view and People profile show the actual
             // delivery message (verb='twilio-sms', 'mailgun-email', etc.). ADK is left
             // alone — its remote memory and existing legacy behavior depend on the
-            // per-protocol channel only.
-            if (! $this->agent->isAdk()) {
+            // per-protocol channel only. Internal channels (the rep talking to the agent
+            // about the lead) opt out via $mirrorsReplyToLeadChannels: that chatter is not a
+            // delivery and must not land in the customer-facing lead conversation.
+            if ($this->mirrorsReplyToLeadChannels && ! $this->agent->isAdk()) {
                 new LeadChannelService()->attachMessageToLeadChannel(
                     $newMessage,
                     $lead,
@@ -209,7 +240,37 @@ class BaseAgentChannelReplyAction
             }
         }
 
+        $this->stampReplyOnMemory($message, $newMessage);
+
         return $newMessage;
+    }
+
+    /**
+     * The turn wrote its memory before this reply row existed; give it the reply's id so recall can
+     * tell when the exchange is still in the window. Recall works without it, so a failure is logged.
+     */
+    private function stampReplyOnMemory(Message $inbound, Message $reply): void
+    {
+        $app = $this->agent->app;
+
+        if (! KnowledgeComponents::memoryEnabled($app)) {
+            return;
+        }
+
+        try {
+            KnowledgeComponents::store($app)->stampReplyMessageId(
+                (int) $app->getId(),
+                (int) $reply->companies_id,
+                (int) $inbound->getId(),
+                (int) $reply->getId(),
+            );
+        } catch (Throwable $e) {
+            Log::warning('Could not stamp the reply id on the turn memory', [
+                'inbound_message_id' => $inbound->getId(),
+                'reply_message_id' => $reply->getId(),
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

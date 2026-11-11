@@ -123,6 +123,14 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        // Only the lead get-deposit flow is handled here; a document payment completes through Scribe.
+        if ($engagement->hasNonLeadReference()) {
+            return [
+                'message' => 'Engagement ' . $engagement->getId() . ' references a ' . $engagement->entity_type . ', not a lead',
+                'response' => null,
+            ];
+        }
+
         // Stripe redelivers until it sees a 2xx, and every delivery would otherwise submit again and re-notify.
         $processedSessionId = $message->get(CustomFieldEnum::STRIPE_CHECKOUT_SESSION_ID->value);
 

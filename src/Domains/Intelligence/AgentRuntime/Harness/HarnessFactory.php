@@ -13,6 +13,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Transports\HttpHarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\Transports\SshExecHarnessTransport;
@@ -92,11 +93,13 @@ class HarnessFactory
     }
 
     /**
-     * How the request reaches the container, which is a property of the MACHINE rather than of the
-     * session: a runtime on a shared Docker network or a private address is addressable, and one on a
-     * customer's box usually is not. The `ssh_exec` case is the reason `HarnessTransport` exists.
+     * How the request reaches the runtime, which is a property of the MACHINE rather than of the
+     * session. The runtime decides before the network mode does: a host process is only ever reached
+     * by curl over SSH on the port the session recorded. For a container, one on a shared Docker
+     * network or a private address is addressable, and one on a customer's box usually is not — the
+     * `ssh_exec` case is the reason `HarnessTransport` exists.
      */
-    private static function transportFor(AgentTaskSession $session): HarnessTransport
+    public static function transportFor(AgentTaskSession $session): HarnessTransport
     {
         if (! $session->isProvisioned()) {
             throw new ValidationException('Session ' . $session->uuid . ' has no endpoint; it was never provisioned');
@@ -104,7 +107,22 @@ class HarnessFactory
 
         $machine = $session->machine;
 
-        if ($machine !== null && $machine->network_mode === MachineNetworkModeEnum::SSH_EXEC->value) {
+        if ($machine !== null && $machine->runtimeMode() === MachineRuntimeEnum::HOST) {
+            if ($session->port === null) {
+                throw new ValidationException(
+                    'Session ' . $session->uuid . ' runs on a host machine but has no port.'
+                );
+            }
+
+            return new SshExecHarnessTransport(
+                machine: $machine,
+                container: null,
+                password: (string) $session->server_password,
+                port: (int) $session->port,
+            );
+        }
+
+        if ($machine !== null && $machine->networkMode() === MachineNetworkModeEnum::SSH_EXEC) {
             if ($session->container_name === null || $session->container_name === '') {
                 throw new ValidationException(
                     'Session ' . $session->uuid . ' runs over ssh but has no container to exec into.'

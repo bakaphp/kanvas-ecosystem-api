@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Knowledge;
 
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\CFOAgent;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
@@ -48,25 +49,29 @@ class LeadRagAgentOptInTest extends TestCase
         $this->assertInstanceOf(AdaptiveThresholdPostProcessor::class, $processors[0]);
     }
 
-    public function testInternalAgentsUseOrganizationWideKnowledgeWhileCustomerAgentsStayEntityScoped(): void
+    /**
+     * An internal agent on a lead reads that lead in its history and through the lead tools, so its
+     * knowledge search never gets the lead's rows; a customer-facing agent does, until the per-message
+     * index is retired.
+     */
+    public function testOnlyCustomerFacingAgentsSearchTheLeadInScope(): void
     {
-        $scopeMethod = new ReflectionMethod(SalesManagerAgent::class, 'usesOrganizationWideKnowledge');
-        $this->assertTrue($scopeMethod->invoke(new SalesManagerAgent()));
+        $lead = new Lead()->forceFill(['id' => 55, 'apps_id' => 11, 'companies_id' => 22]);
+        $entity = new ReflectionProperty(KnowledgeRetrieval::class, 'entity');
+        $method = new ReflectionMethod(BaseRagAgent::class, 'retrieval');
 
-        $scopeMethod = new ReflectionMethod(SalesAgent::class, 'usesOrganizationWideKnowledge');
-        $this->assertFalse($scopeMethod->invoke(new SalesAgent()));
+        $internal = new SalesManagerAgent();
+        $internal->setCurrentLead($lead);
+        $customerFacing = new SalesAgent();
+        $customerFacing->setCurrentLead($lead);
 
-        $method = new ReflectionMethod(SalesManagerAgent::class, 'retrieval');
-
-        $internalRetrieval = $method->invoke(new SalesManagerAgent());
-        $customerRetrieval = $method->invoke(new SalesAgent());
+        $internalRetrieval = $method->invoke($internal);
+        $customerRetrieval = $method->invoke($customerFacing);
 
         $this->assertInstanceOf(KnowledgeRetrieval::class, $internalRetrieval);
         $this->assertInstanceOf(KnowledgeRetrieval::class, $customerRetrieval);
-
-        $property = new ReflectionProperty(KnowledgeRetrieval::class, 'organizationWide');
-        $this->assertTrue($property->getValue($internalRetrieval));
-        $this->assertFalse($property->getValue($customerRetrieval));
+        $this->assertNull($entity->getValue($internalRetrieval));
+        $this->assertSame($lead, $entity->getValue($customerRetrieval));
     }
 
     public function testAdaptiveThresholdDropsTheWeakestObservedResult(): void

@@ -11,6 +11,9 @@ use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentData;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\Scribe\Setup\Jobs\SetUpAccountingAgentJob;
+use Kanvas\Scribe\Setup\Services\AccountingAgentLocatorService;
+use Kanvas\Scribe\Setup\Services\AccountingSetupStateService;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -76,7 +79,7 @@ class HireAgentAction
             ));
         }
 
-        return new CreateAgentAction(new AgentData(
+        $agent = new CreateAgentAction(new AgentData(
             app: $this->app,
             company: $this->company,
             user: new ProvisionAgentUserAction($this->app, $this->company, $name)->execute(),
@@ -96,5 +99,23 @@ class HireAgentAction
             createdBy: $this->hiredBy,
             isSubAgent: false,
         ))->execute();
+
+        $this->setUpAccounting();
+
+        return $agent;
+    }
+
+    /**
+     * An AP/AR agent needs the company's books, inbox and approvals; a company that never went through
+     * onboarding gets them here, with the hiring admin as approver unless one is already named.
+     */
+    private function setUpAccounting(): void
+    {
+        if (! AccountingAgentLocatorService::isAccountingHandler($this->agentType->handler)) {
+            return;
+        }
+
+        $approverIsNamed = new AccountingSetupStateService()->defaultApprover($this->company) !== null;
+        SetUpAccountingAgentJob::dispatch($this->app, $this->company, $approverIsNamed ? null : $this->hiredBy);
     }
 }

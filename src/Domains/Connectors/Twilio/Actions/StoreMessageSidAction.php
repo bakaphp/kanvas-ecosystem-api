@@ -5,10 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Social\Messages\Models\Message;
 
+/**
+ * Every lead send hands its result here once the message is written, whatever the channel. Only an
+ * SMS result is Twilio's to record; any other channel only links the delivery its provider filed at
+ * send time (a Mailgun email) to the message.
+ */
 class StoreMessageSidAction
 {
     public function __construct(
@@ -18,6 +25,15 @@ class StoreMessageSidAction
 
     public function execute(array $providerResponse): ?string
     {
+        $channel = $providerResponse['channel'] ?? LeadCommunicationChannelEnum::SMS->value;
+        if ($channel !== LeadCommunicationChannelEnum::SMS->value) {
+            if ($this->message->exists) {
+                new LinkDeliveryMessageAction($this->message)->execute($providerResponse);
+            }
+
+            return null;
+        }
+
         if ($this->message->exists) {
             new RecordMessageAttemptAction($this->message)->execute($providerResponse);
         }

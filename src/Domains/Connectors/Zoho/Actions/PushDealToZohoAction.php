@@ -125,9 +125,4 @@ class PushDealToZohoAction
     {
         return new ZohoService($deal->app, $deal->company)->getDealModule();
     }
-
-    protected function filePusher(ZohoRecordsModule $dealModule, string $zohoDealId): PushFilesToZohoRecordAction
-    {
-        return new PushFilesToZohoRecordAction($dealModule, $zohoDealId);
-    }
 }

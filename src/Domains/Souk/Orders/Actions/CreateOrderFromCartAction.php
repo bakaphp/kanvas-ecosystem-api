@@ -13,7 +13,7 @@ use Override;
 
 class CreateOrderFromCartAction extends CreateBaseOrderAction
 {
-    private bool $paidByPaymentIntent = false;
+    private ?string $chargedIntentId = null;
 
     #[Override]
     public function execute(): ModelsOrder
@@ -32,7 +32,7 @@ class CreateOrderFromCartAction extends CreateBaseOrderAction
         }
 
         // The FE may have charged the intent even when the app does not require us to validate it.
-        $this->paidByPaymentIntent = ! empty($paymentIntentId) && ! $isFullDiscountCartAmount;
+        $this->chargedIntentId = ! empty($paymentIntentId) && ! $isFullDiscountCartAmount ? $paymentIntentId : null;
 
         if (! $this->app->get(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value) && ! $isFullDiscountCartAmount) {
             if (! $paymentIntentId) {
@@ -46,14 +46,28 @@ class CreateOrderFromCartAction extends CreateBaseOrderAction
             }
         }
 
-        $order = parent::execute();
+        $recovered = $this->chargedIntentId !== null
+            ? ModelsOrder::fromApp($this->app)->where('payment_intent_id', $this->chargedIntentId)->first()
+            : null;
 
-        return $order;
+        if ($recovered !== null) {
+            $this->cart->clear();
+
+            return $recovered;
+        }
+
+        return parent::execute();
+    }
+
+    #[Override]
+    protected function chargedPaymentIntentId(): ?string
+    {
+        return $this->chargedIntentId;
     }
 
     #[Override]
     protected function isPrepaidAtCheckout(ModelsOrder $order): bool
     {
-        return $this->paidByPaymentIntent || parent::isPrepaidAtCheckout($order);
+        return $this->chargedIntentId !== null || parent::isPrepaidAtCheckout($order);
     }
 }

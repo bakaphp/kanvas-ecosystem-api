@@ -78,6 +78,11 @@ class DispatchHarnessTaskAction
          * the parent link and the attempt all stand, only the session is new.
          */
         private readonly ?AgentTaskSession $retryOf = null,
+        /**
+         * False for a job that is meant to change nothing — run the app, run the tests, take a
+         * screenshot — so an empty diff completes instead of failing and retrying.
+         */
+        private readonly bool $expectsChanges = true,
     ) {
     }
 
@@ -232,6 +237,7 @@ class DispatchHarnessTaskAction
         $session->harness = $this->harness->value;
         $session->repo_slug = $this->repoSlug();
         $session->status = HarnessStatusEnum::STARTING->value;
+        $session->expects_changes = $this->expectsChanges;
         $resolver = new CodingModelResolver($app, $this->agent);
         $session->provider = $resolver->provider();
         $session->model = $resolver->model();
@@ -274,7 +280,12 @@ class DispatchHarnessTaskAction
     private function startNow(AgentTaskSession $session, string $brief, ?CodingRepository $repository): void
     {
         try {
-            new ProvisionCodingSessionAction($session, $this->agent->app, $this->agent->company, $repository)
+            new ProvisionCodingSessionAction(
+                $session,
+                $this->agent->app,
+                $this->agent->company,
+                $repository
+            )
                 ->execute();
             HarnessFactory::forSession($session)->start($session, $this->buildPrompt($brief, $repository));
         } catch (Throwable $e) {
@@ -282,7 +293,7 @@ class DispatchHarnessTaskAction
             $session->error_message = $e->getMessage();
             $session->saveOrFail();
 
-            // A launch that got as far as `docker run` and then failed leaves a container nothing else
+            // A launch that got as far as starting the runtime and then failed leaves one nothing else
             // will ever look for: this path never reaches the finalizer.
             new StopCodingSessionRuntimeAction($session)->execute();
 

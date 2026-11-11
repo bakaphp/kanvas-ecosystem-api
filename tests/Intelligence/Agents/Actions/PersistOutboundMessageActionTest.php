@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
@@ -96,6 +97,23 @@ class PersistOutboundMessageActionTest extends TestCase
 
         $this->assertSame([$message->getId()], RecordingActivity::entityIds());
         $this->assertSame($sid, $message->get(CustomFieldEnum::MESSAGE_SID->value));
+    }
+
+    public function testAWhatsAppSendIsNotFiledAsAFailedText(): void
+    {
+        $lead = $this->makeLead();
+
+        // A WaSender answer, as a WhatsApp campaign hands it over: no `channel`, no SID.
+        ['message' => $message] = new PersistOutboundMessageAction(
+            entity: $lead,
+            user: $this->user,
+            channelType: LeadCommunicationChannelEnum::WHATSAPP->value,
+            recipient: '+14047907130',
+            content: 'Sally here, glad to hear that!',
+        )->execute(['success' => true, 'data' => ['msgId' => 123]]);
+
+        $this->assertFalse(MessageAttempt::query()->where('message_id', $message->getId())->exists());
+        $this->assertArrayNotHasKey('delivery', $message->fresh()->getMessage());
     }
 
     public function testTheSendEmailToolFiresMessageCreatedOnTheEmailAndNotOnItsNote(): void

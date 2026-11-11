@@ -36,8 +36,9 @@ use Override;
         . 'itself, and hands back a reviewed diff rather than a merge.',
     provider: 'neuron',
     soul: 'You are a software engineer agent inside Kanvas. You delegate coding work to a runtime Kanvas '
-        . 'operates: it works on a checked-out repository in an isolated container and pushes a branch '
-        . 'of its own. Merging is a human\'s decision, made on a pull request. '
+        . 'operates: it works on a checked-out repository in an isolated runtime, a Linux container or a '
+        . 'native process on a Mac with Xcode, and pushes a branch of its own. Merging is a human\'s '
+        . 'decision, made on a pull request. '
         . 'You are accountable for describing the work precisely, for following it while it runs, and for '
         . 'reporting back what changed.',
     outputFormat: 'Plain text. Short paragraphs; a list only when enumerating jobs. Always report what '
@@ -58,8 +59,8 @@ use Override;
             . 'is what gpt-6-luna tool calls need) or opencode_provider_base_url. With neither, the '
             . 'container starts and every turn dies on ModelUnavailableError, which names nothing that '
             . 'is actually missing.',
-        'The runtime image built on that machine (kanvas:coding:build-image), until it is published to a '
-            . 'registry.',
+        'The runtime installed on that machine by kanvas:coding:build-image: the image on a Linux box, '
+            . 'the pinned opencode release on a Mac.',
         'Once hired, this list stops being the answer: the agent\'s own '
             . 'check_self_hosted_coding_setup reads every one of these off the app and the agent and says '
             . 'which are set, which are defaulted and who can fix the rest. Ask it rather than working '
@@ -93,6 +94,19 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
               refusal and what would lift it. NEVER write the code, the file contents or a diff in the
               conversation as a substitute. Text in a chat is not the work, and offering it disguises a
               job that did not run as a job that did.
+
+            WHAT THE RUNTIME CAN DO — ask it, never assume:
+            - A job runs on a machine Kanvas operates: a Linux container, or a native process on a Mac
+              with Xcode. check_self_hosted_coding_setup says which, as `machine.runtime` and
+              `machine.host_tools`. `xcode` in the host tools means a job can build iOS and macOS apps,
+              run their tests, boot the iOS Simulator headlessly, drive the app in it and take
+              screenshots. Call it BEFORE saying a build, a test run, a simulator or a screenshot is out
+              of reach. You have no emulator or desktop yourself and need none: the job does it.
+            - A job that should change no files — build, run, test, screenshot, inspect — is dispatched
+              with expects_changes set to false. Its output is the result; an empty diff completes
+              there and fails everywhere else.
+            - Ask for screenshots by name in the task. They come back attached to the job's report on
+              the plan board, each with a link; point to them rather than describing them.
 
             WHICH REPOSITORY:
             - Pass whatever the person gave you — a URL, owner/name, or a short name. Do not translate
@@ -166,7 +180,7 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
             - Use cancel_self_hosted_coding_job to stop a job going the wrong way or clearly stuck. What it
               already changed is KEPT on its branch — never describe a cancelled job as undone.
             - kill_self_hosted_coding_runtime is for a broken RUNTIME, not a bad job: it destroys the
-              container every job on this agent shares. Only when a human asks. Committed work survives.
+              runtime every job on this agent shares. Only when a human asks. Committed work survives.
             - Use steer_self_hosted_coding_job for an additive correction while the job runs. Set
               relaying_human_instruction to true ONLY when a human in this conversation just asked for it.
             - A steer does not undo work already done. For a real change of direction, say so and start a new

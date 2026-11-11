@@ -75,6 +75,7 @@ class SyncSocialChannelsForCompanyCommand extends Command
                 foreach ($contacts as $contact) {
                     if ($this->contactHasSession($contact, $app)) {
                         $skippedContacts++;
+
                         continue;
                     }
 
@@ -107,7 +108,7 @@ class SyncSocialChannelsForCompanyCommand extends Command
         });
 
         $this->newLine();
-        $this->info("Sync completed!");
+        $this->info('Sync completed!');
         $this->table(
             ['Metric', 'Value'],
             [

@@ -36,4 +36,11 @@ final class MediaTypeExtensionTest extends TestCase
         $this->assertSame('mp4', MediaTypeEnum::extensionForMime('video/x-unknown-codec'));
         $this->assertSame('bin', MediaTypeEnum::extensionForMime('application/octet-stream'));
     }
+
+    public function testMpegIsAVideo(): void
+    {
+        $this->assertSame(MediaTypeEnum::VIDEO, MediaTypeEnum::fromExtension('mpg'));
+        $this->assertSame(MediaTypeEnum::VIDEO, MediaTypeEnum::fromExtension('.MPEG'));
+        $this->assertSame('mpg', MediaTypeEnum::extensionForMime('video/mpeg'));
+    }
 }

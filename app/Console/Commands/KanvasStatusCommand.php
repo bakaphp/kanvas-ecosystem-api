@@ -48,6 +48,7 @@ class KanvasStatusCommand extends Command
         'scribe-pdf-ingest',
         'lead_follow_ups',
         'reporting',
+        'souk-tax',
     ];
 
     private const array DATABASE_CONNECTIONS = [

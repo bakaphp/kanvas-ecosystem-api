@@ -69,12 +69,6 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     private ?Channel $mentionChannel = null;
 
     #[Override]
-    protected function usesOrganizationWideKnowledge(): bool
-    {
-        return true;
-    }
-
-    #[Override]
     protected function remembersForCompany(): bool
     {
         return true;

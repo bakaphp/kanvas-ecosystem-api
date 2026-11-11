@@ -20,6 +20,7 @@ class RequoteCartShippingAction
         protected CompanyInterface $company,
         protected Regions $region,
         protected Cart $cart,
+        protected bool $fallBackToCheapest = false,
     ) {
     }
 
@@ -53,6 +54,7 @@ class RequoteCartShippingAction
             service: (string) ($attributes[ShippingConditionEnum::SERVICE->value] ?? ''),
             destination: ShippingDestination::forInput($attributes[ShippingConditionEnum::DESTINATION->value] ?? []),
             unavailableMessage: self::UNAVAILABLE_MESSAGE,
+            fallBackToCheapest: $this->fallBackToCheapest,
         )->execute();
     }
 }

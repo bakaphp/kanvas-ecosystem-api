@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\PaymentTerms\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\UuidTrait;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Models\BaseModel;
@@ -36,6 +38,20 @@ class PaymentTerm extends BaseModel
         'discount_pct' => 'float',
         'metadata' => Json::class,
     ];
+
+    /**
+     * The term a new invoice, SOW payment schedule or billing schedule falls back to when nothing names one; null
+     * leaves them due on receipt.
+     */
+    public static function defaultFor(AppInterface $app, CompanyInterface $company): ?self
+    {
+        return self::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('is_default', true)
+            ->notDeleted()
+            ->first();
+    }
 
     public function computeDueDate(Carbon $issuedDate): Carbon
     {

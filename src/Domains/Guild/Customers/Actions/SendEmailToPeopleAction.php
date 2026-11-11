@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
@@ -15,6 +16,7 @@ use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 
 /**
  * The People-only counterpart of SendMessageToLeadAction's email path, for a recipient that has no
@@ -66,7 +68,7 @@ class SendEmailToPeopleAction
         $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
 
         if ($mailboxAddress !== null) {
-            new SendAsAgentMailboxAction(
+            $mailgunMessageId = new SendAsAgentMailboxAction(
                 agent: $fromAgent,
                 to: $to,
                 subject: $subject,
@@ -84,6 +86,8 @@ class SendEmailToPeopleAction
                 'template' => 'agent-mailbox',
                 'from' => $mailboxAddress,
                 'people_id' => $this->people->getId(),
+                'provider' => IntegrationsEnum::MAILGUN->value,
+                'provider_message_id' => FileEmailDeliveryAction::normalizeMessageId($mailgunMessageId),
             ];
         }
 

@@ -2,6 +2,7 @@
 enum ScribeInvoiceDocumentType {
     INVOICE @enum(value: "invoice")
     CREDIT_NOTE @enum(value: "credit_note")
+    DEBIT_NOTE @enum(value: "debit_note")
 }
 
 enum ScribeInvoiceDocumentStatus {
@@ -79,6 +80,7 @@ type ScribeInvoice {
         @hasMany(relation: "allocations")
     parent_invoice: ScribeInvoice @belongsTo(relation: "parentInvoice")
     credit_notes: [ScribeInvoice!]! @hasMany(relation: "creditNotes")
+    debit_notes: [ScribeInvoice!]! @hasMany(relation: "debitNotes")
     approvalRequests: [ApprovalRequest!]! @hasMany(relation: "approvalRequests")
     files: [Filesystem!]!
         @cacheRedis
@@ -247,6 +249,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@create"
         )
+    "Edits a draft. On an issued e-CF the change is issued as credit/debit notes instead and the invoice comes back unchanged (see credit_notes / debit_notes)."
     updateScribeInvoice(id: ID!, input: ScribeInvoiceInput!): ScribeInvoice!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@update"

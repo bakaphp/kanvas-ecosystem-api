@@ -76,8 +76,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
     public function loadActive(string $threadId): array
     {
         $rawRows = AppModuleMessage::query()
-            ->where('system_modules', get_class($this->entity))
-            ->where('entity_id', $this->entity->getKey())
+            ->forEntity($this->entity)
             ->where('apps_id', $this->app->getId())
             ->whereHas('message', fn ($q) => $q->where('is_deleted', 0))
             ->with(['message.messageType', 'message.channels'])
@@ -141,7 +140,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
                 $text = self::withMarker($text, $marker);
                 $channel = $socialMessage->channels->first();
 
-                if ($channel?->isNoteChannel() || $channel?->isAiAssistChannel()) {
+                if ($channel?->isInternalChannel()) {
                     $prefixed = "[INTERNAL - {$channel->name}] {$text}";
                 } elseif ($fromHuman) {
                     $owner = $socialMessage->user?->displayname ?: 'Owner';

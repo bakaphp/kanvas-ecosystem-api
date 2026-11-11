@@ -26,11 +26,50 @@ class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
 
         $order = parent::execute();
 
-        new PayFromWalletAction(
-            order: $order,
-        )->execute();
+        $walletTender = (float) ($order->wallet_tender ?? 0.0);
+
+        if ($walletTender > 0.01) {
+            $this->settleWalletTenderFromSnapshot($order, $walletTender);
+        } else {
+            new PayFromWalletAction(
+                order: $order,
+            )->execute();
+        }
 
         return $order;
+    }
+
+    private function settleWalletTenderFromSnapshot(Order $order, float $walletTender): void
+    {
+        $snapshot = $this->resolveSnapshotForOrder($order);
+
+        if ($snapshot === null) {
+            new PayFromWalletAction(order: $order)->execute();
+
+            return;
+        }
+
+        $snapshotUuid = $snapshot->uuid;
+        $holdWallet = $order->user->createAppWallet($this->app, ['name' => ConfigurationEnum::WALLET_CHECKOUT_HOLD_NAME->value]);
+
+        $alreadySettled = $holdWallet->transactions()
+            ->where('meta->snapshot_uuid', $snapshotUuid)
+            ->where('meta->type', 'order_payment')
+            ->exists();
+
+        if ($alreadySettled) {
+            return;
+        }
+
+        $holdWallet->withdrawFloat($walletTender, [
+            'snapshot_uuid' => $snapshotUuid,
+            'type' => 'order_payment',
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'idempotency_key' => 'order_payment_' . $snapshotUuid,
+        ]);
+
+        $order->markAsPaid($order->user);
     }
 
     #[Override]

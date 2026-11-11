@@ -9,7 +9,6 @@ use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigur
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Laravel\Ai\Enums\Lab;
@@ -52,7 +51,7 @@ class CreateLeadFirstEngagementMessageAction
             'people' => $this->lead->people->toArray(),
             'company' => $this->lead->company->toArray(),
             'additional_context_information' => array_merge(
-                $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+                $this->lead->getAiContextInfo(),
                 ['people' => $this->lead->people->toArray()],
                 ['company' => $this->lead->company->toArray()],
                 ['lead' => $this->lead->toArray()]

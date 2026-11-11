@@ -41,12 +41,14 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Kanvas/Companies/Onboarding/Services/OnboardingSectionsSeedService.php',
         // CLI: reads a local Item Balance XML file argument.
         'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
+        // CLI (support only): reads a local WebPOS issued-documents CSV export argument.
+        'app/Console/Commands/Scribe/ImportIssuedEcfExportCommand.php',
         // CLI: reads the coding-agent Docker build context (Dockerfile, entrypoint.sh) out of
         // base_path('docker/opencode'), by hardcoded file name and gated by is_readable().
         'app/Console/Commands/NervousSystem/Agents/Coding/BuildCodingImageCommand.php',
-        // Reads that same Dockerfile to derive the pinned image tag from its FROM line — one
+        // Reads that same Dockerfile to derive the pinned opencode version from its FROM line — one
         // base_path() constant, gated by is_readable().
-        'src/Domains/Connectors/OpenCode/Services/CodingImageService.php',
+        'src/Domains/Connectors/OpenCode/Services/CodingRuntimeVersionService.php',
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
@@ -71,9 +73,13 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Domains/Intelligence/Agents/Services/AgentToolDiscoveryService.php',
         // CLI: reads local PEM files from the --cert/--key/--ca options, gated by file_exists().
         'app/Console/Commands/Connectors/Azul/ImportAzulCertificateCommand.php',
+        // CLI: reads a local DGII certificate from --certificate-path, gated by is_file() and is_readable().
+        'app/Console/Commands/Connectors/Alanube/AlanubeSetupCommand.php',
         // Legacy AZUL_*_PATH fallback: relative paths are forced under base_path(), the file must
         // exist and must contain PEM material — never a URL.
         'src/Domains/Connectors/Azul/Services/AzulCertificate.php',
+        // Reads back a tempnam() file it created itself (OneDrive document zip round trips).
+        'src/Domains/Connectors/Microsoft/OneDrive/Documents/Support/TemporaryFile.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void

@@ -35,7 +35,6 @@ class NetSuiteQuoteService
     /**
      * Create a NetSuite quote (estimate) from a Kanvas order
      */
-
     public function createQuoteFromOrder(Order $order, ?string $netsuiteCustomerId = null, bool $customRate = true): Estimate
     {
         $estimate = new Estimate();

@@ -11,8 +11,9 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Leads\Services\LeadConversationTranscriptService;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Leads\Services\ContactHistoryService;
 use Throwable;
 
 use function Sentry\captureException;
@@ -23,8 +24,8 @@ use function Sentry\captureException;
  * recent history instead of just a number.
  *
  * Reuses Kanvas's own resolution (PeoplesRepository::getByPhoneNumber +
- * LeadsRepository::getPeopleActiveLead) and the pre-built LEAD_CONTEXT_INFO
- * custom field. Scoped to the agent's company/app.
+ * LeadsRepository::getPeopleActiveLead) and the shared contact history, so the agent
+ * knows how and when we last talked, on any channel. Scoped to the agent's company/app.
  *
  * Best-effort: returns null (no context) rather than throwing, so a placing
  * call is never blocked by a lookup miss. The `summary` is a short, bounded,
@@ -34,6 +35,9 @@ class BuildVoiceAgentLeadContextAction
 {
     // Keep the payload small enough to ride along as a Twilio <Stream> parameter.
     private const CONTEXT_INFO_MAX = 800;
+    private const int RECENT_MESSAGES = 6;
+    private const int RECENT_MESSAGES_MAX = 600;
+    private const int MESSAGE_MAX = 160;
 
     public function __construct(
         private readonly Agent $agent,
@@ -112,10 +116,10 @@ class BuildVoiceAgentLeadContextAction
         }
 
         $vehicle = trim((string) $lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value));
-        $contextInfo = trim((string) $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value));
-        if ($contextInfo !== '') {
-            $contextInfo = mb_substr($contextInfo, 0, self::CONTEXT_INFO_MAX);
-        }
+        $contextInfo = $this->historyText(
+            new ContactHistoryService()->forLead($lead),
+            $lead->getAiContextInfo()['voice_context'] ?? null,
+        );
 
         $context = [
             'lead_id' => $lead->getId(),
@@ -127,7 +131,8 @@ class BuildVoiceAgentLeadContextAction
             'stage' => is_object($lead->stage) ? $lead->stage->name : null,
             'owner' => is_object($lead->owner) ? $lead->owner->displayname : null,
             'vehicle_interest' => $vehicle !== '' ? $vehicle : null,
-            'context_info' => $contextInfo !== '' ? $contextInfo : null,
+            'context_info' => $contextInfo,
+            'recent_messages' => $this->recentMessages($lead),
             'is_returning' => true,
         ];
         $context['summary'] = $this->summarize($context);
@@ -143,6 +148,11 @@ class BuildVoiceAgentLeadContextAction
     private function contactContext(People $person): array
     {
         $name = $this->peopleName($person);
+        $history = $this->historyText(new ContactHistoryService()->forPeople($person));
+        $messages = $this->recentMessages($person);
+        $summary = $name !== null
+            ? "We already know this contact: {$name}. There's no open lead yet; they've reached out before."
+            : "This number has reached out before, but we don't have their name yet.";
 
         return [
             'lead_id' => null,
@@ -151,12 +161,57 @@ class BuildVoiceAgentLeadContextAction
             'stage' => null,
             'owner' => null,
             'vehicle_interest' => null,
-            'context_info' => null,
+            'context_info' => $history,
+            'recent_messages' => $messages,
             'is_returning' => true,
-            'summary' => $name !== null
-                ? "We already know this contact: {$name}. There's no open lead yet; they've reached out before."
-                : "This number has reached out before, but we don't have their name yet.",
+            'summary' => implode("\n", array_filter([
+                $summary,
+                $history !== null ? "Previous contacts:\n{$history}" : null,
+                $messages,
+            ])),
         ];
+    }
+
+    /**
+     * The last few SMS / email / chat turns, as the lead's text agent sees them, so a call
+     * that follows a text conversation picks it up. Best-effort: a failure here only drops
+     * the block, never the rest of the context.
+     */
+    private function recentMessages(Lead|People $entity): ?string
+    {
+        try {
+            $lines = LeadConversationTranscriptService::lines($entity);
+        } catch (Throwable $e) {
+            captureException($e);
+
+            return null;
+        }
+
+        $lines = array_map(
+            fn (string $line): string => Str::limit($line, self::MESSAGE_MAX),
+            array_slice($lines, -self::RECENT_MESSAGES)
+        );
+        if ($lines === []) {
+            return null;
+        }
+
+        return mb_substr("Recent messages:\n" . implode("\n", $lines), 0, self::RECENT_MESSAGES_MAX);
+    }
+
+    /**
+     * Recent contacts newest first. A legacy voice summary in LEAD_CONTEXT_INFO stands in
+     * only while the lead has no history yet. Bounded to fit a Twilio <Stream> parameter.
+     *
+     * @param array<int, array<string, mixed>> $entries
+     */
+    private function historyText(array $entries, ?string $legacy = null): ?string
+    {
+        $text = trim(implode("\n", array_filter([
+            new ContactHistoryService()->toPromptLines($entries),
+            $entries === [] ? $legacy : null,
+        ])));
+
+        return $text !== '' ? mb_substr($text, 0, self::CONTEXT_INFO_MAX) : null;
     }
 
     /**
@@ -209,7 +264,10 @@ class BuildVoiceAgentLeadContextAction
             $lines[] = "Interest: {$c['vehicle_interest']}.";
         }
         if ($c['context_info'] !== null) {
-            $lines[] = "Lead context: {$c['context_info']}";
+            $lines[] = "Previous contacts:\n{$c['context_info']}";
+        }
+        if ($c['recent_messages'] !== null) {
+            $lines[] = $c['recent_messages'];
         }
 
         return implode("\n", $lines);

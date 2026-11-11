@@ -192,6 +192,15 @@ class Channel extends BaseModel
         return $this->name == ChannelNameEnum::AI_ASSIST->value;
     }
 
+    /**
+     * Staff talking among themselves or to the agent about the record. Never a customer delivery, so
+     * readers label it and writers keep it off the lead and people conversation channels.
+     */
+    public function isInternalChannel(): bool
+    {
+        return $this->isNoteChannel() || $this->isAiAssistChannel();
+    }
+
     public function isDefaultChannel(): bool
     {
         return $this->name === ChannelNameEnum::DEFAULT->value;

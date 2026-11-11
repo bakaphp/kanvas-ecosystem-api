@@ -66,20 +66,20 @@ final class DailyLearningPromptBuilderService
             . implode("\n", $rendered)
             . "\n\n"
             . "DEDUP RULES for `durable_facts`:\n"
-            . "- Do NOT re-emit anything semantically covered by the existing memory above, "
+            . '- Do NOT re-emit anything semantically covered by the existing memory above, '
             . "even if the wording differs.\n"
-            . "- A fact is REDUNDANT if it restates an existing fact with different phrasing, "
-            . "is a more verbose version of an existing fact, or repeats a subset of a richer "
-            . "existing fact (e.g. if memory already lists three Google Sheet IDs, do NOT emit "
+            . '- A fact is REDUNDANT if it restates an existing fact with different phrasing, '
+            . 'is a more verbose version of an existing fact, or repeats a subset of a richer '
+            . 'existing fact (e.g. if memory already lists three Google Sheet IDs, do NOT emit '
             . "them again as separate facts).\n"
-            . "- A fact is NEW if it adds information the existing memory does not capture: "
-            . "a different person/system, an additional constraint, a corrected/updated value, "
+            . '- A fact is NEW if it adds information the existing memory does not capture: '
+            . 'a different person/system, an additional constraint, a corrected/updated value, '
             . "or a discovered platform limitation.\n"
-            . "- Emit CORRECTIONS as new facts (e.g. \"Reynaldo handles POs now (transitioned "
+            . '- Emit CORRECTIONS as new facts (e.g. "Reynaldo handles POs now (transitioned '
             . "from Kimberly)\" supersedes an older Kimberly fact).\n"
-            . "- If yesterday only CONFIRMED existing memory without producing genuinely new "
-            . "durable knowledge, return an empty `durable_facts` array. This is the expected "
-            . "and correct outcome on most days.";
+            . '- If yesterday only CONFIRMED existing memory without producing genuinely new '
+            . 'durable knowledge, return an empty `durable_facts` array. This is the expected '
+            . 'and correct outcome on most days.';
     }
 
     private function instructions(Agent $agent, string $cycleDateLabel): string

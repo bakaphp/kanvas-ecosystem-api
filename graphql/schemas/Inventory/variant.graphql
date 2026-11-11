@@ -14,6 +14,9 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
     status: Status @belongsTo(relation: "status")
     rating: Float
     weight: Float
+    is_taxable: Boolean
+    tax_category: String
+    tax_code_override: String
     created_at: DateTime!
     updated_at: DateTime
     is_published: Boolean
@@ -116,6 +119,10 @@ input VariantsInput {
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
+    is_taxable: Boolean
+    tax_category: String
+    tax_code_override: String
+    tax_code_id: ID
 }
 
 input VariantsUpdateInput {
@@ -137,6 +144,10 @@ input VariantsUpdateInput {
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
+    is_taxable: Boolean
+    tax_category: String
+    tax_code_override: String
+    tax_code_id: ID
 }
 
 input VariantTranslationInput {

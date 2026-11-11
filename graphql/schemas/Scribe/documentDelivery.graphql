@@ -1,0 +1,47 @@
+"""
+What a customer does on a shared Scribe document page. OPENED / DOWNLOADED for any document;
+SUBMITTED (accept, signed when the quote has a SOW) and DECLINED for a quote.
+"""
+enum ScribeDocumentResponseStatus {
+    OPENED @enum(value: "opened")
+    DOWNLOADED @enum(value: "downloaded")
+    SUBMITTED @enum(value: "submitted")
+    DECLINED @enum(value: "declined")
+}
+
+# Extended here, not in engagement.graphql: the 2026-01 schema imports ActionEngine but not Scribe,
+# so a member named there would not resolve in that schema.
+extend union EngagementReference = ScribeInvoice | ScribeQuote
+
+input ScribeDocumentResponseInput {
+    status: ScribeDocumentResponseStatus!
+    "Required to accept a quote that carries a Statement of Work."
+    signer_name: String
+    "The drawn signature as a PNG or JPEG data URI."
+    signature: String
+    "Required to decline."
+    reason: String
+}
+
+extend type Engagement {
+    """
+    The public view of the shared Scribe document (null for a lead engagement): the printable
+    document, e-CF fields, PDF links and, for a quote, its SOW. Render the page from this, never from
+    `reference`, which is the internal record.
+    """
+    document_page: Mixed
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\DocumentEngagementQuery@page"
+        )
+}
+
+extend type Mutation @guard {
+    "Called by the public document page (app key) for the engagement in its link."
+    respondToDocumentEngagement(
+        uuid: ID!
+        input: ScribeDocumentResponseInput!
+    ): Engagement!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Delivery\\DocumentEngagementMutation@respond"
+        )
+}

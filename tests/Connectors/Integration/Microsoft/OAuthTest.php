@@ -14,10 +14,33 @@ use Kanvas\Connectors\Microsoft\OAuth\MicrosoftOAuthProvider;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
+use PHPUnit\Framework\Attributes\Group;
+use Tests\Connectors\Microsoft\Concerns\KeepsMicrosoftSettings;
 use Tests\TestCase;
 
+/**
+ * Serial, and every setting it changes is put back: the tests overwrite the app's real Microsoft
+ * registration, which every process (and a developer's local connection) shares.
+ */
+#[Group('serial')]
 class OAuthTest extends TestCase
 {
+    use KeepsMicrosoftSettings;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->keepMicrosoftSettings(app(Apps::class), auth()->user()->getCurrentCompany());
+    }
+
+    protected function tearDown(): void
+    {
+        $this->restoreMicrosoftSettings();
+
+        parent::tearDown();
+    }
+
     public function testFactoryResolvesMicrosoft(): void
     {
         $app = app(Apps::class);

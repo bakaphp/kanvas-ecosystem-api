@@ -26,6 +26,7 @@ class CreatePaymentMethodAction
         $paymentMethod->processor = $this->paymentMethod->processor;
         $paymentMethod->metadata = $this->paymentMethod->metadata;
         $paymentMethod->save();
+
         return $paymentMethod;
     }
 }

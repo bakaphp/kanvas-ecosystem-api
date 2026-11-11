@@ -22,7 +22,7 @@ class ProductVariantService extends ProductService
                 'discounted_price' => $variant['discountPrice'],
                 'is_published' => true,
                 'warehouses_id' => $this->warehouse->getId(),
-                'channels_id' => $this->channels->getId()
+                'channels_id' => $this->channels->getId(),
             ];
             $variant['channels'][] = $channel;
 
@@ -72,6 +72,7 @@ class ProductVariantService extends ProductService
                     if (isset($value['image']) && $value['image']) {
                         $variants[$asin]['images'][] = $value['image'];
                     }
+
                     continue;
                 }
                 $variants[$asin] = [
@@ -103,6 +104,7 @@ class ProductVariantService extends ProductService
         foreach ($attributes as $attribute) {
             $name .= $attribute['name'] . ': ' . $attribute['value'] . ' ';
         }
+
         return trim($name);
     }
 }

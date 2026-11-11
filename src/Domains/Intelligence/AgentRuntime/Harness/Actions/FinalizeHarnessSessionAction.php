@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Connectors\OpenCode\Services\CodingPolicy;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\CodingOutcome;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
@@ -17,19 +18,20 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\VerifyHarnessDiffJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
 /**
- * Closes a session: collect the diff, take the handoff out of the container, record the outcome on
+ * Closes a session: collect the diff, take the handoff out of the runtime, record the outcome on
  * the Task and the Plan, and tell whoever asked.
  *
  * Runs once per session — the poller stops as soon as this is called — with one exception: a
  * completed run whose diff could not be read parks as `verifying_diff` and comes back through here
  * with the diff once `VerifyHarnessDiffJob` has it, or with a failure reason once it gives up.
  *
- * **It does not stop the container.** A finished job is the moment someone wants to look at the diff,
+ * **It does not stop the runtime.** A finished job is the moment someone wants to look at the diff,
  * ask a follow-up, or approve the push — and all three need the runtime that was just removed. Killing
- * it here made "show me what changed" fail with "No such container" seconds after the work landed.
+ * it here made "show me what changed" fail seconds after the work landed.
  * `ReapOrphanCodingContainersAction` retires it once the agent has been idle and nothing is waiting on
  * it, which is a decision about the machine rather than about this session.
  */
@@ -70,7 +72,7 @@ class FinalizeHarnessSessionAction
         }
 
         $diff ??= new HarnessDiff();
-        $emptyRun = $status === HarnessStatusEnum::COMPLETED && $diff->isEmpty();
+        $emptyRun = $status === HarnessStatusEnum::COMPLETED && $diff->isEmpty() && $this->session->expectsChanges();
 
         if ($emptyRun) {
             $status = $this->failEmptyRun();
@@ -104,7 +106,8 @@ class FinalizeHarnessSessionAction
      * Reporting it as failed is the safe direction. A genuine no-op task — investigate this, confirm
      * that — gets marked failed and a human sees why in one line, which is cheap. A fabricated success
      * is not: it is trusted, built on, and found out much later. Branchless runs are held to the same
-     * rule.
+     * rule. The one exception is a session dispatched with `expects_changes` off — run the app, take
+     * a screenshot — where an empty diff is the point; {@see completedOutcome()} records it as RAN.
      */
     private function failEmptyRun(): HarnessStatusEnum
     {
@@ -164,6 +167,10 @@ class FinalizeHarnessSessionAction
      */
     private function completedOutcome(HarnessDiff $diff): CodingOutcome
     {
+        if ($diff->isEmpty() && ! $this->session->expectsChanges()) {
+            return CodingOutcome::ran($diff);
+        }
+
         $approval = $this->requestPushApproval($diff);
 
         if ($approval !== null) {
@@ -214,7 +221,7 @@ class FinalizeHarnessSessionAction
     }
 
     /**
-     * Asked while the context is still live and stored outside the container, so the next session on
+     * Asked while the context is still live and stored outside the runtime, so the next session on
      * this repository starts knowing what this one did — the difference between a coding tool and a
      * coding agent.
      */
@@ -287,16 +294,45 @@ class FinalizeHarnessSessionAction
             default => $outcome->line(),
         };
 
-        $body = $title . "\n\n" . $detail . "\n\n" . $this->costLine();
+        $screenshots = new CollectSessionScreenshotsAction($this->session)->execute();
+        $body = $title . "\n\n" . $detail . $this->screenshotLines($screenshots) . "\n\n" . $this->costLine();
 
-        $this->postToPlanBoard(
-            $plan,
-            $body,
-            'coding_job_result',
-            'coding-job-alert',
-        );
-        $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
-        $this->notifyTheAsker($plan, $title, $body);
+        $this->attachScreenshots($this->announceCodingResult($plan, $title, $body), $screenshots);
+    }
+
+    /**
+     * @param list<Filesystem> $screenshots
+     */
+    private function screenshotLines(array $screenshots): string
+    {
+        if ($screenshots === []) {
+            return '';
+        }
+
+        return "\n\nScreenshots:\n" . implode("\n", array_map(
+            static fn (Filesystem $file): string => '· ' . $file->name . ' — ' . $file->url,
+            $screenshots
+        ));
+    }
+
+    /**
+     * On the board message as real attachments, so the files show in the thread and not only as links.
+     *
+     * @param list<Filesystem> $screenshots
+     */
+    private function attachScreenshots(?Message $message, array $screenshots): void
+    {
+        if ($message === null) {
+            return;
+        }
+
+        foreach ($screenshots as $file) {
+            try {
+                $message->addFile($file, 'screenshot');
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     private function costLine(): string

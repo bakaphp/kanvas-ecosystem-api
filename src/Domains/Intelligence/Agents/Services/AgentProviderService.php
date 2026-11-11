@@ -149,6 +149,31 @@ class AgentProviderService
     }
 
     /**
+     * The provider that listens to a voice note on this agent's behalf: its own when it can hear, else
+     * Gemini on the tenant's (or the trial) key, the one provider every app already runs. Null when
+     * there is no Gemini key at all; the caller then says so in the prompt instead of sending bytes
+     * nobody hears.
+     */
+    public static function audioProvider(Agent $agent, AIProviderInterface $own): ?AIProviderInterface
+    {
+        if (AttachmentDescriptionService::providerHearsAudio($own)) {
+            return $own;
+        }
+
+        try {
+            return self::makeProvider($agent, [
+                'provider' => AgentLlmProviderEnum::GEMINI->value,
+                'base_uri' => null,
+                'key' => null,
+                'model' => (string) ($agent->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-3.8-flash'),
+                'parameters' => [],
+            ]);
+        } catch (ValidationException) {
+            return null;
+        }
+    }
+
+    /**
      * The provider that writes this agent's history summaries, or null to use the agent's own. A company
      * names one of its LLM configs (AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG); failing that the app
      * names a model (SUMMARY_MODEL, optionally SUMMARY_PROVIDER). A config that no longer resolves falls
@@ -179,6 +204,11 @@ class AgentProviderService
             'model' => $model,
             'parameters' => [],
         ]);
+    }
+
+    public static function summaryProviderOrOwn(Agent $agent): AIProviderInterface
+    {
+        return self::summaryProvider($agent) ?? self::resolve($agent);
     }
 
     /**
@@ -266,6 +296,17 @@ class AgentProviderService
             'model' => $config->model,
             'parameters' => is_array($config->config) ? $config->config : [],
         ];
+    }
+
+    /**
+     * The LLM config the agent answers phone calls with (voice_config.llm_config_id). Separate from
+     * selectedConfig(), which is its chat config, so calls can run a faster model than chat.
+     */
+    public static function voiceConfig(Agent $agent): ?AgentLlmConfig
+    {
+        $configId = (int) ($agent->voice_config['llm_config_id'] ?? 0);
+
+        return $configId > 0 ? self::activeConfig($agent, $configId, includeGlobal: false) : null;
     }
 
     public static function selectedConfig(Agent $agent): ?AgentLlmConfig

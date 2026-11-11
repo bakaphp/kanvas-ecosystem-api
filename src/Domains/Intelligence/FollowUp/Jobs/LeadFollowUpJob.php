@@ -57,11 +57,9 @@ final class LeadFollowUpJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        $agentName = $this->resolveAgentName();
-
         /** @var Agent $agent */
         $agent = Agent::getByNameFromCompanyApp(
-            $agentName,
+            self::agentNameFor($this->lead),
             $this->company,
             $this->app
         );
@@ -94,9 +92,13 @@ final class LeadFollowUpJob implements ShouldQueue
         }
     }
 
-    private function resolveAgentName(): string
+    /**
+     * A person's plan sends a fixed body, but the touch is still filed and sent as the follow-up
+     * agent, so the stage's agent (or the default) runs it too.
+     */
+    public static function agentNameFor(Lead $lead): string
     {
-        $config = FollowUpConfig::fromStage($this->lead->stage);
+        $config = $lead->stage !== null ? FollowUpConfig::fromStage($lead->stage) : null;
 
         return $config?->agentName ?? AgentEnum::FOLLOW_UP_ENGAGER->value;
     }

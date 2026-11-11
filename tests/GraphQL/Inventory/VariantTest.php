@@ -10,9 +10,9 @@ use Tests\TestCase;
 class VariantTest extends TestCase
 {
     use InventoryCases;
+
     /**
      * testUpdateVariant.
-     *
      */
     public function testUpdateVariant(): void
     {
@@ -57,13 +57,12 @@ class VariantTest extends TestCase
                 weight
             }
         }', ['id' => $variantResponse['id'], 'data' => $data])->assertJson([
-            'data' => ['updateVariant' => $data]
+            'data' => ['updateVariant' => $data],
         ]);
     }
 
     /**
      * testAddVariantToWarehouse.
-     *
      */
     public function testAddVariantToWarehouse(): void
     {
@@ -111,8 +110,8 @@ class VariantTest extends TestCase
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
             'config' => [
-                'name' => 'naming'
-            ]
+                'name' => 'naming',
+            ],
         ];
         $warehouseResponse = $this->graphQL('
         mutation($data: WarehouseReferenceInput! $id: ID!) {
@@ -147,7 +146,6 @@ class VariantTest extends TestCase
 
     /**
      * testAddVariantToWarehouse.
-     *
      */
     public function testUpdateVariantToWarehouse(): void
     {
@@ -200,7 +198,7 @@ class VariantTest extends TestCase
             }
         }', [
             'data' => $data,
-            'id' => $variantResponse['id']
+            'id' => $variantResponse['id'],
         ]);
 
         $this->assertEquals(

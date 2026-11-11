@@ -24,6 +24,8 @@ the one company setting is `$company->set()`; unset means the default.
 | `agent_summary_llm_model` (+ `agent_summary_llm_provider`) | app | `AgentRunConfigurationEnum::SUMMARY_MODEL` / `SUMMARY_PROVIDER` | none (agent's own provider) | a cheaper model writes history summaries, with the app's key |
 | `agent_summary_llm_config_id` | **company** | `AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG` | none | one of the company's LLM configs writes summaries; wins over the two app settings |
 | `agent_tool_search_enabled` | app | `AgentRunConfigurationEnum::TOOL_SEARCH` | **on** | `0` sends every granted tool and MCP toolkit on every round again; see "Tool search" below |
+| `agent_lead_summary_enabled` | app | `AgentRunConfigurationEnum::LEAD_SUMMARY` | **on** | `0` turns off the rolling coverage-tracked summary on a lead's rollup, caught up before the reply; `Guild/Leads/Summary/CLAUDE.md` |
+| `agent_lead_summary_keys` | app, or **company** (wins) | `AgentRunConfigurationEnum::LEAD_SUMMARY_KEYS` | none | facts the lead summary tracks beyond its generic sections, named after lead custom fields; `Guild/Leads/Summary/CLAUDE.md` |
 | `agent_gemini_thinking` | app | `AgentRunConfigurationEnum::GEMINI_THINKING` | model default | `minimal` / `low` / `medium` / `high` sets Gemini's `thinkingLevel` on every chat step, an integer sets `thinkingBudget`; thought tokens land in the step's usage as `reasoning_tokens`, so compare before and after on one agent |
 
 Add a row here whenever a new `*ConfigurationEnum` case lands.
@@ -256,14 +258,13 @@ audience scope above, and its `ConversationIngestionNode` writes no tenant metad
 knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`. The
 reverse holds too: `TypesenseKnowledgeStore::search()` reads through `KnowledgeScope::knowledgeFilter()`,
 which leaves those kinds out, because an organization-wide knowledge read would otherwise return every
-user's turns in the company with no audience scope at all. Within the knowledge read, `KnowledgeRetrieval::rank()`
-fills the slots with the agent's own documents first and the record's rows second, and never returns
-the inbound question to itself: a record's messages repeat the words of the question and are already
-the agent's history through the rollup store, and ranked by raw score they pushed a dealership's lot
-guide (0.75) out of the top eight on "what's your address?" (Shepard Auto, 2026-10-06).
-`LeadKnowledgeSource::isIndexable()` keeps the agent's private rows out of a lead's knowledge in the
-first place: tool calls and results, summaries, notes, anything not public, and any payload whose only
-rendering is its raw JSON. A turn is written through
+user's turns in the company with no audience scope at all. The knowledge read is the agent's own
+documents plus the company's (two searches, `KnowledgeScope::documentFilter()`), never another agent's
+files, plus the record's cards for a customer-facing agent only. `KnowledgeRetrieval::rank()` gives the
+documents the first slots: ranked by raw score, a lead's indexed messages repeated the words of the
+question and pushed a dealership's lot guide (0.75) out of the top eight (Shepard Auto, 2026-10-06 and
+2026-11-05). A lead's messages are no longer indexed at all (`LeadKnowledgeSource` builds cards only);
+the rolling lead summary keeps what the window drops. A turn is written through
 `ConversationMemoryNode::transcript()`, live and from the reindex sweep alike, which drops a `NO_UPDATE`
 reply and strips `AgentTurnResponse::noOpGuidance()` from the human side: recalled with the guidance in
 it, a stored agent-to-agent turn told a later turn to answer a human with `NO_UPDATE`.

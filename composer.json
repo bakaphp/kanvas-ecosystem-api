@@ -105,7 +105,7 @@
         "brianium/paratest": "^7.10",
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^7.0",
-        "laramint/laravel-brain": "^2.0",
+        "laramint/laravel-brain": "*",
         "larastan/larastan": "^3.0",
         "laravel/boost": "^2.0",
         "laravel/doctor": "^0.1.0",

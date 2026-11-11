@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenCode\Services;
 use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Actions\PrepareSessionWorktreeAction;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CollectSessionScreenshotsAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\CodingRepositoryMemory;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -31,11 +32,17 @@ class SessionContextBuilder
 
     /**
      * @param list<CodingRepository> $references
+     * @param list<string> $hostTools tool sets the machine advertises (`CodingHostToolsService`)
+     * @param string|null $simulatorName the device this session owns, `CodingHostToolsService::simulatorNameFor()`
+     * @param int|null $packagerPort this session's own port for a dev server, `CodingHostToolsService::packagerPortFor()`
      */
     public function __construct(
         private readonly Agent $agent,
         private readonly ?CodingRepository $repository = null,
         private readonly array $references = [],
+        private readonly array $hostTools = [],
+        private readonly ?string $simulatorName = null,
+        private readonly ?int $packagerPort = null,
     ) {
     }
 
@@ -66,8 +73,64 @@ class SessionContextBuilder
         $lines[] = '## Rules of engagement';
         $lines[] = '';
         $lines[] = CodingPolicy::BLOCK;
+        $lines = [...$lines, ...$this->hostToolsSection()];
 
         return implode("\n", $lines) . "\n";
+    }
+
+    /**
+     * Each rule guards a failure seen live: `booted` resolves to whichever device another session
+     * booted, Expo's `run:ios --device` stops on a signing certificate, and nothing shows a window
+     * unless Device Hub is opened on purpose.
+     *
+     * @return list<string>
+     */
+    private function hostToolsSection(): array
+    {
+        if (! CodingHostToolsService::hasXcode($this->hostTools)) {
+            return [];
+        }
+
+        $logs = CodingHostToolsService::LOGS_DIRECTORY;
+        $shots = CollectSessionScreenshotsAction::DIRECTORY;
+
+        $name = $this->simulatorName ?? 'Kanvas-<session>';
+        $port = (string) ($this->packagerPort ?? '<your port>');
+
+        return [
+            '',
+            '## Xcode and the Simulator',
+            '',
+            'This machine has Xcode and the iOS Simulator. Work through `xcrun simctl` and screenshots; '
+                . 'you do not need a window. The window, for a person watching the Mac, is Device Hub '
+                . '(Xcode 27 renamed Simulator.app): `open -a "Device Hub" --args -CurrentDeviceUDID <udid>`.',
+            '',
+            'Create your own device and name every simctl call after it, never `booted` (another '
+                . 'session may have its own device booted): `xcrun simctl create "' . $name . '" "iPhone 17" '
+                . '<runtime id from xcrun simctl list runtimes>`, then `xcrun simctl boot "' . $name . '"`.',
+            '',
+            'Build for it with `xcodebuild … -destination \'platform=iOS Simulator,name=' . $name . '\' '
+                . 'CODE_SIGNING_ALLOWED=NO`. Expo\'s `run:ios --device` treats a named simulator as a '
+                . 'physical device and demands a signing certificate, so use xcodebuild for a simulator build.',
+            '',
+            'The shell tool has a per-command time limit. Run a packager or any build longer than a couple '
+                . 'of minutes in the background, record its pid, and poll its log: `mkdir -p ' . $logs . ' && '
+                . 'nohup <command> > ' . $logs . '/<name>.log 2>&1 & echo $! > ' . $logs . '/<name>.pid`, then '
+                . '`tail ' . $logs . '/<name>.log` until it reports ready. Other sessions share this Mac, so '
+                . 'use YOUR port, ' . $port . ', never a default one, and never kill a process: Kanvas stops '
+                . 'everything whose pid you recorded once your session ends.',
+            '',
+            'A debug React Native / Expo build embeds no JS bundle and shows "No script URL provided" until a '
+                . 'packager runs: `nohup npx expo start --port ' . $port . ' > ' . $logs . '/metro.log 2>&1 & '
+                . 'echo $! > ' . $logs . '/metro.pid`, wait for `Waiting on http://localhost:' . $port . '` in the '
+                . 'log, and point the app at that port — or build a Release configuration.',
+            '',
+            'Screenshots: `xcrun simctl io "' . $name . '" screenshot ' . $shots . '/<step>.png`, then read '
+                . 'the PNG with your read tool to see it. `.kanvas/` never reaches the diff.',
+            '',
+            'Run the scheme\'s tests before handing off. When you finish, `xcrun simctl shutdown "' . $name
+                . '"`; Kanvas deletes the device afterwards.',
+        ];
     }
 
     /**

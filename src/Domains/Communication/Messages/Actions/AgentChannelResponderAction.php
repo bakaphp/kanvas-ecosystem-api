@@ -59,10 +59,11 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             throw new ValidationException('No entity found');
         }
 
-        // A closed burst is one turn: every text in it reaches the agent as a single prompt. An empty
-        // body is still a turn — a picture sent without words is described to the agent separately.
-        $prompt = Str::trimToNull($params['burst_text'] ?? null)
-            ?? (string) ($this->message->message['content'] ?? '');
+        // A closed burst is one turn: every text in it reaches the agent as a single prompt. A picture
+        // sent without words is still a turn: the attachment goes in natively, named in the prompt.
+        ['text' => $prompt, 'images' => $images, 'documents' => $documents] = $this->inboundContent(
+            Str::trimToNull($params['burst_text'] ?? null) ?? $this->message->message['content'] ?? null
+        );
 
         $response = new AgentChatKernel(
             agent: $this->agent,
@@ -70,6 +71,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             message: $prompt,
             user: $this->message->company->getAiAgentUserOrFail(),
             currentLead: $lead instanceof Lead ? $lead : null,
+            images: $images,
+            documents: $documents,
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,

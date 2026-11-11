@@ -6,8 +6,13 @@ namespace Tests\Connectors\Integration\Mailgun;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Webhooks\EmailOpenedWebhookJob;
 use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
@@ -16,6 +21,8 @@ use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -257,6 +264,63 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $this->assertSame(CampaignRecipientStatusEnum::SENT->value, $recipient->status);
         $this->assertSame(0, $recipient->open_count);
         $this->assertSame(0, $recipient->campaign->opened_count);
+    }
+
+    public function testAnOpenMarksTheEmailsDeliveryAndItsMessageRead(): void
+    {
+        $message = Message::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['users_id' => $this->user->getId(), 'message' => ['content' => 'Here is your quote']]);
+        $delivery = $this->deliveryFor($message);
+
+        $result = $this->deliver([
+            'event-data' => [
+                'id' => 'evt-' . uniqid(),
+                'event' => 'opened',
+                'timestamp' => microtime(true),
+                'recipient' => 'prospect@example.com',
+                'message' => ['headers' => ['message-id' => $delivery->external_id]],
+            ],
+        ]);
+
+        $this->assertSame($delivery->getId(), $result['delivery_id']);
+        $this->assertSame('read', $delivery->fresh()->status->value);
+        $this->assertSame('read', $message->fresh()->getMessage()['delivery']['status']);
+        $this->assertSame('Event carries no people_id or lead_id, nothing to record against', $result['message']);
+    }
+
+    public function testABotOpenDoesNotMarkTheDeliveryRead(): void
+    {
+        $delivery = $this->deliveryFor(null);
+
+        $this->deliver([
+            'event-data' => [
+                'id' => 'evt-' . uniqid(),
+                'event' => 'opened',
+                'client-info' => ['bot' => 'apple'],
+                'message' => ['headers' => ['message-id' => $delivery->external_id]],
+            ],
+        ]);
+
+        $this->assertSame('accepted', $delivery->fresh()->status->value);
+    }
+
+    private function deliveryFor(?Message $message): Delivery
+    {
+        $agent = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['user_id' => $this->user->getId()]);
+
+        return new FileEmailDeliveryAction(
+            app: $agent->app,
+            company: $agent->company,
+            sender: Sender::agent($agent),
+            to: 'prospect@example.com',
+            content: Content::text('Here is your quote')->withSubject('Your quote'),
+            message: $message,
+        )->accepted('<' . Str::random(20) . '@mg.example.com>');
     }
 
     private function seedCampaignRecipient(People $people, Companies $company): CampaignRecipient

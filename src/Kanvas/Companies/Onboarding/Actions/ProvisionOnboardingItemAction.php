@@ -10,6 +10,7 @@ use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Onboarding\Enums\ProvisionStatusEnum;
 use Kanvas\Companies\Onboarding\Services\OnboardingAgentTemplateService;
+use Kanvas\Companies\Onboarding\Services\OnboardingSetupHookRegistry;
 use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Actions\CloneAgentForCompanyAction;
@@ -45,12 +46,13 @@ final class ProvisionOnboardingItemAction
      */
     public function execute(): array
     {
-        if (($this->item['kind'] ?? 'agent') === 'module') {
+        $kind = $this->item['kind'] ?? 'agent';
+        if ($kind === 'module') {
             return $this->result(ProvisionStatusEnum::READY);
         }
 
         try {
-            return $this->provisionAgent();
+            return $kind === 'setup' ? $this->runSetup() : $this->provisionAgent();
         } catch (Throwable $e) {
             report($e);
 
@@ -101,6 +103,25 @@ final class ProvisionOnboardingItemAction
         $agent = $this->createFromType($type, $sourceName);
 
         return $this->result(ProvisionStatusEnum::READY, $agent, $this->provisionMailbox($agent));
+    }
+
+    /**
+     * @return array{status: string, agent_id: ?int, error: ?string}
+     */
+    private function runSetup(): array
+    {
+        $setup = (string) ($this->item['setup'] ?? '');
+        $hook = OnboardingSetupHookRegistry::resolve($setup);
+        if ($hook === null) {
+            return $this->result(ProvisionStatusEnum::FAILED, error: "Unknown setup \"{$setup}\"");
+        }
+
+        $incomplete = $hook->run($this->app, $this->company, $this->owner);
+
+        return $this->result(
+            $incomplete === null ? ProvisionStatusEnum::READY : ProvisionStatusEnum::FAILED,
+            error: $incomplete,
+        );
     }
 
     private function createFromType(AgentType $type, string $name): Agent

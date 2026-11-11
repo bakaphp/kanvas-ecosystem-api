@@ -25,6 +25,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * Class Payments
  *
  * @property float $amount
+ * @property float|null $captured_amount
  * @property string $payment_date
  * @property string $concept
  * @property string $payment_method_id
@@ -79,9 +80,27 @@ class Payments extends BaseModel
             ->sum('amount');
     }
 
+    public function getCapturedAmount(): float
+    {
+        return (float) ($this->captured_amount ?? $this->amount);
+    }
+
+    public function getRefundableAmount(): float
+    {
+        $committed = (float) $this->refunds()
+            ->whereIn('status', [
+                RefundStatusEnum::PENDING->value,
+                RefundStatusEnum::PROCESSING->value,
+                RefundStatusEnum::COMPLETED->value,
+            ])
+            ->sum('amount');
+
+        return max(0.0, round($this->getCapturedAmount() - $committed, 2));
+    }
+
     public function isFullyRefunded(): bool
     {
-        return $this->getRefundedAmount() >= (float) $this->amount;
+        return $this->getRefundedAmount() >= $this->getCapturedAmount();
     }
 
     public function payable(): BelongsTo
@@ -115,13 +134,18 @@ class Payments extends BaseModel
         ];
     }
 
-    public function addLog(string $event, array $context = [], ?PaymentFailure $failure = null): void
-    {
+    public function addLog(
+        string $event,
+        array $context = [],
+        ?PaymentFailure $failure = null,
+        ?UserInterface $actor = null
+    ): void {
         app(LogPaymentEventAction::class)->execute(
             $this,
             $event,
             $context,
             $failure,
+            $actor,
         );
     }
 

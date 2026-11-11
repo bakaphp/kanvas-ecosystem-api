@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenCode\Concerns;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Connectors\OpenCode\Runtime\CodingRuntimeDriverFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RequestPushApprovalAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -14,41 +15,25 @@ use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
- * The coding containers on a machine, and which of them are still in use.
+ * The coding runtimes on a machine, and which of them are still in use.
  *
- * Containers are found by the `kanvas.agent` **label**, not by name or published port — neither of
- * which survives a partial launch. The label names an agent, not a runtime: nothing stops a future
- * runtime adopting the same label, and a stale row on a rebuilt box could carry any id. An agent with
- * an opencode session on THIS machine is the thing that can actually be verified, so anything else is
- * not ours and is left running. Forgetting one costs disk; touching someone else's costs their work.
+ * The driver lists every runtime that carries an agent label; the label names an agent, not a
+ * runtime, so nothing stops another runtime adopting it, and a stale row on a rebuilt box could carry
+ * any id. An agent with an opencode session on THIS machine is the thing that can actually be
+ * verified, so anything else is not ours and is left running. Forgetting one costs disk; touching
+ * someone else's costs their work.
  */
 trait ListsAgentCodingContainers
 {
     /**
-     * `{{.Image}}` is the tag the container was started with — or, once that tag has been rebuilt and
-     * points at a different image, the bare id. Either way it differs from the current tag, which is
-     * exactly what "stale" means.
-     *
-     * @return array<int, array{name: string, image: string}> agent id => container
+     * @return array<int, array{handle: string, version: string}> agent id => runtime
      */
     private function agentContainers(SshClient $client, AgentMachine $machine): array
     {
-        $output = $client->exec(
-            'docker ps -a --filter label=kanvas.agent --format '
-            . escapeshellarg('{{.Names}}|{{.Label "kanvas.agent"}}|{{.Image}}'),
-            60
-        );
-
         $found = [];
 
-        foreach (preg_split('/\r?\n/', trim((string) $output)) ?: [] as $line) {
-            $parts = array_map('trim', explode('|', $line, 3));
-
-            if (count($parts) < 2 || ! ctype_digit($parts[1])) {
-                continue;
-            }
-
-            $found[(int) $parts[1]] = ['name' => $parts[0], 'image' => $parts[2] ?? ''];
+        foreach (CodingRuntimeDriverFactory::forMachine($machine)->list($client) as $runtime) {
+            $found[$runtime['agentId']] = ['handle' => $runtime['handle'], 'version' => $runtime['version']];
         }
 
         if ($found === []) {
@@ -59,7 +44,7 @@ trait ListsAgentCodingContainers
     }
 
     /**
-     * Of the agent ids found on containers, the ones this harness has actually run on this machine.
+     * Of the agent ids found on runtimes, the ones this harness has actually run on this machine.
      *
      * @param list<int> $agentIds
      * @return list<int>
@@ -77,9 +62,9 @@ trait ListsAgentCodingContainers
     }
 
     /**
-     * Agents whose container must be left alone. Two reasons always, and only the first is obvious:
+     * Agents whose runtime must be left alone. Two reasons always, and only the first is obvious:
      *   - a session is running in it;
-     *   - a push is still waiting on a human. That one can sit for hours, and the container is where
+     *   - a push is still waiting on a human. That one can sit for hours, and the runtime is where
      *     the diff lives — removing it turns "show me the change" into "No such container" at exactly
      *     the moment someone is deciding whether to approve it.
      * With a grace period, an agent that finished recently also counts, so the next task does not pay

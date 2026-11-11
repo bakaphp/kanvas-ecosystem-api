@@ -20,6 +20,8 @@ class GetShippingQuotesAction
 {
     public const CACHE_TTL_SECONDS = 600;
 
+    private bool $aProviderFailed = false;
+
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
@@ -36,18 +38,27 @@ class GetShippingQuotesAction
             return [];
         }
 
+        $quotes = array_values(array_filter(
+            $this->quoteProviders(),
+            fn (ShippingQuote $quote): bool => strcasecmp(trim($quote->currency), $currency) === 0
+        ));
+
+        if ($quotes === []) {
+            return $this->aProviderFailed ? [] : [ShippingQuote::free($currency)];
+        }
+
+        usort($quotes, fn (ShippingQuote $a, ShippingQuote $b): int => $a->amount <=> $b->amount);
+
+        return $quotes;
+    }
+
+    private function quoteProviders(): array
+    {
         $quotes = [];
 
         foreach (ShippingProviderFactory::forCompany($this->app, $this->company) as $provider) {
             array_push($quotes, ...$this->quoteProvider($provider, $this->request));
         }
-
-        $quotes = array_values(array_filter(
-            $quotes,
-            fn (ShippingQuote $quote): bool => strcasecmp(trim($quote->currency), $currency) === 0
-        ));
-
-        usort($quotes, fn (ShippingQuote $a, ShippingQuote $b): int => $a->amount <=> $b->amount);
 
         return $quotes;
     }
@@ -71,6 +82,7 @@ class GetShippingQuotesAction
             return array_map(fn (array $quote): ShippingQuote => ShippingQuote::from($quote), $cached);
         } catch (Throwable $exception) {
             report($exception);
+            $this->aProviderFailed = true;
 
             return [];
         }

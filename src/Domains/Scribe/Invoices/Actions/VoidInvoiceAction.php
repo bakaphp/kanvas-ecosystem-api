@@ -7,6 +7,8 @@ namespace Kanvas\Scribe\Invoices\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfStatusEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -38,11 +40,20 @@ class VoidInvoiceAction
     public function execute(): Invoice
     {
         $this->stateMachine->assertTransition($this->invoice, InvoiceDocumentStatusEnum::VOIDED);
+        $this->assertNotLiveEcf();
+
+        if ($this->invoice->isCreditNote()) {
+            return new VoidCreditNoteAction(
+                creditNote: $this->invoice,
+                voidReasonCode: $this->voidReasonCode,
+                user: $this->user,
+            )->execute();
+        }
 
         $original = $this->journalEntryLookup->findOriginalPosted(
             appsId: (int) $this->invoice->apps_id,
             companiesId: (int) $this->invoice->companies_id,
-            sourceType: 'invoice',
+            sourceType: $this->invoice->document_type->journalSourceType(),
             sourceId: (int) $this->invoice->id,
         );
         if ($original === null) {
@@ -61,7 +72,7 @@ class VoidInvoiceAction
                 company: $invoice->company,
                 memo: "Invoice {$invoice->invoice_number} void — reverses JE {$original->je_number}",
                 user: $this->user,
-                sourceType: 'invoice',
+                sourceType: $invoice->document_type->journalSourceType(),
                 sourceId: $invoice->id,
             )->execute();
 
@@ -97,5 +108,26 @@ class VoidInvoiceAction
         );
 
         return $invoice;
+    }
+
+    /**
+     * DGII has no void for an issued e-CF: once it reached the provider it is reversed with a credit note
+     * (E34). Only an e-NCF that never counted for us may be voided off the books: one the authority rejected,
+     * or one the provider holds for another document (a note against it would modify someone else's e-CF).
+     */
+    private function assertNotLiveEcf(): void
+    {
+        if (
+            ! EcfCompliance::hasNumber($this->invoice)
+            || EcfCompliance::status($this->invoice) === EcfStatusEnum::REJECTED
+            || EcfCompliance::current($this->invoice)?->isHeldElsewhere() === true
+        ) {
+            return;
+        }
+
+        throw new InvalidInvoiceTransitionException(
+            "Invoice {$this->invoice->invoice_number} is an issued e-CF and cannot be voided. "
+            . 'Issue a credit note (E34) against it to reverse it.'
+        );
     }
 }

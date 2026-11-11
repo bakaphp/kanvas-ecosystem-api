@@ -463,7 +463,7 @@ class ResourceScheduleTest extends TestCase
             'thursday',
             'friday',
             'saturday',
-            'sunday'
+            'sunday',
         ];
 
         foreach ($allDays as $day) {

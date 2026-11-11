@@ -5,18 +5,21 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Intellicheck\Services\PeopleService;
 use Kanvas\Connectors\SalesAssist\Actions\AttachTradeInPhotosAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCoBuyerAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCreditAppAction;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
+use Kanvas\Connectors\VinSolution\Actions\PushPeopleAction;
 use Kanvas\Connectors\VinSolution\Actions\PushPurchaseVehicleAction;
 use Kanvas\Connectors\VinSolution\Actions\PushTradeInAction;
 use Kanvas\Connectors\VinSolution\Actions\PushVehicleOfInterest;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -33,10 +36,16 @@ use Kanvas\Workflow\KanvasActivity;
 )]
 class PushLeadNotesActivity extends KanvasActivity
 {
+    use SkipsNonLeadEngagements;
+
     public $tries = 3;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
+        if ($skip = $this->skipNonLeadEngagement($message)) {
+            return $skip;
+        }
+
         $company = $message->company;
 
         if (! $company->get(ConfigurationEnum::COMPANY->value)) {
@@ -59,7 +68,7 @@ class PushLeadNotesActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
             additionalParams: $params,
-            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($lead) {
+            integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) use ($lead): array {
                 if ($message->isLocked() || ! $message->isPublic()) {
                     return $this->failWorkflow([
                         'message_id' => $message->getId(),
@@ -98,7 +107,6 @@ class PushLeadNotesActivity extends KanvasActivity
         $status = $messageData['status'] ?? '';
         $results = [];
 
-        // Process based on action type and status
         switch ($verb) {
             case ActionEnum::TRADE_WALK->value:
             case ActionEnum::PAYOFF_FORM->value:
@@ -125,10 +133,7 @@ class PushLeadNotesActivity extends KanvasActivity
 
                 break;
             case ActionEnum::ID_VERIFICATION->value:
-                if ($status === ActionStatusEnum::OPEN->value && ! empty($messageData['data']['address']['address'])) {
-                    $results['idVerification'] = $this->idVerificationUpdatePeople($lead->people, $messageData);
-                    $lead->set('dont-run-id-verification-manual', 1);
-                }
+                $results['idVerification'] = $this->syncIdVerification($lead, $messageData);
 
                 break;
             case ActionEnum::VIEW_PRODUCT->value:
@@ -142,11 +147,6 @@ class PushLeadNotesActivity extends KanvasActivity
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
                     $purchaseVehicleAction = new PushPurchaseVehicleAction($lead, $message);
                     $results['purchaseVehicle'] = $purchaseVehicleAction->execute();
-
-                    // Send email notification if configured
-                    if ($lead->company->get('send-esign-notification-link')) {
-                        //$this->sendEsignNotification($lead, $messageData);
-                    }
                 }
 
                 break;
@@ -170,16 +170,39 @@ class PushLeadNotesActivity extends KanvasActivity
         ];
     }
 
-    public function idVerificationUpdatePeople(People $people, array $message): array
+    /**
+     * Two producers write this verb with different shapes: the web form (status opened, address under
+     * data.address) and the Intellicheck receiver (status submitted, the scan result under
+     * data.form.private_data.result). Both update the person and then push it, because the note
+     * push above carries no contact data.
+     */
+    public function syncIdVerification(Lead $lead, array $messageData): ?array
     {
-        $people->addDefaultAddress(Address::from([
-            'address' => $message['data']['address']['address'],
-            'city' => $message['data']['address']['city'],
-            'state' => $message['data']['address']['state'],
-            'zip' => $message['data']['address']['zipcode'],
-        ]));
+        $status = $messageData['status'] ?? '';
+        $people = $lead->people;
 
-        return $message['data'];
+        if ($status === ActionStatusEnum::OPEN->value && ! empty($messageData['data']['address']['address'])) {
+            PeopleService::updatePeopleAddressFromForm($people, $messageData['data']['address']);
+            $lead->set('dont-run-id-verification-manual', 1);
+            $this->pushPeople($people);
+
+            return $messageData['data'];
+        }
+
+        $verification = $messageData['data']['form']['private_data']['result'] ?? [];
+        if ($status === ActionStatusEnum::SUBMITTED->value && ! empty($verification['idcheck']['data']['address1'])) {
+            PeopleService::updatePeopleInformation($people, $verification);
+            $this->pushPeople($people);
+
+            return $verification['idcheck']['data'];
+        }
+
+        return null;
+    }
+
+    protected function pushPeople(People $people): Contact
+    {
+        return new PushPeopleAction($people)->execute();
     }
 
     public function cleanEsignature(Lead $lead): void

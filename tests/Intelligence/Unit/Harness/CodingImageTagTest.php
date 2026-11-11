@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Unit\Harness;
 
 use Kanvas\Connectors\OpenCode\Services\CodingImageService;
+use Kanvas\Connectors\OpenCode\Services\CodingRuntimeVersionService;
 use Tests\TestCase;
 
 /**
@@ -19,7 +20,7 @@ class CodingImageTagTest extends TestCase
 {
     public function testTheTagMatchesTheVersionTheDockerfileBuilds(): void
     {
-        $dockerfile = (string) file_get_contents(CodingImageService::dockerfilePath());
+        $dockerfile = (string) file_get_contents(CodingRuntimeVersionService::dockerfilePath());
 
         $this->assertSame(
             1,

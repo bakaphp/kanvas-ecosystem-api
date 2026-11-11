@@ -11,6 +11,7 @@ use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Enrichment\Jobs\EnrichProductJob;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -31,6 +32,8 @@ class UpdateProductAction
             $this->productDto->company,
             $this->user
         );
+
+        TaxCategory::assertCodesExist($this->productDto->app, $this->productDto->tax_category);
 
         // Disabling BEFORE the update (not just guarding the explicit fire below) so
         // ProductsObserver::saved() — which fires on this same $this->product instance as part of
@@ -60,6 +63,8 @@ class UpdateProductAction
                     'upc' => $this->productDto->upc ?? $this->product->upc,
                     'status_id' => $this->productDto->status_id ?? $this->product->status_id,
                     'weight' => $this->productDto->weight ?? $this->product->weight ?? 0,
+                    'tax_category' => $this->productDto->tax_category ?? $this->product->tax_category,
+                    'tax_code_override' => $this->productDto->tax_code_override ?? $this->product->tax_code_override,
                 ]
             );
 

@@ -20,7 +20,6 @@ enum StateEnums implements EnumsInterface
 
     /**
      * Get value.
-     *
      */
     public function getValue(): mixed
     {

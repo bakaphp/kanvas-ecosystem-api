@@ -19,7 +19,6 @@ class CreateAttributeType
 
     /**
      * execute.
-     *
      */
     public function execute(): AttributesTypes
     {

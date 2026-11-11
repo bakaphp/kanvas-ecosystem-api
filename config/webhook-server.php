@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
      *  The default queue that should be used to send webhook requests.
      */

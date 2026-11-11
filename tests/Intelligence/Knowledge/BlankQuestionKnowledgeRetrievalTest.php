@@ -58,11 +58,7 @@ final class BlankQuestionKnowledgeRetrievalTest extends TestCase
     #[DataProvider('blankQuestions')]
     public function testABlankQuestionRetrievesNothingWithoutEmbedding(string $question): void
     {
-        $retrieval = new KnowledgeRetrieval(
-            $this->kanvasApp,
-            Companies::first(),
-            organizationWide: true,
-        );
+        $retrieval = new KnowledgeRetrieval($this->kanvasApp, Companies::first());
 
         $this->assertSame([], $retrieval->retrieve(new UserMessage($question)));
     }

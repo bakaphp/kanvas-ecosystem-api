@@ -7,13 +7,10 @@ namespace Kanvas\Scribe\Invoices\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Invoices\Actions\Concerns\PersistsInvoiceLines;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceTaxLine as InvoiceTaxLineData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
-use Kanvas\Scribe\Invoices\Models\InvoiceLine;
-use Kanvas\Scribe\Invoices\Models\InvoiceTaxLine;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
@@ -29,6 +26,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  */
 class CreateInvoiceAction
 {
+    use PersistsInvoiceLines;
+
     public function __construct(
         public readonly InvoiceData $data,
         public readonly ?UserInterface $user = null,
@@ -38,7 +37,7 @@ class CreateInvoiceAction
     public function execute(): Invoice
     {
         $invoice = DB::connection('accounting')->transaction(function (): Invoice {
-            [$totals, $baseTotals] = $this->computeTotals();
+            [$totals, $baseTotals] = $this->data->totals();
 
             $invoice = new Invoice();
             $invoice->apps_id = $this->data->app->getId();
@@ -96,49 +95,8 @@ class CreateInvoiceAction
 
             $invoice->save();
 
-            $sortOrder = 0;
-            $fxRate = (float) $this->data->fx_rate_to_base;
-            foreach ($this->data->lines as $lineData) {
-                /** @var InvoiceLineData $lineData */
-                $line = new InvoiceLine();
-                $line->invoice_id = $invoice->id;
-                $line->sort_order = $lineData->sort_order ?? $sortOrder++;
-                $line->item_id = $lineData->item_id;
-                $line->sku = $lineData->sku;
-                $line->description = $lineData->description;
-                $line->quantity = $lineData->quantity;
-                $line->unit_price_native = $lineData->unit_price_native;
-                $line->unit_price_base = $lineData->unit_price_native * $fxRate;
-                $line->discount_amount_native = $lineData->discount_amount_native;
-                $line->discount_amount_base = $lineData->discount_amount_native * $fxRate;
-                $line->discount_rate = $lineData->discount_rate;
-                $line->tax_rate = $lineData->tax_rate;
-                $line->tax_amount_native = $lineData->tax_amount_native;
-                $line->tax_amount_base = $lineData->tax_amount_native * $fxRate;
-                $line->line_total_native = $lineData->lineTotalNative();
-                $line->line_total_base = $lineData->lineTotalNative() * $fxRate;
-                $line->tax_metadata = $lineData->tax_metadata;
-                $line->class_id = $lineData->class_id;
-                $line->department_id = $lineData->department_id;
-                $line->metadata = $lineData->metadata;
-                $line->save();
-            }
-
-            if ($this->data->taxLines !== null) {
-                foreach ($this->data->taxLines as $taxLineData) {
-                    /** @var InvoiceTaxLineData $taxLineData */
-                    $taxLine = new InvoiceTaxLine();
-                    $taxLine->invoice_id = $invoice->id;
-                    $taxLine->tax_code_id = $taxLineData->tax_code_id;
-                    $taxLine->name = $taxLineData->name;
-                    $taxLine->tax_rate = $taxLineData->tax_rate;
-                    $taxLine->jurisdiction = $taxLineData->jurisdiction;
-                    $taxLine->tax_amount_native = $taxLineData->tax_amount_native;
-                    $taxLine->tax_amount_base = $taxLineData->tax_amount_native * $fxRate;
-                    $taxLine->metadata = $taxLineData->metadata;
-                    $taxLine->save();
-                }
-            }
+            $this->persistLines($invoice, $this->data);
+            $this->persistTaxLines($invoice, $this->data);
 
             $invoice->load(['lines', 'taxLines']);
 
@@ -154,36 +112,5 @@ class CreateInvoiceAction
         );
 
         return $invoice;
-    }
-
-    /**
-     * @return array{0: array{subtotal: float, tax: float, discount: float, total: float}, 1: array{subtotal: float, tax: float, discount: float, total: float}}
-     */
-    private function computeTotals(): array
-    {
-        $fxRate = (float) $this->data->fx_rate_to_base;
-
-        $subtotal = 0.0;
-        $tax = 0.0;
-        $discount = 0.0;
-
-        foreach ($this->data->lines as $line) {
-            /** @var InvoiceLineData $line */
-            $subtotal += $line->lineSubtotalNative();
-            $tax += $line->tax_amount_native;
-            $discount += $line->discount_amount_native;
-        }
-
-        $total = $subtotal - $discount + $tax;
-
-        $native = compact('subtotal', 'tax', 'discount', 'total');
-        $base = [
-            'subtotal' => $subtotal * $fxRate,
-            'tax' => $tax * $fxRate,
-            'discount' => $discount * $fxRate,
-            'total' => $total * $fxRate,
-        ];
-
-        return [$native, $base];
     }
 }

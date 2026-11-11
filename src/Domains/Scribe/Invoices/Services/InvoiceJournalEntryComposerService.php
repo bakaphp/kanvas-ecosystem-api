@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Services;
 
+use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
@@ -14,6 +16,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
+use Kanvas\Scribe\Ledger\Services\JournalEntryRoundingService;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -34,7 +37,7 @@ use Spatie\LaravelData\DataCollection;
  *     DR Cash — Checking          {amount}
  *       CR Accounts Receivable     {amount}
  *
- *   Void (reverse the original issue JE — mirror DR/CR swap) — composed inline by VoidInvoiceAction.
+ *   Void — a mirror reversal of the issue JE, posted by VoidInvoiceAction through ReverseJournalEntryAction.
  *
  * @see plan §3.5 sub-ledger → GL auto-posting table
  */
@@ -47,6 +50,21 @@ class InvoiceJournalEntryComposerService
 
     public function composeIssue(Invoice $invoice): JournalEntryData
     {
+        return $this->composeReceivable($invoice);
+    }
+
+    /**
+     * A debit note books like the invoice it adds to — more AR, more revenue, more tax payable — under
+     * its own source type, so voiding or reversing it finds its own JE and never the parent's.
+     */
+    public function composeDebitNote(Invoice $debitNote): JournalEntryData
+    {
+        return $this->composeReceivable($debitNote);
+    }
+
+    private function composeReceivable(Invoice $invoice): JournalEntryData
+    {
+        $label = $invoice->document_type->label();
         $app = $invoice->app;
         $company = $invoice->company;
         $billableType = 'organization'; // Phase 4: Org-only
@@ -55,8 +73,8 @@ class InvoiceJournalEntryComposerService
         $arAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
         $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
 
-        $netRevenueNative = (float) $invoice->subtotal_native - (float) $invoice->discount_native;
-        $netRevenueBase = (float) $invoice->subtotal_base - (float) $invoice->discount_base;
+        $netRevenueNative = Money::stored(Money::of((float) $invoice->subtotal_native)->minus(Money::of((float) $invoice->discount_native)));
+        $netRevenueBase = Money::stored(Money::of((float) $invoice->subtotal_base)->minus(Money::of((float) $invoice->discount_base)));
         $totalNative = (float) $invoice->total_native;
         $totalBase = (float) $invoice->total_base;
         $currency = $invoice->currency;
@@ -75,7 +93,7 @@ class InvoiceJournalEntryComposerService
                 sort_order: 0,
                 customer_billable_type: $billableType,
                 customer_billable_id: $billableId,
-                memo: "Invoice {$invoice->invoice_number} — AR",
+                memo: "{$label} {$invoice->invoice_number} — AR",
             ),
             // CR Revenue (net of discount)
             new JournalEntryLineData(
@@ -89,20 +107,25 @@ class InvoiceJournalEntryComposerService
                 sort_order: 1,
                 customer_billable_type: $billableType,
                 customer_billable_id: $billableId,
-                memo: "Invoice {$invoice->invoice_number} — Revenue",
+                memo: "{$label} {$invoice->invoice_number} — Revenue",
             ),
         ];
 
-        array_push($lines, ...$this->buildTaxLines($invoice, credit: true, memoSuffix: '', startSortOrder: 2));
+        array_push($lines, ...$this->buildTaxLines(
+            $invoice,
+            credit: true,
+            memoSuffix: '',
+            startSortOrder: 2
+        ));
 
         return new JournalEntryData(
             app: $app,
             company: $company,
             postedAt: $invoice->issued_date ?? Carbon::now(),
-            sourceType: 'invoice',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            sourceType: $invoice->document_type->journalSourceType(),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 1)),
             sourceId: $invoice->id,
-            memo: "Invoice {$invoice->invoice_number} issued",
+            memo: "{$label} {$invoice->invoice_number} issued",
             source: $invoice->source,
             externalId: $invoice->external_id,
             origin: $invoice->origin,
@@ -208,8 +231,8 @@ class InvoiceJournalEntryComposerService
             );
         } else {
             $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
-            $netRevenueNative = (float) $creditNote->subtotal_native - (float) $creditNote->discount_native;
-            $netRevenueBase = (float) $creditNote->subtotal_base - (float) $creditNote->discount_base;
+            $netRevenueNative = Money::stored(Money::of((float) $creditNote->subtotal_native)->minus(Money::of((float) $creditNote->discount_native)));
+            $netRevenueBase = Money::stored(Money::of((float) $creditNote->subtotal_base)->minus(Money::of((float) $creditNote->discount_base)));
 
             $lines = [
                 // DR Revenue
@@ -229,7 +252,12 @@ class InvoiceJournalEntryComposerService
             ];
         }
 
-        array_push($lines, ...$this->buildTaxLines($creditNote, credit: false, memoSuffix: ' reversal', startSortOrder: 1));
+        array_push($lines, ...$this->buildTaxLines(
+            $creditNote,
+            credit: false,
+            memoSuffix: ' reversal',
+            startSortOrder: 1
+        ));
 
         // CR Accounts Receivable
         $lines[] = new JournalEntryLineData(
@@ -251,7 +279,7 @@ class InvoiceJournalEntryComposerService
             company: $company,
             postedAt: $creditNote->issued_date ?? Carbon::now(),
             sourceType: 'credit_note',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 0)),
             sourceId: $creditNote->id,
             memo: "Credit Note {$creditNote->invoice_number} issued",
             source: $creditNote->source,
@@ -277,7 +305,7 @@ class InvoiceJournalEntryComposerService
         $sortOrder = 0;
 
         foreach ($codedLines->groupBy('account_id') as $accountId => $groupLines) {
-            $account = Account::query()->where('id', $accountId)->firstOrFail();
+            $account = Account::getById($accountId, $creditNote->app);
 
             $lines[] = new JournalEntryLineData(
                 account_id: $account->id,
@@ -304,15 +332,19 @@ class InvoiceJournalEntryComposerService
      *
      * @return array<int, JournalEntryLineData>
      */
-    private function buildTaxLines(Invoice $invoice, bool $credit, string $memoSuffix, int $startSortOrder): array
-    {
+    private function buildTaxLines(
+        Invoice $invoice,
+        bool $credit,
+        string $memoSuffix,
+        int $startSortOrder
+    ): array {
         $taxNative = (float) $invoice->tax_native;
 
         if ($taxNative <= 0) {
             return [];
         }
 
-        $label = $invoice->isCreditNote() ? 'Credit Note' : 'Invoice';
+        $label = $invoice->document_type->label();
         $currency = $invoice->currency;
         $fxRate = (float) $invoice->fx_rate_to_base;
         $taxLines = $invoice->taxLines;
@@ -356,21 +388,19 @@ class InvoiceJournalEntryComposerService
     }
 
     /**
-     * Map a tax-line's jurisdiction to the correct payable GL account.
-     *   - DR jurisdiction with ITBIS-shaped rate → dr_itbis_payable
-     *   - Anything else → sales_tax_payable (generic US-default)
-     *
-     * Extends naturally as we add more regional validators (MX/BR/AR/EU).
+     * A tax line posts to its jurisdiction's own payable account (DR: ITBIS) when the regime names one and the
+     * company's chart has it; anything else to the generic sales tax payable.
      */
     private function resolveTaxAccount(Invoice $invoice, ?string $jurisdiction): Account
     {
         $app = $invoice->app;
         $company = $invoice->company;
+        $subType = FiscalRegimes::find($jurisdiction)?->salesTaxAccountSubType();
 
-        if ($jurisdiction === 'DO') {
-            $drAccount = $this->accountResolver->bySubTypeOrNull($app, $company, AccountSubTypeEnum::DR_ITBIS_PAYABLE);
-            if ($drAccount !== null) {
-                return $drAccount;
+        if ($subType !== null) {
+            $account = $this->accountResolver->bySubTypeOrNull($app, $company, $subType);
+            if ($account !== null) {
+                return $account;
             }
         }
 

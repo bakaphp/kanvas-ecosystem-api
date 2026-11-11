@@ -26,7 +26,6 @@ class ProductsTypesAttributes extends Data
 
     /**
      * fromArray.
-     *
      */
     public static function viaRequest(array $request): self
     {

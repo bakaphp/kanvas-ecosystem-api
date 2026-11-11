@@ -22,7 +22,6 @@ return new class () extends Migration {
             $table->index('created_at');
             $table->index('is_deleted');
 
-
             $table->foreign('actions_id')->references('id')->on('actions');
         });
     }

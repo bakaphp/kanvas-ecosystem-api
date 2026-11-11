@@ -31,9 +31,9 @@ trait AnnouncesPlanOutcome
         string $body,
         string $verb,
         string $alert,
-    ): void {
+    ): ?Message {
         try {
-            new PostPlanActivityMessageAction(
+            return new PostPlanActivityMessageAction(
                 plan: $plan,
                 content: ($this->mentionFor($plan) ?? '') . $body,
                 author: $plan->agent?->user ?? $plan->user,
@@ -50,6 +50,8 @@ trait AnnouncesPlanOutcome
         } catch (Throwable $e) {
             // Best-effort: the origin post and the direct notification still land.
             report($e);
+
+            return null;
         }
     }
 

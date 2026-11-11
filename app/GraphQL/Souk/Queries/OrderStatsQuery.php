@@ -9,10 +9,12 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Actions\ExportOrderPaymentsAction;
+use Kanvas\Souk\Orders\Actions\ExportPaymentsFinancialReportAction;
 use Kanvas\Souk\Orders\Actions\GetOrderCommissionStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
 use Kanvas\Souk\Orders\DataTransferObject\CommissionStats;
+use Kanvas\Souk\Orders\DataTransferObject\PaymentsFinancialReport;
 use Kanvas\Souk\Orders\Enums\OrderStatsExcludeModeEnum;
 use Kanvas\Souk\Orders\Services\OrderProviderScopeService;
 use Kanvas\Users\Models\Users;
@@ -86,7 +88,7 @@ class OrderStatsQuery
         $endDate = $input['endDate'] ?? null;
         $timezone = $input['timezone'] ?? 'UTC';
         $baseDate = $input['baseDate'] ?? null;
-        $groupPeriods    = $input['groupPeriods'] ?? null;
+        $groupPeriods = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
         $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
         $userEmail = $input['user_email'] ?? null;
@@ -143,7 +145,7 @@ class OrderStatsQuery
 
     public function exportPayments(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
-        $app   = app(Apps::class);
+        $app = app(Apps::class);
         $input = $args['input'];
 
         /** @var Users $user */
@@ -163,6 +165,22 @@ class OrderStatsQuery
             providerCompanyIds: $this->resolveProviderCompanyIds($app, $input),
             metadata: $args['metadata'] ?? [],
             includeSummary: $input['includeSummary'] ?? true,
+        )->execute();
+    }
+
+    public function exportFinancialReport(mixed $root, array $args): array
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        return new ExportPaymentsFinancialReportAction(
+            PaymentsFinancialReport::from(
+                $app,
+                $user,
+                $this->resolveProviderCompanyIds($app, $args['input']),
+                $args['input'],
+                $args['metadata'] ?? [],
+            ),
         )->execute();
     }
 

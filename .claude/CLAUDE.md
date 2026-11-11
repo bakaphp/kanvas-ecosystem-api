@@ -48,7 +48,7 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
   );
   ```
   Apply the same rule to LLM-tool param defaults: prefer `?type $param = null` over `type $param = 'default'` so the LLM can pass explicit `null` without a TypeError (see [no-non-nullable-defaults rule](#)). Normalize the default inside the body: `$param ?? 'default'`.
-- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. A `PostToolUse` hook runs the fixer on every edited `.php` file automatically (see `.claude/settings.json`). **The hook only fires on Edit/Write tool calls.** If you batch-edit via `sed`/`perl -i`/`awk`/any shell script, the hook does NOT run and StyleCI will fail the PR for import ordering, brace placement, etc. After any bash batch edit of `.php` files: run `php-cs-fixer fix <files>` (binary at `/Users/kaioken/Tools/php-cs-fixer/vendor/bin/php-cs-fixer` on host) on every touched file BEFORE finishing the task. Prefer Edit/Write tool calls over batch shell edits when possible. If the binary isn't installed in the current environment, match the rules by hand:
+- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. A `PostToolUse` hook runs the fixer on every edited `.php` file automatically (see `.claude/settings.json`). **The hook only fires on Edit/Write tool calls.** If you batch-edit via `sed`/`perl -i`/`awk`/any shell script, the hook does NOT run and the `code style` GitHub workflow (`.github/workflows/code-style.yml`, the same fixer and config, whole tree) will fail the PR for import ordering, brace placement, etc. After any bash batch edit of `.php` files: run `php-cs-fixer fix <files>` (binary at `/Users/kaioken/Tools/php-cs-fixer/vendor/bin/php-cs-fixer` on host) on every touched file BEFORE finishing the task. Prefer Edit/Write tool calls over batch shell edits when possible. If the binary isn't installed in the current environment, match the rules by hand:
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
   - `use` imports: alphabetical order **across the entire use block** (not just within each namespace group) — e.g. `Connectors\Zoho\...` must come after `Connectors\WooCommerce\...`
@@ -69,6 +69,7 @@ Big task-shaped recipes have been moved to skills under `.claude/skills/`. They 
 Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
+- `src/Domains/Connectors/Microsoft/CLAUDE.md` — Outlook + OneDrive: a company's own account (Outlook + its drive) vs the app's shared OneDrive (`MicrosoftTokenStore`), the tools' `drive` choice, the `microsoft`/`onedrive` OAuth integrations and their `oauth_url`, App Registration for personal accounts, granted-scopes refresh, Word-by-XML / Excel write limits, eTag and delete rules, native tools vs `microsoft365_mcp`.
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
 - `src/Domains/Intelligence/Agents/Neuron/CLAUDE.md` — Neuron 4 as Kanvas runs it: tool identity as property defaults (and why `$description` must stay a literal), the mandatory thread id and who picks it, `resources()` as the only history seam (`KanvasHistoryTrimmer` + the three message stores, `getChatHistory()` is final), why tool-budget refusal swaps the tool in the registry instead of skipping the call, the two halves of unknown-tool recovery, and the Anthropic cached-token pricing trap.
@@ -77,6 +78,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Guild/Customers/CLAUDE.md` — consent & do-not-contact: why a STOP on one channel silences all of them person-wide, the keyword-vs-agent split, every guard that enforces it, and why `do_not_contact` must never be renamed.
 - `src/Domains/Guild/Campaigns/CLAUDE.md` — batch email: the three tool fronts on one action, per-recipient `attachment_urls` + `variables` and the template context order, why file-to-person matching lives in the tool (excluded, never skipped), the People template allow-list, and `test_to` as a closed set.
 - `src/Domains/Guild/Customers/Classification/CLAUDE.md` — job title → seniority level + functional area from a per-tenant taxonomy: settings, the manual pin, tag reconciling, the title cache, and the INTRAS/SIPGO rollout order.
+- `src/Domains/Guild/Leads/Summary/CLAUDE.md` — the rolling, coverage-tracked lead summary: why the rollup forgot, the counted-message predicate, the turn order inside `resources()` (window ids, not an oldest-row boundary), whole-update rejection, changed-history rebuilds, the gap fallbacks, and the per-app switch.
 - `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
 - `src/Domains/Inventory/Recommendations/CLAUDE.md` — product discovery + enrichment, the canonical guide: how the storefront (`discoverProducts`) and agents (Product Recommendation Lookup, `inventory_search` output shape) use it, the per-app activation sequence, how a search runs (engine documents, no DB read; SQL fallback), settings, index fields, file map, and the rules (business rules only in the builder, capabilities not engine checks, every hard limit re-checked).
@@ -87,6 +89,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Kanvas/Templates/CLAUDE.md` — `email_templates` engines: new rows are sandboxed Twig, `blade` rows are hand-made in the database only and refused through Eloquent; the one Blade call site, the plain-array context and `ExposesTemplateData` for models with secrets in their row.
 - `src/Kanvas/AccessControlList/CLAUDE.md` — Bouncer scope is process state and the role cache is per scope with no TTL: write/read roles for an app only inside `onceTo(getScope($app))`, refresh inside the same switch, `Users::assignOwnerOf()` for Owner, and the app-creation incident that proved it.
 - `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
+- `src/Domains/Scribe/CLAUDE.md` — accounting domain: GL invariants, cross-domain rules, where e-CF state lives (`fiscal_documents`, not JSON), and **how to set up a tenant for the AP/AR agents + DR e-CF from the UI** (setup mutation, provider integration, e-NCF ranges, readiness keys, onboarding steps).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 
 ### Where to put new conventions (don't bloat this file)
@@ -1013,6 +1016,33 @@ A stored expression (rule pattern and conditions, notification logic, engagement
 only through `Kanvas\Workflow\Rules\Support\SafeExpression`: no method or function calls, plain data
 in place of models (`ExpressionLanguageIsConfinedTest`). Stored templates follow
 [`src/Kanvas/Templates/CLAUDE.md`](../src/Kanvas/Templates/CLAUDE.md).
+
+### A Domain Never Imports a Connector
+
+Dependency direction is `Baka` ← `Kanvas` (core) ← `Domains` ← `Connectors`. A connector may import
+any domain; **code under `src/Domains/{Domain}/` (Connectors excepted) never `use`s `Kanvas\Connectors\*`**.
+When a domain needs something a vendor provides, it reaches it one of two ways:
+
+- **A business capability vendors can fill** (issue an e-CF, fetch an FX rate, parse a credit form):
+  the domain owns the interface in `{Domain}/.../Contracts/`, each connector implements it, and the
+  class is picked by config or a company setting and built with `AllowedClass::resolve($class, Interface::class)`.
+  A factory that hard-codes `new SomeConnectorService()` is the same coupling moved one file over.
+- **Platform plumbing** (send a message, notify someone, shorten a link): use the shared layer
+  (`Kanvas\Notifications\Notification`, Social channels), never a per-domain interface and never the
+  vendor client.
+
+The reference is Scribe's e-CF issuance: Scribe declares `EcfProviderInterface`, `WebPosEcfProvider` and
+`AlanubeEcfProvider` implement it, and `config/scribe.php` maps `scribe-ecf-provider` → class. The
+config file and setup edges (a connector's own setup action, a GraphQL setup mutation) are where
+domain and connector are joined, so they may name both.
+
+This is the same shape as Laravel's drivers (Mail, Cache, Filesystem): code depends on the contract,
+config picks the driver. Test: *if a tenant used a different vendor, would you edit a file under the
+domain?* If yes, it is importing a connector.
+
+**The tree does not follow this yet** — Intelligence, Souk, Guild, Scribe and others import connectors
+today (counts in `docs/kanvas-v2-platform-plan.md` §4.2). New code follows the rule; existing imports
+migrate under v2 when that file is next touched, never as a move-only PR.
 
 ### Uploaded Image Handling — Trust Magic Bytes, and the ImageMagick Policy
 

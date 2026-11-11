@@ -76,6 +76,8 @@ class MercuryHandler extends BaseIntegration
             ConfigurationEnum::SYNC_CURSOR->value,
             ConfigurationEnum::WEBHOOK_ID->value,
             ConfigurationEnum::WEBHOOK_SECRET->value,
+            ConfigurationEnum::AR_DEPOSIT_ACCOUNT_ID->value,
+            ConfigurationEnum::AR_CARD_ENABLED->value,
         ];
     }
 }

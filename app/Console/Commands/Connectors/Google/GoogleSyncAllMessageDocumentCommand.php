@@ -33,7 +33,6 @@ class GoogleSyncAllMessageDocumentCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
