@@ -31,6 +31,7 @@ use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\CurrencyEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Infrastructure\Processors\Concerns\OpensProcessorRefunds;
 use Kanvas\Souk\Payments\Models\Payments;
 
 /**
@@ -54,6 +55,8 @@ use Kanvas\Souk\Payments\Models\Payments;
  */
 class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ThreeDSProcessorInterface
 {
+    use OpensProcessorRefunds;
+
     private const string THREE_DS_HOLD_KEY = 'three_ds_use_hold';
 
     protected AzulService $service;
@@ -230,6 +233,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
             $payment->authorization_code = $response->authorizationCode;
             $payment->number = $response->ticket;
+            $payment->captured_amount = $captureAmount;
 
             if (! empty($response->dateTime)) {
                 $payment->payment_date = Carbon::createFromFormat('YmdHis', $response->dateTime)->toDateString();
@@ -299,32 +303,38 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
-        $refundAmount = $amount ?? $order->getTotalDueAmount();
-        $request = $this->buildRefundRequest($azulOrderId, $refundAmount, $order);
+        $refund = $this->openRefund($payment, $amount, $context);
+
+        if ($refund instanceof RefundResult) {
+            return $refund;
+        }
+
+        $request = $this->buildRefundRequest($azulOrderId, (float) $refund->amount, $order);
         $start = hrtime(true);
 
         try {
             $response = $this->service->refund($request);
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
-            $payment->update(['status' => PaymentStatusEnum::REVERSED->value]);
-            $payment->addMetadata([
-                'data' => [
-                    'refund_azul_order_id' => $response->azulOrderId,
-                    'refund_ticket' => $response->ticket,
-                    'response_message' => $response->responseMessage,
-                ],
+            $refund->processor_refund_id = $response->azulOrderId ?: null;
+            $refund->save();
+            $refund->markAsCompleted([
+                'refund_azul_order_id' => $response->azulOrderId,
+                'refund_ticket' => $response->ticket,
+                'response_message' => $response->responseMessage,
             ]);
 
             $payment->addLog('refund_success', [
                 'processor' => $this->name(),
                 'order_id' => $order->id,
+                'refund_id' => $refund->getId(),
+                'amount' => (float) $refund->amount,
                 'original_azul_order_id' => $azulOrderId,
                 'refund_azul_order_id' => $response->azulOrderId,
                 'response_time_ms' => $responseTimeMs,
                 'request' => $request->toArray(),
                 'response' => $response->toArray(),
-            ]);
+            ], actor: $refund->user);
 
             return new RefundResult(
                 success: true,
@@ -335,14 +345,20 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         } catch (AzulException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
+            $refund->markAsFailed([
+                'error' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+            ]);
+
             $payment->addLog('refund_failed', [
                 'processor' => $this->name(),
                 'order_id' => $order->id,
+                'refund_id' => $refund->getId(),
                 'error' => $e->getMessage(),
                 'error_body' => $e->getErrorBody(),
                 'response_time_ms' => $responseTimeMs,
                 'request' => $request->toArray(),
-            ]);
+            ], actor: $refund->user);
 
             return new RefundResult(
                 success: false,
