@@ -56,6 +56,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
@@ -179,6 +180,7 @@ class AccountsReceivableAgent extends SystemUserAgent
         $person = $this->personAsking();
         if ($person !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new ImportIssuedEcfExportTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
         }
 
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
@@ -198,6 +200,9 @@ class AccountsReceivableAgent extends SystemUserAgent
         return implode("\n", [
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
+            '- An invoice, quote or SOW reaches a customer only through send_invoice / send_quote; never paste its '
+            . 'contents or describe its amounts in an email. send_person_email is for everything else: answering a '
+            . 'question, asking for a PO number, confirming a change before you revise a quote.',
             '- Customers send remittance advice, purchase orders and credit requests to the company accounting inbox. '
             . 'Each one reaches you as a task; recent_inbox_arrivals (outcome routed_to_ar) lists them. A remittance is '
             . 'matched to open invoices for you, but the payment is only applied when the bank confirms it — never '
