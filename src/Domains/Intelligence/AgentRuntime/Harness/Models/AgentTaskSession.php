@@ -144,7 +144,8 @@ class AgentTaskSession extends BaseModel
     }
 
     /**
-     * One branch per ticket, named for the task it works so a person can find it from the board.
+     * One branch per ticket, under the agent that works it and named for the task, so a person can
+     * tell from the branch list who built what and find it on the board.
      */
     public function taskRunBranch(): ?string
     {
@@ -154,9 +155,10 @@ class AgentTaskSession extends BaseModel
             return null;
         }
 
+        $owner = Str::slug((string) $this->agent?->name);
         $slug = trim(Str::limit(Str::slug((string) $ticket->title), 40, ''), '-');
 
-        return 'opencode/task-' . $ticket->getId() . ($slug !== '' ? '-' . $slug : '');
+        return ($owner !== '' ? $owner : 'agent') . '/task-' . $ticket->getId() . ($slug !== '' ? '-' . $slug : '');
     }
 
     public static function liveChatFor(Agent $agent, Session $chat): ?self

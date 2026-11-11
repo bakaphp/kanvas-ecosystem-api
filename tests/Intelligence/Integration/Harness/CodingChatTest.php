@@ -572,14 +572,17 @@ class CodingChatTest extends TestCase
         $this->assertStringContainsString('Expo access', (string) $task->blocked_reason);
     }
 
-    public function testATaskRunWorksOnItsOwnBranchNamedForItsTicket(): void
+    public function testATaskRunWorksOnItsOwnBranchUnderItsAgentNamedForItsTicket(): void
     {
         Queue::fake();
         [$agent, $chat] = $this->chatAgent();
-        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        $worker = $this->factoryAgent();
+        $worker->name = 'Akira Builder';
+        $worker->saveQuietly();
+        $task = $this->factoryTask($worker, 'Build the login screen');
         $run = $this->startFactoryRun($task);
 
-        $this->assertSame('opencode/task-' . $task->getId() . '-build-the-login-screen', $run->taskRunBranch());
+        $this->assertSame('akira-builder/task-' . $task->getId() . '-build-the-login-screen', $run->taskRunBranch());
         $this->assertNull(
             $this->liveChat($agent, $chat, HarnessStatusEnum::IDLE)->taskRunBranch(),
             'a chat works in the checkout as it is'
@@ -590,7 +593,7 @@ class CodingChatTest extends TestCase
     {
         $client = $this->factory(json_encode([
             'directory' => '/Users/joseceron/Documents/Projects/opencode-factory/worktrees/Quorum-app-owner-1',
-            'branch' => 'opencode/task-7-build-the-login-screen',
+            'branch' => 'akira/task-7-build-the-login-screen',
             'port' => '4097',
             'password' => 'pw',
             'provider' => 'kanvas-openrouter',
@@ -600,10 +603,10 @@ class CodingChatTest extends TestCase
         $client->open(
             repo: 'Quorum-app',
             owner: 'owner-1',
-            worktreeBranch: 'opencode/task-7-build-the-login-screen',
+            worktreeBranch: 'akira/task-7-build-the-login-screen',
         );
 
-        $this->assertStringContainsString("'--worktree' 'opencode/task-7-build-the-login-screen'", $client->commands[0]);
+        $this->assertStringContainsString("'--worktree' 'akira/task-7-build-the-login-screen'", $client->commands[0]);
     }
 
     public function testATaskRunWaitsItsTurnWhileAnotherRunsOnTheMacWithoutFailingItsTask(): void

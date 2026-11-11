@@ -211,7 +211,7 @@ factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` 
 
 Things that bite:
 - **A task run never touches the shared checkout.** `open --worktree <branch>` gives it its own worktree
-  on `opencode/task-<task id>-<slug>`, cut from the app's base branch (`develop`, else `main`), with
+  on `<agent name>/task-<task id>-<slug>` (e.g. `akira/task-42-login-screen`), cut from the app's base branch (`develop`, else `main`), with
   `node_modules` linked from the checkout; `release` commits anything left uncommitted on that branch
   before removing the folder. Task runs still take turns per Mac (`CODING_CHAT_MAX_TASK_RUNS`, default 1,
   first come first served) because the simulator, emulator and Metro's port are machine-wide; a run
