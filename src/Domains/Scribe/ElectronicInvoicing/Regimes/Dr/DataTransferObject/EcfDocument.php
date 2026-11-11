@@ -13,8 +13,8 @@ use Spatie\LaravelData\Data;
 /**
  * The DR e-CF payload, built from a Scribe document by EcfDocumentBuilder. DR providers only map it.
  *
- * systemRef is the send attempt's uuid (FiscalDocumentSubmission): the provider dedupes on it, so a status query
- * about an attempt never issues twice and a new attempt is never mistaken for an earlier one.
+ * systemRef is the send attempt's `system_ref` (FiscalDocumentSubmission): the provider dedupes on it, so a status
+ * query about an attempt never issues twice and a new attempt is never mistaken for an earlier one.
  * Dates are Y-m-d strings so the DTO stays plain data.
  *
  * purchaseOrderNumber (E45), export (E46) and foreignPayment (E47) are type-specific and null elsewhere.

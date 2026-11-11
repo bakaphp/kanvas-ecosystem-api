@@ -108,14 +108,22 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   inbound answer, deduped, applied under the row lock), `fiscal_document_relations` (notes → modified document)
   and `fiscal_number_ranges` (+ ANECF annulments). Write only through `CreateFiscalDocumentAction`,
   `RecordFiscalSubmissionAction` and `ApplyFiscalAnswerAction`; read through `EcfCompliance::read()/current()`
-  or `ReceivedEcfCompliance`. The provider `systemRef` is the send attempt's `uuid` (`fiscal_document_submissions.uuid`, never
-  the invoice's: WebPOS answers a repeated systemRef with the status it already holds, so a resend after a
-  reusable rejection needs its own), jobs take the fiscal row and build the provider for the row's frozen
+  or `ReceivedEcfCompliance`. The provider `systemRef` is the send attempt's `system_ref` (16 uppercase
+  alphanumerics, never the invoice's uuid: WebPOS answers a repeated systemRef with the status it already holds,
+  so a resend after a reusable rejection needs its own, and it forwards the value as DGII's 20-character
+  `NumeroFacturaInterna`, which is why a 36-character uuid earned observation 1323 on every e-CF; attempts from
+  before the column still answer to their `uuid`), jobs take the fiscal row and build the provider for the row's frozen
   provider and environment, and callbacks resolve to that exact row — an answer about a superseded number never
   touches the document. Rows are never deleted and freeze once they may have reached the authority. A DGII
   rejection burns the number unless `secuenciaUtilizada` is explicitly false. Deploy: `scribe:dr-fiscal-preflight`
   → migrate → `scribe:dr-fiscal-backfill` (test data only); `scribe:fiscal-resolve-stuck-submissions` runs every
   10 minutes.
+- **WebPOS mapping facts learned on the test host (2026-11-10), each pinned by a mapper test.** `fedo.totales.totalIsrRetenido`
+  must be sent or DGII observes 11174 (WebPOS sums item ITBIS withholding into the header, not ISR). An `OtraMoneda`
+  `addInfo` group makes WebPOS drop the document with `received: false` and no message; it builds that block itself
+  from `currency` + `currencyRate`, so only the IdDoc payment lines go. DGII's `TipoCuentaPago` is CT/AH/OT
+  (`DrEcfValidator::PAYMENT_ACCOUNT_TYPES`, observation 1144 otherwise). A provider refusal keeps the raw answer as
+  the attempt's response artifact; read it before guessing.
 - **A country's rules live in `ElectronicInvoicing/Regimes/{Country}/`, never in shared code or a table.** Shared
   code (`EcfIssuanceService`, the jobs, `ConfigureEcfRangeAction`, readiness, the agent tools) resolves a
   `FiscalRegimeInterface` and asks it; it never names a country's types, payload, authority or currency. A

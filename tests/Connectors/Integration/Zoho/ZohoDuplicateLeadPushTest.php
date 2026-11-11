@@ -19,8 +19,8 @@ use Tests\TestCase;
 use Webleit\ZohoCrmApi\Models\Record;
 
 /**
- * A lead the duplicate-check receiver flagged reaches Zoho owned by the configured user and with no
- * Lead_Source, even through the rotation branch that would otherwise set both.
+ * A lead the duplicate-check receiver flagged reaches Zoho owned by the configured user, even through
+ * the rotation branch that would otherwise set the owner, and keeps its Lead_Source.
  */
 final class ZohoDuplicateLeadPushTest extends TestCase
 {
@@ -30,7 +30,7 @@ final class ZohoDuplicateLeadPushTest extends TestCase
 
     protected $connectionsToTransact = [null, 'crm', 'social', 'ecosystem'];
 
-    public function testAFlaggedLeadIsCreatedWithTheDuplicateOwnerAndNoSource(): void
+    public function testAFlaggedLeadIsCreatedWithTheDuplicateOwnerAndItsSource(): void
     {
         $lead = $this->makeRotationLead();
         $lead->set(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value, '777');
@@ -39,7 +39,7 @@ final class ZohoDuplicateLeadPushTest extends TestCase
         $module->expects($this->once())
             ->method('create')
             ->with($this->callback(fn (array $data) => ($data['Owner'] ?? null) === '777'
-                && ! array_key_exists('Lead_Source', $data)))
+                && ($data['Lead_Source'] ?? null) === $lead->receiver->name))
             ->willReturn(new Record(['id' => 'zl-dup'], $module));
 
         $this->action($lead, $module)->execute();

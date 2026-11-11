@@ -84,7 +84,8 @@ class ResultMapperService
     {
         if (array_key_exists('accepted', $response) && $response['accepted'] === false) {
             throw new ProviderRejectedException(
-                'WebPOS did not accept the document: ' . (implode(' | ', self::messages($response)) ?: 'no message')
+                'WebPOS did not accept the document: ' . (implode(' | ', self::messages($response)) ?: 'no message'),
+                $response
             );
         }
 
@@ -119,8 +120,9 @@ class ResultMapperService
             }
         }
 
+        // An acceptance carries one message, code 0 with an empty text; that is not a message.
         foreach ((array) (self::dgiResponse($response)['mensajes'] ?? []) as $dgiMessage) {
-            if (! is_array($dgiMessage) || ! isset($dgiMessage['valor'])) {
+            if (! is_array($dgiMessage) || trim((string) ($dgiMessage['valor'] ?? '')) === '') {
                 continue;
             }
 

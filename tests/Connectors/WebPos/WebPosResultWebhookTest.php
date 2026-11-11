@@ -103,6 +103,16 @@ final class WebPosResultWebhookTest extends ScribeTestCase
         $invoice = $this->invoiceAwaitingDgii();
         $attempt = $this->submissionFor(EcfCompliance::current($invoice), null);
 
+        $result = $this->deliver(['systemRef' => $attempt->system_ref, 'status' => 2, 'feNumber' => self::ENCF, 'authNumber' => 'track-a1']);
+
+        $this->assertSame('accepted', $result['status']);
+    }
+
+    public function testAnAttemptSentBeforeSystemRefsExistedStillAnswersToItsUuid(): void
+    {
+        $invoice = $this->invoiceAwaitingDgii();
+        $attempt = $this->submissionFor(EcfCompliance::current($invoice), null, withSystemRef: false);
+
         $result = $this->deliver(['systemRef' => $attempt->uuid, 'status' => 2, 'feNumber' => self::ENCF, 'authNumber' => 'track-a1']);
 
         $this->assertSame('accepted', $result['status']);
@@ -115,7 +125,7 @@ final class WebPosResultWebhookTest extends ScribeTestCase
         $rejected = $this->submissionFor($fiscal, null);
         $this->submissionFor($fiscal, null, attempt: 2);
 
-        $result = $this->deliver(['systemRef' => $rejected->uuid, 'status' => 3, 'feNumber' => self::ENCF]);
+        $result = $this->deliver(['systemRef' => $rejected->system_ref, 'status' => 3, 'feNumber' => self::ENCF]);
 
         $this->assertStringContainsString('superseded by attempt 2', $result['message']);
         $this->assertSame(EcfStatusEnum::WAITING, EcfCompliance::status($invoice->refresh()));
