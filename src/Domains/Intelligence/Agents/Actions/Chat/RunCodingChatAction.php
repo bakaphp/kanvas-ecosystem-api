@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\AgentHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
@@ -33,6 +34,7 @@ class RunCodingChatAction
 {
     public const string HELP = "This chat drives the coding agent on the factory Mac.\n\n"
         . "- `/repo <App> [what to do]` — work in that checkout instead, e.g. `/repo Quorum-app fix the login spinner`\n"
+        . "- `/take <App> [what to do]` — move that checkout here from another conversation of yours\n"
         . "- `/status` — where it stands\n"
         . "- `/stop` — stop the current turn\n"
         . "- `/end` — close the chat and free the checkout\n\n"
@@ -113,6 +115,7 @@ class RunCodingChatAction
 
         return match (strtolower($name)) {
             '/repo' => $this->switchTo($chat, (string) $rest, $live),
+            '/take' => $this->take($chat, (string) $rest, $live),
             '/status' => $this->status($live),
             '/stop' => $this->stop($live),
             '/end' => $this->end($live),
@@ -148,7 +151,8 @@ class RunCodingChatAction
         $repo = (string) $repo;
         $instruction = trim((string) $instruction);
 
-        if ($live !== null && $live->repo_slug === $repo) {
+        // The Mac's folders are case-insensitive: `quorum-app` and `Quorum-app` are one checkout and one lock.
+        if ($live !== null && strcasecmp((string) $live->repo_slug, $repo) === 0) {
             return $instruction === ''
                 ? 'Already working in **' . $repo . '**.'
                 : $this->relay($live, $instruction);
@@ -161,6 +165,51 @@ class RunCodingChatAction
         $closed = $live !== null ? new CloseCodingChatAction($live, notify: false)->execute() . "\n\n" : '';
 
         return $closed . $this->open($chat, $repo, $instruction);
+    }
+
+    /**
+     * Moves a checkout here from another of this person's own open conversations — the way out of the
+     * "already open in another conversation of yours" refusal. Someone else's conversation, or a workflow
+     * task working in it, is theirs to end.
+     */
+    private function take(Session $chat, string $args, ?AgentTaskSession $live): string
+    {
+        $repo = (string) (preg_split('/\s+/', trim($args), 2) ?: [''])[0];
+
+        if ($repo === '') {
+            return 'Which app? For example `/take Quorum-app`.';
+        }
+
+        if ($live !== null && strcasecmp((string) $live->repo_slug, $repo) === 0) {
+            return $this->switchTo($chat, $args, $live);
+        }
+
+        /** @var AgentTaskSession|null $holder */
+        $holder = AgentTaskSession::query()
+            ->fromApp($this->agent->app)
+            ->fromCompany($this->agent->company)
+            ->notDeleted()
+            ->live()
+            ->whereNotNull('chat_session_id')
+            ->where('chat_session_id', '!=', $chat->getId())
+            ->where('users_id', $this->user->getId())
+            ->whereRaw('LOWER(repo_slug) = ?', [mb_strtolower($repo)])
+            ->latest('id')
+            ->first();
+
+        if ($holder === null || $holder->isTaskRun()) {
+            return 'None of your other conversations has **' . $repo . '** open. If something else is using it, '
+                . 'the message that refused it says what.';
+        }
+
+        new PostCodingChatMessageAction(
+            $holder,
+            '↪ **' . $holder->repo_slug . '** moved to another conversation.'
+            . ($holder->branch !== null ? ' Its work stays on branch `' . $holder->branch . '`.' : '')
+        )->execute();
+        new CloseCodingChatAction($holder, notify: false)->execute();
+
+        return $this->switchTo($chat, $args, $live);
     }
 
     private function open(Session $chat, string $repo, string $instruction): string

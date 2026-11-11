@@ -82,6 +82,7 @@ enum AdminLinkSectionEnum: string
 
     case CONTROL_CENTER = 'control-center';
     case CONTROL_CENTER_CHAT = 'control-center/chat';
+    case CONTROL_CENTER_ASSISTANTS = 'control-center/assistants';
 
     public function segment(): string
     {

@@ -22,16 +22,19 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\LaunchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\PollHarnessSessionJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\WatchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunCodingChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
@@ -597,6 +600,128 @@ class CodingChatTest extends TestCase
         Queue::assertNotPushed(RunTaskWorkerJob::class);
     }
 
+    public function testTheFactoryClientReportsWhoHoldsACheckoutInUse(): void
+    {
+        try {
+            $this->factory(json_encode([
+                'error' => 'Quorum-app is in use by holder-uuid; release it first',
+                'holder' => 'holder-uuid',
+            ]))->open('Quorum-app', 'owner-1');
+            $this->fail('Expected the held checkout to be refused');
+        } catch (CheckoutInUseException $e) {
+            $this->assertSame('holder-uuid', $e->holder);
+        }
+    }
+
+    public function testACheckoutOpenInAnotherConversationOfYoursLinksToItAndOffersTake(): void
+    {
+        config(['kanvas.app.frontend_url' => 'https://app.kanvas.test']);
+        [$agent, $first] = $this->chatAgent();
+        $holder = $this->liveChat(
+            agent: $agent,
+            chat: $first,
+            status: HarnessStatusEnum::IDLE,
+            userId: $this->user()->getId(),
+        );
+        $conversationId = new KanvasConversationStore()->conversationForSession(
+            userId: $this->user()->getId(),
+            sessionId: (string) $first->uuid,
+            agentId: $agent->getId(),
+            appsId: $agent->apps_id,
+            companiesId: $agent->companies_id,
+        );
+        $refused = $this->refusedChat($agent, $this->user()->getId());
+
+        $message = new CheckoutHolderNotice($refused, $holder->uuid)->message();
+
+        $this->assertStringContainsString('already open in another conversation of yours', $message);
+        $this->assertStringContainsString(
+            'control-center/assistants?assistant=' . $agent->getId() . '&session=' . $conversationId,
+            $message
+        );
+        $this->assertStringContainsString('Send `/take Quorum-app` here', $message);
+        $this->assertStringContainsString('branch `opencode/20261110-1200`', $message);
+        $this->assertStringNotContainsString($holder->uuid, $message, 'a session id means nothing to a person');
+    }
+
+    public function testACheckoutHeldBySomeoneElseNamesThemAndOffersNoTake(): void
+    {
+        [$agent, $first] = $this->chatAgent();
+        $someoneElse = $this->makeAgent()->user;
+        $holder = $this->liveChat(
+            agent: $agent,
+            chat: $first,
+            status: HarnessStatusEnum::IDLE,
+            userId: $someoneElse->getId(),
+        );
+
+        $message = new CheckoutHolderNotice($this->refusedChat($agent, $this->user()->getId()), $holder->uuid)->message();
+
+        $this->assertStringContainsString($someoneElse->fullName() . '\'s conversation with ' . $agent->name, $message);
+        $this->assertStringNotContainsString('/take', $message);
+    }
+
+    public function testACheckoutHeldByAWorkflowTaskNamesTheTask(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $run = $this->startFactoryRun($this->factoryTask($akira, 'Build the login screen'));
+
+        $message = new CheckoutHolderNotice($this->refusedChat($akira, $this->user()->getId()), $run->uuid)->message();
+
+        $this->assertStringContainsString('busy with the task "Build the login screen"', $message);
+        $this->assertStringNotContainsString('/take', $message);
+    }
+
+    public function testACheckoutHeldOutsideThisKanvasSaysSoWithoutGuessing(): void
+    {
+        [$agent] = $this->chatAgent();
+
+        $message = new CheckoutHolderNotice($this->refusedChat($agent, $this->user()->getId()), 'not-a-session-here')->message();
+
+        $this->assertStringContainsString('in use outside this Kanvas', $message);
+    }
+
+    public function testTakeMovesTheCheckoutHereFromYourOtherConversation(): void
+    {
+        Queue::fake();
+        [$agent, $first] = $this->chatAgent();
+        $agent->set(AgentCustomFieldEnum::MACHINE_ID->value, $this->machine()->getId());
+        $holder = $this->liveChat(
+            agent: $agent,
+            chat: $first,
+            status: HarnessStatusEnum::IDLE,
+            userId: $this->user()->getId(),
+        );
+        $here = $this->chatSession($agent);
+
+        $reply = $this->say($agent, $here, '/take quorum-app fix the spinner');
+
+        $this->assertSame(HarnessStatusEnum::COMPLETED->value, $holder->refresh()->status);
+        $this->assertStringContainsString('Opening **quorum-app**', $reply);
+        $opened = AgentTaskSession::liveChatFor($agent, $here);
+        $this->assertNotNull($opened);
+        Queue::assertPushed(LaunchCodingChatJob::class, fn (LaunchCodingChatJob $job): bool => $job->sessionId === $opened->getId());
+    }
+
+    public function testTakeNeverTakesSomeoneElsesConversation(): void
+    {
+        Queue::fake();
+        [$agent, $first] = $this->chatAgent();
+        $holder = $this->liveChat(
+            agent: $agent,
+            chat: $first,
+            status: HarnessStatusEnum::IDLE,
+            userId: $this->makeAgent()->user->getId(),
+        );
+
+        $reply = $this->say($agent, $this->chatSession($agent), '/take Quorum-app');
+
+        $this->assertStringContainsString('None of your other conversations has **Quorum-app** open', $reply);
+        $this->assertTrue($holder->refresh()->isLive());
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+    }
+
     public function testTheFactoryPersonaIsTheAgentsOwnSoulAndInstructionsNeverItsTypes(): void
     {
         [$agent] = $this->chatAgent();
@@ -828,6 +953,19 @@ class CodingChatTest extends TestCase
         return $task;
     }
 
+    /**
+     * The session a second conversation opened for Quorum-app, which the factory then refused.
+     */
+    private function refusedChat(Agent $agent, int $userId): AgentTaskSession
+    {
+        return $this->liveChat(
+            agent: $agent,
+            chat: $this->chatSession($agent),
+            status: HarnessStatusEnum::FAILED,
+            userId: $userId,
+        );
+    }
+
     private function startFactoryRun(Task $task): AgentTaskSession
     {
         new RunTaskWorkerJob($task)->handle();
@@ -881,9 +1019,11 @@ class CodingChatTest extends TestCase
         Agent $agent,
         Session $chat,
         HarnessStatusEnum $status,
-        ?Carbon $heartbeat = null
+        ?Carbon $heartbeat = null,
+        ?int $userId = null
     ): AgentTaskSession {
         return $this->createTaskSession($status, [
+            'users_id' => $userId,
             'agent_id' => $agent->getId(),
             'companies_id' => $agent->companies_id,
             'chat_session_id' => $chat->getId(),

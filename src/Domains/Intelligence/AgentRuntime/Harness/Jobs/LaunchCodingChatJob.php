@@ -18,8 +18,10 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
 use Throwable;
 
 /**
@@ -107,6 +109,10 @@ class LaunchCodingChatJob implements ShouldQueue
             )->execute();
 
             HarnessFactory::forSession($session)->start($session, new HarnessPrompt(task: $this->instruction, policy: ''));
+        } catch (CheckoutInUseException $e) {
+            $this->refuseHeldCheckout($session, $e);
+
+            return;
         } catch (Throwable $e) {
             new CloseCodingChatAction($session, 'Could not start: ' . $e->getMessage(), HarnessStatusEnum::FAILED)->execute();
 
@@ -115,5 +121,26 @@ class LaunchCodingChatJob implements ShouldQueue
 
         $session->markLaunchStage(null);
         PollHarnessSessionJob::dispatch($this->app, $session->getId());
+    }
+
+    /**
+     * Said in place of the generic "could not start": the notice already says what to do, and the generic
+     * one's "start again with /repo" would only be refused the same way. A task run carries it as its
+     * reason instead, which is what the task that started it is blocked with.
+     */
+    private function refuseHeldCheckout(AgentTaskSession $session, CheckoutInUseException $e): void
+    {
+        $notice = new CheckoutHolderNotice($session, $e->holder)->message();
+
+        new CloseCodingChatAction(
+            session: $session,
+            reason: $notice,
+            status: HarnessStatusEnum::FAILED,
+            notify: false,
+        )->execute();
+
+        if (! $session->isTaskRun()) {
+            new PostCodingChatMessageAction($session, $notice)->execute();
+        }
     }
 }

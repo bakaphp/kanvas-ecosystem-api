@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode\Services;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryHealth;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -116,6 +117,10 @@ class FactoryServeClient
             throw new HarnessTransportException(
                 'The factory on ' . $this->machine->name . ' gave no answer: ' . mb_substr(trim($output), 0, 300)
             );
+        }
+
+        if (isset($result['error'], $result['holder'])) {
+            throw new CheckoutInUseException((string) $result['error'], (string) $result['holder']);
         }
 
         if (isset($result['error'])) {

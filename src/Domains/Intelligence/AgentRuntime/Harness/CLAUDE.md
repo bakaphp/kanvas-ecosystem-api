@@ -211,7 +211,10 @@ factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` 
 
 Things that bite:
 - **One lock per checkout, on the Mac.** `open` takes `locks/<App>`; every environment pointing at the
-  same Mac shares it, so a local test chat holds a checkout production then cannot open ("in use").
+  same Mac shares it, so a local test chat holds a checkout production then cannot open ("in use"). A
+  refusal carries the lock's `holder` (`CheckoutInUseException`); `CheckoutHolderNotice` turns it into
+  words, describing only a holder in the same app and company, and links the person's own conversation;
+  `/take <App>` moves it from their own other chat, never someone else's or a task's.
 - **The opencode server is started from the login session, never launchd.** macOS privacy protection
   denies a background job `~/Documents`, and only the login session has the unlocked keychain (provider
   key, `gh`). `serve.sh start` runs it in tmux; `start-at-login.command` as a Login Item restarts it.
