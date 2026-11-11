@@ -63,12 +63,7 @@ class VoiceAgentTestCallTest extends TestCase
 
     private function place(Agent $agent): void
     {
-        new PlaceVoiceTestCallAction(
-            $agent,
-            $this->testApp,
-            $this->company,
-            '+18095550100'
-        )->execute();
+        new PlaceVoiceTestCallAction($agent, '+18095550100')->execute();
     }
 
     private function agent(): Agent

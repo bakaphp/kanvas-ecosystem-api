@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Phone;
 
-use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Exceptions\ValidationException;
@@ -37,7 +36,6 @@ class ReleaseInboundWebhookForNumberAction
 {
     public function __construct(
         private readonly string $number,
-        private readonly AppInterface $app,
         private readonly Companies $company,
         private readonly AgentPhoneChannelEnum $channel = AgentPhoneChannelEnum::VOICE,
         // The agent that just moved off the number. It no longer carries it (the
@@ -78,7 +76,7 @@ class ReleaseInboundWebhookForNumberAction
             }
 
             $current = trim((string) $numbers[0]->{$this->channel->twilioUrlField()});
-            if (! $this->force && $current !== VoiceRuntimeConfig::inboundWebhookUrl($this->app)) {
+            if (! $this->force && $current !== VoiceRuntimeConfig::inboundWebhookUrl()) {
                 return $this->result('kept', "{$number} does not point at our webhook; left in place.");
             }
 

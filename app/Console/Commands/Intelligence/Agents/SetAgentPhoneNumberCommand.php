@@ -100,7 +100,7 @@ class SetAgentPhoneNumberCommand extends Command
 
         $target = $channel === AgentPhoneChannelEnum::SMS
             ? new TwilioReceiverService()->find($agent)?->getUrl()
-            : VoiceRuntimeConfig::inboundWebhookUrl($agent->app);
+            : VoiceRuntimeConfig::inboundWebhookUrl();
         $this->line('Target webhook: ' . ($target ?: 'none'));
 
         try {

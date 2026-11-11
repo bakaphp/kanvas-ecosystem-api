@@ -120,9 +120,6 @@ class VoiceAgentReadinessTest extends TestCase
     public function testAnUnconfiguredRuntimeIsNotReady(): void
     {
         config(['kanvas.voice_runtime.api_token' => '']);
-        if (VoiceRuntimeConfig::apiToken($this->testApp) !== '') {
-            $this->markTestSkipped('The test app sets its own runtime token.');
-        }
 
         $readiness = $this->readiness($this->agent(), $this->wiredAccount());
 
@@ -151,7 +148,7 @@ class VoiceAgentReadinessTest extends TestCase
 
     private function wiredAccount(?array $numbers = null): FakeTwilioAccountClient
     {
-        $client = new FakeTwilioAccountClient(voiceUrl: VoiceRuntimeConfig::inboundWebhookUrl($this->testApp));
+        $client = new FakeTwilioAccountClient(voiceUrl: VoiceRuntimeConfig::inboundWebhookUrl());
         if ($numbers !== null) {
             $client->numbers = $numbers;
         }

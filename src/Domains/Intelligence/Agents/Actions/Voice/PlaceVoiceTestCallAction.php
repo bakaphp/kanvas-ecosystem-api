@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -22,9 +20,8 @@ use function Sentry\captureException;
  * speaks with its own voice config and dials FROM its own number
  * (voice_config.phone_number → the spec's telephony.from_number).
  *
- * The runtime endpoint + bearer token are resolved by VoiceRuntimeConfig: the
- * global Kanvas config (VOICE_RUNTIME_URL / VOICE_RUNTIME_API_TOKEN — one Cloud
- * Run for every app), with a per-app setting override when present.
+ * The runtime endpoint + bearer token come from the environment
+ * (VOICE_RUNTIME_URL / VOICE_RUNTIME_API_TOKEN, see VoiceRuntimeConfig).
  */
 class PlaceVoiceTestCallAction
 {
@@ -33,8 +30,6 @@ class PlaceVoiceTestCallAction
 
     public function __construct(
         private readonly Agent $agent,
-        private readonly AppInterface $app,
-        private readonly CompanyInterface $company,
         private readonly string $toNumber,
     ) {
     }
@@ -51,15 +46,12 @@ class PlaceVoiceTestCallAction
             );
         }
 
-        // Global default (one Cloud Run serves every app); a per-app setting
-        // overrides. See VoiceRuntimeConfig.
-        $url = VoiceRuntimeConfig::url($this->app);
-        $token = VoiceRuntimeConfig::apiToken($this->app);
+        $url = VoiceRuntimeConfig::url();
+        $token = VoiceRuntimeConfig::apiToken();
 
         if ($url === '' || $token === '') {
             throw new ValidationException(
-                'The voice runtime is not configured. Set VOICE_RUNTIME_URL and '
-                . 'VOICE_RUNTIME_API_TOKEN (or the per-app override settings).'
+                'The voice runtime is not configured. Set VOICE_RUNTIME_URL and VOICE_RUNTIME_API_TOKEN in the environment.'
             );
         }
 
@@ -71,7 +63,7 @@ class PlaceVoiceTestCallAction
                     'to' => $this->toNumber,
                     // The runtime requires a tenant id; the company uuid keeps the
                     // call attributable without leaking internal ids.
-                    'tenant_id' => $this->company->uuid,
+                    'tenant_id' => $this->agent->company->uuid,
                     'run_spec' => [
                         'agent_id' => $this->agent->uuid,
                     ],

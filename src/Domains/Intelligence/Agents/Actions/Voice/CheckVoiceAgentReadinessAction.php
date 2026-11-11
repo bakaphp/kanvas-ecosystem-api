@@ -76,8 +76,8 @@ class CheckVoiceAgentReadinessAction
 
     private function runtime(): array
     {
-        if (VoiceRuntimeConfig::url($this->agent->app) === '' || VoiceRuntimeConfig::apiToken($this->agent->app) === '') {
-            return $this->error('runtime', 'The voice runtime URL or token is not configured for this app.');
+        if (! VoiceRuntimeConfig::isConfigured()) {
+            return $this->error('runtime', 'VOICE_RUNTIME_URL or VOICE_RUNTIME_API_TOKEN is not set in the Kanvas environment.');
         }
 
         return $this->ok('runtime', 'Configured.');
@@ -138,7 +138,7 @@ class CheckVoiceAgentReadinessAction
 
         $voiceUrl = $twilioNumber['voice_url'];
         $inbound = match ($voiceUrl) {
-            VoiceRuntimeConfig::inboundWebhookUrl($this->agent->app) => $this->ok('inbound', "Calls to {$number} reach this agent."),
+            VoiceRuntimeConfig::inboundWebhookUrl() => $this->ok('inbound', "Calls to {$number} reach this agent."),
             null => $this->error('inbound', "{$number} has no incoming-call webhook, so callers hear an error.", 'rewire_number'),
             default => $this->error('inbound', "Calls to {$number} go to {$voiceUrl}, not this agent.", 'rewire_number'),
         };

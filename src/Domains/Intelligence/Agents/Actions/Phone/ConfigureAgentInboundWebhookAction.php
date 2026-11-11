@@ -144,7 +144,7 @@ class ConfigureAgentInboundWebhookAction
     private function webhookUrl(): string
     {
         if ($this->channel === AgentPhoneChannelEnum::VOICE) {
-            return VoiceRuntimeConfig::inboundWebhookUrl($this->agent->app);
+            return VoiceRuntimeConfig::inboundWebhookUrl();
         }
 
         return new TwilioReceiverService()->ensure($this->agent)->getUrl();
