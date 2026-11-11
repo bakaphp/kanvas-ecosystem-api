@@ -37,10 +37,14 @@ class PostCodingChatProgressAction
             return null;
         }
 
-        $startedAt = $this->tick->turnStartedAt;
-        $elapsed = $startedAt === null ? null : Carbon::now()->getTimestamp() - $startedAt;
+        // No start time means the agent has not written anything in this turn yet: it has only just begun.
+        if ($this->tick->turnStartedAt === null) {
+            return null;
+        }
 
-        if ($elapsed !== null && $elapsed < self::QUIET_START_SECONDS) {
+        $elapsed = Carbon::now()->getTimestamp() - $this->tick->turnStartedAt;
+
+        if ($elapsed < self::QUIET_START_SECONDS) {
             return null;
         }
 
@@ -48,8 +52,7 @@ class PostCodingChatProgressAction
             return null;
         }
 
-        $update = '⏳ Still working'
-            . ($elapsed !== null ? ' · ' . max(1, intdiv($elapsed, 60)) . ' min' : '')
+        $update = '⏳ Still working · ' . max(1, intdiv($elapsed, 60)) . ' min'
             . ($this->tick->activity !== null ? ' · ' . $this->tick->activity : '');
 
         $note = trim((string) Arr::last($this->tick->narration));

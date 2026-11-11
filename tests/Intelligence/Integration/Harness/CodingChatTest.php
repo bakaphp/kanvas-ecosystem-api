@@ -951,6 +951,10 @@ class CodingChatTest extends TestCase
         );
 
         $this->assertNull(new PostCodingChatProgressAction($live, $justStarted)->execute());
+        $this->assertNull(
+            new PostCodingChatProgressAction($live, new HarnessTick(status: HarnessStatusEnum::RUNNING, usage: new HarnessUsage()))->execute(),
+            'a turn the agent has not written in yet has only just begun'
+        );
 
         $run = $this->startFactoryRun($this->factoryTask($this->factoryAgent(), 'Build the login screen'));
         $longRun = new HarnessTick(
