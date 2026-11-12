@@ -93,6 +93,11 @@ message body and, for `delivered` / `undelivered` / `failed`, broadcasts `messag
 (`MessageDeliveryStatusEvent`) on the same Pusher channels as `message.channel.added`. It only fires
 when the status advances, so a replayed callback does not push twice.
 
+**Every outbound SMS to a lead must set `statusCallback` and hand its result to `StoreMessageSidAction`.**
+The status job finds the message by its stored SID; a send that skips either step never gets a
+delivery status. The agent's reply (`AgentChannelResponderAction::dispatchMessage`) calls the API
+directly, so it does both itself; the URL comes from `TwilioReceiverService::statusCallbackUrl()`.
+
 **Outbound SMS to a lead only goes to `mobile`.** `SendMessageToLeadAction::lookupPhoneNumber` is an
 allow-list: any other Lookup line type (`fixedVoip`, `tollFree`, `unknown`...), a missing type or a
 `line_type_intelligence` error throws `LeadMissingContactException` before `messages->create`. Keep it
