@@ -115,6 +115,18 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame('9395550113', ZohoLead::fromLead($lead)->toArray()['Phone'], 'the push still fills Zoho Phone');
     }
 
+    public function testWithoutTheSettingAZohoMobileIsNotPushedBackAsPhone(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Mobile' => '(939) 555-0199'])
+        );
+
+        $this->assertSame('9395550199', $lead->people->fresh()->getCellPhones()->first()->value);
+        $this->assertArrayNotHasKey('Phone', ZohoLead::fromLead($lead)->toArray());
+    }
+
     public function testZohoMobileIsStoredAsTheFirstCellphone(): void
     {
         $zohoLeadId = 'zoho-' . uniqid();

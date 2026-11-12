@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Zoho\Actions\Concerns;
 use Baka\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Guild\Customers\Concerns\ManagesPeopleContacts;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -119,7 +118,7 @@ trait SyncsZohoPerson
 
     protected function phoneContactType(): int
     {
-        return (bool) $this->company->get(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value)
+        return ZohoFieldMapService::phoneIsMobile($this->company)
             ? ContactTypeEnum::CELLPHONE->value
             : ContactTypeEnum::PHONE->value;
     }

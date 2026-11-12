@@ -135,6 +135,11 @@ final class ZohoFieldMapService
         return is_string($name) && $name !== '' ? $name : $fallback;
     }
 
+    public static function phoneIsMobile(CompanyInterface $company): bool
+    {
+        return (bool) $company->get(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value);
+    }
+
     /**
      * @param string $key one of the PERSON_FIELDS keys
      */
