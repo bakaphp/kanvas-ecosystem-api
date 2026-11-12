@@ -22,10 +22,14 @@ use ReflectionClass;
  *     requires_config: list<string>,
  *     params: array<string, string>,
  *     required_params: list<string>,
+ *     legacy_names: list<class-string>,
  * }>
  */
 class WorkflowActionDiscoveryService extends AttributeClassDiscovery
 {
+    /** @var array<class-string, list<class-string>> a moved class → the names it was catalogued under before */
+    private array $legacyNames = [];
+
     #[Override]
     protected function attributeClass(): string
     {
@@ -69,6 +73,10 @@ class WorkflowActionDiscoveryService extends AttributeClassDiscovery
     public function discover(): array
     {
         $entries = parent::discover();
+
+        foreach ($entries as $index => $entry) {
+            $entries[$index]['legacy_names'] = $this->legacyNames[$entry['class']] ?? [];
+        }
 
         // Two passes, and the second cannot fail: prefixing the connector fixes every collision seen
         // in practice (seven connectors ship a PushLeadActivity), but two classes with the same
@@ -118,6 +126,24 @@ class WorkflowActionDiscoveryService extends AttributeClassDiscovery
         return $qualifier !== null ? $qualifier . ' ' . $basename : $basename;
     }
 
+    /**
+     * One scan serves both: the legacy names are noted as the classes go by, so the catalog can keep
+     * a moved class on its existing row instead of adding a second one under the new name.
+     */
+    #[Override]
+    protected function reflectConcreteClasses(): iterable
+    {
+        $this->legacyNames = [];
+
+        foreach (parent::reflectConcreteClasses() as $reflection) {
+            if ($this->isLegacyName($reflection)) {
+                $this->legacyNames[$reflection->getParentClass()->getName()][] = $reflection->getName();
+            }
+
+            yield $reflection;
+        }
+    }
+
     #[Override]
     protected function toEntry(ReflectionClass $reflection, object $attribute): array
     {
@@ -133,6 +159,7 @@ class WorkflowActionDiscoveryService extends AttributeClassDiscovery
             'requires_config' => $attribute->requiredConfigKeys(),
             'params' => $attribute->params,
             'required_params' => $attribute->requiredParamNames(),
+            'legacy_names' => [],
         ];
     }
 

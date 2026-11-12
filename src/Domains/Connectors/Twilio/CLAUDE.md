@@ -6,7 +6,11 @@ like Meta WhatsApp, with `SmsTransport`, `TwilioInbound` and `TwilioProvisioner`
 through the integration points at the company's communication receiver and goes through the shared
 `ReceiveMessageAction`; the two legacy jobs below keep serving receivers made before that. The classes
 under `src/Domains/Connectors/Twilio/` are empty subclasses so rows and queued payloads that still name
-them resolve.
+them resolve; `kanvas:workflow-sync-actions` renames the `actions` row in place (legacy names are
+carried by discovery), so no migration is needed. **Setup is opt-in**: every dealer already has the
+Twilio integration, so the sweep leaves a company alone until it (or the app) lists `twilio` in the
+`communication_providers` setting (`config('communication.opt_in')`); until then the number keeps its
+legacy receiver.
 
 Inbound and outbound SMS. One webhook job files the message, opens or finds the Lead, and hands the
 conversation to a workflow rule; the agent answers from there.

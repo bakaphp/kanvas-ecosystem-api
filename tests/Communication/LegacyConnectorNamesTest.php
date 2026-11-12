@@ -21,22 +21,32 @@ use Kanvas\Communication\Channels\Sms\Providers\Twilio\Handlers\TwilioHandlers;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Workflows\AgentChannelResponderActivity as TwilioResponderActivity;
+use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Communication\Workflows\HumanAgentChannelResponseActivity;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Models\Integrations;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Services\WorkflowActionCatalog;
 use Kanvas\Workflow\Services\WorkflowActionDiscoveryService;
+use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
 
 /**
  * Twilio and Mailgun moved into Communication; names written before the move — in rows and in
- * queued payloads — must keep reaching the same code.
+ * queued payloads — must keep reaching the same code, and the deploy-time sync must keep every
+ * receiver and rule on the row it already points at.
  */
 final class LegacyConnectorNamesTest extends TestCase
 {
+    use BuildsCommunicationFixtures;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'workflow'];
 
+    private const string LEGACY_TWILIO_WEBHOOK = 'Kanvas\\Connectors\\Twilio\\Webhooks\\ProcessTwilioWebhookJob';
+
     private const array MOVED = [
-        'Kanvas\\Connectors\\Twilio\\Webhooks\\ProcessTwilioWebhookJob' => ProcessTwilioWebhookJob::class,
+        self::LEGACY_TWILIO_WEBHOOK => ProcessTwilioWebhookJob::class,
         'Kanvas\\Connectors\\Twilio\\Webhooks\\ProcessTwilioMessageStatusWebhookJob' => ProcessTwilioMessageStatusWebhookJob::class,
         'Kanvas\\Connectors\\Twilio\\Workflows\\AgentChannelResponderActivity' => TwilioResponderActivity::class,
         'Kanvas\\Connectors\\Twilio\\Workflows\\HumanAgentChannelResponseActivity' => HumanAgentChannelResponseActivity::class,
@@ -62,15 +72,21 @@ final class LegacyConnectorNamesTest extends TestCase
         }
     }
 
-    public function testTheOldNamesAreNotCataloguedAsSecondActions(): void
+    public function testTheOldNamesAreCarriedByTheMovedClassNotCataloguedAsSecondActions(): void
     {
         $discovery = new WorkflowActionDiscoveryService();
-        $catalogued = array_column($discovery->discover(), 'class');
+        $entries = $discovery->discover();
+        $catalogued = array_column($entries, 'class');
+        $legacyNames = array_column($entries, 'legacy_names', 'class');
         $untagged = $discovery->findUntagged();
 
-        foreach (array_keys(self::MOVED) as $legacy) {
+        foreach (self::MOVED as $legacy => $current) {
             $this->assertNotContains($legacy, $untagged);
             $this->assertNotContains($legacy, $catalogued);
+
+            if (array_key_exists($current, $legacyNames)) {
+                $this->assertContains($legacy, $legacyNames[$current], "{$current} must carry {$legacy} as a legacy name");
+            }
         }
 
         $this->assertContains(ProcessTwilioWebhookJob::class, $catalogued);
@@ -78,61 +94,76 @@ final class LegacyConnectorNamesTest extends TestCase
         $this->assertContains(HumanAgentChannelResponseActivity::class, $catalogued);
     }
 
-    public function testTheMigrationRepointsSavedActionsAndHandlers(): void
+    /**
+     * On 1.x the deploy syncs the catalog and migrations wait for a hand: the row has to be renamed
+     * by the sync itself, or every `forJob()` lookup misses until someone runs them.
+     */
+    public function testTheSyncKeepsAMovedClassOnTheRowItsReceiversPointAt(): void
     {
-        // Rows the environment already holds, under either name, would claim the target first.
-        foreach (['actions' => 'model_name', 'integrations' => 'handler'] as $table => $column) {
-            DB::connection('workflow')
-                ->table($table)
-                ->where(
-                    fn ($query) => $query->where($column, 'like', '%\\\\Twilio\\\\%')
-                        ->orWhere($column, 'like', '%\\\\Mailgun\\\\%')
-                        ->orWhere($column, 'like', '%\\\\HumanAgentChannelResponseActivity')
-                )
-                ->update([$column => DB::raw("CONCAT('parked:', {$column})")]);
-        }
+        $this->parkExistingRows();
+        $legacyId = $this->action(self::LEGACY_TWILIO_WEBHOOK);
+        $receiver = $this->receiverOn($legacyId);
 
-        $actions = [
-            $this->legacyAction('Kanvas\\Connectors\\Twilio\\Webhooks\\ProcessTwilioWebhookJob') => ProcessTwilioWebhookJob::class,
-            $this->legacyAction('Kanvas\\Connectors\\Mailgun\\Webhooks\\AgentInboxWebhookJob') => AgentInboxWebhookJob::class,
-            $this->legacyAction('Kanvas\\Connectors\\Twilio\\Workflows\\HumanAgentChannelResponseActivity') => HumanAgentChannelResponseActivity::class,
-        ];
-        $integrations = [
-            $this->legacyIntegration('Kanvas\\Connectors\\Twilio\\Handlers\\TwilioHandlers') => TwilioHandlers::class,
-            $this->legacyIntegration('Kanvas\\Connectors\\Mailgun\\Handlers\\MailgunHandler') => MailgunHandler::class,
-        ];
+        new WorkflowActionCatalog()->register(ProcessTwilioWebhookJob::class);
 
-        $migration = require base_path('database/migrations/Workflow/2026_11_10_100000_repoint_moved_connectors_to_communication.php');
-        $migration->up();
-
-        foreach ($actions as $id => $current) {
-            $this->assertSame($current, DB::connection('workflow')->table('actions')->where('id', $id)->value('model_name'));
-        }
-
-        foreach ($integrations as $id => $current) {
-            $this->assertSame($current, DB::connection('workflow')->table('integrations')->where('id', $id)->value('handler'));
-        }
+        $this->assertSame(ProcessTwilioWebhookJob::class, $this->modelNameOf($legacyId));
+        $this->assertSame($legacyId, (int) $receiver->fresh()->action_id);
+        $this->assertTrue(ReceiverWebhook::query()->whereKey($receiver->getId())->forJob(ProcessTwilioWebhookJob::class)->exists());
     }
 
-    private function legacyAction(string $class): int
+    public function testTheSyncAbsorbsAnOldRowAnEarlierSyncLeftBesideTheNewOne(): void
+    {
+        $this->parkExistingRows();
+        $currentId = $this->action(ProcessTwilioWebhookJob::class);
+        $legacyId = $this->action(self::LEGACY_TWILIO_WEBHOOK);
+        $receiver = $this->receiverOn($legacyId);
+
+        new WorkflowActionCatalog()->register(ProcessTwilioWebhookJob::class);
+
+        $this->assertSame($currentId, (int) $receiver->fresh()->action_id);
+        $this->assertNull($this->modelNameOf($legacyId));
+    }
+
+    public function testAnIntegrationSavedUnderTheOldHandlerNameStillFindsItsProvider(): void
+    {
+        $row = new IntegrationsCompany();
+        $row->setRelation('integration', new Integrations(['handler' => 'Kanvas\\Connectors\\Twilio\\Handlers\\TwilioHandlers']));
+
+        $this->assertSame(TwilioHandlers::class, new ProviderRegistry()->forIntegration($row));
+    }
+
+    /**
+     * Rows the environment already holds, under either name, would claim the class first.
+     */
+    private function parkExistingRows(): void
+    {
+        DB::connection('workflow')
+            ->table('actions')
+            ->where('model_name', 'like', '%ProcessTwilioWebhookJob')
+            ->update(['model_name' => DB::raw("CONCAT('parked:', model_name)")]);
+    }
+
+    private function action(string $class): int
     {
         return DB::connection('workflow')->table('actions')->insertGetId([
-            'name' => class_basename($class) . ' (legacy)',
+            'name' => class_basename($class),
             'model_name' => $class,
             'is_deleted' => 0,
             'created_at' => now(),
         ]);
     }
 
-    private function legacyIntegration(string $handler): int
+    private function receiverOn(int $actionId): ReceiverWebhook
     {
-        return DB::connection('workflow')->table('integrations')->insertGetId([
-            'uuid' => (string) fake()->uuid(),
-            'name' => uniqid('legacy_'),
-            'handler' => $handler,
-            'apps_id' => 0,
-            'is_deleted' => 0,
-            'created_at' => now(),
-        ]);
+        return ReceiverWebhook::factory()
+            ->app($this->currentApp()->getId())
+            ->user(auth()->user()->getId())
+            ->company($this->currentCompany()->getId())
+            ->create(['action_id' => $actionId, 'configuration' => []]);
+    }
+
+    private function modelNameOf(int $actionId): ?string
+    {
+        return DB::connection('workflow')->table('actions')->where('id', $actionId)->value('model_name');
     }
 }
