@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Services;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Services\WorkflowActionCatalog;
 
 /**
- * One inbound SMS receiver per company, shared by all of its numbers.
+ * One inbound SMS receiver per company, shared by all of its numbers, plus the delivery-status receiver
+ * every outbound SMS names as its statusCallback.
  */
 class TwilioReceiverService
 {
@@ -28,6 +32,21 @@ class TwilioReceiverService
             ->notDeleted()
             ->orderBy('id')
             ->first();
+    }
+
+    /**
+     * Only looked up, never created: without one, Twilio is not asked for delivery callbacks.
+     */
+    public function statusCallbackUrl(Apps $app, Companies $company): ?string
+    {
+        return ReceiverWebhook::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->where('is_active', true)
+            ->forJob(ProcessTwilioMessageStatusWebhookJob::class)
+            ->first()
+            ?->getUrl();
     }
 
     /**
