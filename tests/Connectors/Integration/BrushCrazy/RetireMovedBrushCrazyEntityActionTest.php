@@ -40,6 +40,7 @@ use Tests\TestCase;
  */
 final class RetireMovedBrushCrazyEntityActionTest extends TestCase
 {
+    use CreatesQuietOrders;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'crm', 'event', 'ecosystem', 'commerce', 'inventory'];
@@ -278,17 +279,13 @@ final class RetireMovedBrushCrazyEntityActionTest extends TestCase
         $user = auth()->user();
         $catalog = new SyncCommerceCatalogFromBrushCrazyAction(app(Apps::class), $user, $this->context);
 
-        $order = Order::withoutEvents(fn () => Order::factory()
-            ->withCompanyId($this->context->companyId())
-            ->withUserId($user->getId())
-            ->completed()
-            ->create([
-                'order_number' => $this->sourceId,
-                'region_id' => $catalog->region()->getId(),
-                'total_gross_amount' => 37.45,
-                'payment_status' => PaymentStatusEnum::PAID->value,
-                'metadata' => ['brushcrazy' => ['sale_id' => $this->sourceId, 'studio_id' => self::STUDIO]],
-            ]));
+        $order = $this->quietOrder($this->context->companyId(), [
+            'order_number' => $this->sourceId,
+            'region_id' => $catalog->region()->getId(),
+            'total_gross_amount' => 37.45,
+            'payment_status' => PaymentStatusEnum::PAID->value,
+            'metadata' => ['brushcrazy' => ['sale_id' => $this->sourceId, 'studio_id' => self::STUDIO]],
+        ]);
         $order->disableWorkflows();
         $order->set(CustomFieldEnum::BRUSHCRAZY_SALE_ID->value, $this->sourceId);
 

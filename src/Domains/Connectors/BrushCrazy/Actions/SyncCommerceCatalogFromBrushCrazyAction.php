@@ -330,7 +330,6 @@ class SyncCommerceCatalogFromBrushCrazyAction
                     'price' => $price,
                     'sku' => $variant->sku,
                     'position' => 0,
-                    'is_published' => true,
                 ],
             ));
         }

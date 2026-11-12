@@ -41,6 +41,7 @@ use Tests\Traits\BuildsEventVersionFixtures;
 final class BrushCrazyWriteBackActivitiesTest extends TestCase
 {
     use BuildsEventVersionFixtures;
+    use CreatesQuietOrders;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'commerce', 'event', 'crm', 'workflow', 'ecosystem'];
@@ -221,10 +222,9 @@ final class BrushCrazyWriteBackActivitiesTest extends TestCase
         $version->disableWorkflows();
         $version->set(CustomFieldEnum::BRUSHCRAZY_CALENDARABLE_KEY->value, 'lesson:55');
 
-        $order = Order::withoutEvents(fn () => Order::factory()
-            ->withCompanyId($this->company->getId())
-            ->withUserId($user->getId())
-            ->create([
+        $order = $this->quietOrder(
+            $this->company->getId(),
+            [
                 'reference' => 'bc-event:res-' . uniqid(),
                 'user_email' => 'buyer-' . uniqid() . '@example.com',
                 'total_gross_amount' => $total,
@@ -235,7 +235,9 @@ final class BrushCrazyWriteBackActivitiesTest extends TestCase
                     'schema' => 'brushcrazy.event-order.v1',
                     'event_version_id' => (string) $version->getId(),
                 ],
-            ]));
+            ],
+            completed: false,
+        );
 
         OrderItem::create([
             'order_id' => $order->getId(),

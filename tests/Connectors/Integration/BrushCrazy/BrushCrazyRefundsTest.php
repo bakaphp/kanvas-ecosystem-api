@@ -43,6 +43,7 @@ use Tests\TestCase;
 #[Group('serial')]
 final class BrushCrazyRefundsTest extends TestCase
 {
+    use CreatesQuietOrders;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'commerce', 'workflow', 'ecosystem'];
@@ -201,16 +202,12 @@ final class BrushCrazyRefundsTest extends TestCase
 
     private function paidOrder(float $total, bool $pushed = false): Order
     {
-        $order = Order::withoutEvents(fn () => Order::factory()
-            ->withCompanyId($this->company->getId())
-            ->withUserId(auth()->user()->getId())
-            ->completed()
-            ->create([
-                'total_gross_amount' => $total,
-                'total_net_amount' => $total,
-                'payment_status' => PaymentStatusEnum::PAID->value,
-                'metadata' => ['schema' => 'brushcrazy.event-order.v1'],
-            ]));
+        $order = $this->quietOrder($this->company->getId(), [
+            'total_gross_amount' => $total,
+            'total_net_amount' => $total,
+            'payment_status' => PaymentStatusEnum::PAID->value,
+            'metadata' => ['schema' => 'brushcrazy.event-order.v1'],
+        ]);
 
         if ($pushed) {
             $order->disableWorkflows();

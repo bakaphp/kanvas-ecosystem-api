@@ -33,6 +33,7 @@ use Tests\TestCase;
 
 final class SyncSaleFromBrushCrazyActionTest extends TestCase
 {
+    use CreatesQuietOrders;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'crm', 'ecosystem', 'commerce', 'inventory'];
@@ -552,20 +553,14 @@ final class SyncSaleFromBrushCrazyActionTest extends TestCase
     /** A paid order the way the site leaves it: its own number, buyer, totals and verified metadata. */
     private function siteOrder(): Order
     {
-        $user = auth()->user();
-
-        return Order::withoutEvents(fn () => Order::factory()
-            ->withCompanyId($this->context->companyId())
-            ->withUserId($user->getId())
-            ->completed()
-            ->create([
-                'order_number' => $this->saleId + 7,
-                'region_id' => $this->catalog()->region()->getId(),
-                'total_gross_amount' => 20.0,
-                'payment_status' => PaymentStatusEnum::PAID->value,
-                'paid_at' => '2024-03-01 18:00:00',
-                'metadata' => ['schema' => 'brushcrazy.event-order.v1', 'reservation_key' => 'res-' . $this->saleId],
-            ]));
+        return $this->quietOrder($this->context->companyId(), [
+            'order_number' => $this->saleId + 7,
+            'region_id' => $this->catalog()->region()->getId(),
+            'total_gross_amount' => 20.0,
+            'payment_status' => PaymentStatusEnum::PAID->value,
+            'paid_at' => '2024-03-01 18:00:00',
+            'metadata' => ['schema' => 'brushcrazy.event-order.v1', 'reservation_key' => 'res-' . $this->saleId],
+        ]);
     }
 
     private function action(?SaleSource $source = null): SyncSaleFromBrushCrazyAction
