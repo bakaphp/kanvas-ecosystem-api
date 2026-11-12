@@ -1,0 +1,544 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks;
+
+use Baka\Support\Str;
+use Exception;
+use Illuminate\Contracts\Database\Query\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\DownloadMessageFileAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\FlushSmsBurstAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\BurstConfigEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\WebhookSignatureValidator;
+use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
+use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
+use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\People as PeopleModel;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Customers\Services\ConsentKeywordService;
+use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\Actions\SendOptOutConfirmationAction;
+use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
+use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
+use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Concerns\ChainsInboundBursts;
+use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Override;
+use Spatie\LaravelData\DataCollection;
+
+#[WorkflowAction(
+    name: 'Twilio Inbound SMS Webhook',
+    description: 'Receiver for inbound Twilio SMS and MMS: finds or creates the person and their lead, files '
+        . 'the message and any attachments, and notifies the lead\'s stakeholders. This is how texts '
+        . 'ARRIVE — it does not reply. Pair it with the SMS responder step if an agent should answer.',
+    integration: IntegrationsEnum::TWILIO,
+)]
+class ProcessTwilioWebhookJob extends ProcessWebhookJob
+{
+    use ChainsInboundBursts;
+
+    protected bool $hijackSession = false;
+
+    #[Override]
+    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
+    {
+        return WebhookSignatureValidator::validate(
+            request: $request,
+            company: $receiver->company,
+            expectedUrl: $receiver->getUrl(),
+        );
+    }
+
+    #[Override]
+    public function execute(array $params = []): array
+    {
+        $request = $this->webhookRequest->payload;
+
+        if ($this->receiver->company->get('allow_session_hijack', false)
+            && $this->receiver->company->get('overwrite_phone_number') !== null
+        ) {
+            $overwriteConfig = $this->receiver->company->get('overwrite_phone_number');
+            $originalRemoteJid = $request['From'];
+
+            if (isset($overwriteConfig[$originalRemoteJid])) {
+                $newPhone = $overwriteConfig[$originalRemoteJid];
+                $this->hijackSession = true;
+                $request['From'] = $newPhone;
+            }
+        }
+        $phoneNumber = $request['From'];
+
+        $isFromMe = $request['From'] === $request['To'];
+        $consentType = $this->consentType($request);
+        $consentOutcome = null;
+        $lead = null;
+
+        if (! $isFromMe) {
+            $people = $this->processContactFromMessage($request);
+
+            $lead = $this->createLeadFromPeople($people);
+            $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
+
+            // After the lead exists: a stop request is person-wide and every outbound guard reads
+            // the lead, so the lead has to be there for the flag to land anywhere useful.
+            $consentOutcome = new ProcessInboundConsentAction(
+                people: $people,
+                sourceChannel: LeadCommunicationChannelEnum::SMS->value,
+                body: $request['Body'] ?? null,
+                lead: $lead,
+                contactValue: (string) $request['From'],
+                detectedSignal: $consentType,
+            )->execute();
+
+            if (! $consentOutcome->isStop()) {
+                $lead->addTag('engaged');
+            }
+        }
+
+        $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
+
+        $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
+
+        $existingMessage = Message::where('uuid', $messageSlug)
+            ->where('companies_id', $this->receiver->company->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->first();
+
+        if ($existingMessage) {
+            $message = $existingMessage;
+        } else {
+            // Get the appropriate message type
+            $messageTypeModel = new CreateMessageTypeAction(
+                new MessageTypeInput(
+                    $this->receiver->app->getId(),
+                    0,
+                    'twilio-sms',
+                    'twilio-sms',
+                )
+            )->execute();
+
+            $messageInput = new MessageInput(
+                app: $this->receiver->app,
+                company: $this->receiver->company,
+                user: $this->receiver->user,
+                type: $messageTypeModel,
+                message: AiChatMessagePayload::from([
+                    'content' => $request['Body'] ?? null,
+                    'from_me' => $request['From'] === $request['To'],
+                    'from_ia' => false,
+                    'raw_data' => $request,
+                    'message_id' => $request['SmsMessageSid'],
+                    'chat_jid' => $request['From'],
+                ])->toArray(),
+                is_public: 1,
+                slug: $messageSlug,
+                tags: [$request['From']]
+            );
+
+            $createMessageAction = new CreateMessageAction($messageInput);
+            $message = $createMessageAction->execute();
+        }
+
+        if ($lead instanceof Lead) {
+            $message->addEntity($lead);
+            // Polymorphic People attach so People-keyed history loaders (Neuron's
+            // EntityRollupMessageStore) find this turn. Harmless for ADK.
+            if ($lead->people !== null) {
+                $message->addEntity($lead->people);
+            }
+            $message->addTag('engagement');
+        }
+
+        $channel->addMessage($message);
+
+        // Tag on any recognised keyword, but suppress the agent only for a real stop. A bare "YES"
+        // matches Twilio's START set and used to cancel the turn for everyone — including a prospect
+        // answering "yes, book me in", who then got silence back.
+        if ($consentType !== null) {
+            $message->addTag('twilio-consent');
+            $message->addTag($consentType->value);
+        }
+
+        // HELP rides along with the stop case: Twilio answers it itself with the carrier advisory,
+        // so an agent turn on top is a second message nobody asked for. START is deliberately NOT
+        // here — someone asking to hear from us again should get a real reply.
+        $carrierAnswersItself = $consentOutcome?->signal === ConsentSignalEnum::HELP;
+
+        if ($consentOutcome?->shouldHaltAgentTurn() === true || $carrierAnswersItself) {
+            if ($lead !== null && $consentOutcome->applied) {
+                new SendOptOutConfirmationAction($lead, LeadCommunicationChannelEnum::SMS->value)->execute();
+            }
+
+            return [array_merge([
+                'message_id' => $message->getId(),
+                'uuid' => $message->uuid,
+                'channel_id' => $channel->getId(),
+                'chat_jid' => $request['From'],
+                'text' => $request['Body'] ?? '',
+                'is_from_me' => false,
+                'type' => $message->messageType->name,
+                // From the outcome, not $consentType: a phrase-tier stop is recognised inside
+                // ProcessInboundConsentAction and leaves the keyword matcher's result null.
+                // Uppercase is the shape this payload has always had; the enum is lowercase because
+                // it also has to match Twilio's own OptOutType casing on the way in.
+                'consent_type' => strtoupper((string) $consentOutcome->signal?->value),
+                'automated_response_suppressed' => true,
+            ], $consentOutcome->toArray())];
+        }
+
+        for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
+            try {
+                $filesystem = new DownloadMessageFileAction(
+                    $message,
+                    $request["MediaUrl{$i}"],
+                    $request["MediaContentType{$i}"]
+                )->execute();
+                $message->addFile(
+                    $filesystem['media'],
+                    $filesystem['media']->name
+                );
+
+                if ($lead !== null) {
+                    $lead->addFile(
+                        $filesystem['media'],
+                        $filesystem['media']->name
+                    );
+                }
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        if ($lead !== null) {
+            $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+        }
+
+        if (! $isFromMe) {
+            new NotifyLeadStakeholdersService($lead)->onCustomerEngagement($message);
+        }
+
+        $this->announceMessage(
+            $channel,
+            $message,
+            $isFromMe,
+            $phoneNumber
+        );
+
+        return [
+            array_merge([
+                'message_id' => $message->getId(),
+                'uuid' => $message->uuid,
+                'channel_id' => $channel->getId(),
+                'chat_jid' => $request['From'],
+                'text' => $request['Body'],
+                'is_from_me' => $request['From'] === $request['To'],
+                'type' => $message->messageType->name,
+                // A recognised keyword that did not stop the conversation — START, HELP, or a "YES"
+                // from someone who was never opted out. Reported, but the agent still answers.
+                'consent_type' => $consentOutcome?->signal !== null
+                    ? strtoupper($consentOutcome->signal->value)
+                    : null,
+                'automated_response_suppressed' => false,
+            ], $consentOutcome?->toArray() ?? []),
+        ];
+    }
+
+    /**
+     * Inbound texts are collected into a burst and announced once when the sender goes quiet, so
+     * someone who sends three lines in a row gets one answer rather than three. Outbound is
+     * announced immediately: it has no flurry to collapse, and rules listening for the company's
+     * own messages expect them without a delay.
+     */
+    protected function announceMessage(
+        Channel $channel,
+        Message $message,
+        bool $isFromMe,
+        string $phoneNumber
+    ): void {
+        if ($isFromMe) {
+            $channel->fireWorkflow(
+                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                true,
+                [
+                    'message' => $message,
+                    'user' => $message->user,
+                    'app' => $message->app,
+                    'company' => $message->company,
+                    'text' => $message->message['content'] ?? '',
+                    'communication_channel' => 'sms',
+                ]
+            );
+
+            return;
+        }
+
+        $this->fileIntoBurst(
+            $this->receiver->app,
+            $channel,
+            $message,
+            $this->burstPolicy($phoneNumber),
+            FlushSmsBurstAction::class
+        );
+    }
+
+    /**
+     * One burst per sender per channel. SMS has no album id or thread id to key on, so the number
+     * that sent it is the whole correlation.
+     */
+    protected function burstPolicy(string $phoneNumber): BurstPolicy
+    {
+        $company = $this->receiver->company;
+        $idle = BurstConfigEnum::BURST_IDLE_SECONDS->getInt($company);
+
+        return new BurstPolicy(
+            correlationKeys: ['sms:' . Str::normalizePhoneNumber($phoneNumber)],
+            chainIdleSeconds: $idle,
+            closeIdleSeconds: $idle,
+            maxSeconds: BurstConfigEnum::BURST_MAX_SECONDS->getInt($company),
+            jitterSeconds: BurstConfigEnum::BURST_JITTER_SECONDS->getInt($company),
+        );
+    }
+
+    /**
+     * Twilio's own classification wins when present — it reflects what the carrier actually did to
+     * the number. Otherwise fall through to the shared matcher, which is the same keyword set every
+     * other inbound channel uses.
+     */
+    protected function consentType(array $request): ?ConsentSignalEnum
+    {
+        $optOutType = strtolower(trim((string) ($request['OptOutType'] ?? '')));
+        $providerSignal = ConsentSignalEnum::tryFrom($optOutType);
+
+        return $providerSignal ?? ConsentKeywordService::detect($request['Body'] ?? null);
+    }
+
+    public function createLeadFromPeople(PeopleModel $people): Lead
+    {
+        $activeLead = LeadsRepository::getPeopleActiveLead($people);
+
+        if ($activeLead) {
+            return $activeLead;
+        }
+
+        if ((bool) $this->receiver->company->get('use_last_lead_on_responder')) {
+            $lastLead = LeadsRepository::getPeopleLastLead($people);
+
+            if ($lastLead) {
+                return $lastLead;
+            }
+        }
+
+        $leadType = LeadType::fromApp($people->app)
+        ->fromCompany($people->company)
+        ->where('name', 'Warm')
+        ->firstOrFail();
+
+        $leadSource = new CreateLeadSourceAction(
+            new LeadSource(
+                $people->app,
+                $people->company,
+                $leadType->getId(),
+                'sms',
+                true,
+                'sms'
+            )
+        )->execute();
+
+        $leadReceiver = new CreateLeadReceiverAction(
+            new LeadReceiver(
+                app: $people->app,
+                branch: $people->company->defaultBranch,
+                user: $people->user,
+                agent: $people->user,
+                name: 'Agent',
+                source: 'AI Agent',
+                isDefault: false,
+                lead_sources_id: $leadSource->getId(),
+                lead_types_id: $leadType->getId()
+            )
+        )->execute();
+
+        $leadData = new DataTransferObjectLead(
+            app: $people->app,
+            branch: $people->company->defaultBranch,
+            user: $people->user,
+            title: $people->name . ' Twilio Opp',
+            pipeline_stage_id: 0,
+            people: new PeopleDto(
+                $people->app,
+                $people->company->defaultBranch,
+                $people->user,
+                (string) $people->firstname,
+                Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
+                Address::collect([], DataCollection::class),
+                $people->lastname,
+                $people->id
+            ),
+            leads_owner_id: 0,
+            status_id: 0,
+            type_id: $leadType->getId(),
+            source_id: $leadSource->getId(),
+            receiver_id: $leadReceiver->getId()
+        );
+
+        $lead = new CreateLeadAction($leadData)->execute();
+        $lead->addTags([
+            'SMS',
+            'ai-agent',
+        ]);
+
+        return $lead;
+    }
+
+    public function processContactFromMessage(array $request): PeopleModel
+    {
+        //$phoneNumber = preg_replace('/^\+?1/', '', $request['From']);
+        $phoneNumber = Str::normalizePhoneNumber($request['From']);
+        $phoneNumberWithCountryCode = str_replace('+', '', $request['From']);
+        /* $existingCustomer = People::getByCustomField(
+            'twilio_jid',
+            $phoneNumber,
+            $this->receiver->company
+        ); */
+        /*  $query = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWithCountryCode) {
+             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWithCountryCode])
+                   ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+         })
+         ->fromCompany($this->receiver->company)
+         ->fromApp($this->receiver->app); */
+        $query = PeoplesRepository::getByPhoneNumber(
+            app: $this->receiver->app,
+            company: $this->receiver->company,
+            phoneNumbers: [$phoneNumber, $phoneNumberWithCountryCode]
+        );
+
+        $allCustomers = $query->get();
+        $existingCustomer = $allCustomers->first(function (PeopleModel $customer): bool {
+            return LeadsRepository::getPeopleActiveLead($customer) !== null;
+        }) ?? $allCustomers->first();
+
+        if ($existingCustomer && $this->hijackSession) {
+            return $existingCustomer;
+        }
+
+        $contactData = [
+            [
+                'value' => $phoneNumber,
+                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                'weight' => 100,
+            ],
+        ];
+
+        $peopleDto = new PeopleDto(
+            app: $this->receiver->app,
+            branch: $this->receiver->company->defaultBranch,
+            user: $this->receiver->user,
+            firstname: $existingCustomer?->firstname ?? $phoneNumber,
+            contacts: Contact::collect($contactData, DataCollection::class),
+            address: Address::collect([], DataCollection::class),
+            lastname: $existingCustomer ? $existingCustomer->lastname : '',
+            custom_fields: [
+                'twilio_jid' => $phoneNumber,
+            ],
+            tags: ['sms', 'twilio'],
+            // We only know the number the SMS came from — anything else the person has
+            // (email, other phones) must survive the update.
+            mergeContacts: true
+        );
+
+        if ($existingCustomer) {
+            return new UpdatePeopleAction($existingCustomer, $peopleDto)->execute();
+        }
+
+        return new CreatePeopleAction($peopleDto)->execute();
+    }
+
+    protected function createMessageSlug(string $messageId, string $from): string
+    {
+        return 'twilio-' . Str::slug($messageId . '-' . $from);
+    }
+
+    protected function getOrCreateChannel(string $from, ?string $name = null, ?Lead $lead = null): Channel
+    {
+        /**
+         * The +1 is the country code for USA, PR, CA and Dominican Republic,
+         * when we need use the agent in LATAM o Europe we go to have problems, for example for mexico is +52
+         */
+        //$cleanedPhone = preg_replace('/^\+?1/', '', $from);
+        $cleanedPhone = Str::normalizePhoneNumber($from);
+        $slug = Str::slug('twilio-' . $cleanedPhone);
+
+        return DB::transaction(function () use ($slug, $name, $from, $lead): Channel {
+            $channel = Channel::where('slug', $slug)
+                        ->where('companies_id', $this->receiver->company->getId())
+                        ->where('apps_id', $this->receiver->app->getId())
+                        ->orderByDesc('last_message_id')
+                        ->lockForUpdate()
+                        ->first();
+            if (! $channel) {
+                $channel = Channel::firstOrCreate(
+                    [
+                        'users_id' => $this->receiver->users_id,
+                        'apps_id' => $this->receiver->app->getId(),
+                        'companies_id' => $this->receiver->company->getId(),
+                        'slug' => $slug,
+                    ],
+                    [
+                      'name' => $name ?? $from,
+                      'description' => 'Channel Twilio for ' . $from,
+                    ]
+                );
+            }
+            if ($lead) {
+                $channel->entity_namespace = get_class($lead);
+                $channel->entity_id = $lead->getId();
+            }
+
+            $channel->save();
+
+            $channel->addTags([
+                'twilio',
+                'ai-agent',
+            ]);
+            $channel->addCategory(
+                'ai-agent',
+                $this->receiver->app,
+                $this->receiver->user,
+                $this->receiver->company
+            );
+            $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'SMS');
+
+            return $channel;
+        }, 5);
+    }
+}

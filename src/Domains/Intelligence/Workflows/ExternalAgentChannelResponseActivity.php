@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Workflows;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -22,7 +22,7 @@ use Kanvas\Workflow\KanvasActivity;
 /**
  * Outbound channel delivery for messages authored by an EXTERNAL AI / orchestrator.
  *
- * Sibling of {@see \Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity}: same
+ * Sibling of {@see \Kanvas\Communication\Workflows\HumanAgentChannelResponseActivity}: same
  * channel routing (SMS / email / WhatsApp, picked from the message verb) and same delivery path
  * (SendMessageToLeadAction), but gated on the external-AI flags `from_ia` / `from_orchestrator`
  * (set on `messages.message`) instead of `from_human` — for now BOTH must be true. The external

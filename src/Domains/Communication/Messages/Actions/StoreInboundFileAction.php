@@ -18,8 +18,7 @@ use Kanvas\Users\Models\Users;
 final class StoreInboundFileAction
 {
     /**
-     * The media a customer can send over a messaging channel. Twilio's DownloadMessageFileAction
-     * carries its own copy of this map until Twilio joins this domain.
+     * The media a customer can send over a messaging channel.
      */
     private const array EXTENSIONS = [
         'image/jpeg' => 'jpg',

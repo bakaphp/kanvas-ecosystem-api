@@ -1,0 +1,154 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Communication\Channels\Email\Providers\Mailgun\Workflows;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\AgentChannelResponderAction;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
+use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
+
+#[WorkflowAction(
+    name: 'Mailgun Agent Email Responder',
+    description: 'Has an agent read an inbound EMAIL and reply back by email on the same thread. Use it for '
+        . 'inbound mail the company wants answered. Do NOT use it when the agent should read the mail '
+        . 'and act somewhere else — it sends a reply to the sender.',
+    integration: IntegrationsEnum::MAILGUN,
+    params: [
+        'agent_id' => 'Which agent answers. Falls back to the rule\'s configured agent.',
+        'message' => 'Supplied by the trigger — the inbound email. Not something you set.',
+    ],
+)]
+class AgentChannelResponderActivity extends KanvasActivity
+{
+    use HandlesSupportModeDelayedResponseTrait;
+    public $tries = 3;
+
+    public function execute(Channel $channel, Apps $app, array $params): array
+    {
+        $this->overwriteAppService($app);
+
+        $message = $params['message'] ?? null;
+        $user = $params['user'] ?? null; //@todo fix this get the user from the message
+
+        $defaultAgentId = $params['agent_id'] ?? null;
+        $allowedChannels = $params['channelId'] ?? [];
+        $channelAgentMapping = $params['channelAgentMapping'] ?? [];
+
+        return $this->executeIntegration(
+            entity: $channel,
+            app: $app,
+            integration: IntegrationsEnum::MAILGUN,
+            additionalParams: $params,
+            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
+                if (empty($message)) {
+                    return [
+                        'message' => 'Message or user not found',
+                        'entity' => null,
+                    ];
+                }
+
+                // Rules wired to fan every inbound message reach this activity with SMS/WhatsApp
+                // payloads, which have a phone in chat_jid and no sender address. Bail before the
+                // session + LLM spend; the email responder has no recipient to reply to.
+                if (trim((string) ($message->message['from_email'] ?? '')) === '') {
+                    return $this->failWorkflow([
+                        'message' => 'Inbound message has no from_email, not an email message',
+                        'entity' => null,
+                    ]);
+                }
+
+                $chatJid = $message->message['chat_jid'] ?? null;
+                $lead = $message->preferredEntity(Lead::class);
+                $message->addTag('engagement');
+
+                // Don't process messages from the phone owner
+                if ($message->message['from_me'] ?? false) {
+                    return [
+                        'message' => 'Message is from the owner of the phone tied to the agent',
+                        'entity' => null,
+                    ];
+                }
+
+                if ($lead instanceof Lead && $lead->isAiMuted()) {
+                    return [
+                        'message' => 'Lead turned off AI agent responses',
+                        'entity' => null,
+                    ];
+                }
+
+                $agentId = $defaultAgentId;
+                if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
+                    $agentId = $channelAgentMapping[$chatJid]['agent_id'];
+                }
+
+                // Ensure we have a valid agent ID
+                if ($agentId === null) {
+                    return [
+                        'message' => 'No agent ID found for this channel',
+                        'entity' => null,
+                    ];
+                }
+
+                $chatSession = null;
+                if (! $message->message['from_me']) {
+                    $chatSession = new CreateSessionAction(
+                        Session::from([
+                            'app' => $app,
+                            'company' => $channel->company,
+                            'channel' => $channel,
+                            'entity_namespace' => is_object($lead) ? get_class($lead) : null,
+                            'entity_id' => $lead->getId(),
+                            'canal_id' => $message->message['chat_jid'],
+                            'user' => [
+                                'name' => $lead->people->getName(),
+                                'id' => $lead->people->getId(),
+                                'email' => $lead->people->getEmails()->first()?->value,
+                            ],
+                            'agent' => Agent::getById($agentId, $app),
+                        ])
+                    )->execute();
+                }
+
+                if ($lead instanceof Lead) {
+                    $delayedResponse = $this->handleSupportModeDelayedResponse(
+                        $lead,
+                        $channel,
+                        $message,
+                        $app,
+                        $defaultAgentId,
+                        $channelAgentMapping,
+                        $chatJid,
+                        $params,
+                        AgentChannelResponderAction::class,
+                        $chatSession
+                    );
+
+                    if ($delayedResponse !== null) {
+                        return $delayedResponse;
+                    }
+                }
+
+                $slowDownApiResponseTime = $params['slowDownApiResponseTime'] ?? 5;
+                //https://wasenderapi.com/api-docs/rate-limits/understanding-rate-limits
+                sleep($slowDownApiResponseTime); // Simulate processing time
+
+                return new AgentChannelResponderAction(
+                    $channel,
+                    $message,
+                    Agent::getById($agentId, $app),
+                    $chatSession
+                )->execute($params);
+            },
+            company: $channel->company,
+        );
+    }
+}

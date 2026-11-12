@@ -1,0 +1,237 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks;
+
+use Baka\Support\Str;
+use Illuminate\Http\Request;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\ApplyDestinationRemediationAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\RecordDeliveryOnMessageAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\RecordDeliveryStatusEventAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\CustomFieldEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\MessageStatusEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\WebhookSignatureValidator;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
+use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Override;
+
+#[WorkflowAction(
+    name: 'Twilio Delivery Status Webhook',
+    description: 'Receiver for Twilio delivery receipts: records whether a text was delivered or failed, and '
+        . 'stops texting numbers the carrier rejected. Bookkeeping for outbound texts — it does not handle inbound '
+        . 'replies.',
+    integration: IntegrationsEnum::TWILIO,
+)]
+class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
+{
+    private const string MESSAGE_TYPE_VERB = 'twilio-message-status';
+    private const string INBOUND_STATUS = 'received';
+
+    #[Override]
+    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
+    {
+        return WebhookSignatureValidator::validate(
+            request: $request,
+            company: $receiver->company,
+            expectedUrl: $receiver->getUrl(),
+        );
+    }
+
+    #[Override]
+    public function execute(): array
+    {
+        $payload = $this->webhookRequest->payload;
+        $sid = trim((string) ($payload['MessageSid'] ?? $payload['SmsSid'] ?? ''));
+        $status = trim((string) ($payload['MessageStatus'] ?? $payload['SmsStatus'] ?? ''));
+        $errorCode = trim((string) ($payload['ErrorCode'] ?? ''));
+        $errorMessage = trim((string) ($payload['ErrorMessage'] ?? ''));
+
+        if ($sid === '' || $status === '') {
+            $this->failedReturnHttpCode = 422;
+
+            return [
+                'status' => 422,
+                'message' => 'MessageSid and MessageStatus are required',
+            ];
+        }
+
+        if ($status === self::INBOUND_STATUS) {
+            return $this->rerouteInboundMessage($payload, $sid);
+        }
+
+        $parent = Message::getByCustomFieldBuilderTransactionSafe(
+            CustomFieldEnum::MESSAGE_SID->value,
+            $sid,
+            $this->receiver->company,
+        )
+            ->fromApp($this->receiver->app)
+            ->fromCompany($this->receiver->company)
+            ->notDeleted()
+            ->first();
+
+        if (! $parent instanceof Message) {
+            $recordedDelivery = new RecordDeliveryStatusEventAction(
+                message: null,
+                payload: $payload,
+                app: $this->receiver->app,
+                company: $this->receiver->company,
+            )->execute();
+            if ($recordedDelivery['created']) {
+                $this->applyDestinationRemediation($payload, $errorCode);
+            }
+
+            return [
+                'message' => 'Twilio status recorded; parent message not found',
+                'sid' => $sid,
+                'twilio_status' => $status,
+                'attempt_id' => $recordedDelivery['attempt']->getId(),
+                'event_id' => $recordedDelivery['event']->getId(),
+            ];
+        }
+
+        $recordedDelivery = new RecordDeliveryStatusEventAction($parent, $payload)->execute();
+        $attempt = $recordedDelivery['attempt'];
+
+        $slug = 'twilio-status-' . strtolower(
+            $sid . '-' . $status . '-' . substr($recordedDelivery['event']->event_key, 0, 16),
+        );
+        $existingChild = Message::query()
+            ->fromApp($this->receiver->app)
+            ->fromCompany($this->receiver->company)
+            ->notDeleted()
+            ->where('parent_id', $parent->getId())
+            ->where('slug', $slug)
+            ->first();
+
+        if ($existingChild instanceof Message) {
+            return [
+                'message' => 'Twilio message status already recorded',
+                'sid' => $sid,
+                'twilio_status' => $status,
+                'message_id' => $existingChild->getId(),
+            ];
+        }
+
+        $currentStatus = (string) ($parent->get(CustomFieldEnum::CURRENT_STATUS->value) ?? '');
+        if (RecordDeliveryStatusEventAction::canAdvanceStatus($currentStatus, $status)) {
+            $parent->set(CustomFieldEnum::CURRENT_STATUS->value, $attempt->current_status);
+            $parent->set(CustomFieldEnum::LAST_STATUS_AT->value, now()->toAtomString());
+            if ($errorCode !== '') {
+                $parent->set(CustomFieldEnum::LAST_ERROR_CODE->value, $errorCode);
+            }
+            if ($errorMessage !== '') {
+                $parent->set(CustomFieldEnum::LAST_ERROR_MESSAGE->value, $errorMessage);
+            }
+            $deliveryStatus = MessageStatusEnum::fromTwilio($attempt->current_status);
+            if ($deliveryStatus !== null) {
+                new RecordDeliveryOnMessageAction($parent)->execute(
+                    $deliveryStatus,
+                    $sid,
+                    Str::trimToNull($errorCode),
+                    Str::trimToNull($errorMessage),
+                );
+            }
+        }
+
+        $messageType = MessageTypeService::getOrCreate(
+            $parent->app,
+            self::MESSAGE_TYPE_VERB,
+        );
+
+        $child = new CreateMessageAction(
+            new MessageInput(
+                app: $parent->app,
+                company: $parent->company,
+                user: $parent->user,
+                type: $messageType,
+                message: new AiChatMessagePayload(
+                    content: $status,
+                    from_me: true,
+                    from_ia: false,
+                    raw_data: $payload,
+                    message_id: $sid,
+                )->toArray(),
+                parent_id: $parent->getId(),
+                parent_unique_id: $parent->uuid,
+                tags: ['twilio-status', $status],
+                slug: $slug,
+            ),
+        )->execute();
+
+        if ($recordedDelivery['created']) {
+            $this->applyDestinationRemediation($payload, $errorCode);
+        }
+
+        return [
+            'message' => 'Twilio message status recorded',
+            'sid' => $sid,
+            'twilio_status' => $status,
+            'message_id' => $child->getId(),
+            'parent_message_id' => $parent->getId(),
+        ];
+    }
+
+    /**
+     * Twilio only ever reports `received` for an inbound text, so one landing here means the
+     * Messaging Service's incoming-message URL points at this receiver instead of the inbound one.
+     * Filing it as a delivery attempt would record a bogus attempt row and drop the customer's reply
+     * on the floor, so hand it to the inbound receiver and let the conversation happen.
+     */
+    protected function rerouteInboundMessage(array $payload, string $sid): array
+    {
+        $inboundReceiver = ReceiverWebhook::query()
+            ->fromApp($this->receiver->app)
+            ->fromCompany($this->receiver->company)
+            ->notDeleted()
+            ->where('is_active', true)
+            ->forJob(ProcessTwilioWebhookJob::class)
+            ->first();
+
+        if (! $inboundReceiver instanceof ReceiverWebhook) {
+            $this->failedReturnHttpCode = 422;
+
+            return [
+                'status' => 422,
+                'message' => 'Inbound SMS reached the delivery-status receiver and the company has no active '
+                    . 'inbound Twilio receiver; point the Messaging Service incoming-message URL at one',
+                'sid' => $sid,
+            ];
+        }
+
+        $inboundCall = ReceiverWebhookCall::create([
+            'receiver_webhooks_id' => $inboundReceiver->getId(),
+            'url' => $inboundReceiver->getUrl(),
+            'headers' => $this->webhookRequest->headers,
+            'payload' => $payload,
+            'raw_payload' => $this->webhookRequest->raw_payload,
+        ]);
+
+        ProcessTwilioWebhookJob::dispatch($inboundCall);
+
+        return [
+            'message' => 'Inbound SMS reached the delivery-status receiver; re-routed to the inbound receiver',
+            'sid' => $sid,
+            'inbound_receiver_id' => $inboundReceiver->getId(),
+            'inbound_call_id' => $inboundCall->getId(),
+        ];
+    }
+
+    protected function applyDestinationRemediation(array $payload, string $errorCode): void
+    {
+        new ApplyDestinationRemediationAction(
+            $this->receiver->app,
+            $this->receiver->company,
+            (string) ($payload['To'] ?? ''),
+            $errorCode
+        )->execute();
+    }
+}

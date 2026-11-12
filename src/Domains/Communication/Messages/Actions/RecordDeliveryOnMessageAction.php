@@ -12,7 +12,7 @@ use Kanvas\Social\Messages\Models\Message;
 
 /**
  * Writes a delivery's state into its message body under `delivery`, in the shape Twilio SMS already
- * uses (Connectors\Twilio\Actions\RecordDeliveryOnMessageAction), so a client reads email and SMS the
+ * uses (the Twilio provider's RecordDeliveryOnMessageAction), so a client reads email and SMS the
  * same way; `message_sid` holds the provider's id. The outcome is pushed to the message's channels.
  *
  * Kept apart from the Twilio one until Twilio moves onto deliveries: that one is fed by Twilio's own

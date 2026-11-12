@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;

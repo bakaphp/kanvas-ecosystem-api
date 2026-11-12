@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Phone;
 
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client as TwilioClient;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;

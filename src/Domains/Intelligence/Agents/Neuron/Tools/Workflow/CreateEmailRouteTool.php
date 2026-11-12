@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Workflow;
 
-use Kanvas\Connectors\Mailgun\Client;
-use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Client;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\ConfigurationEnum;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;

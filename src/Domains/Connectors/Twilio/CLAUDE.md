@@ -1,5 +1,13 @@
 # Twilio Connector (SMS / MMS)
 
+The code lives in `src/Domains/Communication/Channels/Sms/Providers/Twilio/` (namespace
+`Kanvas\Communication\Channels\Sms\Providers\Twilio`): `TwilioHandlers` is a `CommunicationProvider`
+like Meta WhatsApp, with `SmsTransport`, `TwilioInbound` and `TwilioProvisioner`. A number set up
+through the integration points at the company's communication receiver and goes through the shared
+`ReceiveMessageAction`; the two legacy jobs below keep serving receivers made before that. The classes
+under `src/Domains/Connectors/Twilio/` are empty subclasses so rows and queued payloads that still name
+them resolve.
+
 Inbound and outbound SMS. One webhook job files the message, opens or finds the Lead, and hands the
 conversation to a workflow rule; the agent answers from there.
 

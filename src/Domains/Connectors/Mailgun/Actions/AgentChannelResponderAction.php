@@ -4,110 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
-use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
-use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
-use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
-use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
-use Override;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\AgentChannelResponderAction as CurrentAgentChannelResponderAction;
 
-class AgentChannelResponderAction extends BaseAgentChannelReplyAction
+/**
+ * @deprecated moved to {@see CurrentAgentChannelResponderAction}. Queued by class name before the move: payloads serialized under this name are still waiting in Redis at deploy time.
+ */
+class AgentChannelResponderAction extends CurrentAgentChannelResponderAction
 {
-    protected string $messageTypeVerb = 'mailgun-email';
-    protected string $communicationChannel = 'email';
-    protected bool $supportsHumanApproval = true;
-
-    #[Override]
-    public function execute(array $params = []): array
-    {
-        $messageConversation = $this->message->message['content'] ?? null;
-
-        if ($messageConversation === null) {
-            throw new ValidationException('No conversation found');
-        }
-
-        $entity = $this->message->preferredEntity(Lead::class);
-        if ($entity === null) {
-            throw new ValidationException('No entity found');
-        }
-
-        // Cold-inbound leads have no outreach anchor (AgentReachOutOnChannelAction never ran).
-        // Persist the incoming subject as the thread anchor — first touch wins — so later
-        // follow-ups thread under it instead of falling back to the company name (new thread).
-        if ($entity instanceof Lead) {
-            $inboundSubject = trim((string) ($this->message->message['subject'] ?? ''));
-            if ($inboundSubject !== '' && ! $entity->get('title_email_follow_up')) {
-                $entity->set(
-                    'title_email_follow_up',
-                    (string) preg_replace('/^\s*re:\s*/i', '', $inboundSubject)
-                );
-            }
-        }
-
-        // A rule that fans every inbound message at this activity hands us SMS/WhatsApp payloads
-        // too — those carry a phone in chat_jid and no sender address, so there is no recipient to
-        // email. Skip silently instead of guessing one.
-        $fromEmail = trim((string) ($this->message->message['from_email'] ?? ''));
-
-        if ($fromEmail === '') {
-            throw new AgentReplySkippedException('Inbound message has no from_email, not an email message');
-        }
-
-        $channelId = $this->hijackMessagePhone($fromEmail);
-
-        // Both shapes on purpose: the native blocks let a customer-facing agent see the picture or
-        // read the PDF, the markers let an internal agent open the file with its tools.
-        ['text' => $messageConversation, 'images' => $images, 'documents' => $documents] = $this->inboundContent($messageConversation);
-        $messageConversation = AttachmentPromptBuilder::withFilesystemMarkers($messageConversation, $this->message->files);
-
-        $responseContent = new AgentChatKernel(
-            agent: $this->agent,
-            session: $this->session,
-            message: $messageConversation,
-            user: $this->message->company->getAiAgentUserOrFail(),
-            currentLead: $entity instanceof Lead ? $entity : null,
-            images: $images,
-            documents: $documents,
-            sourceChannel: $this->channel,
-            sourceMessage: $this->message,
-            persistConversation: false,
-            // The fallback is written for staff ("narrow it down — an exact name, email, or date range"),
-            // and here it would be emailed to whoever wrote in — a vendor got it (KANVAS-ECOSYSTEM-6GW).
-            // A failed turn sends nothing; the webhook call is marked failed and reported instead.
-            fallbackOnFailure: false,
-        )->execute();
-
-        $responseText = ChatHelper::extractTextFromResponse($responseContent);
-
-        $messageResponse = $this->createMessage(
-            $responseText,
-            $channelId,
-            $this->message,
-            $this->channel,
-            rawResponse: $responseContent
-        );
-
-        // Freeze the inbound subject on the outbound so SendAgentEmailAction can thread the reply
-        // (title_email_follow_up first, this as fallback) whether it ships now or after approval.
-        // The inbound Message-Id rides along for the same reason: a mailbox send turns it into
-        // In-Reply-To/References, and by approval time the inbound message is no longer in hand.
-        $messageResponse->addMessage([
-            'subject' => $this->message->message['subject'] ?? null,
-            'email_message_id' => $this->message->message['email_message_id'] ?? null,
-            'email_references' => $this->message->message['email_references'] ?? null,
-            'response_text' => $responseText,
-        ]);
-
-        if (! $messageResponse->is_locked) {
-            new SendAgentEmailAction($messageResponse)->execute();
-        }
-
-        return [
-            'message' => $messageConversation,
-            'responseText' => $responseContent,
-            'response' => $responseText,
-        ];
-    }
 }

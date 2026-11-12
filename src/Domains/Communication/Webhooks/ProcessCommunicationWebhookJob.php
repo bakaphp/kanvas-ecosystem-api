@@ -39,6 +39,16 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
         return $source !== null && $source->authenticate($request, $receiver);
     }
 
+    /**
+     * A mail's attachments only exist in the multipart request; stored up front, they reach the
+     * provider as `uploaded_files`. A text or a WhatsApp payload carries none, so nothing is stored.
+     */
+    #[Override]
+    public static function capturesFiles(): bool
+    {
+        return true;
+    }
+
     #[Override]
     public static function verificationChallenge(Request $request, ReceiverWebhook $receiver): ?string
     {
