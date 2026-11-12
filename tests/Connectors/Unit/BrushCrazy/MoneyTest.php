@@ -74,6 +74,14 @@ final class MoneyTest extends TestCase
         $this->assertTrue(Money::fromRaw('2500')->isZero());
     }
 
+    public function testToDollarsConvertsSummedCents(): void
+    {
+        $this->assertSame(0.0, Money::toDollars(0));
+        $this->assertSame(12.34, Money::toDollars(1234));
+        $this->assertSame(-5.0, Money::toDollars(-500));
+        $this->assertSame(Money::fromRaw('{"amount":1999}')->dollars(), Money::toDollars(1999));
+    }
+
     public function testSlugComponentUsesCentsSoItNeverDriftsOnFloatFormatting(): void
     {
         $this->assertSame('2500', Money::fromRaw('{"amount":2500,"currency":"USD"}')->slugComponent());
