@@ -32,9 +32,9 @@ use Throwable;
 /**
  * Follows one session to a terminal state.
  *
- * Re-dispatches itself rather than looping, so a wedged harness cannot hold a worker. Sixty seconds
- * between ticks: nothing is lost in the gap because the cursor is the harness's own durable event
- * sequence, and in SSH mode every tick costs a handshake.
+ * Re-dispatches itself rather than looping, so a wedged harness cannot hold a worker. About sixty
+ * seconds between ticks (a chat turn's are aligned to its minutes): nothing is lost in the gap because
+ * the cursor is the harness's own durable event sequence, and in SSH mode every tick costs a handshake.
  */
 class PollHarnessSessionJob implements ShouldQueue
 {
@@ -122,7 +122,10 @@ class PollHarnessSessionJob implements ShouldQueue
             return;
         }
 
-        $this->pollAgain($this->attempt + 1);
+        $this->pollAgain(
+            $this->attempt + 1,
+            PostCodingChatProgressAction::secondsToNextMinute($session, $tick) ?? self::POLL_INTERVAL_SECONDS
+        );
     }
 
     private function maxAttempts(int $maxMinutes): int
@@ -130,10 +133,10 @@ class PollHarnessSessionJob implements ShouldQueue
         return (int) ceil($maxMinutes * 60 / self::POLL_INTERVAL_SECONDS);
     }
 
-    private function pollAgain(int $attempt): void
+    private function pollAgain(int $attempt, int $delaySeconds = self::POLL_INTERVAL_SECONDS): void
     {
         self::dispatch($this->app, $this->sessionId, $attempt)
-            ->delay(Carbon::now()->addSeconds(self::POLL_INTERVAL_SECONDS));
+            ->delay(Carbon::now()->addSeconds($delaySeconds));
     }
 
     /**

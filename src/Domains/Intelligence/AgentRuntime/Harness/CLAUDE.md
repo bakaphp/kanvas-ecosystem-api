@@ -220,7 +220,10 @@ Things that bite:
 - **A running chat turn says so every minute.** Narration goes to the plan board, not the chat, so a long
   turn showed only "On it" until it ended. `PostCodingChatProgressAction` (from the poller, on RUNNING)
   posts "⏳ Still working · N min · <latest step>" plus the agent's latest note; quiet for the first 45s,
-  at most once per ~minute per session, never for a workflow task run.
+  each minute said once, never for a workflow task run. The poller lands each chat tick 5s past the
+  turn's next whole minute (`secondsToNextMinute()`): a flat 60s plus the poll's run time drifts and
+  skips a minute every ten or so. The step is read from the 2.2 tool part's `name` + `state.input`
+  (fixtures under `opencode-2.2.0/`); any other shape reads as "using a tool".
 - **A stopped factory server is Kanvas's to restart, never the agent's** (the agent runs inside it).
   `RestartFactoryServerAction::retrying()` wraps every call that reaches it (the chat relay, the launch's
   first prompt): on `RuntimeNotListeningException` it runs `serve.sh start`, posts "⚙️ restarted" and

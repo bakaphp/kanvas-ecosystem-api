@@ -973,7 +973,6 @@ class CodingChatTest extends TestCase
         Queue::fake();
         [$agent, $chat] = $this->chatAgent();
         $live = $this->liveChat($agent, $chat, HarnessStatusEnum::RUNNING);
-        Cache::forget('coding-chat-progress:' . $live->getId());
         $tick = new HarnessTick(
             status: HarnessStatusEnum::RUNNING,
             usage: new HarnessUsage(),
@@ -994,12 +993,47 @@ class CodingChatTest extends TestCase
         );
     }
 
+    public function testEveryMinuteOfALongTurnIsSaidOnceWithoutSkippingOne(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChat($agent, $chat, HarnessStatusEnum::RUNNING);
+        $startedAt = Carbon::now()->subMinutes(10)->startOfSecond();
+        $tick = new HarnessTick(
+            status: HarnessStatusEnum::RUNNING,
+            usage: new HarnessUsage(),
+            turnStartedAt: $startedAt->getTimestamp(),
+        );
+        $minutes = [];
+
+        try {
+            // A poll that drifted to 5:58 into the turn.
+            Carbon::setTestNow($startedAt->copy()->addSeconds(5 * 60 + 58));
+
+            for ($poll = 0; $poll < 4; $poll++) {
+                $minutes[] = new PostCodingChatProgressAction($live, $tick)->execute();
+                Carbon::setTestNow(Carbon::now()->addSeconds(PostCodingChatProgressAction::secondsToNextMinute($live, $tick)));
+            }
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertSame(
+            [
+                '⏳ Still working · 5 min',
+                '⏳ Still working · 6 min',
+                '⏳ Still working · 7 min',
+                '⏳ Still working · 8 min',
+            ],
+            $minutes
+        );
+    }
+
     public function testATurnInItsFirstMinuteAndAWorkflowTaskRunPostNoProgress(): void
     {
         Queue::fake();
         [$agent, $chat] = $this->chatAgent();
         $live = $this->liveChat($agent, $chat, HarnessStatusEnum::RUNNING);
-        Cache::forget('coding-chat-progress:' . $live->getId());
         $justStarted = new HarnessTick(
             status: HarnessStatusEnum::RUNNING,
             usage: new HarnessUsage(),
@@ -1020,6 +1054,10 @@ class CodingChatTest extends TestCase
         );
 
         $this->assertNull(new PostCodingChatProgressAction($run, $longRun)->execute());
+        $this->assertNull(
+            PostCodingChatProgressAction::secondsToNextMinute($run, $longRun),
+            'a task run keeps the poller\'s own pace'
+        );
     }
 
     public function testAMessageToAStoppedFactoryServerRestartsItAndStillReachesTheAgent(): void

@@ -352,7 +352,7 @@ class OpenCodeHarnessTest extends TestCase
         $session->turn_offset = 1;
         $step = fn (int $at, string $tool, array $input): array => [
             ...$this->assistantMessage(createdAt: $at, text: ''),
-            'content' => [['type' => 'tool', 'tool' => $tool, 'input' => $input]],
+            'content' => [['type' => 'tool', 'name' => $tool, 'state' => ['status' => 'running', 'input' => $input]]],
         ];
 
         $tick = $this->harness([
@@ -372,6 +372,14 @@ class OpenCodeHarnessTest extends TestCase
         ])->poll($this->taskSession());
 
         $this->assertSame('reading `src/App.tsx`', $reading->activity);
+
+        $patching = $this->harness([
+            'message' => $this->page([
+                $step(1_794_400_000_000, 'patch', ['patchText' => "*** Begin Patch\n*** Update File: src/Login.tsx\n@@\n-a\n+b\n*** End Patch"]),
+            ], idle: null),
+        ])->poll($this->taskSession());
+
+        $this->assertSame('editing `src/Login.tsx`', $patching->activity);
     }
 
     public function testTurnReplyIsTheCurrentTurnsLastTextAndNullWhenItSaidNothing(): void

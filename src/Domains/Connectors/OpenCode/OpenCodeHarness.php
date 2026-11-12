@@ -138,13 +138,19 @@ class OpenCodeHarness implements CodingHarness
     }
 
     /**
+     * A 2.2 tool part is `{name, state: {input}}`. The patch tool names its file only inside the patch text.
+     *
      * @param array<string, mixed> $part
      */
     private function describeStep(array $part, ?string $directory): string
     {
-        $tool = is_string($part['tool'] ?? null) ? $part['tool'] : 'a tool';
-        $input = is_array($part['input'] ?? null) ? $part['input'] : [];
-        $path = $input['path'] ?? $input['filePath'] ?? null;
+        $tool = is_string($part['name'] ?? null) ? $part['name'] : 'a tool';
+        $input = is_array($part['state']['input'] ?? null) ? $part['state']['input'] : [];
+        $patched = is_string($input['patchText'] ?? null)
+            && preg_match('/^\*\*\* (?:Add|Update|Delete) File: (.+)$/m', $input['patchText'], $match) === 1
+            ? trim($match[1])
+            : null;
+        $path = $input['filePath'] ?? $input['path'] ?? $patched;
         $path = is_string($path) ? ($directory !== null ? Str::after($path, rtrim($directory, '/') . '/') : $path) : null;
         $command = is_string($input['command'] ?? null) ? trim(strtok($input['command'], "\n") ?: '') : '';
 

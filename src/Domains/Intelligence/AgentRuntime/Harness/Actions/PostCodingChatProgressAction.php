@@ -22,8 +22,15 @@ class PostCodingChatProgressAction
     /** The turn's own "On it" covers its first minute. */
     private const int QUIET_START_SECONDS = 45;
 
-    /** Two pollers on one session must not double the updates. */
-    private const int MIN_GAP_SECONDS = 50;
+    /**
+     * Each minute is said once: two pollers on one session must not double it, and a tick that lands a few
+     * seconds after the previous one (the poller re-aligning to the turn's minutes) must not swallow it.
+     * The marker only has to outlive its own minute, with room for a late poll.
+     */
+    private const int MINUTE_TTL_SECONDS = 120;
+
+    /** How far past the turn's minute the next poll lands, so its message names that minute. */
+    private const int MINUTE_MARGIN_SECONDS = 5;
 
     public function __construct(
         private readonly AgentTaskSession $session,
@@ -33,26 +40,20 @@ class PostCodingChatProgressAction
 
     public function execute(): ?string
     {
-        if (! $this->session->isChat() || $this->session->isTaskRun()) {
+        $elapsed = self::elapsedInPersonsTurn($this->session, $this->tick);
+
+        if ($elapsed === null || $elapsed < self::QUIET_START_SECONDS) {
             return null;
         }
 
-        // No start time means the agent has not written anything in this turn yet: it has only just begun.
-        if ($this->tick->turnStartedAt === null) {
+        $minute = max(1, intdiv($elapsed, 60));
+        $said = 'coding-chat-progress:' . $this->session->getId() . ':' . $this->tick->turnStartedAt . ':' . $minute;
+
+        if (! Cache::add($said, true, self::MINUTE_TTL_SECONDS)) {
             return null;
         }
 
-        $elapsed = Carbon::now()->getTimestamp() - $this->tick->turnStartedAt;
-
-        if ($elapsed < self::QUIET_START_SECONDS) {
-            return null;
-        }
-
-        if (! Cache::add('coding-chat-progress:' . $this->session->getId(), true, self::MIN_GAP_SECONDS)) {
-            return null;
-        }
-
-        $update = '⏳ Still working · ' . max(1, intdiv($elapsed, 60)) . ' min'
+        $update = '⏳ Still working · ' . $minute . ' min'
             . ($this->tick->activity !== null ? ' · ' . $this->tick->activity : '');
 
         $note = trim((string) Arr::last($this->tick->narration));
@@ -64,5 +65,29 @@ class PostCodingChatProgressAction
         new PostCodingChatMessageAction($this->session, $update)->execute();
 
         return $update;
+    }
+
+    /**
+     * When the poller should look again for this message to name the next minute: a flat 60s plus the
+     * poll's own run time drifts a few seconds a tick and skips a minute every ten or so. Null when no
+     * person is waiting on a turn.
+     */
+    public static function secondsToNextMinute(AgentTaskSession $session, HarnessTick $tick): ?int
+    {
+        $elapsed = self::elapsedInPersonsTurn($session, $tick);
+
+        return $elapsed === null ? null : 60 - ($elapsed % 60) + self::MINUTE_MARGIN_SECONDS;
+    }
+
+    /**
+     * No start time means the agent has not written anything in this turn yet: it has only just begun.
+     */
+    private static function elapsedInPersonsTurn(AgentTaskSession $session, HarnessTick $tick): ?int
+    {
+        if (! $session->isChat() || $session->isTaskRun() || $tick->turnStartedAt === null) {
+            return null;
+        }
+
+        return max(0, Carbon::now()->getTimestamp() - $tick->turnStartedAt);
     }
 }
