@@ -25,6 +25,7 @@ use Kanvas\Communication\Setup\Actions\SetupCompanyDefaultsAction;
 use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Communication\Support\ProviderRegistry;
+use Kanvas\Communication\Support\ProviderRollout;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
 use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
@@ -73,6 +74,10 @@ final class EnsureCommunicationSetupAction
 
         if ((int) $this->integrationCompany->apps_id !== $this->app->getId()) {
             return SetupReport::skipped('integration_belongs_to_another_app');
+        }
+
+        if (! new ProviderRollout()->allows($provider, $this->app, $this->integrationCompany->company)) {
+            return SetupReport::skipped('provider_not_opted_in');
         }
 
         $lock = Cache::lock(

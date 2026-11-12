@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Communication\Connections\Actions\ReleaseUnusedRegistrationsAction;
 use Kanvas\Communication\Connections\Actions\RetireConnectionAction;
 use Kanvas\Communication\Connections\Actions\RunConnectionCleanupAction;
+use Kanvas\Communication\Connections\Actions\ScheduleCommunicationSetupAction;
 use Kanvas\Communication\Connections\DataTransferObject\SetupReport;
 use Kanvas\Communication\Connections\Enums\CleanupTaskStatusEnum;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
@@ -17,6 +18,7 @@ use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\InboundClaim;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
+use Kanvas\Communication\Enums\ConfigurationEnum;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
@@ -46,6 +48,30 @@ final class EnsureCommunicationSetupActionTest extends TestCase
         parent::setUp();
 
         $this->vendor = $this->useFakeProvisioner();
+    }
+
+    /**
+     * A provider every tenant already integrated is a cutover per tenant: nothing moves until the
+     * company (or the app) says so, and then the same save provisions it.
+     */
+    public function testAHeldBackProviderIsLeftAloneUntilTheCompanyOptsIn(): void
+    {
+        config(['communication.opt_in' => ['fake']]);
+        $integration = $this->integrateMessaging(['+18095550100']);
+
+        $this->assertFalse(Connection::query()->where('integrations_company_id', $integration->getId())->exists());
+        Queue::assertNotPushed(EnsureCommunicationSetupJob::class);
+        $this->assertSame('provider_not_opted_in', $this->runSetup($integration)->reason);
+
+        // Settings live in Redis and on `ecosystem`, outside the transaction: cleared by hand.
+        $this->currentCompany()->set(ConfigurationEnum::PROVIDERS->value, ['fake']);
+
+        try {
+            $this->assertTrue(new ScheduleCommunicationSetupAction($this->currentApp(), $integration->fresh())->execute());
+            $this->assertSame(SetupReport::READY, $this->runSetup($integration)->outcome);
+        } finally {
+            $this->currentCompany()->del(ConfigurationEnum::PROVIDERS->value);
+        }
     }
 
     public function testCompletingTheIntegrationAloneProvisionsEverything(): void

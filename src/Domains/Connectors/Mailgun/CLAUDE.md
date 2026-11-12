@@ -7,7 +7,11 @@ address on its Mailgun domain (`MAILGUN_FROM_ADDRESS`, else its from email when 
 connection: setup gives it a route to the communication receiver and points the domain's events there,
 and the receiver records them through the same actions the two legacy event receivers use. The
 classes under `src/Domains/Connectors/Mailgun/` are empty subclasses so rows and queued payloads that
-still name them resolve.
+still name them resolve; `kanvas:workflow-sync-actions` renames the `actions` row in place (legacy
+names are carried by discovery), so no migration is needed. **Setup is opt-in**: every tenant already
+has the Mailgun integration, so the sweep leaves a company alone until it (or the app) lists
+`mailgun` in the `communication_providers` setting (`config('communication.opt_in')`); until then
+the domain's events stay on the legacy receivers.
 
 Loads when work touches the Mailgun provider. Covers what happens to an email after Mailgun
 accepts it; the inbound receivers and agent mailboxes are documented in their classes.

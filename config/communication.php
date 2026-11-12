@@ -16,6 +16,14 @@ return [
     ],
 
     /*
+     * Providers held back from the sweep and the integration hooks until an app or a company opts in
+     * (setting `communication_providers`, a list of slugs). Twilio and Mailgun predate the domain:
+     * every tenant already has the integration, and moving a number's webhook is a cutover done per
+     * tenant, not by a deploy.
+     */
+    'opt_in' => ['twilio', 'mailgun'],
+
+    /*
      * Hours a provider can keep reporting on a message after its last event. Widening one on an
      * observed late event is a config change; narrowing one needs the evidence behind it revisited.
      */
