@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Jobs\EnsureCommunicationSetupJob;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Support\ProviderRegistry;
+use Kanvas\Communication\Support\ProviderRollout;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 /**
@@ -29,6 +30,10 @@ final class ScheduleCommunicationSetupAction
         $provider = new ProviderRegistry()->forIntegration($this->integrationCompany);
 
         if ($provider === null || (int) $this->integrationCompany->apps_id !== $this->app->getId()) {
+            return false;
+        }
+
+        if (! new ProviderRollout()->allows($provider, $this->app, $this->integrationCompany->company)) {
             return false;
         }
 

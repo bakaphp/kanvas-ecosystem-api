@@ -8,7 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Approvals\Contracts\ApprovalHandlerInterface;
 use Kanvas\Approvals\Contracts\ApprovalRejectionHandlerInterface;
 use Kanvas\Approvals\Models\ApprovalRequest;
-use Kanvas\Connectors\Mailgun\Actions\SendAgentEmailAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\SendAgentEmailAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;

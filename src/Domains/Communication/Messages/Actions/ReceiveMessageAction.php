@@ -13,6 +13,7 @@ use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\InboundSource;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\DataTransferObject\InboundRoute;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -197,17 +198,25 @@ final class ReceiveMessageAction
      */
     private function person(): People
     {
-        if (! $this->inbound->channel->isAddressedByPhone()) {
+        $byPhone = $this->inbound->channel->isAddressedByPhone();
+
+        if (! $byPhone && $this->inbound->channel !== ChannelTypeEnum::EMAIL) {
             throw new LogicException('Inbound ' . $this->inbound->channel->value . ' is not received through this pipeline yet.');
         }
 
-        $address = Str::normalizePhoneNumber($this->inbound->from);
+        $address = $byPhone ? Str::normalizePhoneNumber($this->inbound->from) : strtolower(trim($this->inbound->from));
 
-        $candidates = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->company,
-            phoneNumbers: [$address, str_replace('+', '', $this->inbound->from)]
-        )->get();
+        $candidates = $byPhone
+            ? PeoplesRepository::getByPhoneNumber(
+                app: $this->receiver->app,
+                company: $this->company,
+                phoneNumbers: [$address, str_replace('+', '', $this->inbound->from)]
+            )->get()
+            : PeoplesRepository::getByAnyContact(
+                app: $this->receiver->app,
+                company: $this->company,
+                emails: [$address]
+            )->get();
 
         $existing = $candidates->first(fn (People $person): bool => LeadsRepository::getPeopleActiveLead($person) !== null)
             ?? $candidates->first();
@@ -216,14 +225,17 @@ final class ReceiveMessageAction
             return $existing;
         }
 
+        // A mail names its sender; a text only carries the number.
+        $name = Str::trimToNull((string) ($this->inbound->raw['from_name'] ?? ''));
+
         $person = new PeopleDto(
             app: $this->receiver->app,
             branch: $this->company->defaultBranch,
             user: $this->user,
-            firstname: $existing !== null ? $existing->firstname : $address,
+            firstname: $existing !== null ? $existing->firstname : ($name ?? $address),
             contacts: Contact::collect([[
                 'value' => $address,
-                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                'contacts_types_id' => $byPhone ? ContactTypeEnum::CELLPHONE->value : ContactTypeEnum::EMAIL->value,
                 'weight' => 100,
             ]], DataCollection::class),
             address: Address::collect([], DataCollection::class),

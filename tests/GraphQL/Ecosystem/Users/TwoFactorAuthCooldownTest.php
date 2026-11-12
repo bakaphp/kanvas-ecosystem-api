@@ -7,7 +7,7 @@ namespace Tests\GraphQL\Ecosystem\Users;
 use App\GraphQL\Ecosystem\Mutations\Users\TwoFactorAuthMutation;
 use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Tests\TestCase;
 

@@ -6,8 +6,8 @@ namespace Kanvas\Notifications\Channels;
 
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Twilio\Client;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum;
 use Twilio\Exceptions\RestException;
 
 class TwilioSmsChannel

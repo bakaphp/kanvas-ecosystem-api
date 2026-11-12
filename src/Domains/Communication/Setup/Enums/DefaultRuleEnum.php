@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Setup\Enums;
 
+use Kanvas\Communication\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Connectors\Google\Activities\CreateGoogleCalendarEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AIAssistChannelResponderActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SalesAssistAgentReachOutActivity;
-use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;

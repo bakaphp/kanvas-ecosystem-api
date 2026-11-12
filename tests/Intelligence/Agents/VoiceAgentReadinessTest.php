@@ -6,9 +6,9 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\DescribeCompanyTwilioAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Actions\DescribeCompanyTwilioAction;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\CheckVoiceAgentReadinessAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;

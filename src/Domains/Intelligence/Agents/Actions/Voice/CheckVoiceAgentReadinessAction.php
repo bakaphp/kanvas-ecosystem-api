@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
-use Kanvas\Connectors\Twilio\Actions\DescribeCompanyTwilioAction;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\DescribeCompanyTwilioAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Enums\ReadinessStatusEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;

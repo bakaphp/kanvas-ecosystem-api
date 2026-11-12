@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Support\Str;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client as TwilioClient;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\Slack\Client as SlackClient;
-use Kanvas\Connectors\Twilio\Client as TwilioClient;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService as WaSenderMessageService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;

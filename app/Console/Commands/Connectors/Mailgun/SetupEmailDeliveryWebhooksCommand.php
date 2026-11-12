@@ -9,9 +9,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\DeliveryWebhookReceiverService;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
-use Kanvas\Connectors\Mailgun\Services\DeliveryWebhookReceiverService;
 use Kanvas\Users\Repositories\UsersRepository;
 
 /**

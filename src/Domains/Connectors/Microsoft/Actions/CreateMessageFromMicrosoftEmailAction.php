@@ -35,7 +35,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  *
  * The $emailData param expects a Microsoft Graph message object (from Client::getMessage()).
  *
- * @see \Kanvas\Connectors\Mailgun\Actions\CreateMessageFromEmailAction
+ * @see \Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\CreateMessageFromEmailAction
  */
 class CreateMessageFromMicrosoftEmailAction
 {

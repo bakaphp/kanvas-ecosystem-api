@@ -31,7 +31,7 @@ use Override;
  *
  * The access token is auto-refreshed via Client::getValidAccessToken() before sending.
  *
- * @see \Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction
+ * @see \Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\AgentChannelResponderAction
  * @see \Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity
  */
 class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction

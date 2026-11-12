@@ -423,7 +423,7 @@ Email follow-ups must land in the **same thread** as the agent's first outreach,
 | Path | File | Role |
 |---|---|---|
 | Outreach (first touch) | [`AgentReachOutOnChannelAction`](../Agents/Actions/Outreach/AgentReachOutOnChannelAction.php) | **Writes** the anchor — persists the agent's email subject to `title_email_follow_up`. First touch wins (guarded by `! $lead->get(...)`) so later reach-outs don't clobber it. |
-| Inbound auto-reply | [`Mailgun/AgentChannelResponderAction`](../../Connectors/Mailgun/Actions/AgentChannelResponderAction.php) | **Reads** it as the outbound subject (falls back to `Re: <incoming subject>`). Read-only — never overwrites the anchor. |
+| Inbound auto-reply | [`Mailgun/AgentChannelResponderAction`](../../Communication/Channels/Email/Providers/Mailgun/Actions/AgentChannelResponderAction.php) | **Reads** it as the outbound subject (falls back to `Re: <incoming subject>`). Read-only — never overwrites the anchor. |
 | Follow-up (cron, days later) | [`FollowUpLeadAction::resolveEmailTitle()`](Actions/FollowUpLeadAction.php) | **Reads** it, prefixes `Re: ` (idempotent — won't double-prefix). Falls back to the company name when no anchor exists. |
 
 Because all three read the same persisted field, the subject stays constant across outreach → customer reply → follow-up, and Gmail/Apple Mail group them into one thread (they strip `Re:` when threading). The anchor is a lead custom field, so it survives the multi-day gap between touches.
