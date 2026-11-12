@@ -107,7 +107,7 @@ trait SyncsOrderItemsFromNetSuiteLines
     ): void {
         $variant = $this->findVariantBySku($sku);
 
-        if (! $variant) {
+        if ($variant?->product === null) {
             report(new Exception("Product with SKU '{$sku}' not found in Kanvas system when adding from NetSuite. Skipping item."));
 
             return;

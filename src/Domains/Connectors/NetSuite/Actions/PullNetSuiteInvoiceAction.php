@@ -53,6 +53,12 @@ class PullNetSuiteInvoiceAction
         return $this->salesOrderAction->pulledProducts;
     }
 
+    /** Barcodes whose deleted product the sales order pull brought back. */
+    public function restoredProducts(): array
+    {
+        return $this->salesOrderAction->restoredProducts;
+    }
+
     public function executeByNumber(string $invoiceNumber): Invoice
     {
         return $this->import($this->invoiceService->getInvoiceByNumber($invoiceNumber));
