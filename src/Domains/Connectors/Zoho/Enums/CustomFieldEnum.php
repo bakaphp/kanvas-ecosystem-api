@@ -50,6 +50,12 @@ enum CustomFieldEnum: string
     case ZOHO_GET_DOCS_LEAD_STATUS = 'ZOHO_GET_DOCS_LEAD_STATUS';
 
     /**
+     * Company setting: the company's reps type mobile numbers into Zoho's `Phone` field, so the pull
+     * stores it as a cellphone, which is the contact type that gets an SMS channel.
+     */
+    case ZOHO_PHONE_IS_MOBILE = 'ZOHO_PHONE_IS_MOBILE';
+
+    /**
      * Zoho's `$converted_detail` (deal, contact, account ids) stored on the lead once Zoho reports
      * it converted. A converted lead is read-only in Zoho, so anything that would write to it goes to
      * the deal instead, and nothing asks Zoho twice.

@@ -26,6 +26,7 @@ final class ZohoFieldMapService
         'last_name' => 'Last_Name',
         'email' => 'Email',
         'phone' => 'Phone',
+        'mobile' => 'Mobile',
         'street' => 'Street',
         'city' => 'City',
         'state' => 'State',
@@ -132,6 +133,11 @@ final class ZohoFieldMapService
         $name = is_array($config) ? ($config['name'] ?? null) : $config;
 
         return is_string($name) && $name !== '' ? $name : $fallback;
+    }
+
+    public static function phoneIsMobile(CompanyInterface $company): bool
+    {
+        return (bool) $company->get(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value);
     }
 
     /**

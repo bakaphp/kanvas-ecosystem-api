@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Zoho\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Zoho\Actions\Concerns\ResolvesZohoOwner;
@@ -20,7 +21,10 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
+use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource as LeadSourceData;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -89,6 +93,7 @@ class SyncZohoLeadAction
         );
 
         $ownerUser = $this->resolveZohoOwner($this->app, $zohoLead->Owner);
+        $leadSource = $this->resolveLeadSource($zohoLead->Lead_Source);
 
         $user = $agent?->user ?? $this->company->user;
         $companyZohoMapFields = $this->company->get(CustomFieldEnum::FIELDS_MAP->value) ?? [];
@@ -121,6 +126,7 @@ class SyncZohoLeadAction
                 leads_owner_id: $ownerUser ? $ownerUser->getId() : 0,
                 status_id: $leadStatus->getId(),
                 receiver_id: $this->receiver->getId(),
+                source_id: $leadSource?->getId() ?? 0,
                 custom_fields: [
                     ...$this->extractMappedCustomFields($record, $companyZohoMapFields),
                     CustomFieldEnum::ZOHO_LEAD_ID->value => $this->zohoLeadId,
@@ -134,12 +140,20 @@ class SyncZohoLeadAction
             return $localLead;
         }
 
+        // Before any set(): each one fires create-custom-field, and a rule pushing the lead back to
+        // Zoho would make every Zoho edit webhook echo our values over the ones Zoho just sent.
+        $localLead->disableWorkflows();
+
         if ($ownerUser) {
             $localLead->leads_owner_id = $ownerUser->getId();
         }
 
         if ($user) {
             $localLead->users_id = $user->getId();
+        }
+
+        if ($leadSource) {
+            $localLead->leads_sources_id = $leadSource->getId();
         }
 
         if (! empty($zohoLead->Company)) {
@@ -164,13 +178,40 @@ class SyncZohoLeadAction
             $localLead->set($name, $value);
         }
 
-        $localLead->disableWorkflows();
         $localLead->saveOrFail();
 
         $this->syncPerson($localLead->people, $record, $companyZohoMapFields);
         $this->syncAddressCustomFields($localLead, $localLead->people->getDefaultAddress());
 
         return $localLead;
+    }
+
+    /**
+     * Looked up before creating: on a match CreateLeadSourceAction also overwrites the source's
+     * description and type, which would wipe what an admin set on it every time a webhook lands.
+     */
+    protected function resolveLeadSource(mixed $zohoSource): ?LeadSource
+    {
+        $name = is_scalar($zohoSource) ? Str::trimToNull((string) $zohoSource) : null;
+
+        if ($name === null) {
+            return null;
+        }
+
+        return LeadSource::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('name', $name)
+            ->first()
+            ?? new CreateLeadSourceAction(
+                new LeadSourceData(
+                    app: $this->app,
+                    company: $this->company,
+                    leads_types_id: null,
+                    name: $name,
+                    is_active: true,
+                )
+            )->execute();
     }
 
     protected function extractMappedCustomFields(array $record, array $fieldMapping): array
