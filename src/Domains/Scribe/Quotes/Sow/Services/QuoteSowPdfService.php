@@ -17,9 +17,10 @@ use Kanvas\Users\Models\Users;
 /**
  * Template + SOW message + quote → HTML → PDF, attached to the quote as `quote_sow`.
  *
- * The template is the `scribe-sow` row (company row first, then the app's, then the platform default
- * TemplatesRepository falls back to). With no row at all the packaged Twig file renders through the
- * same sandbox, so a tenant never needs seeding before its first SOW. The quote half of the context
+ * The template is the company layout version the SOW names (CompanySowTemplateService), else the
+ * `scribe-sow` row (company row first, then the app's, then the platform default TemplatesRepository falls
+ * back to). With no row at all the packaged Twig file renders through the same sandbox, so a tenant never
+ * needs seeding before its first SOW. The quote half of the context
  * comes from DocumentPdfService::viewData(), so the SOW prints the same issuer, customer, lines and
  * totals the quote PDF does.
  */

@@ -75,11 +75,8 @@ class SaveSowTemplateTool extends Tool
         }
 
         $savedVersion = CompanySowTemplateService::versionOf($template);
+        $default = new CompanySowTemplateService($this->app, $this->company)->defaultVersion();
 
-        return [
-            'saved' => true,
-            'version' => $savedVersion,
-            'is_default' => new CompanySowTemplateService($this->app, $this->company)->defaultVersion() === $savedVersion,
-        ];
+        return ['saved' => true, 'version' => $savedVersion, 'is_default' => $default === $savedVersion];
     }
 }

@@ -93,9 +93,8 @@ class RecordQuoteSowAction
             return $templates->defaultVersion();
         }
 
-        $version = CompanySowTemplateService::normalizeVersion($this->sow->template);
-
         try {
+            $version = CompanySowTemplateService::normalizeVersion($this->sow->template);
             $templates->requireVersion($version);
         } catch (ValidationException $e) {
             throw new InvalidQuoteSowException([$e->getMessage()]);

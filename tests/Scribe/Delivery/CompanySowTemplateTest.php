@@ -46,7 +46,8 @@ final class CompanySowTemplateTest extends DocumentDeliveryTestCase
             user: static::$cachedUser,
             action: DocumentActionEnum::SIGN_SOW,
         )->execute()->engagement;
-        $this->assertStringContainsString('LAYOUT-STANDARD', $engagement->refresh()->message->getMessage()['data']['html']);
+        $html = $engagement->refresh()->message->getMessage()['data']['html'];
+        $this->assertStringContainsString('LAYOUT-STANDARD', $html);
     }
 
     public function test_switching_the_default_changes_new_sows_and_never_old_ones(): void
@@ -73,6 +74,14 @@ final class CompanySowTemplateTest extends DocumentDeliveryTestCase
 
         $this->expectException(InvalidQuoteSowException::class);
         $this->recordSow($quote, 'nonexistent');
+    }
+
+    public function test_a_malformed_version_name_is_a_sow_problem_not_a_locked_quote(): void
+    {
+        $quote = $this->draftQuoteWithSow();
+
+        $this->expectException(InvalidQuoteSowException::class);
+        $this->recordSow($quote, '!!!');
     }
 
     public function test_clearing_the_default_goes_back_to_the_stock_layout(): void
@@ -114,9 +123,11 @@ final class CompanySowTemplateTest extends DocumentDeliveryTestCase
 
     public function test_the_tools_save_list_and_switch_only_this_company(): void
     {
-        $tools = fn (string $class): object => new $class()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        $tools = fn (string $class): object => new $class()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser);
 
-        $saved = $tools(SaveSowTemplateTool::class)->__invoke(version: 'Fixed Price', html: '<h1>FIXED {{ sow.summary }}</h1>', make_default: true);
+        $saved = $tools(SaveSowTemplateTool::class)
+            ->__invoke(version: 'Fixed Price', html: '<h1>FIXED {{ sow.summary }}</h1>', make_default: true);
         $this->assertTrue($saved['saved']);
         $this->assertSame('fixed-price', $saved['version']);
         $this->assertTrue($saved['is_default']);

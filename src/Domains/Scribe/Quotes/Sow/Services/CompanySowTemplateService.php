@@ -134,7 +134,8 @@ final class CompanySowTemplateService
         }
 
         try {
-            return (string) TemplatesRepository::getByName(QuoteSowPdfService::TEMPLATE_NAME, $this->app, $this->company)->template;
+            return (string) TemplatesRepository::getByName(QuoteSowPdfService::TEMPLATE_NAME, $this->app, $this->company)
+                ->template;
         } catch (ModelNotFoundException) {
             return File::get(resource_path(QuoteSowPdfService::PACKAGED_TEMPLATE));
         }

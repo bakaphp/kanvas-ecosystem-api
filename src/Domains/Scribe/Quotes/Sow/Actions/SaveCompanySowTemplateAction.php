@@ -12,6 +12,7 @@ use Kanvas\Scribe\Quotes\Sow\Services\CompanySowTemplateService;
 use Kanvas\Scribe\Quotes\Sow\Services\QuoteSowPdfService;
 use Kanvas\Scribe\Quotes\Sow\Support\SampleSowContext;
 use Kanvas\Templates\Actions\CreateTemplateAction;
+use Kanvas\Templates\Actions\UpdateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Templates\Support\TemplateSandbox;
@@ -60,9 +61,7 @@ class SaveCompanySowTemplateAction
         $existing = $templates->find($version);
 
         if ($existing !== null) {
-            $existing->template = $html;
-            $existing->saveOrFail();
-            $template = $existing;
+            $template = new UpdateTemplateAction($existing)->execute($html);
         } else {
             $template = new CreateTemplateAction(
                 new TemplateInput(

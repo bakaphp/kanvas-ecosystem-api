@@ -55,6 +55,20 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame('1985-04-12', $lead->get('Date_of_Birth'));
     }
 
+    /**
+     * SyncZohoLeadFromReceiverJob opens channels only when this holds, so an existing lead is not set up twice.
+     */
+    public function testOnlyTheSyncThatCreatesTheLeadReportsItAsRecentlyCreated(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $first = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $second = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $this->assertTrue($first->wasRecentlyCreated);
+        $this->assertFalse($second->wasRecentlyCreated);
+    }
+
     public function testExistingLeadUpdatesPersonAddressAndDob(): void
     {
         $zohoLeadId = 'zoho-' . uniqid();
