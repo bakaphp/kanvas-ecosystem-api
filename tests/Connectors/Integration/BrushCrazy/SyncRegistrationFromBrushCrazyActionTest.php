@@ -342,7 +342,8 @@ final class SyncRegistrationFromBrushCrazyActionTest extends TestCase
 
         $this->assertNull($this->participationOf($this->buyerA));
         $this->assertSame(1, $this->participationOf($this->buyerB)->metadata['brushcrazy']['seat_count']);
-        $this->assertSame($site[0]->metadata, $site[0]->fresh()->metadata);
+        // assertEquals: the JSON column hands keys back in its own order.
+        $this->assertEquals($site[0]->metadata, $site[0]->fresh()->metadata);
         $this->assertSame(3, (int) $this->version->fresh()->total_attendees);
     }
 
