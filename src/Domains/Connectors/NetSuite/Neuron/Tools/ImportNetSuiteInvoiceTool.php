@@ -109,6 +109,7 @@ class ImportNetSuiteInvoiceTool extends Tool implements RequiresSystemAgent
                 'lines' => $action->order->items()->count(),
             ],
             'products_added_from_netsuite' => $action->pulledProducts(),
+            'products_restored_from_netsuite' => $action->restoredProducts(),
         ], 'Imported. To collect payment, create_invoice_payment_link with this invoice id.');
     }
 
