@@ -157,6 +157,7 @@ class OAuthTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
+        config(['services.microsoft.client_id' => null]);
         $app->del(ConfigurationEnum::CLIENT_ID->value);
         $company->del(ConfigurationEnum::CLIENT_ID->value);
 
@@ -192,6 +193,7 @@ class OAuthTest extends TestCase
 
         $fakeClientId = 'test_microsoft_client_id_' . fake()->uuid();
         $app->set(ConfigurationEnum::CLIENT_ID->value, $fakeClientId);
+        config(['services.microsoft.tenant_id' => null]);
         $app->del(ConfigurationEnum::TENANT_ID->value);
         $company->del(ConfigurationEnum::TENANT_ID->value);
 
