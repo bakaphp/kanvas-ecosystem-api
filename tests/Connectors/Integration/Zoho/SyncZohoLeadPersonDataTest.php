@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver as LeadReceiverData;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
@@ -146,6 +147,57 @@ final class SyncZohoLeadPersonDataTest extends TestCase
             $rule->delete();
             $action->delete();
         }
+    }
+
+    public function testNewLeadGetsTheZohoLeadSourceCreatingItWhenMissing(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $sourceName = 'AgentPlatform ' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Lead_Source' => $sourceName])
+        );
+
+        $source = $lead->source;
+        $this->assertSame($sourceName, $source->name);
+        $this->assertSame($lead->companies_id, $source->companies_id);
+        $this->assertSame($lead->apps_id, $source->apps_id);
+    }
+
+    public function testExistingLeadMatchesTheCompanysSourceWithoutOverwritingIt(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $sourceName = 'Referral ' . uniqid();
+        $company = auth()->user()->getCurrentCompany();
+        $existing = LeadSource::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $company->getId(),
+            'name' => $sourceName,
+            'description' => 'set by an admin',
+            'is_active' => 1,
+            'leads_types_id' => 0,
+        ]);
+
+        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Lead_Source' => $sourceName])
+        );
+
+        $this->assertSame($existing->getId(), $lead->fresh()->leads_sources_id);
+        $this->assertSame('set by an admin', $existing->fresh()->description);
+        $this->assertSame(1, LeadSource::query()->fromCompany($company)->where('name', $sourceName)->count());
+    }
+
+    public function testExistingLeadKeepsItsSourceWhenZohoSendsNone(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $first = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Lead_Source' => 'Web ' . uniqid()])
+        );
+
+        $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $this->assertSame($first->leads_sources_id, $lead->fresh()->leads_sources_id);
     }
 
     private function syncAction(string $zohoLeadId): SyncZohoLeadAction
