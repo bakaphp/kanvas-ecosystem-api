@@ -58,7 +58,7 @@ class RewireVoiceAgentNumbersCommand extends Command
                 }
 
                 $this->overwriteAppService($agent->app);
-                $result = $this->configure($agent);
+                $result = $this->wireNumber($agent);
                 $this->line("{$label} -> {$result['status']} ({$result['message']})");
                 foreach ($result['warnings'] as $warning) {
                     $this->warn("  {$warning}");
@@ -74,7 +74,7 @@ class RewireVoiceAgentNumbersCommand extends Command
     /**
      * @return array{status: string, message: string, url: string|null, warnings: list<string>}
      */
-    protected function configure(Agent $agent): array
+    protected function wireNumber(Agent $agent): array
     {
         return new ConfigureAgentInboundWebhookAction($agent)->execute();
     }
