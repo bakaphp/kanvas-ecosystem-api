@@ -78,6 +78,7 @@ type ScribeInvoice {
     tax_lines: [ScribeInvoiceTaxLine!]! @hasMany(relation: "taxLines")
     allocations: [ScribeInvoicePaymentAllocation!]!
         @hasMany(relation: "allocations")
+    order: Order @belongsTo(relation: "order")
     parent_invoice: ScribeInvoice @belongsTo(relation: "parentInvoice")
     credit_notes: [ScribeInvoice!]! @hasMany(relation: "creditNotes")
     debit_notes: [ScribeInvoice!]! @hasMany(relation: "debitNotes")

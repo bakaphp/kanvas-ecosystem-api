@@ -79,7 +79,7 @@ The tell is tense and subject. Present tense about the code is usually load-bear
 
 Watch this most closely on code that was itself written to fix something. The rationale is fresh, it feels essential, and it is the easiest place to leave three paragraphs where one line does the work.
 
-**Convention violations.** What `CLAUDE.md` mandates and the fixer does not check. The rule of 4 — any call or signature with 4+ arguments goes one per line, 3 or fewer stays inline, native functions exempt — is the most-violated one, so check every call in the diff including `new Foo(...)` and test arrange blocks. Then: positional `null`s that should be named arguments; inline FQCNs in code, docblocks, and `catch` blocks; `(new Foo(...))->x()` instead of PHP 8.4's `new Foo(...)->x()`; `findOrFail()` where a `getByIdFromCompanyApp()` belongs; a job or command missing `overwriteAppService()`; a Spatie `Data` DTO stored on a queued job; a model passed alongside relationships it already carries; `'array'` casts where `Baka\Casts\Json` belongs; an unguarded fetch of a user-influenced URL; a workflow activity throwing on an expected skip; new Actions or resolvers shipped without tests.
+**Convention violations.** What `CLAUDE.md` mandates and the fixer does not check. The rule of 4 — any call or signature with 4+ arguments goes one per line, 3 or fewer stays inline, native functions exempt — is the most-violated one, so check every call in the diff including `new Foo(...)` and test arrange blocks. Then: positional `null`s that should be named arguments; inline FQCNs in code, docblocks, and `catch` blocks; `(new Foo(...))->x()` instead of PHP 8.4's `new Foo(...)->x()`; a long `->` chain left on one line past ~110 characters instead of broken onto the next; `findOrFail()` where a `getByIdFromCompanyApp()` belongs; a job or command missing `overwriteAppService()`; a Spatie `Data` DTO stored on a queued job; a model passed alongside relationships it already carries; `'array'` casts where `Baka\Casts\Json` belongs; an unguarded fetch of a user-influenced URL; a workflow activity throwing on an expected skip; new Actions or resolvers shipped without tests.
 
 ## Step 4 — Fix it
 
@@ -88,7 +88,7 @@ Work through the findings and apply the fixes. Do the mechanical, zero-risk chan
 **Fix directly, without asking, when the change preserves behaviour and you can see the whole blast radius:**
 
 - Comment noise, commented-out code, empty docblocks, dead parameters and variables, section-divider comments.
-- The mechanical conventions: rule-of-4 formatting, named arguments replacing positional `null`s, hoisting inline FQCNs into `use` imports, PHP 8.4 instantiation syntax. Confine these to code the diff already touches — reformatting untouched files buries the real findings.
+- The mechanical conventions: rule-of-4 formatting, named arguments replacing positional `null`s, hoisting inline FQCNs into `use` imports, PHP 8.4 instantiation syntax, breaking long `->` chains onto the next line. Confine these to code the diff already touches — reformatting untouched files buries the real findings.
 - A missing `overwriteAppService()` in a job or command, and `findOrFail()` → the `KanvasModelTrait` getter. Both change behaviour for the better; fix them and say so in the report rather than leaving a known-broken tenant scope in place.
 - Flattening nesting into guard clauses; naming a long boolean condition.
 - Collapsing duplicated methods behind one accessor or moving a mapping onto its enum.

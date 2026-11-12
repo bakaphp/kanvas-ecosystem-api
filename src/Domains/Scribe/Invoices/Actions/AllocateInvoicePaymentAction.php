@@ -16,6 +16,7 @@ use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Payments\Actions\CreateScribePaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
@@ -25,8 +26,8 @@ use RuntimeException;
 
 /**
  * Records a payment against an ISSUED/SENT Invoice. Creates a Scribe.Payment if one isn't passed,
- * the allocation row, posts the Cash JE (DR Cash / CR AR), and recomputes the invoice balance —
- * flipping to PAID when fully covered.
+ * the allocation row, posts the Cash JE (DR Cash / CR AR) unless the invoice was imported from an
+ * external system, and recomputes the invoice balance — flipping to PAID when fully covered.
  *
  * Pass `$payment` when the Payment row was created elsewhere (Mercury reconciliation, Stripe Billing
  * webhook, ADM Cloud sync). Omit it for ad-hoc operator entries; one will be synthesized using
@@ -113,15 +114,19 @@ class AllocateInvoicePaymentAction
             $allocation->metadata = $this->metadata;
             $allocation->save();
 
-            $jeData = $this->composer->composePayment(
-                invoice: $invoice,
-                allocation: $allocation,
-                cashAccountSubType: $this->cashAccountSubType,
-            );
-            new PostJournalEntryAction(
-                data: $jeData,
-                postedByUser: $this->user,
-            )->execute();
+            // An imported invoice never booked its AR here (the external system is the books), so a
+            // payment entry would credit an AR balance Kanvas never debited.
+            if ($invoice->origin !== JournalEntryOriginEnum::EXTERNAL) {
+                $jeData = $this->composer->composePayment(
+                    invoice: $invoice,
+                    allocation: $allocation,
+                    cashAccountSubType: $this->cashAccountSubType,
+                );
+                new PostJournalEntryAction(
+                    data: $jeData,
+                    postedByUser: $this->user,
+                )->execute();
+            }
 
             new MarkInvoicePaidAction(
                 invoice: $invoice,
