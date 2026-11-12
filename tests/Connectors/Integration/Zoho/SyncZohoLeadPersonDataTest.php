@@ -12,11 +12,19 @@ use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver as LeadReceiverData;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Support\Setup;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
+use Kanvas\Workflow\Rules\Actions\WireRuleAction;
+use Kanvas\Workflow\Rules\DynamicRuleWorkflow;
+use Kanvas\Workflow\Rules\Enums\ActionKindEnum;
+use Kanvas\Workflow\Rules\Models\Action;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\Modules\Module;
 
+#[Group('serial')]
 final class SyncZohoLeadPersonDataTest extends TestCase
 {
     private const array FIELDS_MAP = [
@@ -102,6 +110,42 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame('Springfield', $lead->get('city'));
         $this->assertSame('IL', $lead->get('state'));
         $this->assertEquals('62704', $lead->get('zip'));
+    }
+
+    /**
+     * Zoho fires the webhook on every edit, so a pull that reached a rule pushing the lead back
+     * would overwrite what was just changed in Zoho (a reassigned owner) with Kanvas's old value.
+     */
+    public function testUpdatingAnExistingLeadFiresNoWorkflows(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $zohoLeadId = 'zoho-' . uniqid();
+        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $action = Action::factory()->create(['kind' => ActionKindEnum::WORKFLOW->value]);
+        $rule = new WireRuleAction(
+            $app,
+            $company->getId(),
+            Lead::class,
+            WorkflowEnum::CREATE_CUSTOM_FIELD->value,
+            $action->model_name,
+            'Zoho pull silence test',
+            'test',
+        )->execute();
+        $this->assertNotNull($rule);
+
+        try {
+            $before = StoredWorkflow::query()->where('class', DynamicRuleWorkflow::class)->count();
+
+            $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '1 Infinite Loop'));
+
+            $this->assertSame('1 Infinite Loop', $lead->get('street'));
+            $this->assertSame($before, StoredWorkflow::query()->where('class', DynamicRuleWorkflow::class)->count());
+        } finally {
+            $rule->delete();
+            $action->delete();
+        }
     }
 
     private function syncAction(string $zohoLeadId): SyncZohoLeadAction
