@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Social\Messages\Models\Message;
 use Override;
+use Throwable;
 use Twilio\Exceptions\RestException;
 
 class AgentChannelResponderAction extends BaseAgentChannelReplyAction
@@ -117,6 +118,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                 'channel' => LeadCommunicationChannelEnum::SMS->value,
                 'messages' => [],
                 'classification' => 'opted_out',
+                'retryable' => false,
                 'twilio_error_code' => self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE,
                 'error' => $e->getMessage(),
                 'from' => $from,
@@ -126,10 +128,16 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             return;
         }
 
-        new StoreMessageSidAction($outbound)->execute([
-            'channel' => LeadCommunicationChannelEnum::SMS->value,
-            'messages' => [Client::describeMessage($twilioMessage)],
-        ]);
+        // The SMS is already out: a failed write here must not fail the activity, whose retry would
+        // text the customer a second time.
+        try {
+            new StoreMessageSidAction($outbound)->execute([
+                'channel' => LeadCommunicationChannelEnum::SMS->value,
+                'messages' => [Client::describeMessage($twilioMessage)],
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function recordOptOutNote(string $to, string $body): void
