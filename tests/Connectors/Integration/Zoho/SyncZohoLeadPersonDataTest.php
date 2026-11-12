@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Zoho;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
+use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver as LeadReceiverData;
@@ -85,6 +86,48 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertCount(2, $people->getEmails(), 'the first sync email stays, the second one is added');
         $this->assertContains($originalEmail, $people->getEmails()->pluck('value')->all());
         $this->assertSame('9395550113', $people->getPhones()->first()->value);
+    }
+
+    public function testZohoPhoneIsStoredAsAPhoneByDefault(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Phone' => '(939) 555-0113'])
+        );
+
+        $people = $lead->people->fresh();
+        $this->assertSame('9395550113', $people->getPhones()->first()->value);
+        $this->assertCount(0, $people->getCellPhones());
+    }
+
+    public function testZohoPhoneIsStoredAsACellphoneWhenTheCompanySaysItIsMobile(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId, phoneIsMobile: true)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Phone' => '(939) 555-0113'])
+        );
+
+        $people = $lead->people->fresh();
+        $this->assertSame('9395550113', $people->getCellPhones()->first()->value);
+        $this->assertCount(0, $people->getPhones());
+        $this->assertSame('9395550113', ZohoLead::fromLead($lead)->toArray()['Phone'], 'the push still fills Zoho Phone');
+    }
+
+    public function testZohoMobileIsStoredAsTheFirstCellphone(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId, phoneIsMobile: true)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', [
+                'Phone' => '(939) 555-0113',
+                'Mobile' => '(939) 555-0199',
+            ])
+        );
+
+        $cellphones = $lead->people->fresh()->getCellPhones()->sortBy('weight')->pluck('value')->all();
+        $this->assertSame(['9395550199', '9395550113'], array_values($cellphones));
     }
 
     public function testExistingLeadKeepsThePersonNameWhenZohoSendsNone(): void
@@ -200,12 +243,18 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame($first->leads_sources_id, $lead->fresh()->leads_sources_id);
     }
 
-    private function syncAction(string $zohoLeadId): SyncZohoLeadAction
+    private function syncAction(string $zohoLeadId, bool $phoneIsMobile = false): SyncZohoLeadAction
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $company->set(CustomFieldEnum::FIELDS_MAP->value, self::FIELDS_MAP);
+
+        if ($phoneIsMobile) {
+            $company->set(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value, true);
+        } else {
+            $company->del(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value);
+        }
 
         new Setup($app, $user, $company)->run();
 

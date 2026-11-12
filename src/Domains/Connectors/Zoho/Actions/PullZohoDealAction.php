@@ -51,6 +51,7 @@ class PullZohoDealAction
         'last_name' => 'Last_Name',
         'email' => 'Email',
         'phone' => 'Phone',
+        'mobile' => 'Mobile',
         'street' => 'Mailing_Street',
         'city' => 'Mailing_City',
         'state' => 'Mailing_State',
@@ -248,7 +249,6 @@ class PullZohoDealAction
             return $zohoDealInfo;
         }
 
-        $contact['Phone'] = $contact['Phone'] ?? $contact['Mobile'] ?? null;
         $fromContact = [];
 
         foreach (self::CONTACT_FIELDS as $personKey => $contactField) {

@@ -60,7 +60,7 @@ class ZohoLead extends Data
         return new self(
             $people->firstname,
             $people->lastname,
-            $people->getPhones()->first()?->value,
+            ($people->getPhones()->first() ?? $people->getCellPhones()->first())?->value,
             $people->getEmails()->first()?->value,
             $owner,
             $lead->description,
