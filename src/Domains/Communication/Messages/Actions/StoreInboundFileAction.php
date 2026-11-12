@@ -18,9 +18,19 @@ use Kanvas\Users\Models\Users;
 final class StoreInboundFileAction
 {
     /**
-     * The media a customer can send over a messaging channel. Twilio's DownloadMessageFileAction
-     * carries its own copy of this map until Twilio joins this domain.
+     * The same audio under another label. An `.opus` file is an Ogg container, and Gemini takes
+     * `audio/ogg` but not `audio/opus`, so it is stored as what it is.
      */
+    private const array ALIASES = [
+        'audio/opus' => 'audio/ogg',
+        'audio/x-m4a' => 'audio/mp4',
+        'audio/m4a' => 'audio/mp4',
+        'audio/x-wav' => 'audio/wav',
+        'audio/wave' => 'audio/wav',
+        'audio/mp3' => 'audio/mpeg',
+    ];
+
+    /** The media a customer can send over a messaging channel. */
     private const array EXTENSIONS = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -35,6 +45,7 @@ final class StoreInboundFileAction
         'audio/amr' => 'amr',
         'audio/aac' => 'aac',
         'audio/mp4' => 'm4a',
+        'audio/wav' => 'wav',
     ];
 
     public function __construct(
@@ -49,6 +60,7 @@ final class StoreInboundFileAction
     {
         // WhatsApp voice notes arrive as `audio/ogg; codecs=opus`.
         $type = strtolower(trim(explode(';', $this->contentType)[0]));
+        $type = self::ALIASES[$type] ?? $type;
         $extension = self::EXTENSIONS[$type]
             ?? throw new InvalidArgumentException('Unsupported media type: ' . $this->contentType);
 
