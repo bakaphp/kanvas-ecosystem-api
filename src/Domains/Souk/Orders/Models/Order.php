@@ -30,6 +30,7 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Social\Messages\Concerns\HasMessages;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
@@ -193,6 +194,15 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'order_id', 'id')->where('is_public', 1);
+    }
+
+    /**
+     * B2B: one order, N Scribe invoices (partial shipments, deposits, credit notes). Cross-connection,
+     * so never `whereHas('invoices')` — it is silently empty; filter on `invoices.order_id` instead.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'order_id', 'id');
     }
 
     public function allItems(): HasMany
