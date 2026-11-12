@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Phone;
 
 use Baka\Support\Str;
+use Kanvas\Communication\Setup\Actions\SetupCompanyRulesAction;
+use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Actions\EnsureSmsResponderRuleAction;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\Twilio\Services\TwilioReceiverService;
@@ -111,12 +114,15 @@ class ConfigureAgentInboundWebhookAction
                     : "Texts to {$number} reach this company's Twilio receiver.",
                 $webhook,
                 $this->channel === AgentPhoneChannelEnum::SMS
-                    ? $this->smsWarnings(
-                        $twilio,
-                        $company,
-                        $number,
-                        $phone->sid
-                    )
+                    ? [
+                        ...$this->smsWarnings(
+                            $twilio,
+                            $company,
+                            $number,
+                            $phone->sid
+                        ),
+                        ...$this->smsRuleWarnings($company, $number),
+                    ]
                     : []
             );
         } catch (ValidationException $e) {
@@ -168,6 +174,42 @@ class ConfigureAgentInboundWebhookAction
 
         if ($this->messagingServiceHandlesInbound($twilio, $company, $numberSid)) {
             $warnings[] = "{$number} is in a Messaging Service that handles inbound itself, so its webhook on the number is ignored.";
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * A wired webhook only files the texts; the rules are what answer them and what send a person's
+     * reply out. The number is already wired by now, so a rule that could not be made is a warning,
+     * never an error.
+     *
+     * @return list<string>
+     */
+    private function smsRuleWarnings(Companies $company, string $number): array
+    {
+        $warnings = [];
+
+        try {
+            $answering = new EnsureSmsResponderRuleAction($this->agent)->execute();
+
+            if ($answering !== null && $answering->getId() !== $this->agent->getId()) {
+                $warnings[] = "Texts to this company are answered by {$answering->name}, which already has an SMS number, so this agent will not answer {$number}.";
+            }
+        } catch (Throwable $e) {
+            captureException($e);
+            $warnings[] = "Texts to {$number} are received, but the rule that makes this agent answer them could not be created.";
+        }
+
+        try {
+            // The company's own sender wins; a company that never set one sends from this number.
+            new SetupCompanyRulesAction($this->agent->app, $company)->ensure(
+                DefaultRuleEnum::HUMAN_AGENT_RESPONSE,
+                ['from' => $number]
+            );
+        } catch (Throwable $e) {
+            captureException($e);
+            $warnings[] = 'The rule that sends a person\'s reply out by SMS could not be created.';
         }
 
         return $warnings;

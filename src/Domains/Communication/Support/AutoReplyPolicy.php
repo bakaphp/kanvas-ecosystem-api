@@ -63,7 +63,7 @@ final class AutoReplyPolicy
         return $this->agentWithId($app, $company, (int) $agentId);
     }
 
-    private function agentWithId(Apps $app, Companies $company, int $agentId): ?Agent
+    public function agentWithId(Apps $app, Companies $company, int $agentId): ?Agent
     {
         return Agent::query()
             ->fromApp($app)

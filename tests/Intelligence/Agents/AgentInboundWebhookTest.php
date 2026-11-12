@@ -7,10 +7,14 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Actions\EnsureSmsResponderRuleAction;
 use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
+use Kanvas\Connectors\Twilio\Workflows\AgentChannelResponderActivity;
+use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Intelligence\Agents\Actions\Phone\ConfigureAgentInboundWebhookAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\ReleaseInboundWebhookForNumberAction;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
@@ -18,6 +22,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Kanvas\Workflow\Rules\Models\Rule;
 use Tests\Stubs\Intelligence\FakeTwilioNumbersClient;
 use Tests\TestCase;
 use Twilio\Exceptions\RestException;
@@ -131,6 +136,116 @@ class AgentInboundWebhookTest extends TestCase
         $this->assertSame($created->getUrl(), $result['url']);
         $this->assertSame($agent->getId(), $created->configuration['agent_id']);
         $this->assertFalse($receiver->fresh()->is_active);
+    }
+
+    public function testASmsNumberGetsTheRuleThatMakesItsAgentAnswer(): void
+    {
+        $this->removeRules();
+        $agent = $this->agent(sms: $this->number);
+
+        $result = $this->configure($agent, AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+        $this->configure($agent, AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+
+        $rule = $this->rules(EnsureSmsResponderRuleAction::RULE_NAME)->sole();
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame($agent->getId(), $rule->params['agent_id']);
+        $this->assertSame([AgentChannelResponderActivity::class], $this->activitiesOf($rule));
+        $this->assertSame(
+            [EnsureSmsResponderRuleAction::CHANNEL_SLUG_PATTERN],
+            $rule->getRulesConditions()->pluck('value')->all()
+        );
+    }
+
+    public function testASmsNumberGetsTheRuleThatSendsAPersonsReply(): void
+    {
+        $this->removeRules();
+        $key = TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value;
+        $sender = $this->company->get($key);
+        $this->company->del($key);
+
+        try {
+            $this->configure($this->agent(sms: $this->number), AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+        } finally {
+            if ($sender) {
+                $this->company->set($key, $sender);
+            }
+        }
+
+        $rule = $this->rules(DefaultRuleEnum::HUMAN_AGENT_RESPONSE->value)->sole();
+        $this->assertSame(['from' => $this->number], $rule->params);
+        $this->assertSame([HumanAgentChannelResponseActivity::class], $this->activitiesOf($rule));
+    }
+
+    /**
+     * A sender saved without its "+" is read back as an int, which the activity cannot pass on.
+     */
+    public function testTheCompanysOwnSenderWinsAndStaysAString(): void
+    {
+        $this->removeRules();
+        $key = TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value;
+        $sender = $this->company->get($key);
+        $this->company->set($key, '15550001111');
+
+        try {
+            $this->configure($this->agent(sms: $this->number), AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+        } finally {
+            $sender ? $this->company->set($key, $sender) : $this->company->del($key);
+        }
+
+        $this->assertSame(['from' => '15550001111'], $this->rules(DefaultRuleEnum::HUMAN_AGENT_RESPONSE->value)->sole()->params);
+    }
+
+    public function testASecondAgentIsToldWhoAnswersTheCompanysTexts(): void
+    {
+        $this->removeRules();
+        $first = $this->agent(sms: $this->number);
+        $second = $this->agent(sms: '+1555' . fake()->unique()->numerify('#######'));
+        $this->configure($first, AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+
+        $result = $this->configure($second, AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+
+        $this->assertSame('wired', $result['status']);
+        $this->assertStringContainsString($first->name, $result['warnings'][0]);
+        $this->assertSame($first->getId(), $this->rules(EnsureSmsResponderRuleAction::RULE_NAME)->sole()->params['agent_id']);
+    }
+
+    public function testAnAgentThatGaveItsNumberUpHandsTheRuleOver(): void
+    {
+        $this->removeRules();
+        $first = $this->agent(sms: $this->number);
+        $second = $this->agent(sms: '+1555' . fake()->unique()->numerify('#######'));
+        $this->configure($first, AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+        $first->update(['sms_config' => null]);
+
+        $result = $this->configure($second, AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame($second->getId(), $this->rules(EnsureSmsResponderRuleAction::RULE_NAME)->sole()->params['agent_id']);
+    }
+
+    public function testACompanyAlreadyAnsweringTextsByHandGetsNoSecondRule(): void
+    {
+        $this->removeRules();
+        $this->configure($this->agent(sms: $this->number), AgentPhoneChannelEnum::SMS, new FakeTwilioNumbersClient());
+        $this->rules(EnsureSmsResponderRuleAction::RULE_NAME)->sole()->forceFill(['name' => 'Twilio responder (by hand)'])->saveOrFail();
+
+        $result = $this->configure(
+            $this->agent(sms: '+1555' . fake()->unique()->numerify('#######')),
+            AgentPhoneChannelEnum::SMS,
+            new FakeTwilioNumbersClient()
+        );
+
+        $this->assertSame([], $result['warnings']);
+        $this->assertCount(0, $this->rules(EnsureSmsResponderRuleAction::RULE_NAME)->get());
+    }
+
+    public function testAVoiceNumberCreatesNoRule(): void
+    {
+        $this->removeRules();
+
+        $this->configure($this->agent(voice: $this->number), AgentPhoneChannelEnum::VOICE, new FakeTwilioNumbersClient());
+
+        $this->assertCount(0, $this->rules(EnsureSmsResponderRuleAction::RULE_NAME)->get());
     }
 
     public function testAVoiceNumberCreatesNoReceiver(): void
@@ -545,6 +660,41 @@ class AgentInboundWebhookTest extends TestCase
             ->fromCompany($this->company)
             ->forJob(ProcessTwilioWebhookJob::class)
             ->notDeleted();
+    }
+
+    private function rules(string $name): Builder
+    {
+        return Rule::query()
+            ->fromApp($this->testApp)
+            ->fromCompany($this->company)
+            ->where('name', $name)
+            ->notDeleted();
+    }
+
+    /**
+     * Rules other tests or a seeded company left behind would read as "already answers".
+     */
+    private function removeRules(): void
+    {
+        Rule::query()
+            ->fromApp($this->testApp)
+            ->whereIn('companies_id', [$this->company->getId(), 0])
+            ->whereHas(
+                'workflowActivities.activity.action',
+                fn (Builder $query) => $query->whereIn('model_name', [
+                    AgentChannelResponderActivity::class,
+                    HumanAgentChannelResponseActivity::class,
+                ])
+            )
+            ->update(['is_deleted' => 1]);
+    }
+
+    /**
+     * @return list<class-string>
+     */
+    private function activitiesOf(Rule $rule): array
+    {
+        return $rule->workflowActivities()->with('activity.action')->get()->pluck('activity.action.model_name')->all();
     }
 
     private function removeReceivers(): void
