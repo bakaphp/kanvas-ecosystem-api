@@ -7,7 +7,6 @@ namespace Kanvas\Scribe\Documents\Services;
 use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use finfo;
-use Illuminate\Support\Facades\View;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -26,15 +25,18 @@ use Throwable;
  * Renders an invoice or a quote as a printable document and attaches the PDF to it.
  *
  * Both documents print the same way — issuer block, bill-to block, lines, totals, notes — so they
- * share one layout instead of two that drift; the handful of fields that genuinely differ (title,
- * number column, due-vs-valid-until, amount paid) are resolved here and handed to the view flat.
+ * share one packaged layout instead of two that drift; the handful of fields that genuinely differ (title,
+ * number column, due-vs-valid-until, amount paid) are resolved here and handed to the template flat.
  *
- * A tenant that wants its own branding sets the matching ConfigurationEnum key to the name of a
- * stored template; the packaged layout is the fallback, not the requirement.
+ * The layout is the `scribe-invoice` or `scribe-quote` Twig row (company, then app, then platform), so a
+ * tenant restyles each one without code; the packaged file is the fallback. An app setting naming any other
+ * stored template (ConfigurationEnum) wins over both.
  */
 final class DocumentPdfService
 {
-    public const string DEFAULT_VIEW = 'pdf.scribe-document';
+    public const string INVOICE_TEMPLATE_NAME = 'scribe-invoice';
+    public const string QUOTE_TEMPLATE_NAME = 'scribe-quote';
+    public const string PACKAGED_TEMPLATE = 'views/pdf/scribe-document.twig';
     public const string INVOICE_FIELD_NAME = 'invoice_pdf';
     public const string QUOTE_FIELD_NAME = 'quote_pdf';
 
@@ -61,15 +63,20 @@ final class DocumentPdfService
 
     public function render(): string
     {
-        $data = $this->viewData();
-        $templateName = $this->resolveTemplateName();
+        $renderer = new RenderTemplateAction($this->document->app, $this->document->company);
+        $context = array_merge(['entity' => $this->document], $this->viewData());
 
-        if ($templateName !== null) {
-            return new RenderTemplateAction($this->document->app, $this->document->company)
-                ->execute($templateName, array_merge(['entity' => $this->document], $data));
+        $configured = $this->resolveTemplateName();
+        if ($configured !== null) {
+            return $renderer->execute($configured, $context);
         }
 
-        return View::make(self::DEFAULT_VIEW, $data)->render();
+        return $renderer->renderNamedOrPackaged($this->templateName(), $context, self::PACKAGED_TEMPLATE);
+    }
+
+    public function templateName(): string
+    {
+        return $this->isQuote() ? self::QUOTE_TEMPLATE_NAME : self::INVOICE_TEMPLATE_NAME;
     }
 
     public function fieldName(): string
@@ -116,7 +123,7 @@ final class DocumentPdfService
         return $this->document instanceof Quote;
     }
 
-    private function title(): string
+    public function title(): string
     {
         if ($this->isQuote()) {
             return 'Quote';

@@ -90,6 +90,7 @@ class WarehouseService
         if ($variant->sku && (! isset($warehousesInfo['sku']) || ! $warehousesInfo['sku'])) {
             $warehousesInfo['sku'] = $variant->sku;
         }
+
         return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
     }
 

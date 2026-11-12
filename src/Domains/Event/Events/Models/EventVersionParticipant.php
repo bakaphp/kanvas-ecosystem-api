@@ -13,6 +13,7 @@ use Kanvas\Event\Events\Observers\EventVersionParticipantObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
@@ -39,6 +40,25 @@ class EventVersionParticipant extends BaseModel
     public function participantType(): BelongsTo
     {
         return $this->belongsTo(ParticipantType::class);
+    }
+
+    /**
+     * Fired on the EventVersion, not on this row: rules are configured per EventVersion and read
+     * `event_version_change` (participant-added / -removed / -updated) to tell the cases apart.
+     */
+    public function fireEventVersionWorkflow(string $change): void
+    {
+        $eventVersion = $this->eventVersion;
+        $eventVersion->fireWorkflow(
+            WorkflowEnum::EVENT_VERSIONS_WORKFLOW->value,
+            true,
+            [
+                'app' => $eventVersion->app,
+                'company' => $eventVersion->company,
+                'event_version_change' => $change,
+                'event_version_participant_id' => $this->getId(),
+            ],
+        );
     }
 
     #[Override]

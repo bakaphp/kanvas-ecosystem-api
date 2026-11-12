@@ -16,9 +16,9 @@ use Kanvas\Languages\Services\Translation as TranslationService;
 class StatusMutation extends BaseMutation
 {
     protected string $model = StatusModel::class;
+
     /**
      * create.
-     *
      */
     public function create(mixed $rootValue, array $request): StatusModel
     {
@@ -38,7 +38,6 @@ class StatusMutation extends BaseMutation
 
     /**
      * update.
-     *
      */
     public function update(mixed $rootValue, array $request): StatusModel
     {
@@ -54,7 +53,6 @@ class StatusMutation extends BaseMutation
 
     /**
      * delete.
-     *
      */
     public function delete(mixed $rootValue, array $request): bool
     {

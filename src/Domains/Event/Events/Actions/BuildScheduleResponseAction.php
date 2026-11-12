@@ -19,7 +19,7 @@ class BuildScheduleResponseAction
         'thursday',
         'friday',
         'saturday',
-        'sunday'
+        'sunday',
     ];
 
     public function __construct(
@@ -111,7 +111,7 @@ class BuildScheduleResponseAction
                 'active' => true,
                 'open' => $open,
                 'close' => $close,
-                'periods' => $periods
+                'periods' => $periods,
             ];
         }
 

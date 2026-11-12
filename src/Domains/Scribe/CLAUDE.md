@@ -59,10 +59,13 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
 - **Stripe lives in `Connectors/Stripe/`, ALWAYS.** No in-Scribe Stripe handlers, period. When Scribe needs Stripe (tenant AR via Stripe Billing), the work goes in `Connectors/Stripe/` and calls Scribe's public `*FromExternal` Actions.
 - **Items (`accounting.items`) live in Scribe** with a nullable `inventory_variant_id` FK to `inventory.variants.id`. Variant — not Product, because you sell the variant. Pure-service items have `inventory_variant_id=NULL`. Each domain owns its own fields; no auto-sync in either direction except one-time creation observers.
 - **Document PDFs live in `Scribe/Documents/`.** `DocumentPdfService` renders an Invoice **or** a Quote
-  through one shared Blade layout (`resources/views/pdf/scribe-document.blade.php`) and attaches the file
-  to the document (`invoice_pdf` / `quote_pdf` field names). A tenant overrides the layout by pointing
-  `Scribe\Documents\Enums\ConfigurationEnum::{INVOICE,QUOTE}_PDF_TEMPLATE` at a stored template name —
-  that path goes through `RenderTemplateAction`, so the template is Blade with the same view data.
+  from the `scribe-invoice` / `scribe-quote` Twig row (company, then app, then platform; same lookup as
+  `scribe-ecf-invoice` and `scribe-sow`), falling back to the one packaged layout
+  (`resources/views/pdf/scribe-document.twig`), and attaches the file to the document (`invoice_pdf` /
+  `quote_pdf` field names). `ScribeDocumentTemplateSeeder::forApp($appsId)` writes both rows for an app so
+  the tenant edits them in the template UI; the two names share one file so an invoice restyle never
+  touches quotes. `Scribe\Documents\Enums\ConfigurationEnum::{INVOICE,QUOTE}_PDF_TEMPLATE` naming any
+  other stored template wins over the rows.
   One service, not two: the documents differ only in title, number field, due-vs-valid-until and
   amount-paid, and two layouts would drift. **Rendering is not sending.** Sending lives in
   `Scribe/Delivery/`: a document reaches a customer only as an ActionEngine engagement on the document
@@ -73,11 +76,16 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   quote contact → every person linked to the customer with the `billing-contact` people tag → billing
   email); naming a person tags and links them. Never the old `billing_contact_people_id` custom field
   (`scribe:migrate-billing-contacts` moved it once). An agent reaches a customer with an invoice, quote or SOW only
-  through `send_invoice` / `send_quote` (a tracked engagement: opens, signatures, payments on record); never grant an
-  AR/AP agent a general email or WhatsApp tool, which would send a document outside it. A person may still generate
-  the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
+  through `send_invoice` / `send_quote` (a tracked engagement: opens, signatures, payments on record). The AP and AR
+  agents hold `send_person_email` for plain correspondence (a vendor statement request, a customer's question) only
+  while a real person is asking (`personAsking()`, both read inbound email); it cannot attach a file, and the only
+  document reference it can carry is the `get_document_link` engagement link, so a document never leaves untracked.
+  Never grant them a WhatsApp or attachment-capable send. A person may still generate the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
   DGII accepted it. The public page renders `Engagement.document_page` (`toTemplateData()`), never the
-  row; customer answers come back through `respondToDocumentEngagement` → `RecordDocumentResponseAction`
+  row; the engagement's `message.data` also carries `document_number`, `name` and `html` (`DocumentHtmlService`:
+  the string the PDF is printed from, the SOW layout for `sign-sow`, the legal e-CF representation once DGII
+  accepted and no `html` before), rewritten on every open so a reused link shows the document as it is now;
+  `html` is for display, the actions (accept, sign, pay, QR) stay on `document_page`; customer answers come back through `respondToDocumentEngagement` → `RecordDocumentResponseAction`
   (accept = `AcceptQuoteAction`, decline = `RejectQuoteAction`), and paid closes the thread from
   `MarkInvoicePaidAction`. Dunning is the follow-up engine's Invoice executor
   (`Intelligence/FollowUp/Actions/FollowUpInvoiceAction`, company setting `scribe_dunning_schedule`).
@@ -105,14 +113,22 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   inbound answer, deduped, applied under the row lock), `fiscal_document_relations` (notes → modified document)
   and `fiscal_number_ranges` (+ ANECF annulments). Write only through `CreateFiscalDocumentAction`,
   `RecordFiscalSubmissionAction` and `ApplyFiscalAnswerAction`; read through `EcfCompliance::read()/current()`
-  or `ReceivedEcfCompliance`. The provider `systemRef` is the send attempt's `uuid` (`fiscal_document_submissions.uuid`, never
-  the invoice's: WebPOS answers a repeated systemRef with the status it already holds, so a resend after a
-  reusable rejection needs its own), jobs take the fiscal row and build the provider for the row's frozen
+  or `ReceivedEcfCompliance`. The provider `systemRef` is the send attempt's `system_ref` (16 uppercase
+  alphanumerics, never the invoice's uuid: WebPOS answers a repeated systemRef with the status it already holds,
+  so a resend after a reusable rejection needs its own, and it forwards the value as DGII's 20-character
+  `NumeroFacturaInterna`, which is why a 36-character uuid earned observation 1323 on every e-CF; attempts from
+  before the column still answer to their `uuid`), jobs take the fiscal row and build the provider for the row's frozen
   provider and environment, and callbacks resolve to that exact row — an answer about a superseded number never
   touches the document. Rows are never deleted and freeze once they may have reached the authority. A DGII
   rejection burns the number unless `secuenciaUtilizada` is explicitly false. Deploy: `scribe:dr-fiscal-preflight`
   → migrate → `scribe:dr-fiscal-backfill` (test data only); `scribe:fiscal-resolve-stuck-submissions` runs every
   10 minutes.
+- **WebPOS mapping facts learned on the test host (2026-11-10), each pinned by a mapper test.** `fedo.totales.totalIsrRetenido`
+  must be sent or DGII observes 11174 (WebPOS sums item ITBIS withholding into the header, not ISR). An `OtraMoneda`
+  `addInfo` group makes WebPOS drop the document with `received: false` and no message; it builds that block itself
+  from `currency` + `currencyRate`, so only the IdDoc payment lines go. DGII's `TipoCuentaPago` is CT/AH/OT
+  (`DrEcfValidator::PAYMENT_ACCOUNT_TYPES`, observation 1144 otherwise). A provider refusal keeps the raw answer as
+  the attempt's response artifact; read it before guessing.
 - **A country's rules live in `ElectronicInvoicing/Regimes/{Country}/`, never in shared code or a table.** Shared
   code (`EcfIssuanceService`, the jobs, `ConfigureEcfRangeAction`, readiness, the agent tools) resolves a
   `FiscalRegimeInterface` and asks it; it never names a country's types, payload, authority or currency. A

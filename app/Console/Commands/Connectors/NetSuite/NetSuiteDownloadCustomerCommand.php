@@ -31,7 +31,6 @@ class NetSuiteDownloadCustomerCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

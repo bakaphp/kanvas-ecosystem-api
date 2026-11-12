@@ -8,12 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Client;
-use NetSuite\Classes\GetRequest;
 use NetSuite\Classes\InventoryItem;
 use NetSuite\Classes\ItemSearch;
 use NetSuite\Classes\ItemSearchBasic;
 use NetSuite\Classes\ItemSearchRow;
-use NetSuite\Classes\RecordRef;
 use NetSuite\Classes\RecordType;
 use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\SearchStringField;
@@ -35,22 +33,7 @@ class NetSuiteProductService
      */
     public function getProductById(int|string $productId): InventoryItem
     {
-        $productRef = new RecordRef();
-        $productRef->internalId = $productId;
-        $productRef->type = RecordType::inventoryItem;
-
-        $getRequest = new GetRequest();
-        $getRequest->baseRef = $productRef;
-
-        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($getRequest) {
-            $response = $service->get($getRequest);
-
-            if ($response->readResponse->status->isSuccess) {
-                return $response->readResponse->record;
-            }
-
-            throw new Exception('Error retrieving product: ' . $response->readResponse->status->statusDetail[0]->message);
-        });
+        return $this->client->getRecord(RecordType::inventoryItem, $productId, 'product');
     }
 
     public function getInventoryQuantityByLocation(InventoryItem $product, int|string $locationId): int
@@ -79,6 +62,7 @@ class NetSuiteProductService
         foreach ($product->basic->inventoryLocation as $index => $assignment) {
             if ($assignment->searchValue->internalId == $locationId) {
                 $inventoryIndex = $index;
+
                 break;
             }
         }
@@ -165,6 +149,7 @@ class NetSuiteProductService
     public function searchProductByItemNumberFromSearch(string|int $itemNumber): array
     {
         $searchService = new NetSuiteProductSearchService($this->app, $this->company);
+
         return $searchService->searchProductByItemNumberFromSavedSearch($itemNumber);
     }
 
@@ -220,10 +205,11 @@ class NetSuiteProductService
         foreach ($barcodeList as $index => $barcode) {
             $product = $this->searchProductByItemNumber($barcode);
             $product = $this->getProductById($product[0]->internalId);
-            $productSkus[$barcode] = $this->getCustomField($product, "custitem5");
+            $productSkus[$barcode] = $this->getCustomField($product, 'custitem5');
             echo 'Product ' . $index . ' of ' . count($barcodeList) . ' processed';
             echo PHP_EOL;
         }
+
         return $productSkus;
     }
 }

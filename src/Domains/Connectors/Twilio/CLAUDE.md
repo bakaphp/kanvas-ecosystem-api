@@ -21,7 +21,9 @@ conversation to a workflow rule; the agent answers from there.
 
 **Nothing here replies.** `AFTER_ADDING_MESSAGE_TO_CHANNEL` expects a rule carrying
 `AgentChannelResponderActivity`. A receiver with no such rule files texts and stays silent — that is
-configuration, not a bug.
+configuration, not a bug. Giving an agent an SMS number creates that rule (`EnsureSmsResponderRuleAction`,
+condition `communication_channel == sms`) and the human reply rule, unless the company already runs
+those activities from a rule of its own.
 
 ## Bursts — the agent answers a flurry once
 
@@ -69,7 +71,7 @@ cancelled anything. The token-supersede debounce replaces both.
 **Support mode does not answer inline.** When the lead `isAiSupport()`,
 `AgentChannelResponderActivity` queues `SendUnrespondedAgentMessageJob` for
 `un_responded_salesperson_messages` minutes (default
-`Companies\Enums\ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT`, 60) to give the human
+`Companies\Enums\ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT`, 10) to give the human
 a window. That job carries its own per-channel supersede token — a later inbound message replaces the
 pending turn rather than adding a second one. `is_un_response` alone cannot do that job: it only
 closes once the winning turn's model call has returned.

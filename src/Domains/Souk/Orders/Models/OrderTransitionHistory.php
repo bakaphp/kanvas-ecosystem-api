@@ -37,7 +37,7 @@ class OrderTransitionHistory extends BaseModel
         'duration_in_seconds',
         'changed_at',
         'changed_by',
-        'ended_by'
+        'ended_by',
     ];
 
     protected $casts = [
@@ -67,10 +67,12 @@ class OrderTransitionHistory extends BaseModel
     {
         return $this->belongsTo(OrderStatus::class, 'to_status_id', 'id');
     }
+
     public function changedBy(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'changed_by', 'id');
     }
+
     public function endedBy(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'ended_by', 'id');
@@ -115,6 +117,7 @@ class OrderTransitionHistory extends BaseModel
             });
         });
     }
+
     /**
      * Scope to filter transitions to "paid" status with digital payment (has paid payment record).
      */
@@ -153,15 +156,18 @@ class OrderTransitionHistory extends BaseModel
         switch ($methodType) {
             case PaymentMethodTypesEnum::MANUAL->value:
                 return $this->scopeManualDeposit($query);
+
                 break;
             case PaymentMethodTypesEnum::PAYMENT->value:
                 return $this->scopePayment($query);
+
                 break;
             case PaymentMethodTypesEnum::CARD->value:
             case PaymentMethodTypesEnum::CASH->value:
             case PaymentMethodTypesEnum::BANK_TRANSFER->value:
             case PaymentMethodTypesEnum::WALLET->value:
                 return $this->scopePaymentMethod($query, $type);
+
                 break;
             default:
                 return $query;

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Movipass\Neuron\Tools\Traits;
 
 use DateTimeZone;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Services\OrderProviderScopeService;
 use Throwable;
 
@@ -85,6 +86,14 @@ trait ResolvesMovipassReportScope
             'status' => 'error',
             'message' => 'This app is not set up for the Movipass provider model (B2B_MAIN_COMPANY_ID is unset), '
                 . 'so this report cannot be bounded to a single company. Use the generic order report tools instead.',
+        ];
+    }
+
+    protected function unknownOrderType(): array
+    {
+        return [
+            'status' => 'error',
+            'message' => 'order_type must be one of: ' . implode(', ', array_column(OrderTypeEnum::cases(), 'value')) . '.',
         ];
     }
 

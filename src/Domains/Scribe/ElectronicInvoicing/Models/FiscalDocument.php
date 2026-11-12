@@ -23,7 +23,7 @@ use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
- * One row per issuer number (plan §2). The systemRef sent to providers is the attempt's uuid
+ * One row per issuer number (plan §2). The systemRef sent to providers is the attempt's `system_ref`
  * (FiscalDocumentSubmission), so neither a re-issue nor a resend after a reusable rejection is something the
  * provider has seen before. `current_key` is set only on the entity's current document
  * and is unique, so the database itself refuses two current rows.

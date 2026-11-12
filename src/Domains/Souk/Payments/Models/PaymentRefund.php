@@ -17,6 +17,7 @@ use Kanvas\Souk\Taxes\Jobs\ReverseTaxTransactionJob;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Taxes\Models\TaxOperation;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * @property int $apps_id
@@ -26,7 +27,9 @@ use Kanvas\Users\Models\Users;
  * @property float $amount
  * @property string|null $currency
  * @property string|null $reason
+ * @property string|null $note
  * @property string|null $processor_refund_id
+ * @property string|null $idempotency_key
  * @property string $status
  * @property array|null $metadata
  */
@@ -49,6 +52,11 @@ class PaymentRefund extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
+    public function attempt(): int
+    {
+        return (int) ($this->metadata['attempt'] ?? 1);
     }
 
     public function isCompleted(): bool
@@ -85,9 +93,19 @@ class PaymentRefund extends BaseModel
             'refund_id' => $this->id,
             'amount' => $this->amount,
             'fully_refunded' => $payment->isFullyRefunded(),
-        ]);
+        ], actor: $this->user);
 
         $this->dispatchTaxReversal($payment);
+
+        // Partial refunds change no status, so this is the one event a connector can hang on to
+        // hear about every completed refund.
+        if ($payment->payable !== null && method_exists($payment->payable, 'fireWorkflowAfterCommit')) {
+            $payment->payable->fireWorkflowAfterCommit(WorkflowEnum::AFTER_REFUND->value, [
+                'app' => $this->app,
+                'company' => $this->company,
+                'payment_refund_id' => $this->getId(),
+            ]);
+        }
     }
 
     private function dispatchTaxReversal(Payments $payment): void

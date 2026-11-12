@@ -42,6 +42,10 @@ class PushGetDocsLeadStatusAction
             return ['moved' => false, 'reason' => 'lead_not_in_zoho', 'status' => $label];
         }
 
+        if ($this->lead->get(CustomFieldEnum::ZOHO_LEAD_CONVERTED_DETAIL->value)) {
+            return ['moved' => false, 'reason' => 'lead_converted', 'status' => $label];
+        }
+
         if (! $this->lead->hasOpenLeadStatus()) {
             return ['moved' => false, 'reason' => 'lead_closed', 'status' => $label];
         }

@@ -25,7 +25,6 @@ class CreateStatusAction
 
     /**
      * execute.
-     *
      */
     public function execute(): Status
     {
@@ -40,7 +39,7 @@ class CreateStatusAction
             'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
         ], [
             'name' => $this->dto->name,
-            'is_default' => $this->dto->is_default
+            'is_default' => $this->dto->is_default,
         ]);
     }
 }

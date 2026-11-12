@@ -118,12 +118,14 @@ class CaptureVoiceCallerAction
             // Promote to a lead when there's no active lead yet. OUTBOUND (we
             // dialed them) requires clear intent — placing the call isn't itself
             // a qualifying signal. INBOUND keeps the "repeat OR intent" rule: a
-            // second call counts even without stated intent.
+            // second call counts even without stated intent. Asking for an
+            // appointment is intent, whatever the model set `interested` to.
             $lead = LeadsRepository::getPeopleActiveLead($people);
             $createdLead = false;
+            $intent = $this->interested || $this->wantsAppointment;
             $qualifies = $this->direction === 'outbound'
-                ? $this->interested
-                : ($isReturning || $this->interested);
+                ? $intent
+                : ($isReturning || $intent);
             if ($lead === null && $qualifies) {
                 $lead = $this->createLeadFromPeople($people, $user);
                 $createdLead = true;

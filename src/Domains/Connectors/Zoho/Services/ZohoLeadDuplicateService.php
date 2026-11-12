@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Services;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Webleit\ZohoCrmApi\Models\Record;
@@ -13,9 +14,13 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 /**
  * Zoho's search compares the stored string and also returns partial phone matches, so each format
  * a number may be stored in is tried and every hit is re-checked here on the last 10 digits.
+ * It also leaves converted leads out unless asked: without them a person who is already a deal
+ * looks new.
  */
 class ZohoLeadDuplicateService
 {
+    private const array WITH_CONVERTED = ['converted' => 'both'];
+
     public function __construct(
         private readonly ZohoRecordsModule $leads,
     ) {
@@ -34,7 +39,7 @@ class ZohoLeadDuplicateService
         if ($email !== null) {
             $target = Contact::normalizeValue($email, ContactTypeEnum::EMAIL->value);
             $found = $this->verified(
-                $this->leads->searchEmail($email),
+                $this->leads->searchEmail($email, self::WITH_CONVERTED),
                 '/email/i',
                 fn (string $value) => Contact::normalizeValue($value, ContactTypeEnum::EMAIL->value) === $target
             );
@@ -53,7 +58,7 @@ class ZohoLeadDuplicateService
 
             foreach (self::phoneVariants($target) as $variant) {
                 $found = $this->verified(
-                    $this->leads->searchPhone($variant),
+                    $this->leads->searchPhone($variant, self::WITH_CONVERTED),
                     '/phone|mobile/i',
                     fn (string $value) => Contact::normalizeValue($value, ContactTypeEnum::PHONE->value) === $target
                 );
@@ -89,6 +94,8 @@ class ZohoLeadDuplicateService
     }
 
     /**
+     * A lead still open wins over a converted one: it can be updated, the converted one is read-only.
+     *
      * @param iterable<Record> $records
      * @return array<string, Record>
      */
@@ -106,6 +113,8 @@ class ZohoLeadDuplicateService
             }
         }
 
-        return $found;
+        $open = array_filter($found, fn (Record $record) => ! ZohoService::isConvertedLead($record));
+
+        return $open !== [] ? $open : $found;
     }
 }

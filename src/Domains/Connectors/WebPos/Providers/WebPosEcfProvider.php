@@ -32,7 +32,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 
 /**
- * systemRef is the attempt's uuid: a repeated submit of one attempt comes back `wasDuplicated` with the status
+ * systemRef is the attempt's `system_ref`: a repeated submit of one attempt comes back `wasDuplicated` with the status
  * WebPOS holds instead of issuing a second e-CF, and a new attempt (a resend after a reusable rejection, or a
  * re-issue) is never mistaken for an earlier one.
  */

@@ -54,16 +54,21 @@ class ReadOneDriveDocumentTool extends Tool
                 description: 'Excel only: A1 range to read, e.g. "A1:D20". Defaults to the whole sheet.',
                 required: false,
             ),
+            $this->driveProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $path_or_id, ?string $sheet = null, ?string $range = null): array
-    {
+    public function __invoke(
+        string $path_or_id,
+        ?string $sheet = null,
+        ?string $range = null,
+        ?string $drive = null
+    ): array {
         return $this->attempt(fn () => new ReadOneDriveDocumentAction(
-            $this->oneDrive(),
+            $this->oneDrive($drive),
             $path_or_id,
             $sheet,
             $range,

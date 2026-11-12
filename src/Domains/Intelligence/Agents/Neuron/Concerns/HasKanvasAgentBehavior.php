@@ -23,6 +23,7 @@ use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
+use Kanvas\Intelligence\Agents\Neuron\Observability\TurnSetupStage;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
@@ -525,9 +526,11 @@ trait HasKanvasAgentBehavior
             KanvasHistoryTrimmer::make(),
         );
         $this->leadTurnMemory = $this->prepareLeadTurnMemory($history, $contextWindow);
+        $this->markSetupStage('lead-memory-ready');
 
         [$instructions, $tools] = $this->resolveTools();
         [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
+        $this->markSetupStage('tools-resolved');
         $this->registeredToolNames = self::toolNames($tools);
 
         if ($this->leadTurnMemory !== null && $this->leadTurnMemory->block !== '') {
@@ -560,6 +563,7 @@ trait HasKanvasAgentBehavior
         }
 
         $history->getMessages();
+        $this->markSetupStage('history-loaded');
 
         return new PrepareLeadTurnMemoryAction(
             agent: $this->agent,
@@ -569,6 +573,11 @@ trait HasKanvasAgentBehavior
             customerFacing: $this instanceof ConversesWithCustomer,
             summaryProvider: fn (): AIProviderInterface => $this->leadSummaryProvider(),
         )->execute();
+    }
+
+    private function markSetupStage(string $stage): void
+    {
+        $this->getEventDispatcher()->dispatch(new TurnSetupStage($stage));
     }
 
     protected function leadSummaryActive(): bool

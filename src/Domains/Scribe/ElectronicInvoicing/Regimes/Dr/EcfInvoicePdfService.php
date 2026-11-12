@@ -8,8 +8,6 @@ use Baka\Helpers\GenerateQrCode;
 use Baka\Support\Money;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\File;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
@@ -17,7 +15,6 @@ use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Templates\Actions\RenderTemplateAction;
-use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -61,16 +58,8 @@ final class EcfInvoicePdfService
 
     public function render(): string
     {
-        $renderer = new RenderTemplateAction($this->invoice->app, $this->invoice->company);
-        $context = $this->viewData();
-
-        try {
-            $template = TemplatesRepository::getByName(self::TEMPLATE_NAME, $this->invoice->app, $this->invoice->company);
-        } catch (ModelNotFoundException) {
-            return $renderer->execute(self::TEMPLATE_NAME, $context, File::get(resource_path(self::PACKAGED_TEMPLATE)));
-        }
-
-        return $renderer->renderTemplate($template, $context);
+        return new RenderTemplateAction($this->invoice->app, $this->invoice->company)
+            ->renderNamedOrPackaged(self::TEMPLATE_NAME, $this->viewData(), self::PACKAGED_TEMPLATE);
     }
 
     /**

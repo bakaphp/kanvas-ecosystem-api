@@ -184,7 +184,7 @@ final class LeadConversationMessages
         $payload = $message->getMessage();
         $channel = $message->channels->first();
 
-        if ($channel?->isNoteChannel() || $channel?->isAiAssistChannel()) {
+        if ($channel?->isInternalChannel()) {
             return 'Staff note (internal)';
         }
 

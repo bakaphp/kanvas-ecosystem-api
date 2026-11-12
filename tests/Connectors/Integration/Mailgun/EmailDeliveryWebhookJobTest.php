@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Messages\Models\DeliveryEvent;
 use Kanvas\Companies\Models\Companies;
@@ -181,14 +182,16 @@ final class EmailDeliveryWebhookJobTest extends TestCase
         $this->assertSame('No outbound email on record for this Message-Id, ignored', $result['message']);
     }
 
-    public function testOpensAreLeftToTheOpenedReceiver(): void
+    public function testAnOpenReadsAsReadAndALateDeliveredDoesNotUndoIt(): void
     {
-        $delivery = $this->deliveryFor($this->createMessage());
+        $message = $this->createMessage();
+        $delivery = $this->deliveryFor($message);
 
-        $result = $this->deliver($this->event('opened', $delivery->external_id));
+        $this->deliver($this->event('opened', $delivery->external_id));
+        $this->deliver($this->event('delivered', $delivery->external_id));
 
-        $this->assertSame('Event opened is not a delivery event, ignored', $result['message']);
-        $this->assertSame('accepted', $delivery->fresh()->status->value);
+        $this->assertSame('read', $delivery->fresh()->status->value);
+        $this->assertSame('read', $message->fresh()->getMessage()['delivery']['status']);
     }
 
     private function event(string $event, string $messageId, array $extra = []): array
@@ -213,7 +216,9 @@ final class EmailDeliveryWebhookJobTest extends TestCase
             ->create(['user_id' => $this->user->getId()]);
 
         return new FileEmailDeliveryAction(
-            agent: $agent,
+            app: $agent->app,
+            company: $agent->company,
+            sender: Sender::agent($agent),
             to: $this->email,
             content: Content::text('Here is your quote')->withSubject('Your quote'),
             message: $message,

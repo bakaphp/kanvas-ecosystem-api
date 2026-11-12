@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
+use Baka\Support\Money;
 use Illuminate\Http\Request;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\Actions\MessageNotificationTextAction;
@@ -18,6 +19,12 @@ use Kanvas\Connectors\Stripe\Webhooks\Concerns\VerifiesStripeSignature;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Scribe\Invoices\Actions\AllocateInvoicePaymentAction;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Payments\Actions\CreateScribePaymentAction;
+use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -77,6 +84,10 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
                 'message' => 'Checkout session not paid: ' . ($session['payment_status'] ?? 'null'),
                 'response' => null,
             ];
+        }
+
+        if (! empty($session['metadata']['invoice_id'])) {
+            return $this->handleInvoicePaid($session);
         }
 
         // A null value drops the value filter from the lookup and would match any deposit message.
@@ -199,6 +210,79 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
             'response' => $submittedEngagement,
             'first_engagement' => $firstEngagement?->getId(),
             'last_engagement' => $submittedEngagement->getId(),
+        ];
+    }
+
+    /**
+     * A Scribe invoice link (StripePaymentLinkService::generatePaymentLinkFromInvoice). The session id is
+     * the payment's external id, so a redelivery finds the payment it already booked and stops there.
+     */
+    protected function handleInvoicePaid(array $session): array
+    {
+        $sessionId = (string) $session['id'];
+        $metadata = $session['metadata'];
+        $sharedAccount = (bool) ($this->receiver->configuration[ConfigurationEnum::STRIPE_SHARED_APP_ACCOUNT->value] ?? false);
+        $companyId = $sharedAccount ? (int) ($metadata['company_id'] ?? 0) : $this->receiver->company->getId();
+
+        /** @var Invoice|null $invoice */
+        $invoice = Invoice::query()
+            ->where('id', (int) $metadata['invoice_id'])
+            ->where('apps_id', $this->receiver->app->getId())
+            ->where('companies_id', $companyId)
+            ->notDeleted()
+            ->first();
+
+        if ($invoice === null) {
+            return [
+                'message' => 'No invoice ' . $metadata['invoice_id'] . ' for this receiver',
+                'response' => null,
+            ];
+        }
+
+        $alreadyBooked = Payment::query()
+            ->where('apps_id', $invoice->apps_id)
+            ->where('companies_id', $invoice->companies_id)
+            ->where('source', 'stripe')
+            ->where('external_id', $sessionId)
+            ->first();
+
+        if ($alreadyBooked !== null) {
+            return [
+                'message' => 'Checkout session already processed: ' . $sessionId,
+                'response' => $alreadyBooked->getId(),
+            ];
+        }
+
+        $amount = (float) Money::fromMinorUnits((int) $session['amount_total'], $invoice->currency);
+
+        $payment = new CreateScribePaymentAction(
+            app: $invoice->app,
+            company: $invoice->company,
+            amountNative: $amount,
+            currency: $invoice->currency,
+            direction: PaymentDirectionEnum::INBOUND,
+            method: PaymentMethodEnum::STRIPE,
+            user: $this->receiver->user,
+            reference: (string) ($session['payment_intent'] ?? $sessionId),
+            notes: 'Stripe payment link for invoice ' . $invoice->invoice_number,
+            source: 'stripe',
+            externalId: $sessionId,
+            metadata: ['payment_link' => $session['payment_link'] ?? null],
+        )->execute();
+
+        new AllocateInvoicePaymentAction(
+            invoice: $invoice,
+            amountNative: $amount,
+            method: PaymentMethodEnum::STRIPE,
+            payment: $payment,
+            reference: $payment->reference,
+            user: $this->receiver->user,
+            source: 'stripe',
+        )->execute();
+
+        return [
+            'message' => 'Invoice ' . $invoice->invoice_number . ' paid through Stripe',
+            'response' => $payment->getId(),
         ];
     }
 

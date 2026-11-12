@@ -26,7 +26,8 @@ final class DeliveryStatusEnumTest extends TestCaseUnit
             'permanent failure' => ['failed', 'permanent', DeliveryStatusEnum::FAILED],
             'complaint' => ['complained', '', DeliveryStatusEnum::COMPLAINED],
             'unsubscribe' => ['unsubscribed', '', DeliveryStatusEnum::UNSUBSCRIBED],
-            'open is not a delivery event' => ['opened', '', null],
+            'opened' => ['opened', '', DeliveryStatusEnum::OPENED],
+            'click is not a delivery event' => ['clicked', '', null],
         ];
     }
 
@@ -45,6 +46,7 @@ final class DeliveryStatusEnumTest extends TestCaseUnit
             'permanent failure' => [DeliveryStatusEnum::FAILED, CommunicationDeliveryStatusEnum::FAILED],
             'a complaint proves delivery' => [DeliveryStatusEnum::COMPLAINED, CommunicationDeliveryStatusEnum::DELIVERED],
             'an unsubscribe proves delivery' => [DeliveryStatusEnum::UNSUBSCRIBED, CommunicationDeliveryStatusEnum::DELIVERED],
+            'an open is the email being read' => [DeliveryStatusEnum::OPENED, CommunicationDeliveryStatusEnum::READ],
         ];
     }
 

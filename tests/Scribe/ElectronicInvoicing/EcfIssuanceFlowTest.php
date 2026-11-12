@@ -60,7 +60,7 @@ class EcfIssuanceFlowTest extends EcfTestCase
         $this->assertSame(EcfStatusEnum::ACCEPTED->value, $ecf['status']);
         $this->assertSame('ABC123', $ecf['security_code']);
         $this->assertCount(2, $ecf['qr_legends']);
-        $this->assertSame('fake-' . EcfCompliance::current($invoice)->latestSubmission->uuid, $ecf['provider_ref']);
+        $this->assertSame('fake-' . EcfCompliance::current($invoice)->latestSubmission->system_ref, $ecf['provider_ref']);
         $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $invoice->document_status);
         $this->assertSame('E310000000004', FakeEcfProvider::$submitted[0]->encf);
         $this->assertTrue($this->ledgerHas($invoice, 'scribe.invoice.ecf_accepted'));

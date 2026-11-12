@@ -53,6 +53,7 @@ class CreatePasoRapidoOrderTransitionsCommand extends Command
                 $this->info("Filtering orders created until: {$untilDate->toDateString()}");
             } catch (Exception $e) {
                 $this->error('Invalid date format for --until. Use YYYY-MM-DD.');
+
                 return;
             }
         }
@@ -62,6 +63,7 @@ class CreatePasoRapidoOrderTransitionsCommand extends Command
 
         if ($total === 0) {
             $this->warn('No paid paso_rapido orders found.');
+
             return;
         }
 
@@ -82,7 +84,7 @@ class CreatePasoRapidoOrderTransitionsCommand extends Command
                     'created' => $created++,
                     'updated' => $updated++,
                     'skipped' => $skipped++,
-                    default   => null,
+                    default => null,
                 };
             } catch (Exception $e) {
                 $errors++;
@@ -147,7 +149,7 @@ class CreatePasoRapidoOrderTransitionsCommand extends Command
         $statusTransition = OrderStatusTransitions::where([
             'order_types_id' => $orderType->id,
             'from_status_id' => $draftStatus->id,
-            'to_status_id'   => $paidStatus->id,
+            'to_status_id' => $paidStatus->id,
         ])->first();
 
         DB::transaction(function () use ($order, $appId, $draftStatus, $paidStatus, $statusTransition, $createdAt, $paidAt, $isUpdate) {
@@ -156,36 +158,36 @@ class CreatePasoRapidoOrderTransitionsCommand extends Command
             }
 
             OrderTransitionHistory::create([
-                'apps_id'             => $appId,
-                'companies_id'        => $order->companies_id ?? 0,
-                'order_id'            => $order->id,
-                'transition_id'       => null,
-                'from_status_id'      => null,
-                'to_status_id'        => $draftStatus->id,
-                'description'         => 'Order created as draft',
-                'metadata'            => json_encode($order->metadata ?? []),
-                'is_current'          => false,
-                'created_at'          => $createdAt,
-                'changed_at'          => $createdAt,
-                'ended_at'            => $paidAt,
+                'apps_id' => $appId,
+                'companies_id' => $order->companies_id ?? 0,
+                'order_id' => $order->id,
+                'transition_id' => null,
+                'from_status_id' => null,
+                'to_status_id' => $draftStatus->id,
+                'description' => 'Order created as draft',
+                'metadata' => json_encode($order->metadata ?? []),
+                'is_current' => false,
+                'created_at' => $createdAt,
+                'changed_at' => $createdAt,
+                'ended_at' => $paidAt,
                 'duration_in_seconds' => $createdAt->diffInSeconds($paidAt),
-                'changed_by'          => $order->users_id,
-                'ended_by'            => $order->users_id,
+                'changed_by' => $order->users_id,
+                'ended_by' => $order->users_id,
             ]);
 
             OrderTransitionHistory::create([
-                'apps_id'        => $appId,
-                'companies_id'   => $order->companies_id ?? 0,
-                'order_id'       => $order->id,
-                'transition_id'  => $statusTransition?->id,
+                'apps_id' => $appId,
+                'companies_id' => $order->companies_id ?? 0,
+                'order_id' => $order->id,
+                'transition_id' => $statusTransition?->id,
                 'from_status_id' => $draftStatus->id,
-                'to_status_id'   => $paidStatus->id,
-                'description'    => 'Order paid',
-                'metadata'       => json_encode($order->metadata ?? []),
-                'is_current'     => true,
-                'created_at'     => $paidAt,
-                'changed_at'     => $paidAt,
-                'changed_by'     => $order->users_id,
+                'to_status_id' => $paidStatus->id,
+                'description' => 'Order paid',
+                'metadata' => json_encode($order->metadata ?? []),
+                'is_current' => true,
+                'created_at' => $paidAt,
+                'changed_at' => $paidAt,
+                'changed_by' => $order->users_id,
             ]);
 
             $order->updateQuietly(['order_status_id' => $paidStatus->id]);
@@ -198,7 +200,7 @@ class CreatePasoRapidoOrderTransitionsCommand extends Command
     {
         return OrderStatus::where([
             'order_types_id' => $orderType->id,
-            'slug'           => $slug,
+            'slug' => $slug,
         ])->first();
     }
 }

@@ -14,6 +14,9 @@ use Kanvas\Connectors\Zoho\Actions\PullZohoDealAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
 use Tests\TestCase;
 
@@ -51,6 +54,21 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Acme funding', $deal->get(CustomFieldEnum::ZOHO_DEAL_RAW->value)['Deal_Name']);
         $this->assertSame('Acme LLC', $deal->get('business_legal_name'));
         $this->assertSame(50000, $deal->get('funding_amount_requested'));
+    }
+
+    public function testAHandedInLeadIsLinkedWhenTheDealNamesNoLead(): void
+    {
+        $company = $this->makeZohoCompany();
+        $lead = $this->makeLead($company);
+
+        $deal = $this->action($company, 'zd-10', [
+            'id' => 'zd-10',
+            'Deal_Name' => 'Converted funding',
+        ], lead: $lead)->execute();
+
+        $this->assertSame($lead->getId(), (int) $deal->leads_id);
+        $this->assertSame((int) $lead->people_id, (int) $deal->people_id);
+        $this->assertTrue($lead->deals()->whereKey($deal->getId())->exists());
     }
 
     public function testACompanyMapInTheLeadShapeIsReadOnThePull(): void
@@ -353,6 +371,78 @@ final class PullZohoDealActionTest extends TestCase
         );
     }
 
+    public function testTheZohoOwnerBecomesTheDealOwner(): void
+    {
+        $company = $this->makeZohoCompany();
+        $owner = $this->makeAppUser($company);
+
+        $deal = $this->action($company, 'zd-40', [
+            'id' => 'zd-40',
+            'Deal_Name' => 'Owned in Zoho',
+            'Owner' => ['name' => 'Funding Rep', 'id' => '4242', 'email' => $owner->email],
+        ])->execute();
+
+        $this->assertSame($owner->getId(), (int) $deal->owner_id);
+    }
+
+    public function testAReassignmentInZohoMovesTheOwnerOnTheNextPull(): void
+    {
+        $company = $this->makeZohoCompany();
+        $owner = $this->makeAppUser($company);
+        $info = ['id' => 'zd-41', 'Deal_Name' => 'Reassigned'];
+
+        $first = $this->action($company, 'zd-41', $info)->execute();
+        $this->assertSame(auth()->user()->getId(), (int) $first->owner_id);
+
+        $second = $this->action($company, 'zd-41', [
+            'Owner' => ['name' => 'Funding Rep', 'id' => '4242', 'email' => $owner->email],
+        ] + $info)->execute();
+
+        $this->assertSame($owner->getId(), (int) $second->fresh()->owner_id);
+    }
+
+    public function testANewDealTakesItsLeadsOwnerWhenNobodyMatchesTheZohoOwner(): void
+    {
+        $company = $this->makeZohoCompany();
+        $leadOwner = $this->makeAppUser($company);
+        $lead = $this->makeLead($company);
+        $lead->leads_owner_id = $leadOwner->getId();
+        $lead->saveOrFail();
+
+        $deal = $this->action(
+            $company,
+            'zd-42',
+            [
+                'id' => 'zd-42',
+                'Deal_Name' => 'Unknown Zoho owner',
+                'Owner' => ['name' => 'Nobody', 'id' => '1', 'email' => 'nobody-' . uniqid() . '@example.com'],
+            ],
+            lead: $lead
+        )->execute();
+
+        $this->assertSame($leadOwner->getId(), (int) $deal->owner_id);
+    }
+
+    public function testAnUnmatchedZohoOwnerLeavesAnExistingDealsOwnerAlone(): void
+    {
+        $company = $this->makeZohoCompany();
+        $owner = $this->makeAppUser($company);
+        $lead = $this->makeLead($company);
+        $lead->leads_owner_id = $this->makeAppUser($company)->getId();
+        $lead->saveOrFail();
+
+        $deal = $this->makeDeal($company, $owner, lead: $lead);
+        $deal->set(CustomFieldEnum::ZOHO_DEAL_ID->value, 'zd-43');
+
+        $pulled = $this->action($company, 'zd-43', [
+            'id' => 'zd-43',
+            'Deal_Name' => 'Reassigned in Kanvas',
+            'Owner' => ['name' => 'Nobody', 'id' => '1', 'email' => 'nobody-' . uniqid() . '@example.com'],
+        ])->execute();
+
+        $this->assertSame($owner->getId(), (int) $pulled->fresh()->owner_id);
+    }
+
     public function testReturnsNullWhenZohoHasNoSuchDeal(): void
     {
         $company = $this->makeZohoCompany();
@@ -370,12 +460,31 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Fetched', $deal->title);
     }
 
+    private function makeAppUser(Companies $company): Users
+    {
+        $user = Users::factory()->create();
+
+        UsersAssociatedApps::create([
+            'users_id' => $user->getId(),
+            'companies_id' => $company->getId(),
+            'apps_id' => app(Apps::class)->getId(),
+            'identify_id' => $user->getId(),
+            'email' => $user->email,
+            'user_active' => 1,
+            'user_role' => 'admin',
+            'is_deleted' => 0,
+        ]);
+
+        return $user;
+    }
+
     private function action(
         Companies $company,
         string $zohoDealId,
         array $fetched,
         array $contact = [],
-        array $attachments = []
+        array $attachments = [],
+        ?Lead $lead = null
     ): PullZohoDealAction {
         return new class (
             app(Apps::class),
@@ -384,7 +493,8 @@ final class PullZohoDealActionTest extends TestCase
             $zohoDealId,
             $fetched,
             $contact,
-            $attachments
+            $attachments,
+            $lead
         ) extends PullZohoDealAction {
             /** @var list<string> */
             public array $downloaded = [];
@@ -396,9 +506,16 @@ final class PullZohoDealActionTest extends TestCase
                 string $zohoDealId,
                 private array $fetched,
                 private array $contact,
-                private array $attachments
+                private array $attachments,
+                ?Lead $lead
             ) {
-                parent::__construct($app, $company, $user, $zohoDealId);
+                parent::__construct(
+                    $app,
+                    $company,
+                    $user,
+                    $zohoDealId,
+                    lead: $lead
+                );
             }
 
             protected function fetchDeal(): array

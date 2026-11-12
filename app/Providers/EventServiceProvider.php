@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Illuminate\Notifications\Events\NotificationSent;
+use Kanvas\Communication\Messages\Listeners\MarkSmtpEmailAcceptedListener;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
@@ -110,6 +112,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         VariantSearchDocumentChanged::class => [
             QueueVariantInterestReindexListener::class,
+        ],
+        NotificationSent::class => [
+            MarkSmtpEmailAcceptedListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,

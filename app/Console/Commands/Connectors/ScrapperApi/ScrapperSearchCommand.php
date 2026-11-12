@@ -29,7 +29,6 @@ class ScrapperSearchCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

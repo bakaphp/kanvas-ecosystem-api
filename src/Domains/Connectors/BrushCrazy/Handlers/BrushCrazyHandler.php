@@ -52,9 +52,11 @@ class BrushCrazyHandler extends BaseIntegration
         }
 
         // Per company, not per app: the credentials are shared (all studios live in one source
-        // database) but each studio has to be able to cut over — and stop being mirrored —
-        // independently of the others.
-        $this->company->set(ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value, true);
+        // database) but each studio's mirror can be paused on its own. Only a first setup turns it
+        // on; re-running setup to rotate the password must not resume a studio an operator paused.
+        if ($this->company->get(ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value) === null) {
+            $this->company->set(ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value, true);
+        }
 
         return new Client($this->app)->testConnection();
     }

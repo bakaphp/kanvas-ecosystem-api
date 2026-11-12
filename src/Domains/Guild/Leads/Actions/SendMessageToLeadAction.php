@@ -13,6 +13,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
@@ -286,10 +288,13 @@ class SendMessageToLeadAction
 
     protected function createVideoEngagements(): void
     {
-        foreach ($this->processedFiles as $file) {
+        foreach ($this->processedFiles as $index => $file) {
             if (! isset($file['is_processed_video']) || ! $file['is_processed_video']) {
                 continue;
             }
+
+            // Without a link the customer has no way to reach the video, so it goes out as a plain file.
+            $this->processedFiles[$index] = $file['video'];
 
             $filesystems = [];
             if (isset($file['video']['filesystem'])) {
@@ -320,10 +325,10 @@ class SendMessageToLeadAction
                 $engagementUrl = $engagement->message->message['action_link'] ?? '';
 
                 if (! empty($engagementUrl)) {
+                    $this->processedFiles[$index] = $file;
                     $this->videoEngagements[] = [
                         'engagement' => $engagement,
                         'url' => $engagementUrl,
-                        'gif_url' => $file['gif']['url'] ?? null,
                     ];
                 }
             } catch (Exception $e) {
@@ -895,20 +900,13 @@ class SendMessageToLeadAction
         $maxUrls = (int) ($this->lead->app->get(TwilioConfigurationEnum::TWILIO_MMS_MAX_TOTAL_MEDIA->value) ?: self::DEFAULT_MMS_MAX_TOTAL_MEDIA);
         $maxUrls = max(1, $maxUrls);
 
-        foreach ($this->videoEngagements as $videoEngagement) {
-            if (count($mediaUrls) >= $maxUrls) {
-                break;
-            }
-            if (! empty($videoEngagement['gif_url'])) {
-                $mediaUrls[] = $videoEngagement['gif_url'];
-            }
-        }
-
         foreach ($this->processedFiles as $file) {
             if (count($mediaUrls) >= $maxUrls) {
                 break;
             }
 
+            // A video goes out as its engagement link only: the GIF as MMS media can fail the whole
+            // message and take the link with it. The preview is the link page's job.
             if (isset($file['is_processed_video']) && $file['is_processed_video']) {
                 continue;
             }
@@ -1001,6 +999,7 @@ class SendMessageToLeadAction
             ];
         }
 
+        $markdownBody = $message;
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
         $message = MarkdownEmailRenderer::toEmailHtml($message);
         $template = $this->resolveEmailTemplate();
@@ -1024,9 +1023,23 @@ class SendMessageToLeadAction
         if ($ccList !== []) {
             $notification->setCc($ccList);
         }
+
+        $delivery = FileEmailDeliveryAction::sendsOnMailgunSmtp($this->lead->app, $this->lead->company)
+            ? new FileEmailDeliveryAction(
+                app: $this->lead->app,
+                company: $this->lead->company,
+                sender: Sender::speaking($fromAgent, $this->signatureOwner),
+                to: $leadEmail,
+                content: Content::text($markdownBody)->withSubject($subject),
+                people: $this->lead->people,
+                campaignRecipient: $this->campaignRecipient,
+                uuid: $this->attemptUuid,
+            )->sending($notification)
+            : null;
+
         Notification::route('mail', $leadEmail)->notify($notification);
 
-        return $this->emailResult(
+        $result = $this->emailResult(
             to: $leadEmail,
             ccList: $ccList,
             body: $message,
@@ -1035,6 +1048,18 @@ class SendMessageToLeadAction
             template: $template,
             signature: $signature,
         );
+
+        if ($delivery === null) {
+            return $result;
+        }
+
+        $this->attemptedProvider = IntegrationsEnum::MAILGUN->value;
+
+        return $result + [
+            'provider' => $this->attemptedProvider,
+            'provider_message_id' => $delivery->external_id,
+            'attempt_uuid' => $this->attemptUuid,
+        ];
     }
 
     /**

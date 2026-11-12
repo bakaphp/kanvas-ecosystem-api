@@ -1027,7 +1027,7 @@ class People extends BaseModel implements ExposesTemplateData
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,firstname,lastname,email,phone',
+                'query_by' => $query->model->queryByLiveFields('name,firstname,lastname,email,phone'),
             ]);
         }
 

@@ -13,11 +13,19 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Microsoft\Client;
 use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Microsoft\Support\MicrosoftScopes;
+use Kanvas\Connectors\Microsoft\Support\MicrosoftTokenStore;
+use PHPUnit\Framework\Attributes\Group;
+use Tests\Connectors\Microsoft\Concerns\KeepsMicrosoftSettings;
 use Tests\TestCase;
 
+/**
+ * Serial: it changes app settings (scopes, the app's OneDrive tokens), which every process shares.
+ */
+#[Group('serial')]
 class MicrosoftScopesTest extends TestCase
 {
     use DatabaseTransactions;
+    use KeepsMicrosoftSettings;
 
     private Apps $tenantApp;
 
@@ -25,24 +33,14 @@ class MicrosoftScopesTest extends TestCase
 
     private string $suffix;
 
-    /** @var array<string, mixed> */
-    private array $originalCompanyValues = [];
-
-    private mixed $originalScopesSetting = null;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->tenantApp = app(Apps::class);
         $this->company = static::$cachedUser->getCurrentCompany();
-        $this->suffix = '-' . $this->tenantApp->getId() . '-' . $this->company->getId();
-
-        $this->originalScopesSetting = $this->tenantApp->get(ConfigurationEnum::SCOPES->value);
-
-        foreach ($this->companyKeys() as $key) {
-            $this->originalCompanyValues[$key] = $this->company->get($key);
-        }
+        $this->suffix = ConfigurationEnum::companySuffix($this->tenantApp, $this->company);
+        $this->keepMicrosoftSettings($this->tenantApp, $this->company);
 
         $this->company->set(ConfigurationEnum::CLIENT_ID->value, 'client-id');
         $this->company->set(ConfigurationEnum::CLIENT_SECRET->value, 'client-secret');
@@ -51,16 +49,12 @@ class MicrosoftScopesTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->restore($this->tenantApp, ConfigurationEnum::SCOPES->value, $this->originalScopesSetting);
-
-        foreach ($this->originalCompanyValues as $key => $value) {
-            $this->restore($this->company, $key, $value);
-        }
+        $this->restoreMicrosoftSettings();
 
         parent::tearDown();
     }
 
-    public function test_authorization_scopes_add_files_to_the_mail_default(): void
+    public function test_company_authorization_adds_files_and_profile_to_the_mail_default(): void
     {
         $this->tenantApp->del(ConfigurationEnum::SCOPES->value);
 
@@ -70,23 +64,27 @@ class MicrosoftScopesTest extends TestCase
         );
     }
 
-    public function test_authorization_scopes_add_files_to_a_saved_mail_only_setting(): void
+    public function test_company_authorization_keeps_a_saved_setting_without_duplicates(): void
     {
-        $this->tenantApp->set(ConfigurationEnum::SCOPES->value, 'offline_access Mail.Read');
+        $this->tenantApp->set(ConfigurationEnum::SCOPES->value, 'offline_access Mail.Read files.readwrite user.read');
 
-        $this->assertSame(
-            'offline_access Mail.Read Files.ReadWrite User.Read',
-            MicrosoftScopes::forAuthorization($this->tenantApp)
-        );
+        $this->assertSame('offline_access Mail.Read files.readwrite user.read', MicrosoftScopes::forAuthorization($this->tenantApp));
     }
 
-    public function test_authorization_scopes_do_not_duplicate_files(): void
+    public function test_files_access_is_read_from_the_granted_scopes_in_any_case(): void
     {
-        $this->tenantApp->set(ConfigurationEnum::SCOPES->value, 'offline_access files.readwrite');
+        $this->assertTrue(MicrosoftScopes::grantsFiles('Mail.Read files.readwrite User.Read'));
+        $this->assertFalse(MicrosoftScopes::grantsFiles('Mail.Read Files.Read'));
+        $this->assertFalse(MicrosoftScopes::grantsFiles(''));
+    }
 
-        $scopes = MicrosoftScopes::forAuthorization($this->tenantApp);
-
-        $this->assertSame(1, substr_count(strtolower($scopes), 'files.readwrite'));
+    public function test_onedrive_connects_with_files_only(): void
+    {
+        $this->assertSame(
+            MicrosoftScopes::ONEDRIVE,
+            MicrosoftTokenStore::forAppOneDrive($this->tenantApp)->authorizationScopes()
+        );
+        $this->assertStringNotContainsString('Mail.', MicrosoftScopes::ONEDRIVE);
     }
 
     public function test_refresh_uses_mail_scopes_when_nothing_was_stored(): void
@@ -118,10 +116,11 @@ class MicrosoftScopesTest extends TestCase
     public function test_store_tokens_writes_every_key_and_keeps_scopes_when_none_were_returned(): void
     {
         Carbon::setTestNow('2026-11-05T10:00:00+00:00');
+        $store = MicrosoftTokenStore::forCompanyMail($this->tenantApp, $this->company);
+        $prefix = $this->suffix;
 
         try {
-            $prefix = $this->suffix;
-            Client::storeTokens($this->company, $prefix, [
+            Client::storeTokens($store, [
                 'access_token' => 'a1',
                 'refresh_token' => 'r1',
                 'expires_in' => 3600,
@@ -136,7 +135,7 @@ class MicrosoftScopesTest extends TestCase
             );
             $this->assertSame('Mail.Read Files.ReadWrite', $this->company->get(ConfigurationEnum::GRANTED_SCOPES->value . $prefix));
 
-            Client::storeTokens($this->company, $prefix, [
+            Client::storeTokens($store, [
                 'access_token' => 'a2',
                 'refresh_token' => 'r2',
                 'expires_in' => 60,
@@ -150,9 +149,42 @@ class MicrosoftScopesTest extends TestCase
         }
     }
 
-    private function restore(Apps|Companies $owner, string $key, mixed $value): void
+    public function test_the_app_onedrive_connection_never_touches_a_company_mail_connection(): void
     {
-        $value === null ? $owner->del($key) : $owner->set($key, $value);
+        $this->company->set(ConfigurationEnum::ACCESS_TOKEN->value . $this->suffix, 'company-mail');
+
+        Client::storeTokens(MicrosoftTokenStore::forAppOneDrive($this->tenantApp), [
+            'access_token' => 'app-drive',
+            'refresh_token' => 'r',
+            'expires_in' => 3600,
+            'scope' => MicrosoftScopes::ONEDRIVE,
+        ]);
+
+        $this->assertSame('app-drive', $this->tenantApp->get(ConfigurationEnum::ACCESS_TOKEN->value . '-onedrive'));
+        $this->assertSame('company-mail', $this->company->get(ConfigurationEnum::ACCESS_TOKEN->value . $this->suffix));
+
+        MicrosoftTokenStore::forAppOneDrive($this->tenantApp)->forget();
+
+        $this->assertNull($this->tenantApp->get(ConfigurationEnum::ACCESS_TOKEN->value . '-onedrive'));
+        $this->assertSame('company-mail', $this->company->get(ConfigurationEnum::ACCESS_TOKEN->value . $this->suffix));
+    }
+
+    public function test_the_app_onedrive_refresh_uses_the_app_registration_not_a_company_override(): void
+    {
+        $this->tenantApp->set(ConfigurationEnum::CLIENT_ID->value, 'app-client');
+        $this->tenantApp->set(ConfigurationEnum::CLIENT_SECRET->value, 'app-secret');
+        $this->tenantApp->set(ConfigurationEnum::TENANT_ID->value, 'common');
+        $store = MicrosoftTokenStore::forAppOneDrive($this->tenantApp);
+        $store->set(ConfigurationEnum::ACCESS_TOKEN, 'old');
+        $store->set(ConfigurationEnum::REFRESH_TOKEN, 'r1');
+        $store->set(ConfigurationEnum::TOKEN_EXPIRES_AT, Carbon::now()->subHour()->toIso8601String());
+        $store->set(ConfigurationEnum::GRANTED_SCOPES, MicrosoftScopes::ONEDRIVE);
+        $this->fakeTokenEndpoint(MicrosoftScopes::ONEDRIVE);
+
+        $this->assertSame('new', Client::validAccessToken($store));
+
+        Http::assertSent(fn (Request $request) => $request['client_id'] === 'app-client'
+            && str_contains($request->url(), '/common/oauth2/v2.0/token'));
     }
 
     private function storeExpiredTokens(): void
@@ -175,21 +207,5 @@ class MicrosoftScopesTest extends TestCase
                 'scope' => $scope,
             ]),
         ]);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function companyKeys(): array
-    {
-        return [
-            ConfigurationEnum::CLIENT_ID->value,
-            ConfigurationEnum::CLIENT_SECRET->value,
-            ConfigurationEnum::TENANT_ID->value,
-            ConfigurationEnum::ACCESS_TOKEN->value . $this->suffix,
-            ConfigurationEnum::REFRESH_TOKEN->value . $this->suffix,
-            ConfigurationEnum::TOKEN_EXPIRES_AT->value . $this->suffix,
-            ConfigurationEnum::GRANTED_SCOPES->value . $this->suffix,
-        ];
     }
 }

@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Services\AgentTurnCancellationService;
+use Kanvas\Intelligence\Agents\Services\AgentTurnTimingService;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
@@ -42,6 +43,8 @@ use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Exceptions\RunInFlightException;
 use NeuronAI\Exceptions\ToolRunsExceededException;
+use NeuronAI\Observability\ObservabilityEvent;
+use NeuronAI\Workflow\Workflow;
 use Throwable;
 
 class RunNeuronChatAction
@@ -65,6 +68,8 @@ class RunNeuronChatAction
     private int $threadWaitSeconds = 0;
 
     private bool $endedOnToolBudget = false;
+
+    private AgentTurnTimingService $timing;
 
     /** @var list<string> */
     private array $executedToolCalls = [];
@@ -112,12 +117,23 @@ class RunNeuronChatAction
         // on every exit; the thread is the key the cancel mutation and the middleware share.
         $threadId = $this->handler instanceof BehavesAsKanvasAgent ? $this->handler->getThreadId() : null;
 
+        $this->timing = new AgentTurnTimingService();
+        if ($this->handler instanceof Workflow) {
+            $this->handler->subscribe(ObservabilityEvent::class, $this->timing);
+        }
+
         try {
             return $this->runTurn($sessionId, $selfRecords, $allowStructuredText, $budget);
         } finally {
             if ($threadId !== null) {
                 AgentTurnCancellationService::clear($threadId);
             }
+
+            $this->timing->logIfSlow($this->agent, $this->threadWaitMs(), [
+                'session_id' => $sessionId,
+                'thread_id' => $threadId,
+                'handler' => $this->handler::class,
+            ]);
         }
     }
 
@@ -179,6 +195,7 @@ class RunNeuronChatAction
             // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
             // surfaces here, inside the try, and never bubbles as a 500.
             $state = $this->chatOnceTheThreadSettles($userMessage);
+            $this->timing->mark('chat-returned');
             $responseMessage = $state->getMessage() ?? new AssistantMessage('');
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
@@ -208,7 +225,7 @@ class RunNeuronChatAction
                 'companies_id' => $this->agent->companies_id,
                 'users_id' => $this->user->getId(),
                 'session_id' => $sessionId,
-                'handler' => get_class($this->handler),
+                'handler' => $this->handler::class,
                 'exception' => $e::class,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile() . ':' . $e->getLine(),
@@ -253,6 +270,8 @@ class RunNeuronChatAction
             $toolCalls,
             $toolResults
         );
+
+        $this->timing->mark('reply-assessed');
 
         // A reply naming records no tool returned, or denying earlier work or declaring work done with no tool to back
         // it, is answered once more with a correction before anyone reads it; only a repeat reaches the person, flagged.
@@ -306,9 +325,12 @@ class RunNeuronChatAction
             );
         }
 
+        $this->timing->mark('turn-logged');
+
         // Idempotent backfill so EntityRollupMessageStore (entity-keyed query)
         // sees every channel message on the next turn.
         $this->backfillChannelMessagesToLead();
+        $this->timing->mark('channel-backfilled');
 
         return $content;
     }
@@ -652,6 +674,12 @@ class RunNeuronChatAction
         $channel = $freshSession->channel;
 
         if ($lead === null || $channel === null) {
+            return;
+        }
+
+        // An AI Assist or Notes session is staff talking about the lead; copying that channel onto
+        // the lead and people channels would put internal chatter in the customer-facing thread.
+        if ($channel->isInternalChannel()) {
             return;
         }
 

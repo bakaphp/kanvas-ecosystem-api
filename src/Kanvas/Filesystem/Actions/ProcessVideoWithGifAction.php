@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Services\VideoToGifService;
 
@@ -24,19 +23,13 @@ class ProcessVideoWithGifAction
 
     public function execute(): ?array
     {
-        $isEnabled = (bool) $this->company->get(CompanyConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
+        $videoToGifService = new VideoToGifService($this->app, $this->company, $this->user);
 
-        if (! $isEnabled) {
+        if (! $videoToGifService->isEnabled()) {
             return null;
         }
 
         try {
-            $videoToGifService = new VideoToGifService(
-                $this->app,
-                $this->company,
-                $this->user
-            );
-
             $result = $videoToGifService->processVideoUrl($this->videoUrl);
 
             return [

@@ -114,7 +114,7 @@ class ProductService
                 [
                     'name' => 'feature_bullets',
                     'data' => $product['feature_bullets'] ?? [],
-                ]
+                ],
             ],
         ];
 

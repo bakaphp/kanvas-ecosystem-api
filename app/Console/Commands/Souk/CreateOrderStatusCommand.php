@@ -56,12 +56,14 @@ class CreateOrderStatusCommand extends Command
                 foreach ($validator->errors()->all() as $error) {
                     $this->error($error);
                 }
+
                 return;
             }
 
             $app = Apps::getById($this->option('app_id'));
             $this->overwriteAppService($app);
             $this->createPrivateOrderStatus($app, $data['name']);
+
             return;
         }
 
