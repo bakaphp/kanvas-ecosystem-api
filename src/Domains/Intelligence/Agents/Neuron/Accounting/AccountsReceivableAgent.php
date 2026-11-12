@@ -53,9 +53,18 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetDealRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadPersonActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
@@ -144,6 +153,15 @@ class AccountsReceivableAgent extends SystemUserAgent
             new GetDocumentLinkTool(),
             new CreatePersonTool(),
             new LinkPersonToOrganizationTool(),
+            new FindPersonTool(),
+            new GetDealRefTool(),
+            new GetPersonTool(),
+            new LeadRefTool(),
+            new ReadLeadActivityTool(),
+            new ReadOrganizationActivityTool(),
+            new ReadPersonActivityTool(),
+            new SearchDealsTool(),
+            new SearchLeadsTool(),
             new ListOrganizationPeopleTool(),
             new TagPersonTool(),
             new CreateQuoteTool(),
@@ -200,6 +218,7 @@ class AccountsReceivableAgent extends SystemUserAgent
         return implode("\n", [
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
+            '- The sales side of a vendor or customer (who they are to the company, which deal or lead they came from, what was said to them) → search_leads / get_lead_ref / read_lead_activity, search_deals / get_deal_ref, find_person / get_person / read_person_activity, read_organization_activity. Read them to answer and to address the right person; leads and deals are changed by the sales team, not by you.',
             '- An invoice, quote or SOW reaches a customer only through send_invoice / send_quote; never paste its '
             . 'contents or describe its amounts in an email. send_person_email is for everything else: answering a '
             . 'question, asking for a PO number, confirming a change before you revise a quote.',

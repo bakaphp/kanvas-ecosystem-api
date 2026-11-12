@@ -48,9 +48,18 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetDealRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadPersonActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
@@ -142,6 +151,15 @@ class AccountsPayableAgent extends SystemUserAgent
             new ListOrganizationPeopleTool(),
             new CreatePersonTool(),
             new LinkPersonToOrganizationTool(),
+            new FindPersonTool(),
+            new GetDealRefTool(),
+            new GetPersonTool(),
+            new LeadRefTool(),
+            new ReadLeadActivityTool(),
+            new ReadOrganizationActivityTool(),
+            new ReadPersonActivityTool(),
+            new SearchDealsTool(),
+            new SearchLeadsTool(),
         ]));
 
         $tools = [...$tools, ...$this->accountingApprovalTools()];
@@ -179,6 +197,7 @@ class AccountsPayableAgent extends SystemUserAgent
             '- A vendor missing the tax id an e-CF needs (RNC in the Dominican Republic) → check_rnc to verify the number the person gives you, save it with update_organization (tax_id), then carry on with the document. '
             . 'create_organization / update_organization / set_organization_address keep the vendor record itself current.',
             '- "What do we owe" / "how much is overdue to vendors" → query_ap_aging.',
+            '- The sales side of a vendor or customer (who they are to the company, which deal or lead they came from, what was said to them) → search_leads / get_lead_ref / read_lead_activity, search_deals / get_deal_ref, find_person / get_person / read_person_activity, read_organization_activity. Read them to answer and to address the right person; leads and deals are changed by the sales team, not by you.',
             '- Writing to a vendor (ask for a statement, chase a missing invoice, confirm a payment, request a corrected '
             . 'e-CF) → find_vendor, then list_organization_people for the contact (create_person + link_person_to_organization '
             . 'when the contact is new), then send_person_email. Plain text only: a bill, PO or payment is referenced by '
