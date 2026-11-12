@@ -2,7 +2,7 @@
     <td style="padding: 24px 12px; font-family: Arial, sans-serif; color: #263238;">
         <h1 style="margin: 0 0 8px; font-size: 24px; line-height: 1.3;">Daily Leads Digest</h1>
         <p style="margin: 0 0 22px; color: #667085; font-size: 14px;">
-            {{ company.name ?? 'Your company' }} · {{ period_start|date('M j, Y g:i A', false) }} – {{ period_end|date('M j, Y g:i A', false) }}
+            {{ is_combined ? companies_count ~ ' companies' : (company.name ?? 'Your company') }} · {{ period_start|date('M j, Y g:i A', false) }} – {{ period_end|date('M j, Y g:i A', false) }}
         </p>
 
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 24px;">
@@ -45,6 +45,15 @@
             </tr>
         </table>
 
+        {% if is_combined %}
+            <h2 style="margin: 0 0 8px; font-size: 16px;">Leads by company</h2>
+            <p style="margin: 0 0 22px; font-size: 13px;">
+                {% for item in by_company %}
+                    <span style="display: inline-block; margin: 0 12px 6px 0;">{{ item['name'] }}: <strong>{{ item['count'] }}</strong></span>
+                {% endfor %}
+            </p>
+        {% endif %}
+
         <h2 style="margin: 0 0 8px; font-size: 16px;">Leads by day</h2>
         <p style="margin: 0 0 22px; color: #667085; font-size: 13px;">
             {% for day in by_day %}
@@ -60,6 +69,9 @@
                 <thead>
                     <tr>
                         <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Lead</th>
+                        {% if is_combined %}
+                            <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Company</th>
+                        {% endif %}
                         <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Source</th>
                         <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Branch / Location</th>
                         <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Received</th>
@@ -75,13 +87,16 @@
                                     <br><span style="color: #667085;">{{ lead['phone'] }}</span>
                                 {% endif %}
                             </td>
+                            {% if is_combined %}
+                                <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ lead['company'] }}</td>
+                            {% endif %}
                             <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ lead['source'] }}</td>
                             <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ lead['branch'] }}</td>
                             <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ lead['created_at']|date('M j, g:i A', false) }}</td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="4" style="padding: 14px 6px; color: #667085;">No leads in this reporting window.</td>
+                            <td colspan="{{ is_combined ? 5 : 4 }}" style="padding: 14px 6px; color: #667085;">No leads in this reporting window.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
