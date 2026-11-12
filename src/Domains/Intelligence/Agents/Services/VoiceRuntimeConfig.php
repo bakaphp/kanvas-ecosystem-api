@@ -13,6 +13,8 @@ namespace Kanvas\Intelligence\Agents\Services;
  */
 final class VoiceRuntimeConfig
 {
+    private const string INBOUND_PATH = '/twilio/incoming';
+
     public static function url(): string
     {
         return rtrim(trim((string) config('kanvas.voice_runtime.url', '')), '/');
@@ -22,7 +24,16 @@ final class VoiceRuntimeConfig
     {
         $url = self::url();
 
-        return $url !== '' ? $url . '/twilio/incoming' : '';
+        return $url !== '' ? $url . self::INBOUND_PATH : '';
+    }
+
+    /**
+     * Whether a webhook is some voice runtime's inbound route, this environment's or another's
+     * (the prod service, a dev one, an old URL). A number left on one of those is ours to move.
+     */
+    public static function isRuntimeInboundUrl(string $url): bool
+    {
+        return str_ends_with(rtrim((string) parse_url($url, PHP_URL_PATH), '/'), self::INBOUND_PATH);
     }
 
     public static function apiToken(): string
