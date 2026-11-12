@@ -99,7 +99,7 @@ class PullNetSuiteProductAction
      * A live variant whose product was soft-deleted. Pulling a new product would collide on the SKU
      * and orphan the variant past orders point at, so the product comes back, refreshed from NetSuite.
      */
-    public function restore(Variants $variant, string $barcode): Variants
+    protected function restore(Variants $variant, string $barcode): Variants
     {
         $product = Products::withTrashed()
             ->fromApp($this->app)
@@ -114,7 +114,13 @@ class PullNetSuiteProductAction
         [$internalId, $item] = $this->netSuiteItem($barcode);
         $name = $this->itemName($item, $barcode);
 
-        DB::connection('inventory')->transaction(function () use ($product, $variant, $item, $name, $barcode): void {
+        DB::connection('inventory')->transaction(function () use (
+            $product,
+            $variant,
+            $item,
+            $name,
+            $barcode
+        ): void {
             $product->restore();
             $product->name = $name;
             $product->is_published = ! ($item->isInactive ?? false);
