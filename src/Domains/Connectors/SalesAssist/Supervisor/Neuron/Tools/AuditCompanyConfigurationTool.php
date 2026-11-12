@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools;
 
+use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools\Concerns\ScopedToSupervisedDealer;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorConfigurationAuditService;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\Tool;
 
 /**
@@ -14,7 +14,7 @@ use NeuronAI\Tools\Tool;
  */
 class AuditCompanyConfigurationTool extends Tool
 {
-    use HasKanvasContext;
+    use ScopedToSupervisedDealer;
 
     protected string $name = 'audit_company_configuration';
 

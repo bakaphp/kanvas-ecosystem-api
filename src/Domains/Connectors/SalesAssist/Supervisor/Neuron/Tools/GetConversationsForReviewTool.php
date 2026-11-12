@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools;
 
 use Illuminate\Support\Collection;
+use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools\Concerns\ScopedToSupervisedDealer;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorFindingLedger;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReadsActivityForEntity;
 use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
@@ -23,7 +23,7 @@ use Override;
  */
 class GetConversationsForReviewTool extends Tool
 {
-    use HasKanvasContext;
+    use ScopedToSupervisedDealer;
     use ReadsActivityForEntity;
 
     private const int DEFAULT_LEADS = 10;

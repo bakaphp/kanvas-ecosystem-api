@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools;
 
 use Illuminate\Support\Str;
+use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools\Concerns\ScopedToSupervisedDealer;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorConfigurationAuditService as Audit;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorFindingLedger;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -21,7 +21,7 @@ use Override;
  */
 class RecordSupervisorFindingTool extends Tool
 {
-    use HasKanvasContext;
+    use ScopedToSupervisedDealer;
 
     private const array SEVERITIES = [Audit::SEVERITY_CRITICAL, Audit::SEVERITY_HIGH, Audit::SEVERITY_MEDIUM];
 

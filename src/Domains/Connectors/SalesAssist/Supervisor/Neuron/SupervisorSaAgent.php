@@ -65,9 +65,9 @@ class SupervisorSaAgent extends SystemUserAgent
 
         return $this->mergeRegisteredTools(
             [
-                new AuditCompanyConfigurationTool(),
-                new GetConversationsForReviewTool(),
-                new RecordSupervisorFindingTool(),
+                new AuditCompanyConfigurationTool($this->agent),
+                new GetConversationsForReviewTool($this->agent),
+                new RecordSupervisorFindingTool($this->agent),
             ],
             null,
             CapabilityFrameworkEnum::NEURON,
