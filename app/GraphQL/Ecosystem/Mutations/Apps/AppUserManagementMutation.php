@@ -9,10 +9,11 @@ use Baka\Validations\PasswordValidation;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
-use Kanvas\Auth\Services\AuthenticationService;
+use Kanvas\Companies\Actions\DeactivateUserAction;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -90,19 +91,24 @@ class AppUserManagementMutation
     public function appDeActivateUser(mixed $root, array $req): bool
     {
         $user = Users::find((int)$req['user_id']);
-        $app = app(Apps::class);
-        $userAssociate = UsersRepository::belongsToThisApp($user, $app);
-        AuthenticationService::logoutFromAllDevices($userAssociate->user, $app);
 
-        return $userAssociate->deActive();
+        return new DeactivateUserAction($user, app(Apps::class))->execute();
     }
 
     public function appActivateUser(mixed $root, array $req): bool
     {
         $user = Users::find((int)$req['user_id']);
-        $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
 
-        return $userAssociate->active();
+        return $user->getAppProfile(app(Apps::class))->active();
+    }
+
+    public function appSwitchUserCompanyBranch(mixed $root, array $req): bool
+    {
+        $app = app(Apps::class);
+        $user = Users::getById((int) $req['user_id']);
+        UsersRepository::belongsToThisApp($user, $app);
+
+        return new SwitchCompanyBranchAction($user, (int) $req['company_branch_id'])->execute();
     }
 
     public function restoreDeletedUser(mixed $root, array $request): bool

@@ -288,10 +288,13 @@ class SendMessageToLeadAction
 
     protected function createVideoEngagements(): void
     {
-        foreach ($this->processedFiles as $file) {
+        foreach ($this->processedFiles as $index => $file) {
             if (! isset($file['is_processed_video']) || ! $file['is_processed_video']) {
                 continue;
             }
+
+            // Without a link the customer has no way to reach the video, so it goes out as a plain file.
+            $this->processedFiles[$index] = $file['video'];
 
             $filesystems = [];
             if (isset($file['video']['filesystem'])) {
@@ -322,10 +325,10 @@ class SendMessageToLeadAction
                 $engagementUrl = $engagement->message->message['action_link'] ?? '';
 
                 if (! empty($engagementUrl)) {
+                    $this->processedFiles[$index] = $file;
                     $this->videoEngagements[] = [
                         'engagement' => $engagement,
                         'url' => $engagementUrl,
-                        'gif_url' => $file['gif']['url'] ?? null,
                     ];
                 }
             } catch (Exception $e) {
@@ -897,20 +900,13 @@ class SendMessageToLeadAction
         $maxUrls = (int) ($this->lead->app->get(TwilioConfigurationEnum::TWILIO_MMS_MAX_TOTAL_MEDIA->value) ?: self::DEFAULT_MMS_MAX_TOTAL_MEDIA);
         $maxUrls = max(1, $maxUrls);
 
-        foreach ($this->videoEngagements as $videoEngagement) {
-            if (count($mediaUrls) >= $maxUrls) {
-                break;
-            }
-            if (! empty($videoEngagement['gif_url'])) {
-                $mediaUrls[] = $videoEngagement['gif_url'];
-            }
-        }
-
         foreach ($this->processedFiles as $file) {
             if (count($mediaUrls) >= $maxUrls) {
                 break;
             }
 
+            // A video goes out as its engagement link only: the GIF as MMS media can fail the whole
+            // message and take the link with it. The preview is the link page's job.
             if (isset($file['is_processed_video']) && $file['is_processed_video']) {
                 continue;
             }
