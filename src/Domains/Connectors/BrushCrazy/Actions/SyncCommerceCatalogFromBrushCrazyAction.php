@@ -321,17 +321,22 @@ class SyncCommerceCatalogFromBrushCrazyAction
         $warehouse = $this->warehouse();
 
         if ($warehouse !== null) {
-            VariantsWarehouses::withoutEvents(fn () => VariantsWarehouses::withTrashed()->updateOrCreate(
-                [
-                    'products_variants_id' => $variant->getId(),
-                    'warehouses_id' => $warehouse->getId(),
-                ],
-                [
-                    'price' => $price,
-                    'sku' => $variant->sku,
-                    'position' => 0,
-                ],
-            ));
+            $stock = VariantsWarehouses::withTrashed()->firstOrNew([
+                'products_variants_id' => $variant->getId(),
+                'warehouses_id' => $warehouse->getId(),
+            ]);
+
+            // quantity lost its column default in a later migration; a re-sync must not reset stock.
+            if (! $stock->exists) {
+                $stock->quantity = 0;
+            }
+
+            $stock->fill([
+                'price' => $price,
+                'sku' => $variant->sku,
+                'position' => 0,
+            ]);
+            $stock->saveQuietly();
         }
 
         return $this->variants[$lookupKey] = $variant;
