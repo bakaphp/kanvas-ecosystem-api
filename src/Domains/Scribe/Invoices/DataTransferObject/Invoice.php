@@ -12,6 +12,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Support\DocumentTotals;
+use Kanvas\Souk\Orders\Models\Order;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
@@ -39,6 +40,7 @@ class Invoice extends Data
         public readonly ?string $internal_notes = null,
         public readonly ?string $terms = null,
         public readonly ?int $quote_id = null,
+        public readonly ?Order $order = null,
         public readonly ?int $parent_invoice_id = null,
         public readonly ?array $regional_compliance = null,
         public readonly ?array $tax_metadata = null,

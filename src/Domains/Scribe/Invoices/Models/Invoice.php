@@ -41,6 +41,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Throwable;
@@ -105,6 +106,7 @@ use Throwable;
  * @property Carbon|null $last_synced_at
  * @property JournalEntryOriginEnum $origin
  * @property int|null $quote_id
+ * @property int|null $order_id
  * @property int|null $parent_invoice_id
  * @property array|null $metadata
  * @property bool $is_deleted
@@ -325,6 +327,15 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
+    }
+
+    /**
+     * The Souk order this invoice bills (B2B: one order, N invoices). Cross-connection, so never
+     * `whereHas('order')` — it is silently empty; filter on `order_id` instead.
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'order_id', 'id');
     }
 
     #[Override]
