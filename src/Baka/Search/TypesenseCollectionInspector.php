@@ -43,6 +43,19 @@ class TypesenseCollectionInspector
         return array_column($fields, 'type', 'name')[$field] ?? null;
     }
 
+    /**
+     * One query_by field the live collection never got 404s the whole search ("Could not find a
+     * field named `x` in the schema"), so those are dropped until
+     * kanvas:search:typesense-sync-schema adds them. Unknown schema or no field left: unchanged.
+     */
+    public static function queryableFields(Apps $app, string $collection, string $queryBy): string
+    {
+        $liveFields = array_column(self::schema($app, $collection)['fields'] ?? [], 'name');
+        $queryable = array_intersect(explode(',', $queryBy), $liveFields);
+
+        return $queryable === [] ? $queryBy : implode(',', $queryable);
+    }
+
     public static function rejectsObjectField(Apps $app, string $collection, string $field): bool
     {
         $schema = self::schema($app, $collection);
