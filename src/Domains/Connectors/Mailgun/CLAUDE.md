@@ -1,6 +1,15 @@
 # Mailgun Connector — outbound email events
 
-Loads when work touches `src/Domains/Connectors/Mailgun/`. Covers what happens to an email after Mailgun
+The code lives in `src/Domains/Communication/Channels/Email/Providers/Mailgun/` (namespace
+`Kanvas\Communication\Channels\Email\Providers\Mailgun`): `MailgunHandler` is a `CommunicationProvider`
+like Meta WhatsApp, with `EmailTransport`, `MailgunInbound` and `MailgunProvisioner`. The company's
+address on its Mailgun domain (`MAILGUN_FROM_ADDRESS`, else its from email when on the domain) is the
+connection: setup gives it a route to the communication receiver and points the domain's events there,
+and the receiver records them through the same actions the two legacy event receivers use. The
+classes under `src/Domains/Connectors/Mailgun/` are empty subclasses so rows and queued payloads that
+still name them resolve.
+
+Loads when work touches the Mailgun provider. Covers what happens to an email after Mailgun
 accepts it; the inbound receivers and agent mailboxes are documented in their classes.
 
 ## Two event receivers, one per concern

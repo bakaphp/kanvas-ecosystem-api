@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
-use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\ValidatePeopleEmailAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;

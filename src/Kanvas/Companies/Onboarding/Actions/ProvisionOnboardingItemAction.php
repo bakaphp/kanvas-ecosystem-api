@@ -6,13 +6,13 @@ namespace Kanvas\Companies\Onboarding\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Jobs\ProvisionAgentMailboxJob;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Onboarding\Enums\ProvisionStatusEnum;
 use Kanvas\Companies\Onboarding\Services\OnboardingAgentTemplateService;
 use Kanvas\Companies\Onboarding\Services\OnboardingSetupHookRegistry;
-use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Actions\CloneAgentForCompanyAction;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\ProvisionAgentUserAction;

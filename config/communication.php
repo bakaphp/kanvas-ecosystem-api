@@ -1,5 +1,7 @@
 <?php
 
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Handlers\MailgunHandler;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Handlers\TwilioHandlers;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
 
 return [
@@ -8,6 +10,8 @@ return [
      * for implementations, so adding a vendor is a line here and a folder, never an edit to the core.
      */
     'providers' => [
+        TwilioHandlers::class,
+        MailgunHandler::class,
         MetaWhatsAppHandler::class,
     ],
 
@@ -16,6 +20,8 @@ return [
      * observed late event is a config change; narrowing one needs the evidence behind it revisited.
      */
     'retention' => [
+        'twilio' => (int) env('COMMUNICATION_RETENTION_TWILIO_HOURS', 72),
+        'mailgun' => (int) env('COMMUNICATION_RETENTION_MAILGUN_HOURS', 168),
         'meta' => (int) env('COMMUNICATION_RETENTION_META_HOURS', 168),
     ],
 

@@ -10,10 +10,10 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`UniversalSeguros/CLAUDE.md`](UniversalSeguros/CLAUDE.md) — auto-insurance SDK + its `Providers/UniversalSegurosProvider` implementation of the `Kanvas\Insurance` contracts. Per-product emit scopes, QA chassis blocker, problem+json error shape.
 - [`WaSender/CLAUDE.md`](WaSender/CLAUDE.md) — inbound WhatsApp: the three conversation shapes (lead DM / assistant DM / group) and how they route, the full `receiver_webhooks.configuration` key table, burst debouncing, which entity each workflow event carries (and why group traffic must never hit the DM event), and the lid-addressing + `slug`-vs-`uuid` foot-guns.
 - [`TypeSafe/CLAUDE.md`](TypeSafe/CLAUDE.md) — TypeSafe Jev "System One": calibrated typed decisions (Noul/Choice/Score) standing in front of an LLM that stays as the fallback. The per-decision `OFF|SHADOW|LIVE` rollout switch, the jaggedness rules that decide what may and may not be asked (no math, no text, one judgement per question, adversarial inbound text), Noul-vs-Choice, and why the model id is pinned.
-- [`Mailgun/CLAUDE.md`](Mailgun/CLAUDE.md) — outbound email events: the opened vs delivery receivers, how an
+- [`Mailgun/CLAUDE.md`](Mailgun/CLAUDE.md) — code lives in `src/Domains/Communication/Channels/Email/Providers/Mailgun/` (a Communication provider; the old namespace holds subclasses for persisted names). Outbound email events: the opened vs delivery receivers, how an
   event finds its email (Message-Id → a Communication delivery, tenant from the delivery), and what a
   bounce, complaint or unsubscribe does.
-- [`Twilio/CLAUDE.md`](Twilio/CLAUDE.md) — inbound SMS/MMS: the consent halt, the shared burst debounce and its
+- [`Twilio/CLAUDE.md`](Twilio/CLAUDE.md) — code lives in `src/Domains/Communication/Channels/Sms/Providers/Twilio/` (a Communication provider; the old namespace holds subclasses for persisted names). Inbound SMS/MMS: the consent halt, the shared burst debounce and its
   config table, why nothing in the webhook replies, and the support-mode delayed turn.
 - [`SalesAssist/CLAUDE.md`](SalesAssist/CLAUDE.md) — dealer CRM lead notes (VinSolution, Elead, Reynolds, DealerSocket, DriveCentric): the two
   note-writing activities and which messages each one handles, why a company sees no conversation notes (missing comment

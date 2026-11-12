@@ -6,7 +6,7 @@ namespace Tests\GraphQL\Ecosystem\Users;
 
 use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum;
 use Tests\TestCase;
 
 class TwoFactorAuthRateLimitTest extends TestCase

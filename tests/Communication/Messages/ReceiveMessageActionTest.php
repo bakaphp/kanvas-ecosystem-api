@@ -12,6 +12,7 @@ use Kanvas\Communication\Messages\Actions\ReceiveMessageAction;
 use Kanvas\Communication\Messages\DataTransferObject\InboundAttachment;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
@@ -161,19 +162,69 @@ final class ReceiveMessageActionTest extends TestCase
         $this->assertSame(1, Message::query()->findOrFail($result[0]['message_id'])->files()->count());
     }
 
-    public function testEmailIsNotReceivedHereYet(): void
+    /**
+     * Email names its sender: the person behind the address is found by it, and a new one is
+     * created with the address as an email contact and the name the mail carried.
+     */
+    public function testEmailIsFiledOnThePersonBehindTheAddress(): void
+    {
+        $known = People::factory()
+            ->withAppId($this->currentApp()->getId())
+            ->withCompanyId($this->currentCompany()->getId())
+            ->create(['firstname' => 'Ana']);
+        $known->contacts()->create(['contacts_types_id' => ContactTypeEnum::EMAIL->value, 'value' => 'ana@example.com', 'weight' => 0]);
+
+        $onFile = $this->receive($this->email('Ana@Example.com', 'e-1', 'Hello'));
+        $new = $this->receive($this->email(
+            'bob@example.com',
+            'e-2',
+            'Hi there',
+            name: 'Bob Ruiz'
+        ));
+
+        $this->assertSame($known->getId(), Message::query()->findOrFail($onFile[0]['message_id'])->entity(People::class)->getId());
+
+        $person = Message::query()->findOrFail($new[0]['message_id'])->entity(People::class);
+
+        $this->assertInstanceOf(People::class, $person);
+        $this->assertSame('Bob Ruiz', $person->firstname);
+        $this->assertSame('bob@example.com', $person->contacts()->where('contacts_types_id', ContactTypeEnum::EMAIL->value)->value('value'));
+        $this->assertInstanceOf(Lead::class, Message::query()->findOrFail($new[0]['message_id'])->entity(Lead::class));
+    }
+
+    public function testAChannelWithoutAnAddressBookIsNotReceivedHereYet(): void
     {
         $this->expectException(LogicException::class);
 
         $this->receive(new InboundMessage(
             provider: 'fake',
-            channel: ChannelTypeEnum::EMAIL,
-            inboundIdentity: 'inbox@example.com',
-            from: 'customer@example.com',
-            conversationSlug: 'fake-email-customer',
-            messageVerb: 'fake-email',
+            channel: ChannelTypeEnum::SLACK,
+            inboundIdentity: 'C123',
+            from: 'U456',
+            conversationSlug: 'fake-slack-u456',
+            messageVerb: 'fake-slack',
             text: 'Hello'
         ));
+    }
+
+    private function email(
+        string $from,
+        string $id,
+        string $text,
+        ?string $name = null
+    ): InboundMessage {
+        return new InboundMessage(
+            provider: 'fake',
+            channel: ChannelTypeEnum::EMAIL,
+            inboundIdentity: 'inbox@example.com',
+            from: $from,
+            providerMessageId: $id,
+            conversationSlug: 'fake-email-' . Str::slug($from),
+            messageVerb: 'fake-email',
+            messageSlug: 'fake-' . $id,
+            text: $text,
+            raw: ['id' => $id, 'from_name' => $name]
+        );
     }
 
     /**

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\Mailgun;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
-use Kanvas\Connectors\Mailgun\Actions\DisconnectAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Actions\ProvisionAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\DisconnectAgentMailboxAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\ProvisionAgentMailboxAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\MailboxAccessEnum;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 class MailgunAgentMailboxResolver

@@ -1,0 +1,125 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Communication\Channels\Email\Providers\Mailgun\Webhooks;
+
+use Illuminate\Http\Request;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\AttachEmailAttachmentsToLeadAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\CreateMessageFromEmailAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\MailgunConsentService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\MailgunPayloadService;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Override;
+
+use function Sentry\captureMessage;
+
+#[WorkflowAction(
+    name: 'Mailgun Lead Inbox',
+    description: 'Receiver for a company\'s shared lead inbox: files an inbound email (and its attachments) '
+        . 'against the lead it belongs to. It records the mail; it does not reply — the reply is a '
+        . 'separate email-responder step attached to the message.',
+    integration: IntegrationsEnum::MAILGUN,
+    params: [
+        'capture_files' => 'Stores the email\'s attachments and attaches them to the message and the '
+            . 'lead. Already on for this receiver; set it to false only to discard attachments on '
+            . 'purpose. There is no backfill — the files are unrecoverable once the delivery is over.',
+    ],
+)]
+class AgentProcessEmailWebhookJob extends ProcessWebhookJob
+{
+    #[Override]
+    public function execute(): array
+    {
+        $from = $this->webhookRequest->payload['sender'] ?? null;
+        $lead = null;
+
+        $people = PeoplesRepository::getByEmail(
+            $from,
+            $this->webhookRequest->receiverWebhook->company,
+            $this->webhookRequest->receiverWebhook->app,
+        );
+
+        if ($people !== null) {
+            $lead = LeadsRepository::getPeopleActiveLead($people);
+
+            if ($lead === null && (bool) $this->webhookRequest->receiverWebhook->company->get('use_last_lead_on_responder')) {
+                $lead = LeadsRepository::getPeopleLastLead($people);
+            }
+        }
+
+        // Ahead of CreateMessageFromEmailAction, because that is what fires the responder workflow.
+        // Evaluating consent afterwards would let the agent read a stop request, spend a turn on it
+        // and compose a reply that the outbound guard then throws away.
+        $consentOutcome = $people === null
+            ? null
+            : MailgunConsentService::process($lead ?? $people, new MailgunPayloadService($this->webhookRequest->payload));
+
+        if ($lead !== null && $consentOutcome?->isStop() !== true) {
+            $lead->addTag('engaged');
+        }
+
+        $message = new CreateMessageFromEmailAction(
+            $this->webhookRequest,
+            $lead,
+            suppressAgentResponse: $consentOutcome?->shouldHaltAgentTurn() ?? false,
+        )->execute();
+
+        if ($lead !== null) {
+            new AttachEmailAttachmentsToLeadAction($this->webhookRequest, $lead)->execute();
+        }
+
+        $this->assertAttachmentsCaptured();
+
+        return array_merge($message->toArray(), $consentOutcome?->toArray() ?? []);
+    }
+
+    #[Override]
+    public static function capturesFiles(): bool
+    {
+        return true;
+    }
+
+    #[Override]
+    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
+    {
+        return VerifyMailgunWebhookSignatureAction::forRequest($request, $receiver)->execute();
+    }
+
+    private function assertAttachmentsCaptured(): void
+    {
+        if (! (bool) ($this->receiver->configuration['capture_files'] ?? false)) {
+            return;
+        }
+
+        $payload = $this->webhookRequest->payload;
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $expected = (int) ($payload['attachment-count'] ?? 0);
+
+        if ($expected === 0) {
+            return;
+        }
+
+        $uploaded = $payload['uploaded_files'] ?? null;
+        $captured = is_array($uploaded) ? count($uploaded) : 0;
+
+        if ($captured < $expected) {
+            captureMessage(sprintf(
+                'Mailgun webhook call %d: %d attachment(s) reported but %d captured — files dropped before reaching the app.',
+                $this->webhookRequest->getId(),
+                $expected,
+                $captured,
+            ));
+        }
+    }
+}

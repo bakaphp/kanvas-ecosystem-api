@@ -7,11 +7,11 @@ namespace App\Console\Commands\Connectors\Apollo;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\ValidatePeopleEmailAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\ConfigurationEnum as MailgunConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Actions\EnrichPeopleFromApolloAction;
 use Kanvas\Connectors\Apollo\Services\ApolloRateLimitService;
-use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
-use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum as MailgunConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Throwable;
 

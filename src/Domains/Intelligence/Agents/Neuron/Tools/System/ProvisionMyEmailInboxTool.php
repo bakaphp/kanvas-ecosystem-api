@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\System;
 
-use Kanvas\Connectors\Mailgun\Actions\ProvisionAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\ProvisionAgentMailboxAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\MailboxAccessEnum;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;

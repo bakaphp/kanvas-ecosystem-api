@@ -7,7 +7,7 @@ namespace App\GraphQL\Connector\Twilio\Queries;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;

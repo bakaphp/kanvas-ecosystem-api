@@ -31,7 +31,7 @@ opting out at one dealer does not opt out at another.
 | May this person / this address be contacted? (`SendMessageToLeadAction` and the Communication domain both read it) | `Services/ConsentGuard` |
 | The one permitted acknowledgement | `Guild\Leads\Actions\SendOptOutConfirmationAction` |
 | Natural-language stop requests | `Intelligence\...\Tools\CRM\StopContactTool` |
-| Inbound mail (both receivers) | `Connectors\Mailgun\Services\MailgunConsentService` |
+| Inbound mail (both receivers) | `Communication\Channels\Email\Providers\Mailgun\Services\MailgunConsentService` |
 
 State written by an opt-out, keyed by `Enums/ConsentConfigurationEnum`:
 - every `Contact` of the person → `is_opt_out = 1`

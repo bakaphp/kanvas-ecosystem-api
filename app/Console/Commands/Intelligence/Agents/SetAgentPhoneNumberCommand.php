@@ -6,9 +6,9 @@ namespace App\Console\Commands\Intelligence\Agents;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client as TwilioClient;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\TwilioReceiverService;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Client as TwilioClient;
-use Kanvas\Connectors\Twilio\Services\TwilioReceiverService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Phone\SetAgentPhoneNumberAction;

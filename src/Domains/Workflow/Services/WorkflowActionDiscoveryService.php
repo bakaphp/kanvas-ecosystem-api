@@ -35,8 +35,23 @@ class WorkflowActionDiscoveryService extends AttributeClassDiscovery
     #[Override]
     protected function isCandidate(ReflectionClass $reflection): bool
     {
-        return $reflection->isSubclassOf(KanvasActivity::class)
-            || $reflection->isSubclassOf(ProcessWebhookJob::class);
+        return ($reflection->isSubclassOf(KanvasActivity::class) || $reflection->isSubclassOf(ProcessWebhookJob::class))
+            && ! $this->isLegacyName($reflection);
+    }
+
+    /**
+     * A class left at its old namespace after a move, extending the moved one, so rows and queued
+     * payloads that name it still resolve. It is the same action, not a second one: cataloguing it
+     * would list the action twice under one name.
+     */
+    protected function isLegacyName(ReflectionClass $reflection): bool
+    {
+        $parent = $reflection->getParentClass();
+
+        return $parent !== false
+            && $parent->getShortName() === $reflection->getShortName()
+            && $reflection->getAttributes(WorkflowAction::class) === []
+            && $parent->getAttributes(WorkflowAction::class) !== [];
     }
 
     /**

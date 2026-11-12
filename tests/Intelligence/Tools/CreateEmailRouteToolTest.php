@@ -6,9 +6,9 @@ namespace Tests\Intelligence\Tools;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\ConfigurationEnum;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
 use Kanvas\Users\Models\Users;

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Phone;
 
 use Baka\Support\Str;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\EnsureSmsResponderRuleAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client as TwilioClient;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\TwilioReceiverService;
 use Kanvas\Communication\Setup\Actions\SetupCompanyRulesAction;
 use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Actions\EnsureSmsResponderRuleAction;
-use Kanvas\Connectors\Twilio\Client as TwilioClient;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Connectors\Twilio\Services\TwilioReceiverService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
