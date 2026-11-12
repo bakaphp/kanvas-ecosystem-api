@@ -8,6 +8,8 @@ use Kanvas\Communication\Connections\Actions\EnsureAutoReplyRuleAction;
 use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Connectors\Twilio\Workflows\AgentChannelResponderActivity;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
+use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 use Kanvas\Workflow\Rules\Models\Rule;
 
 /**
@@ -17,7 +19,6 @@ use Kanvas\Workflow\Rules\Models\Rule;
 class EnsureSmsResponderRuleAction
 {
     public const string RULE_NAME = 'Twilio SMS auto-reply';
-    public const string CHANNEL_SLUG_PATTERN = '/^twilio-/';
 
     public function __construct(private readonly Agent $agent)
     {
@@ -37,7 +38,8 @@ class EnsureSmsResponderRuleAction
 
         $rule = new EnsureAutoReplyRuleAction(
             agent: $this->agent,
-            channelSlugPattern: self::CHANNEL_SLUG_PATTERN,
+            // Not a channel column: the inbound job passes it when it fires the workflow.
+            condition: new RuleConditionData('communication_channel', RuleConditionOperatorEnum::EQUAL, 'sms'),
             responder: AgentChannelResponderActivity::class,
             ruleName: self::RULE_NAME,
         )->execute();

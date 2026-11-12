@@ -10,7 +10,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
+use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
@@ -30,8 +30,8 @@ final class EnsureAutoReplyRuleAction
 
     /**
      * @param Agent $agent the company's answering agent; the rule is the agent's own tenant's
-     * @param string $channelSlugPattern keeps the rule to this provider's conversations; without it
-     *                                   the responder would be asked about every channel the tenant has
+     * @param RuleConditionData $condition keeps the rule to this provider's conversations; without it
+     *                                     the responder would be asked about every channel the tenant has
      * @param class-string|null $legacyResponder the activity this provider answered with before the
      *                                           conversation responder
      * @param class-string $responder for a provider whose inbound is not on connections yet and
@@ -40,7 +40,7 @@ final class EnsureAutoReplyRuleAction
      */
     public function __construct(
         private readonly Agent $agent,
-        private readonly string $channelSlugPattern,
+        private readonly RuleConditionData $condition,
         private readonly ?string $legacyResponder = null,
         private readonly string $responder = AgentChannelResponderActivity::class,
         private readonly string $ruleName = self::RULE_NAME
@@ -86,9 +86,9 @@ final class EnsureAutoReplyRuleAction
 
         $rule->getRulesConditions()->firstOrCreate(
             [
-                'attribute_name' => 'slug',
-                'operator' => RuleConditionOperatorEnum::MATCHES->value,
-                'value' => $this->channelSlugPattern,
+                'attribute_name' => $this->condition->attribute_name,
+                'operator' => $this->condition->operator->value,
+                'value' => $this->condition->value,
             ],
             ['is_deleted' => 0],
         );
