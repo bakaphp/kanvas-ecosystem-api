@@ -34,11 +34,16 @@ final class EnsureAutoReplyRuleAction
      *                                   the responder would be asked about every channel the tenant has
      * @param class-string|null $legacyResponder the activity this provider answered with before the
      *                                           conversation responder
+     * @param class-string $responder for a provider whose inbound is not on connections yet and
+     *                                still answers with its own activity
+     * @param string $ruleName a provider answering with its own activity keeps its own rule
      */
     public function __construct(
         private readonly Agent $agent,
         private readonly string $channelSlugPattern,
-        private readonly ?string $legacyResponder = null
+        private readonly ?string $legacyResponder = null,
+        private readonly string $responder = AgentChannelResponderActivity::class,
+        private readonly string $ruleName = self::RULE_NAME
     ) {
     }
 
@@ -47,7 +52,7 @@ final class EnsureAutoReplyRuleAction
         $app = $this->agent->app;
         $company = $this->agent->company;
         $catalog = new WorkflowActionCatalog();
-        $action = $catalog->register(AgentChannelResponderActivity::class);
+        $action = $catalog->register($this->responder);
         $ruleType = RuleType::getByName(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value);
         $systemModule = SystemModulesRepository::getByModelName(Channel::class, $app);
 
@@ -61,7 +66,7 @@ final class EnsureAutoReplyRuleAction
 
         $rule = Rule::query()->firstOrCreate(
             [
-                'name' => self::RULE_NAME,
+                'name' => $this->ruleName,
                 'rules_types_id' => $ruleType->getId(),
                 'systems_modules_id' => $systemModule->getId(),
                 'apps_id' => $app->getId(),
@@ -125,7 +130,7 @@ final class EnsureAutoReplyRuleAction
             ->fromApp($this->agent->app)
             ->fromCompany($this->agent->company)
             ->where('rules_types_id', $ruleTypeId)
-            ->where('name', '!=', self::RULE_NAME)
+            ->where('name', '!=', $this->ruleName)
             ->notDeleted()
             ->whereHas('workflowActivities.activity', fn (Builder $query) => $query->whereIn('actions_id', $actionIds))
             ->exists();
