@@ -58,6 +58,33 @@ final class VoiceLeadContinuityTest extends TestCase
         $this->assertNull($context['context_info']);
     }
 
+    public function testAskingForAnAppointmentOnAnOutboundCallCreatesALead(): void
+    {
+        $result = new CaptureVoiceCallerAction(
+            agent: $this->createAgent(),
+            phone: $this->uniquePhone(),
+            direction: 'outbound',
+            wantsAppointment: true,
+            appointmentPreference: 'Tomorrow at 3 PM',
+        )->execute();
+
+        $this->assertSame('success', $result['status']);
+        $this->assertTrue($result['created_lead']);
+        $this->assertNotNull($result['lead_id']);
+    }
+
+    public function testAnOutboundCallWithoutIntentCreatesNoLead(): void
+    {
+        $result = new CaptureVoiceCallerAction(
+            agent: $this->createAgent(),
+            phone: $this->uniquePhone(),
+            direction: 'outbound',
+        )->execute();
+
+        $this->assertSame('success', $result['status']);
+        $this->assertNull($result['lead_id']);
+    }
+
     public function testRecentTextMessagesAreIncludedNewestOnly(): void
     {
         $agent = $this->createAgent();
