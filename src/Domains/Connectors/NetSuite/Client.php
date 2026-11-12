@@ -9,7 +9,11 @@ use Baka\Contracts\CompanyInterface;
 use Closure;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
+use NetSuite\Classes\GetRequest;
+use NetSuite\Classes\Record;
+use NetSuite\Classes\RecordRef;
 use NetSuite\NetSuiteService;
 use SoapFault;
 use Throwable;
@@ -65,6 +69,31 @@ class Client
         $this->service = new NetSuiteService($config);
 
         return $this->service;
+    }
+
+    /**
+     * The message keeps the "Error retrieving {label}:" shape, which NetSuiteHandler::setup() matches on.
+     */
+    public function getRecord(string $type, int|string $internalId, string $label): Record
+    {
+        $ref = new RecordRef();
+        $ref->internalId = $internalId;
+        $ref->type = $type;
+
+        $getRequest = new GetRequest();
+        $getRequest->baseRef = $ref;
+
+        return $this->executeWithRateLimit(function (NetSuiteService $service) use ($getRequest, $label) {
+            $response = $service->get($getRequest);
+
+            if ($response->readResponse->status->isSuccess) {
+                return $response->readResponse->record;
+            }
+
+            throw new ModelNotFoundException(
+                'Error retrieving ' . $label . ': ' . $response->readResponse->status->statusDetail[0]->message
+            );
+        });
     }
 
     /**

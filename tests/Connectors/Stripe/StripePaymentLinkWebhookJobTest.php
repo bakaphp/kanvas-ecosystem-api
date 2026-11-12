@@ -19,6 +19,15 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentLinkWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Invoices\Actions\ImportInvoiceFromExternalAction;
+use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
+use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
+use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
+use Kanvas\Scribe\Ledger\Models\JournalEntry;
+use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Social\Messages\Actions\AssociateMessageToSystemModule;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -26,6 +35,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
 final class StripePaymentLinkWebhookJobTest extends TestCase
@@ -144,6 +154,44 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
         $this->assertNull($sentMessage->fresh()->get(CustomFieldEnum::STRIPE_CHECKOUT_SESSION_ID->value));
     }
 
+    public function testAPaidInvoiceLinkBooksThePaymentOnceWithNoJournalEntry(): void
+    {
+        $invoice = $this->importedInvoice(500.0);
+        $metadata = ['invoice_id' => (string) $invoice->getId(), 'company_id' => (string) $this->company->getId()];
+        $sessionId = 'cs_invoice_' . uniqid();
+
+        $first = $this->dispatchCheckout('plink_invoice', $sessionId, metadata: $metadata);
+        $second = $this->dispatchCheckout('plink_invoice', $sessionId, metadata: $metadata);
+
+        $invoice->refresh();
+        $this->assertSame(InvoiceDocumentStatusEnum::PAID, $invoice->document_status, $first['message']);
+        $this->assertEqualsWithDelta(0.0, (float) $invoice->balance_due_native, 0.001);
+        $this->assertStringContainsString('already processed', $second['message']);
+        $this->assertSame(1, Payment::query()
+            ->where('source', 'stripe')
+            ->where('external_id', $sessionId)
+            ->count());
+        $this->assertSame(0, JournalEntry::query()
+            ->where('source_type', 'invoice')
+            ->where('source_id', $invoice->getId())
+            ->count());
+    }
+
+    public function testAnInvoiceLinkForAnInvoiceOutsideTheReceiversCompanyIsIgnored(): void
+    {
+        $invoice = $this->importedInvoice(500.0);
+        $invoice->companies_id = $this->company->getId() + 100000;
+        $invoice->saveQuietly();
+
+        $result = $this->dispatchCheckout('plink_foreign', 'cs_foreign_' . uniqid(), metadata: [
+            'invoice_id' => (string) $invoice->getId(),
+            'company_id' => (string) $invoice->companies_id,
+        ]);
+
+        $this->assertStringContainsString('No invoice', $result['message']);
+        $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $invoice->fresh()->document_status);
+    }
+
     public function testReceiverWithoutSecretTrustsUnsignedRequests(): void
     {
         $this->assertTrue(StripePaymentLinkWebhookJob::authenticateRequest(
@@ -256,6 +304,39 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
         ]);
 
         return $message;
+    }
+
+    /**
+     * An invoice issued in an ERP and imported: the shape a NetSuite invoice payment link is built from.
+     */
+    private function importedInvoice(float $amount): Invoice
+    {
+        $externalId = 'EXT-' . uniqid();
+
+        return new ImportInvoiceFromExternalAction(
+            data: new InvoiceData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                billable: Organization::create([
+                    'apps_id' => $this->kanvasApp->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'users_id' => $this->kanvasUser->getId(),
+                    'name' => 'The Art Supply Depo ' . $externalId,
+                    'address' => '',
+                    'total_employees' => 0,
+                ]),
+                lines: new DataCollection(InvoiceLineData::class, [
+                    new InvoiceLineData(description: 'Copic markers', quantity: 1, unit_price_native: $amount),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                invoice_number: $externalId,
+                source: 'netsuite',
+                external_id: $externalId,
+                origin: JournalEntryOriginEnum::EXTERNAL,
+            ),
+            user: $this->kanvasUser,
+        )->execute();
     }
 
     /**
