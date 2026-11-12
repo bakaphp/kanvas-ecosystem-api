@@ -119,17 +119,6 @@ class ConfigureAgentInboundWebhookAction
                     : "Texts to {$number} reach this company's Twilio receiver.",
                 $webhook,
                 $this->channel === AgentPhoneChannelEnum::SMS
-<<<<<<< HEAD
-                    ? $this->smsWarnings(
-                        $twilio,
-                        $company,
-                        $number,
-                        $phone->sid
-                    )
-                    : ($fromOtherRuntime
-                        ? ["{$number} was moved here from another voice runtime ({$current}). A number can only reach one runtime, so if that environment saves it again, it moves back."]
-                        : [])
-=======
                     ? [
                         ...$this->smsWarnings(
                             $twilio,
@@ -139,8 +128,9 @@ class ConfigureAgentInboundWebhookAction
                         ),
                         ...$this->smsRuleWarnings($company, $number),
                     ]
-                    : []
->>>>>>> origin/development
+                    : ($fromOtherRuntime
+                        ? ["{$number} was moved here from another voice runtime ({$current}). A number can only reach one runtime, so if that environment saves it again, it moves back."]
+                        : [])
             );
         } catch (ValidationException $e) {
             // Expected, actionable misconfiguration — no need to page Sentry.
