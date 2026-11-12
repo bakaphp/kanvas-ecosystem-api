@@ -246,3 +246,23 @@ Docs. That push reads the lead back from Zoho before updating it, and Zoho answe
 lead and for a converted one. The push asks whether the lead was converted before treating the lead as gone:
 if so the deal is pulled the same way, the lead's files go to that deal (still tracked on the lead as
 `ZOHO_LEAD_SYNC_FILES`), and the Kanvas lead keeps its status. Only a lead Zoho has no record of is closed.
+
+## Zoho `Phone` is a mobile for some companies
+
+The pull stores Zoho's `Mobile` as a cellphone and `Phone` as a home phone. Only a cellphone gets an SMS
+channel, so a company whose reps type mobile numbers into `Phone` sets `ZOHO_PHONE_IS_MOBILE = true`, and
+`Phone` is then stored as a cellphone too. The number is stored once, never as both types. When a record
+has both fields, `Mobile` gets weight 0 and is the one the SMS channel uses.
+
+Turning the setting on changes new pulls only. A re-pulled lead keeps its old home-phone row and gains a
+cellphone row, because contacts are merged by type. Retype the company's existing rows first, then open the
+SMS channels:
+
+```sql
+UPDATE peoples_contacts pc
+JOIN peoples p ON p.id = pc.peoples_id
+SET pc.contacts_types_id = 3
+WHERE p.companies_id = :company_id AND p.apps_id = :app_id AND pc.contacts_types_id = 2 AND pc.is_deleted = 0;
+```
+
+then `php artisan kanvas:sales-assist-sync-channels {app_id} {company_id} {agent_id}`.

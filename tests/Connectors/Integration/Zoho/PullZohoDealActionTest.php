@@ -220,7 +220,8 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Nedward', $people->firstname);
         $this->assertSame('Flanders', $people->lastname);
         $this->assertSame($email, $people->getEmails()->first()->value);
-        $this->assertSame('9395550116', $people->getPhones()->first()->value);
+        $this->assertSame('9395550116', $people->getCellPhones()->first()->value);
+        $this->assertCount(0, $people->getPhones());
         $this->assertSame('1960-02-29', $people->dob->format('Y-m-d'));
         $this->assertSame('744 Evergreen Terrace', $people->getDefaultAddress()->address);
         $this->assertSame('62704', $people->getDefaultAddress()->zip);
