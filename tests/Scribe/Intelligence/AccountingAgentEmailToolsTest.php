@@ -28,7 +28,7 @@ final class AccountingAgentEmailToolsTest extends ScribeTestCase
         }
     }
 
-    public function test_both_agents_read_the_sales_side_of_a_counterparty(): void
+    public function test_both_agents_read_and_annotate_the_sales_side_of_a_counterparty(): void
     {
         foreach ([AccountsPayableAgent::make(), AccountsReceivableAgent::make()] as $handler) {
             $names = $this->toolNames($handler, personAsking: false);
@@ -38,6 +38,8 @@ final class AccountingAgentEmailToolsTest extends ScribeTestCase
                 'search_deals', 'get_deal_ref',
                 'find_person', 'get_person', 'read_person_activity',
                 'get_organization', 'read_organization_activity',
+                'add_lead_note', 'add_person_note', 'add_organization_note', 'take_deal_message',
+                'create_person', 'link_person_to_organization',
             ] as $tool) {
                 $this->assertContains($tool, $names, $handler::class . ' lacks ' . $tool);
             }

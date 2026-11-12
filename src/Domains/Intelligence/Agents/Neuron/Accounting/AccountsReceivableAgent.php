@@ -51,6 +51,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPersonNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
@@ -68,6 +71,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TakeDealMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
@@ -162,6 +166,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ReadPersonActivityTool(),
             new SearchDealsTool(),
             new SearchLeadsTool(),
+            new AddLeadNoteTool(),
+            new AddOrganizationNoteTool(),
+            new AddPersonNoteTool(),
+            new TakeDealMessageTool(),
             new ListOrganizationPeopleTool(),
             new TagPersonTool(),
             new CreateQuoteTool(),
@@ -218,6 +226,7 @@ class AccountsReceivableAgent extends SystemUserAgent
         return implode("\n", [
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
+            '- Leaving something on the record for the team → add_lead_note, add_person_note, add_organization_note; a message about a deal ("have someone call me about the quote") → take_deal_message, which notes the deal and tells its owner.',
             '- The sales side of a vendor or customer (who they are to the company, which deal or lead they came from, what was said to them) → search_leads / get_lead_ref / read_lead_activity, search_deals / get_deal_ref, find_person / get_person / read_person_activity, read_organization_activity. Read them to answer and to address the right person; leads and deals are changed by the sales team, not by you.',
             '- An invoice, quote or SOW reaches a customer only through send_invoice / send_quote; never paste its '
             . 'contents or describe its amounts in an email. send_person_email is for everything else: answering a '
