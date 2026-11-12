@@ -35,5 +35,5 @@ enum ConfigurationEnum: string
      * dispatch delay and the CRM note that tells the salesperson how long we waited — and a note
      * quoting a different number than the wait it describes is worse than no note.
      */
-    public const int UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT = 60;
+    public const int UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT = 10;
 }

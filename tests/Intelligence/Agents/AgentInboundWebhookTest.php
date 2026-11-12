@@ -151,8 +151,12 @@ class AgentInboundWebhookTest extends TestCase
         $this->assertSame($agent->getId(), $rule->params['agent_id']);
         $this->assertSame([AgentChannelResponderActivity::class], $this->activitiesOf($rule));
         $this->assertSame(
-            [EnsureSmsResponderRuleAction::CHANNEL_SLUG_PATTERN],
-            $rule->getRulesConditions()->pluck('value')->all()
+            [['communication_channel', '==', 'sms']],
+            $rule->getRulesConditions()->get()->map(fn ($condition) => [
+                $condition->attribute_name,
+                $condition->operator,
+                $condition->value,
+            ])->all()
         );
     }
 
