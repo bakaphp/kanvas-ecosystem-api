@@ -159,9 +159,7 @@ class PullNetSuiteSalesOrderToOrderAction
             }
 
             try {
-                $variants[$barcode] = $existing === null
-                    ? $this->productAction->execute($barcode)
-                    : $this->productAction->restore($existing, $barcode);
+                $variants[$barcode] = $this->productAction->execute($barcode);
             } catch (Throwable $e) {
                 $missing[$barcode] = $e->getMessage();
 
