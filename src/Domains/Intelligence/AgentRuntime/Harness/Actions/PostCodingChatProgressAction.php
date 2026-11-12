@@ -25,6 +25,7 @@ class PostCodingChatProgressAction
     /**
      * Each minute is said once: two pollers on one session must not double it, and a tick that lands a few
      * seconds after the previous one (the poller re-aligning to the turn's minutes) must not swallow it.
+     * The marker only has to outlive its own minute, with room for a late poll.
      */
     private const int MINUTE_TTL_SECONDS = 120;
 
