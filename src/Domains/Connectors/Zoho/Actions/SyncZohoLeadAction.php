@@ -134,6 +134,10 @@ class SyncZohoLeadAction
             return $localLead;
         }
 
+        // Before any set(): each one fires create-custom-field, and a rule pushing the lead back to
+        // Zoho would make every Zoho edit webhook echo our values over the ones Zoho just sent.
+        $localLead->disableWorkflows();
+
         if ($ownerUser) {
             $localLead->leads_owner_id = $ownerUser->getId();
         }
@@ -164,7 +168,6 @@ class SyncZohoLeadAction
             $localLead->set($name, $value);
         }
 
-        $localLead->disableWorkflows();
         $localLead->saveOrFail();
 
         $this->syncPerson($localLead->people, $record, $companyZohoMapFields);
