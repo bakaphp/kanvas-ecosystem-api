@@ -296,6 +296,37 @@ class AgentInboundWebhookTest extends TestCase
         $this->assertSame([], $twilio->updates);
     }
 
+    public function testAVoiceNumberOnAnotherRuntimeMovesHere(): void
+    {
+        $otherRuntime = 'https://sally-voice.test/twilio/incoming';
+        $twilio = new FakeTwilioNumbersClient(voiceUrl: $otherRuntime);
+
+        $result = $this->configure($this->agent(voice: $this->number), AgentPhoneChannelEnum::VOICE, $twilio);
+
+        $this->assertSame('wired', $result['status']);
+        $this->assertSame(VoiceRuntimeConfig::inboundWebhookUrl(), $twilio->updates[0]['voiceUrl']);
+        $this->assertStringContainsString($otherRuntime, $result['warnings'][0]);
+    }
+
+    public function testOnlyRuntimeInboundRoutesCountAsRuntimes(): void
+    {
+        $this->assertTrue(VoiceRuntimeConfig::isRuntimeInboundUrl('https://dev-kanvas-voice-agents-1.us-east1.run.app/twilio/incoming'));
+        $this->assertTrue(VoiceRuntimeConfig::isRuntimeInboundUrl('https://voice.test/twilio/incoming/'));
+        $this->assertFalse(VoiceRuntimeConfig::isRuntimeInboundUrl(self::FOREIGN_URL));
+        $this->assertFalse(VoiceRuntimeConfig::isRuntimeInboundUrl('https://other.test/twilio/incoming-sms'));
+        $this->assertFalse(VoiceRuntimeConfig::isRuntimeInboundUrl(''));
+    }
+
+    public function testTheRewireCommandListsVoiceNumbersOnADryRun(): void
+    {
+        $this->agent(voice: $this->number);
+
+        $this->artisan('kanvas:voice-agents-rewire-numbers', ['--app' => $this->testApp->getId(), '--dry-run' => true])
+            ->expectsOutputToContain(VoiceRuntimeConfig::inboundWebhookUrl())
+            ->expectsOutputToContain($this->number)
+            ->assertExitCode(0);
+    }
+
     public function testOverwriteReplacesAForeignWebhook(): void
     {
         $receiver = $this->receiver();
