@@ -41,6 +41,9 @@ class PullNetSuiteSalesOrderToOrderAction
     /** @var list<string> barcodes this run had to pull from NetSuite into the catalog */
     public array $pulledProducts = [];
 
+    /** @var list<string> barcodes whose deleted product this run brought back and refreshed from NetSuite */
+    public array $restoredProducts = [];
+
     protected NetSuiteSalesOrderService $salesOrderService;
     protected PullNetSuiteProductAction $productAction;
     protected SyncNetSuiteCustomerWithOrganizationAction $customerAction;
@@ -129,7 +132,8 @@ class PullNetSuiteSalesOrderToOrderAction
 
     /**
      * Resolves every line before anything is written, so a product NetSuite cannot give us stops the
-     * import with nothing half-created on the order side.
+     * import with nothing half-created on the order side. A variant left live under a deleted product
+     * gets its product restored, since Order::addItem reads the product's name.
      *
      * @param list<object> $lines
      * @return array<string, Variants>
@@ -148,8 +152,16 @@ class PullNetSuiteSalesOrderToOrderAction
 
             $existing = $this->findVariantBySku($barcode);
 
+            if ($existing?->product !== null) {
+                $variants[$barcode] = $existing;
+
+                continue;
+            }
+
             try {
-                $variants[$barcode] = $existing ?? $this->productAction->execute($barcode);
+                $variants[$barcode] = $existing === null
+                    ? $this->productAction->execute($barcode)
+                    : $this->productAction->restore($existing, $barcode);
             } catch (Throwable $e) {
                 $missing[$barcode] = $e->getMessage();
 
@@ -158,6 +170,8 @@ class PullNetSuiteSalesOrderToOrderAction
 
             if ($existing === null) {
                 $this->pulledProducts[] = $barcode;
+            } else {
+                $this->restoredProducts[] = $barcode;
             }
         }
 

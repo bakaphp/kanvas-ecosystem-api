@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\NetSuite;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -12,6 +13,8 @@ use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductAction;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteSalesOrderToOrderAction;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\Connectors\NetSuite\Concerns\BuildsNetSuiteRecords;
 use Tests\TestCase;
@@ -151,6 +154,39 @@ class PullNetSuiteSalesOrderToOrderActionTest extends TestCase
             ->first()
             ->quantity;
         $this->assertEquals(3, $quantity, 'The refused update was rolled back.');
+    }
+
+    public function testAVariantLeftUnderADeletedProductGetsItsProductRestoredInsteadOfCrashing(): void
+    {
+        $barcode = $this->barcode('07');
+        $this->seedCatalogProduct($barcode, 'Copic Sketch Marker Peacock Blue');
+        $variant = Variants::fromApp(app(Apps::class))
+            ->fromCompany($this->company)
+            ->where('barcode', $barcode)
+            ->firstOrFail();
+
+        // Product deleted, variant left live: what production had for the variant that crashed Order::addItem.
+        DB::connection('inventory')
+            ->table('products')
+            ->where('id', $variant->products_id)
+            ->update(['is_deleted' => 1]);
+        $this->assertNull($variant->fresh()->product);
+
+        $this->netsuiteSalesOrder('SO' . $this->run, 'C' . $this->run, [[$barcode, 'Peacock Blue', 4, 3.14]]);
+        $action = $this->action();
+        $order = $action->execute('SO' . $this->run);
+
+        $this->assertSame([$barcode], $action->restoredProducts);
+        $this->assertSame([], $action->pulledProducts);
+        $this->assertSame($variant->getId(), (int) $order->items()->first()->variant_id);
+        $this->assertSame('Copic Sketch Marker Peacock Blue', $order->items()->first()->product_name);
+
+        $product = Products::query()->where('id', $variant->products_id)->first();
+        $this->assertNotNull($product, 'The product is live again.');
+        $this->assertSame(1, Variants::fromApp(app(Apps::class))
+            ->fromCompany($this->company)
+            ->where('sku', $barcode)
+            ->count(), 'Restored, not duplicated.');
     }
 
     public function testAnUnknownSalesOrderFailsClearly(): void
