@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFields;
 use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
 use Kanvas\Connectors\Zoho\Actions\Concerns\WritesZohoRecordWithCoercion;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoDeal;
@@ -18,6 +19,7 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 class PushDealToZohoAction
 {
+    use TracksZohoSyncedFields;
     use TracksZohoSyncedFiles;
     use WritesZohoRecordWithCoercion;
 
@@ -42,11 +44,16 @@ class PushDealToZohoAction
             $zohoDealId = $deal->get(CustomFieldEnum::ZOHO_DEAL_ID->value);
 
             if (empty($zohoDealId)) {
+                $built = $zohoData;
                 $zohoDealId = $this->createDeal($dealModule, $deal, $zohoData);
-                $this->writeRecordLinks(
-                    $dealModule,
+                $links = ZohoFieldMapService::dealIdLinkFields($deal, $zohoDealId);
+                $this->writeRecordLinks($dealModule, $zohoDealId, $links);
+
+                $this->rememberSyncedFields(
+                    $deal,
+                    CustomFieldEnum::ZOHO_DEAL_SYNCED_FIELDS,
                     $zohoDealId,
-                    ZohoFieldMapService::dealIdLinkFields($deal, $zohoDealId)
+                    [...$built, ...$links]
                 );
             } elseif (empty($dealModule->get((string) $zohoDealId)->getData())) {
                 return [
@@ -56,11 +63,20 @@ class PushDealToZohoAction
                     'files' => null,
                 ];
             } else {
-                $zohoData = [
-                    ...$zohoData,
-                    ...ZohoFieldMapService::dealIdLinkFields($deal, (string) $zohoDealId),
-                ];
-                $this->updateRecord($dealModule, (string) $zohoDealId, $zohoData);
+                if ($deal->company->get(CustomFieldEnum::ZOHO_DEAL_SKIP_STAGE_ON_UPDATE->value)) {
+                    unset($zohoData['Stage']);
+                }
+
+                $zohoData = $this->updateChangedFields(
+                    $dealModule,
+                    $deal,
+                    CustomFieldEnum::ZOHO_DEAL_SYNCED_FIELDS,
+                    (string) $zohoDealId,
+                    [
+                        ...$zohoData,
+                        ...ZohoFieldMapService::dealIdLinkFields($deal, (string) $zohoDealId),
+                    ]
+                );
             }
 
             return [

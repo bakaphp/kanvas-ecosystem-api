@@ -59,6 +59,8 @@ final class ZohoLeadPushLockTest extends TestCase
             ->willReturn(new Record(['id' => 'zl-once'], $module));
 
         $this->action($lead, $module)->execute();
+        $lead->description = 'Changed after the first push';
+        $lead->saveOrFail();
         $this->action($lead, $module)->execute();
 
         $this->assertSame('zl-once', $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value));
