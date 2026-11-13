@@ -44,6 +44,11 @@ type VoiceAgentReadinessCheck {
     action: String
 }
 
+type VoiceAgentDefaults {
+    "ElevenLabs voice for agents that don't pick one (VOICE_DEFAULT_VOICE_ID), or null when none is set."
+    voice_id: String
+}
+
 type VoiceAgentReadiness {
     "No check is an error."
     ready: Boolean!
@@ -73,6 +78,11 @@ extend type Query @guard {
     voiceAgentReadiness(id: ID!): VoiceAgentReadiness!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentReadinessQuery"
+        )
+    "Defaults the admin pre-fills on a voice agent."
+    voiceAgentDefaults: VoiceAgentDefaults!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentDefaultsQuery"
         )
 }
 
