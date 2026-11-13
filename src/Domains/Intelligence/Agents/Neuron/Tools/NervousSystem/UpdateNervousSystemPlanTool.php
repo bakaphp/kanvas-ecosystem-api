@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
@@ -115,6 +116,13 @@ class UpdateNervousSystemPlanTool extends Tool
         if (is_array($plan)) {
             return $plan;
         }
+
+        // OpenAI fills every optional string it has no value for with "", and writing that back
+        // blanked the plan's title in the same call that set its status.
+        $title = Str::trimToNull($title);
+        $description = Str::trimToNull($description);
+        $status = Str::trimToNull($status);
+        $blocked_needs = Str::trimToNull($blocked_needs);
 
         $data = [];
         if ($title !== null) {

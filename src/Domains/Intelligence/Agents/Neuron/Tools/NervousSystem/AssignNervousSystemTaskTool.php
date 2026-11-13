@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -76,9 +77,24 @@ class AssignNervousSystemTaskTool extends Tool
             return ['error' => "Agent {$agent_id} was not found — pick an agent_id from the project members."];
         }
 
+        // Its work is already running (a factory run under the current assignee): moving the record would
+        // leave the board naming one agent while another does the work, and the run would not move with it.
+        if ($task->agent_id !== null && $task->agent_id !== $agent->getId() && $task->hasOpenChildren()) {
+            return [
+                'error' => "Task {$task_id} is already being worked by '{$task->agent?->name}', so it was NOT "
+                    . 'reassigned. Wait for its result; if it comes back blocked, put it back to pending first.',
+            ];
+        }
+
         if (! $agent->canExecuteBoardWork()) {
             return ['error' => "Agent '{$agent->name}' can't execute task work (it's a remote/container or "
                 . 'non-executor agent). Assign to a member whose can_execute is true.'];
+        }
+
+        $refusal = CodingChatSettingEnum::repositoryRefusal($agent, $task->fullText());
+
+        if ($refusal !== null) {
+            return ['error' => "Task {$task_id} was NOT assigned to '{$agent->name}'. " . $refusal];
         }
 
         $task->agent_id = $agent->getId();

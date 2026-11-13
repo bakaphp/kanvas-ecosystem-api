@@ -6,13 +6,16 @@ namespace Kanvas\NervousSystem\Plan\Listeners;
 
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 
 /**
- * Close the delegation loop at the PLAN level: when a plan a PM handed off finishes, wake the PM.
+ * Close the delegation loop at the PLAN level: when a plan a PM handed off finishes, wake the PM —
+ * and when its last task finishes but the worker leaves the plan open, wake it then.
  *
  * Nothing else covers it. `WakeAgentOnPlanChangeListener` wakes the plan's OWN agent and skips tasks
  * assigned to it — and delegating a whole plan makes the worker that agent, so every task wake is
@@ -26,6 +29,16 @@ class WakeProjectManagerOnPlanOutcomeListener
 
     public function handle(PlanBroadcast $event): void
     {
+        if ($event->fromSync) {
+            return;
+        }
+
+        $finishedEveryTask = $this->finishedEveryTask($event);
+
+        if (! $finishedEveryTask && ! $this->isPlanOutcome($event)) {
+            return;
+        }
+
         $target = $this->wakeTarget($event);
 
         if ($target === null) {
@@ -34,6 +47,10 @@ class WakeProjectManagerOnPlanOutcomeListener
 
         [$project, $creator] = $target;
         $plan = $event->plan;
+
+        if ($finishedEveryTask) {
+            $plan->rememberFinishWasReported();
+        }
 
         $plan->emitLedgerEvent(
             'plan.project_manager.wake_dispatched',
@@ -44,49 +61,85 @@ class WakeProjectManagerOnPlanOutcomeListener
                 'plan_status' => $plan->status,
                 'previous_status' => $event->previousStatus,
                 'change_type' => $event->changeType->value,
+                'task_id' => $finishedEveryTask ? $event->task?->getId() : null,
             ],
         );
 
         WakeAgentForProjectJob::dispatch(
             $project,
             WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
-            $this->outcomeFact($plan, $event->changeType),
+            $finishedEveryTask
+                ? $this->everyTaskFinishedFact($plan)
+                : $this->outcomeFact($plan, $event->changeType),
             wakeAgent: $creator,
+            reportsOn: $finishedEveryTask ? $plan : null,
         );
     }
 
-    /**
-     * The project and the agent that should hear about this transition, or null when nobody should.
-     *
-     * @return array{0: Project, 1: Agent}|null
-     */
-    private function wakeTarget(PlanBroadcast $event): ?array
+    private function isPlanOutcome(PlanBroadcast $event): bool
     {
         // Every other PlanBroadcast listener drops REJECTED, so if this one does too a human turning
         // a plan down cancels the work and tells nobody.
         $rejected = $event->changeType === PlanChangeTypeEnum::REJECTED;
 
-        if ($event->fromSync || (! $rejected && $event->changeType !== PlanChangeTypeEnum::UPDATED)) {
-            return null;
+        if (! $rejected && $event->changeType !== PlanChangeTypeEnum::UPDATED) {
+            return false;
         }
 
         $plan = $event->plan;
 
         if (! in_array((string) $plan->status, self::TERMINAL_PLAN_STATUSES, true)) {
-            return null;
+            return false;
         }
 
         // Only the transition. A terminal plan gets re-saved (files, completion, verification) and
         // each save would otherwise wake the PM again.
         if ((string) $plan->status === (string) $event->previousStatus) {
-            return null;
+            return false;
         }
 
+        return ! ($plan->status === PlanStatusEnum::DONE->value && $plan->finishWasReported());
+    }
+
+    /**
+     * The plan's last open task just finished and the plan is still open.
+     *
+     * Nothing closes a plan by itself, and when the plan's own agent finished that task the task-level
+     * wake skips it as self-notification — so a worker that marks its task done and stops there left
+     * the agent that asked for the work, and the person behind it, waiting on a result already in.
+     */
+    private function finishedEveryTask(PlanBroadcast $event): bool
+    {
+        $task = $event->task;
+
+        if ($event->changeType !== PlanChangeTypeEnum::TASK_STATUS_CHANGED || $task === null) {
+            return false;
+        }
+
+        if (! in_array((string) $task->status, TaskStatusEnum::completedStatusValues(), true)
+            || (string) $task->status === (string) $event->previousStatus
+        ) {
+            return false;
+        }
+
+        $plan = $event->plan;
+
+        return ! in_array((string) $plan->status, self::TERMINAL_PLAN_STATUSES, true)
+            && $plan->everyTaskFinished();
+    }
+
+    /**
+     * Who should hear about this plan: the agent that asked for it, preferred over the project's
+     * current PM. That is right for a plan whose project has since changed hands, and it is the only
+     * answer that exists when the creator delegated outside a project.
+     *
+     * @return array{0: Project, 1: Agent}|null
+     */
+    private function wakeTarget(PlanBroadcast $event): ?array
+    {
+        $plan = $event->plan;
         $project = $plan->project;
 
-        // Who ASKED for this work, preferred over the project's current PM: it is right for a plan
-        // whose project has since changed hands, and it is the only answer that exists when the
-        // creator delegated outside a project.
         /** @var Agent|null $creator */
         $creator = $plan->createdByAgent ?? $project?->pmAgent;
 
@@ -96,11 +149,25 @@ class WakeProjectManagerOnPlanOutcomeListener
 
         // An agent that finished its own plan already knows; waking it there bounces its work at it.
         // A rejection is the exception — a HUMAN made that call, so the assignee has not heard it.
-        if (! $rejected && $creator->getId() === $plan->agent_id) {
+        if ($event->changeType !== PlanChangeTypeEnum::REJECTED && $creator->getId() === $plan->agent_id) {
             return null;
         }
 
         return [$project, $creator];
+    }
+
+    private function everyTaskFinishedFact(Plan $plan): string
+    {
+        return sprintf(
+            'Every task on plan %d ("%s") is finished, worked by %s, and the plan is still open. Read it with '
+                . 'read_plan_activity, then answer the person who asked for this work: say it is done, what '
+                . 'came of it, and what you need from them, if anything. Your reply is delivered into the '
+                . 'conversation they asked in. Then move the plan to done with update_nervous_system_plan, '
+                . 'unless the work continues in it.',
+            $plan->getId(),
+            (string) $plan->title,
+            $plan->agent?->name ?? 'its assignee',
+        );
     }
 
     private function outcomeFact(Plan $plan, PlanChangeTypeEnum $changeType): string

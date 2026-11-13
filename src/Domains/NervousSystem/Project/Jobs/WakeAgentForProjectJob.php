@@ -17,6 +17,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
+use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -36,6 +38,7 @@ use Throwable;
  */
 class WakeAgentForProjectJob implements ShouldQueue
 {
+    use AnnouncesPlanOutcome;
     use Dispatchable;
     use DrivesAgentWake;
     use InteractsWithQueue;
@@ -84,6 +87,9 @@ class WakeAgentForProjectJob implements ShouldQueue
      * `mentionMessageId` is the message whose files ride along, resolved when the job RUNS: the
      * comment UI uploads attachments in a second request, so at dispatch they may not exist yet. It is
      * not `triggerMessageId`, which for a threaded mention is the thread root the reply goes under.
+     *
+     * `reportsOn` is the plan whose finish this wake reports. The person who asked for it is in the
+     * conversation they asked in, not on the project channel, so the reply goes there as well.
      */
     public function __construct(
         public readonly Project $project,
@@ -92,6 +98,7 @@ class WakeAgentForProjectJob implements ShouldQueue
         public readonly ?int $triggerMessageId = null,
         public readonly ?Agent $wakeAgent = null,
         public readonly ?int $mentionMessageId = null,
+        public readonly ?Plan $reportsOn = null,
     ) {
         $this->onQueue('nervous-system-project');
 
@@ -187,6 +194,8 @@ class WakeAgentForProjectJob implements ShouldQueue
             return;
         }
 
+        $this->answerWhereThePlanWasAskedFor($agent, $response);
+
         // The PM has a board tool now, so it can answer by commenting on the plan and then be handed
         // the floor again to "reply" — posting the same thing twice, seconds apart, the second one
         // narrating the first ("Actions Taken: commented on the thread..."). One turn is one message.
@@ -217,6 +226,28 @@ class WakeAgentForProjectJob implements ShouldQueue
                 'message_id' => $reply->getId(),
             ],
         );
+    }
+
+    /**
+     * Only in the voice of the agent that asked for the plan: the conversation is between the person
+     * and that agent, and the reply is its answer to them. Best-effort — the project channel keeps it.
+     */
+    private function answerWhereThePlanWasAskedFor(Agent $agent, string $response): void
+    {
+        if ($this->reportsOn === null || ! $agent->is($this->reportsOn->createdByAgent)) {
+            return;
+        }
+
+        try {
+            $this->alsoPostToOriginConversation(
+                $this->reportsOn,
+                $response,
+                'project-agent-reply',
+                mention: false,
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

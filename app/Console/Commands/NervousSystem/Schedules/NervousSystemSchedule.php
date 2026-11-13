@@ -18,6 +18,7 @@ use App\Console\Commands\NervousSystem\Ledger\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\Metrics\SyncModelPricingCommand;
 use App\Console\Commands\NervousSystem\Plans\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\Plans\NudgeInactivePlansCommand;
+use App\Console\Commands\NervousSystem\Plans\PostStillWorkingUpdatesCommand;
 use App\Console\Commands\NervousSystem\Plans\ProjectHeartbeatCommand;
 use App\Console\Commands\NervousSystem\Plans\RedeliverChildOutcomesCommand;
 use App\Console\Commands\NervousSystem\Plans\SweepStaleIntakeCommand;
@@ -97,6 +98,13 @@ final class NervousSystemSchedule
             ->everyMinute()
             ->withoutOverlapping(5)
             ->runInBackground();
+
+        // A chat silent for three minutes while the work it asked for runs hears that it is still
+        // running. Pure dispatcher, one cheap job per chat; the job's own silence check paces it.
+        $schedule->command(PostStillWorkingUpdatesCommand::class)
+            ->everyMinute()
+            ->withoutOverlapping(5)
+            ->onOneServer();
 
         // Child outcomes whose after-commit wake was lost to a dying worker. Rare by construction,
         // so a 5-min lag on the recovery costs nothing; the row's own 2-min age guard keeps it off

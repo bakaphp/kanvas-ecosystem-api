@@ -67,7 +67,7 @@ class WakeAgentForTaskJob implements ShouldQueue
 
         // A factory agent has no board turn to take: its model is the opencode agent on the factory Mac.
         // The task goes through the worker, which hands it to the factory and records what comes back.
-        if ($agent->is_active && CodingChatSettingEnum::isEnabledFor($agent)) {
+        if ($agent->is_active && CodingChatSettingEnum::runsTaskInFactory($agent, $this->task->fullText())) {
             $this->handToTheFactory();
 
             return;
@@ -223,11 +223,23 @@ class WakeAgentForTaskJob implements ShouldQueue
 
     /**
      * Once per task: a task already finished, or already waiting on its factory run, is not handed over
-     * a second time when it is assigned again.
+     * a second time when it is assigned again. A task assigned before the ones ahead of it are done
+     * waits its turn: the worker that finishes the task before it starts it (`RunTaskWorkerJob`), so a
+     * ticket's design, logic and ship steps never run at once on their shared branch.
      */
     private function handToTheFactory(): void
     {
         if ($this->task->isTerminal() || $this->task->children()->open()->exists()) {
+            return;
+        }
+
+        if ($this->task->waitsOnEarlierTasks()) {
+            $this->task->emitLedgerEvent('plan.task.queued', payload: [
+                'task_id' => $this->task->getId(),
+                'plan_id' => $this->task->plan_id,
+                'sequence' => (int) $this->task->sequence,
+            ]);
+
             return;
         }
 

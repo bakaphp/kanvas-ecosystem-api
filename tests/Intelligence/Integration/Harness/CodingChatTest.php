@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DeliverCodingChatTurnAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
@@ -35,10 +36,14 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\HeldChatMessages;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunCodingChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AskRepositoryTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
@@ -48,9 +53,11 @@ use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Users\Models\Users;
 use Override;
+use ReflectionMethod;
 use RuntimeException;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
 use Tests\TestCase;
@@ -720,6 +727,195 @@ class CodingChatTest extends TestCase
         Queue::assertNotPushed(LaunchCodingChatJob::class);
     }
 
+    public function testATaskThatDeclaresItsRepoWorksThereWhateverElseItNames(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent(defaultRepo: null);
+        $task = $this->factoryTask($akira, 'Kickoff: create SecondLook-app from the template');
+        $task->description = "Repo: Quorum-app\nRun the new-app tool for SecondLook-app.";
+        $task->saveOrFail();
+
+        new RunTaskWorkerJob($task)->handle();
+
+        $this->assertSame('Quorum-app', $this->factoryRunOf($task)->repo_slug, 'two checkouts named, one declared');
+    }
+
+    public function testATaskDeclaringACheckoutCreatedSinceTheListWasCachedFindsIt(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $this->bindFactory('{"repos":"Quorum-app,SecondLook-app,PlantPal-app"}');
+        $task = $this->factoryTask($akira, 'Set the identity (Repo: plantpal-app)');
+
+        new RunTaskWorkerJob($task)->handle();
+
+        $this->assertSame('PlantPal-app', $this->factoryRunOf($task)->repo_slug, 'the kickoff before it made the checkout');
+    }
+
+    public function testATaskDeclaringACheckoutTheMacDoesNotHaveIsBlockedInsteadOfUsingTheDefault(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $this->bindFactory('{"repos":"Quorum-app,SecondLook-app"}');
+        $task = $this->factoryTask($akira, 'Build the home screen. Repo: Ghost-app');
+
+        new RunTaskWorkerJob($task)->handle();
+
+        $task->refresh();
+        $this->assertSame(TaskStatusEnum::BLOCKED->value, $task->status);
+        $this->assertStringContainsString('Ghost-app', (string) $task->blocked_reason);
+        $this->assertStringContainsString('kickoff', (string) $task->blocked_reason);
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+    }
+
+    public function testTheDeclaredRepoIsReadAsAFolderNameHoweverItIsWritten(): void
+    {
+        $this->assertSame('Quorum-app', TaskDirectives::repo('Repo: Quorum-app.'));
+        $this->assertSame('Quorum-app', TaskDirectives::repo('**Repo:** `mctekk/Quorum-app`'));
+        $this->assertSame('Quorum-app', TaskDirectives::repo('Repository: https://github.com/mctekk/Quorum-app.git'));
+        $this->assertSame('Quorum-app', TaskDirectives::repo("Repo: Quorum-app\nDone when: repo: quorum-app builds"));
+        $this->assertNull(TaskDirectives::repo('Open the repository and fix the spinner in Quorum-app'));
+
+        $this->expectException(ValidationException::class);
+        TaskDirectives::repo("Repo: Quorum-app\nRepo: SecondLook-app");
+    }
+
+    public function testABranchIsReadOnlyFromALineOfItsOwn(): void
+    {
+        $this->assertSame('ticket/12-login', TaskDirectives::branch("Repo: Quorum-app\nBranch: ticket/12-login."));
+        $this->assertSame('ticket/3-home', TaskDirectives::branch('- **Branch:** `ticket/3-home`'));
+        $this->assertNull(TaskDirectives::branch('Open the pull request into the base branch: develop'));
+
+        $this->expectException(ValidationException::class);
+        TaskDirectives::branch('Branch: develop');
+    }
+
+    public function testTheTasksOfATicketShareTheBranchTheyName(): void
+    {
+        Queue::fake();
+        $tailor = $this->factoryAgent();
+        $akira = $this->factoryAgent();
+        $design = $this->factoryTask($tailor, 'Design the login screen');
+        $logic = $this->factoryTask($akira, 'Wire the login screen');
+
+        foreach ([$design, $logic] as $task) {
+            $task->description = "Repo: Quorum-app\nBranch: ticket/12-login-screen";
+            $task->saveOrFail();
+            new RunTaskWorkerJob($task)->handle();
+        }
+
+        $this->assertSame('ticket/12-login-screen', $this->factoryRunOf($design)->taskRunBranch());
+        $this->assertSame('ticket/12-login-screen', $this->factoryRunOf($logic)->taskRunBranch(), 'logic lands on the design');
+        Queue::assertPushed(
+            LaunchCodingChatJob::class,
+            fn (LaunchCodingChatJob $job): bool => str_contains($job->instruction, 'build on the commits already there')
+        );
+    }
+
+    public function testATaskNamingAnIntegrationBranchIsBlockedBeforeAnythingOpens(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $task = $this->factoryTask($akira, 'Wire the login screen');
+        $task->description = "Repo: Quorum-app\nBranch: develop";
+        $task->saveOrFail();
+
+        new RunTaskWorkerJob($task)->handle();
+
+        $task->refresh();
+        $this->assertSame(TaskStatusEnum::BLOCKED->value, $task->status);
+        $this->assertStringContainsString('integration branch', (string) $task->blocked_reason);
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+    }
+
+    public function testATicketsLogicAssignedWhileItsDesignRunsWaitsForIt(): void
+    {
+        Queue::fake();
+        [$design, $logic] = $this->ticketLine();
+
+        new WakeAgentForTaskJob($logic)->handle();
+
+        Queue::assertNotPushed(RunTaskWorkerJob::class);
+        $this->assertSame(TaskStatusEnum::PENDING->value, $logic->refresh()->status);
+    }
+
+    public function testATicketsLogicStartsOnItsOwnWhenItsDesignIsDone(): void
+    {
+        Queue::fake();
+        [$design, $logic] = $this->ticketLine();
+        $run = $this->startFactoryRun($design);
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'Designed the login screen; committed on ticket/12-login-screen.');
+
+        new RunTaskWorkerJob($design->refresh(), 'Task #1 is now done.')->handle();
+
+        $this->assertSame(TaskStatusEnum::DONE->value, $design->refresh()->status);
+        Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($logic));
+    }
+
+    public function testABlockedDesignHoldsTheTicketsLogicBack(): void
+    {
+        Queue::fake();
+        [$design, $logic] = $this->ticketLine();
+        $run = $this->startFactoryRun($design);
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'BLOCKED - the design system spec is missing.');
+
+        new RunTaskWorkerJob($design->refresh(), 'Task #1 is now done.')->handle();
+
+        $this->assertSame(TaskStatusEnum::BLOCKED->value, $design->refresh()->status);
+        Queue::assertNotPushed(WakeAgentForTaskJob::class);
+        $this->assertTrue($logic->refresh()->waitsOnEarlierTasks());
+    }
+
+    public function testATaskWhoseRunIsUnderWayCannotBeHandedToAnotherAgent(): void
+    {
+        Queue::fake();
+        [$design] = $this->ticketLine();
+        $this->startFactoryRun($design);
+        $tailor = $design->agent;
+        $other = $this->factoryAgent();
+
+        $result = new AssignNervousSystemTaskTool()->withContext(
+            app(Apps::class),
+            $this->user()->getCurrentCompany(),
+            $this->user(),
+        )($design->getId(), $other->getId());
+
+        $this->assertStringContainsString('NOT reassigned', (string) ($result['error'] ?? ''));
+        $this->assertTrue($design->refresh()->agent?->is($tailor), 'the board still names who is doing the work');
+    }
+
+    public function testAnOrchestratorsTaskThatNamesARepoRunsInTheFactoryUnderItsName(): void
+    {
+        Queue::fake();
+        $kaneda = $this->orchestratorWithFactoryTasks();
+        $task = $this->factoryTask($kaneda, 'Kickoff 1: create the app repository', inProject: true);
+        $task->description = "Repo: Quorum-app\nNew app: PlantPal-app";
+        $task->saveOrFail();
+
+        new WakeAgentForTaskJob($task)->handle();
+        Queue::assertPushed(RunTaskWorkerJob::class, fn (RunTaskWorkerJob $job): bool => $job->task->is($task));
+
+        new RunTaskWorkerJob($task)->handle();
+
+        $run = $this->factoryRunOf($task);
+        $this->assertSame($kaneda->getId(), $run->agent_id, 'on the Mac as Kaneda, not as a worker');
+        $this->assertSame('Quorum-app', $run->repo_slug);
+        $this->assertSame(TaskStatusEnum::WAITING->value, $task->refresh()->status);
+    }
+
+    public function testAnOrchestratorKeepsItsOwnModelForEverythingElse(): void
+    {
+        $kaneda = $this->orchestratorWithFactoryTasks();
+
+        $this->assertFalse(CodingChatSettingEnum::isEnabledFor($kaneda), 'its chat is not sent to the Mac');
+        $this->assertFalse(CodingChatSettingEnum::runsTaskInFactory($kaneda, "Review the plan\nCheck the brief against Stage 1"));
+        $this->assertTrue(CodingChatSettingEnum::runsTaskInFactory($kaneda, "Ship ticket 12\nRepo: Quorum-app"));
+        $this->assertTrue(
+            CodingChatSettingEnum::runsTaskInFactory($kaneda, "Repo: Quorum-app\nRepo: Junkmaxy-app"),
+            'a contradiction still reaches the worker, which blocks it with the reason'
+        );
+    }
+
     public function testAssigningATaskToAFactoryAgentHandsItToTheWorkerOnce(): void
     {
         Queue::fake();
@@ -735,6 +931,116 @@ class CodingChatTest extends TestCase
         new WakeAgentForTaskJob($task->refresh())->handle();
 
         Queue::assertNotPushed(RunTaskWorkerJob::class);
+    }
+
+    public function testAPlanWakeForAFactoryAgentOpensNoChatAndTellsTheAgentThatAskedForThePlan(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $plan = $this->planAFactoryAgentOwns($akira);
+        $kaneda = $plan->createdByAgent;
+
+        new WakeAgentForPlanJob(
+            $plan,
+            WakeAgentForPlanJob::REASON_TASK_COMPLETED,
+            'Task #1 ("Build the login screen") is now done.'
+        )->handle();
+
+        $this->assertFalse(
+            AgentTaskSession::query()->where('agent_id', $akira->getId())->exists(),
+            'the wake was not typed into a coding chat'
+        );
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+        Queue::assertPushed(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->wakeAgent?->is($kaneda) === true
+                && $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
+                && str_contains((string) $job->triggerMessage, 'is now done')
+        );
+    }
+
+    public function testAPlanWakeForAFactoryAgentWithNothingToPassOnWakesNobody(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $plan = $this->planAFactoryAgentOwns($akira);
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_PLAN_ASSIGNED)->handle();
+
+        $this->assertFalse(AgentTaskSession::query()->where('agent_id', $akira->getId())->exists());
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+        Queue::assertNotPushed(WakeAgentForProjectJob::class);
+    }
+
+    /**
+     * A planner in Kanvas asked to audit the mobile template blocked with "no repository read tool". It
+     * asks the factory instead: a read-only sub-task its own task waits on.
+     */
+    public function testAnAgentInKanvasAsksTheFactoryAboutARepository(): void
+    {
+        Queue::fake();
+        $reader = $this->factoryAgent(defaultRepo: 'SecondLook-app');
+        $task = $this->kanvasWorkerTask();
+
+        $result = $this->askRepository()(
+            task_id: $task->getId(),
+            repository: 'SecondLook-app',
+            question: 'Which screens and shared components exist?',
+        );
+
+        $this->assertTrue($result['success'], json_encode($result));
+
+        /** @var Task $question */
+        $question = $task->children()->firstOrFail();
+        $this->assertSame($reader->getId(), (int) $question->agent_id);
+        $this->assertSame('SecondLook-app', TaskDirectives::repo($question->fullText()));
+        $this->assertStringContainsString('Read-only', (string) $question->description);
+        $this->assertTrue(CodingChatSettingEnum::runsTaskInFactory($reader, $question->fullText()));
+        Queue::assertPushed(
+            WakeAgentForTaskJob::class,
+            fn (WakeAgentForTaskJob $job): bool => $job->task->getId() === $question->getId()
+        );
+    }
+
+    public function testAskingTheSameQuestionTwiceAsksTheFactoryOnce(): void
+    {
+        Queue::fake();
+        $this->factoryAgent(defaultRepo: 'SecondLook-app');
+        $task = $this->kanvasWorkerTask();
+        $ask = $this->askRepository();
+
+        $ask(task_id: $task->getId(), repository: 'SecondLook-app', question: 'What does auth use?');
+        $ask(task_id: $task->getId(), repository: 'SecondLook-app', question: 'What does auth use?');
+
+        $this->assertSame(1, $task->children()->count());
+    }
+
+    public function testATaskThatDeclaresARepoIsNotAssignedToAnAgentInKanvas(): void
+    {
+        Queue::fake();
+        $reader = $this->factoryAgent(defaultRepo: 'SecondLook-app');
+        $reader->type->update(['handler' => SystemUserAgent::class]);
+        $task = $this->kanvasWorkerTask("Repo: SecondLook-app\n\nAudit the template.");
+        $planner = $this->kanvasAgent();
+        $assign = new AssignNervousSystemTaskTool()->withContext(
+            app(Apps::class),
+            $this->user()->getCurrentCompany(),
+            $this->user(),
+        );
+
+        $refused = $assign(task_id: $task->getId(), agent_id: $planner->getId());
+
+        $this->assertStringContainsString('NOT assigned', (string) ($refused['error'] ?? ''));
+        $this->assertStringContainsString((string) $reader->name, (string) $refused['error']);
+        $this->assertArrayNotHasKey('error', $assign(task_id: $task->getId(), agent_id: $reader->getId()));
+    }
+
+    public function testAnAgentInKanvasIsOfferedTheQuestionAndAFactoryAgentIsNot(): void
+    {
+        $reader = $this->factoryAgent(defaultRepo: 'SecondLook-app');
+
+        $this->assertContains('ask_repository', $this->toolNamesOf($this->kanvasAgent()));
+        $this->assertNotContains('ask_repository', $this->toolNamesOf($reader));
     }
 
     public function testTheFactoryClientReportsWhoHoldsACheckoutInUse(): void
@@ -1298,6 +1604,55 @@ class CodingChatTest extends TestCase
     }
 
     /**
+     * One ticket's design (Tailor) and logic (Akira), in order on one plan, both assigned up front.
+     *
+     * @return array{0: Task, 1: Task}
+     */
+    private function ticketLine(): array
+    {
+        $tailor = $this->factoryAgent();
+        $akira = $this->factoryAgent();
+        $design = $this->factoryTask($tailor, 'Design the login screen', inProject: true);
+        $logic = $this->makeTask($design->plan, sequence: 2);
+
+        foreach ([[$design, $tailor, 1], [$logic, $akira, 2]] as [$task, $agent, $sequence]) {
+            $task->agent_id = $agent->getId();
+            $task->sequence = $sequence;
+            $task->description = "Repo: Quorum-app\nBranch: ticket/12-login-screen";
+            $task->saveOrFail();
+        }
+
+        return [$design->refresh(), $logic->refresh()];
+    }
+
+    /**
+     * An orchestrator whose chat stays with its own model and whose `Repo:` tasks run on the Mac.
+     */
+    private function orchestratorWithFactoryTasks(): Agent
+    {
+        $agent = $this->makeAgent();
+        $agent->set(AgentCustomFieldEnum::MACHINE_ID->value, $this->machine()->getId());
+        $agent->set(CodingChatSettingEnum::FACTORY_TASKS->value, true);
+        Cache::put('coding-chat-checkouts:' . $agent->getId(), ['Quorum-app', 'SecondLook-app'], 300);
+
+        return $agent;
+    }
+
+    /**
+     * A project plan an orchestrator created and a factory agent came to own, the way assigning its
+     * first task leaves it.
+     */
+    private function planAFactoryAgentOwns(Agent $worker): Plan
+    {
+        $plan = $this->factoryTask($worker, 'Build the login screen', inProject: true)->plan;
+        $plan->created_by_agent_id = $plan->agent_id;
+        $plan->agent_id = $worker->getId();
+        $plan->saveOrFail();
+
+        return $plan->refresh();
+    }
+
+    /**
      * The session a second conversation opened for Quorum-app, which the factory then refused.
      */
     private function refusedChat(Agent $agent, int $userId): AgentTaskSession
@@ -1440,6 +1795,50 @@ class CodingChatTest extends TestCase
                 return $this->repos;
             }
         };
+    }
+
+    /** An internal agent that runs in Kanvas with its own model, the way the planner does. */
+    private function kanvasAgent(): Agent
+    {
+        $agent = $this->makeAgent();
+        $agent->type->update(['handler' => SystemUserAgent::class]);
+
+        return $agent->refresh();
+    }
+
+    /** A task an agent in Kanvas is working, the way a planner holds one. */
+    private function kanvasWorkerTask(string $description = 'Plan the tickets.'): Task
+    {
+        $planner = $this->kanvasAgent();
+        $task = $this->makeTask($this->makePlan(['title' => 'Second Look planning'], $planner), TaskStatusEnum::IN_PROGRESS);
+        $task->agent_id = $planner->getId();
+        $task->description = $description;
+        $task->saveOrFail();
+
+        return $task;
+    }
+
+    private function askRepository(): AskRepositoryTool
+    {
+        return new AskRepositoryTool()->withContext(
+            app(Apps::class),
+            $this->user()->getCurrentCompany(),
+            $this->user(),
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function toolNamesOf(Agent $agent): array
+    {
+        $handler = new SystemUserAgent();
+        $handler->setConfiguration($agent, user: $this->user());
+
+        /** @var array<int, object> $tools */
+        $tools = new ReflectionMethod($handler, 'tools')->invoke($handler);
+
+        return array_values(array_map(fn (object $tool): string => (string) $tool->getName(), $tools));
     }
 
     private function user(): Users

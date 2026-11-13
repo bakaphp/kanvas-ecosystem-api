@@ -17,6 +17,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -27,6 +28,7 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -113,7 +115,7 @@ class RunTaskWorkerJob implements ShouldQueue
         $startedAt = microtime(true);
 
         try {
-            $response = CodingChatSettingEnum::isEnabledFor($agent)
+            $response = CodingChatSettingEnum::runsTaskInFactory($agent, $this->task->fullText())
                 ? $this->workInTheFactory($agent, $owner)
                 : WorkerToolPolicy::within(fn (): string => new AgentChatKernel(
                     agent: $agent,
@@ -192,7 +194,25 @@ class RunTaskWorkerJob implements ShouldQueue
             durationMs: (int) ((microtime(true) - $startedAt) * 1000.0),
         );
 
+        $this->startNextInLine();
         $this->wakeOrchestratorIfUnbatched();
+    }
+
+    /**
+     * A factory task that was assigned while this one ran has been waiting for it (`WakeAgentForTaskJob`);
+     * it starts now that this one is done. Only on done: a blocked task stops the line for the
+     * orchestrator to decide.
+     */
+    private function startNextInLine(): void
+    {
+        $next = $this->task->nextInLine();
+        $agent = $next?->agent;
+
+        if ($next === null || $agent === null || ! CodingChatSettingEnum::runsTaskInFactory($agent, $next->fullText())) {
+            return;
+        }
+
+        WakeAgentForTaskJob::dispatch($next);
     }
 
     /**
@@ -226,12 +246,15 @@ class RunTaskWorkerJob implements ShouldQueue
             return $this->factoryAnswer();
         }
 
-        $repo = new CodingChatCheckouts($agent)->namedIn($this->task->title . "\n" . $this->task->description)
+        $repo = new CodingChatCheckouts($agent)->forTask($this->task->fullText())
             ?? CodingChatSettingEnum::defaultRepoFor($agent);
+
+        // Read before anything opens: a branch the task cannot have blocks it here, with the reason.
+        TaskDirectives::branch($this->task->fullText());
 
         if ($repo === null) {
             throw new ValidationException(
-                'No checkout to work in: name the app in the task (for example Quorum-app), '
+                'No checkout to work in: name the app in the task (for example "Repo: Quorum-app"), '
                 . 'or set CODING_CHAT_DEFAULT_REPO on ' . $agent->name . '.'
             );
         }
@@ -292,10 +315,15 @@ class RunTaskWorkerJob implements ShouldQueue
             . 'question, so do not ask one. The task\'s instructions count as the person\'s request.',
             'Task: ' . $this->task->title,
             Str::trimToNull((string) $this->task->description) !== null ? 'Detail: ' . $this->task->description : null,
-            'You are in a worktree of your own, on a branch made for this task from the app\'s base branch '
-            . '(usually develop). Finish the task end to end: commit your work with Conventional Commit '
-            . 'messages, and once the checks pass, push the branch and open a draft pull request into that '
-            . 'base branch, unless the task says otherwise.',
+            TaskDirectives::branch($this->task->fullText()) !== null
+                ? 'You are in a worktree of your own, on the branch the task names. Other tasks of the same '
+                    . 'ticket work on it too: build on the commits already there and change nothing they did '
+                    . 'unless the task asks you to.'
+                : 'You are in a worktree of your own, on a branch made for this task from the app\'s base branch '
+                    . '(usually develop).',
+            'Finish the task end to end: commit your work with Conventional Commit messages, and once the '
+            . 'checks pass, push the branch and open a draft pull request into the app\'s base branch, unless '
+            . 'the task says otherwise.',
             'When you finish, reply with what you did and where it is: branch, commits, pull request link, '
             . 'reports. IF YOU COULD NOT DO IT, START YOUR REPLY WITH THE WORD BLOCKED, then say exactly '
             . 'what stopped you and what someone has to do.',

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
@@ -144,6 +145,50 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class, 'plan_id', 'id')->where('is_deleted', 0);
+    }
+
+    /**
+     * Handed off from a person's chat to another agent and running now: what `PostStillWorkingUpdateJob`
+     * reports on. An agent working its own plan (a coding chat) answers in that chat itself. A step
+     * "running" for hours has stopped, and the stalled-task sweep owns that, not a cheerful update.
+     */
+    public function scopeWorkingForAConversation(Builder $query): Builder
+    {
+        return $query->whereNotNull('origin_session_id')
+            ->whereNotNull('created_by_agent_id')
+            ->whereColumn('agent_id', '!=', 'created_by_agent_id')
+            ->where('status', PlanStatusEnum::ACTIVE->value)
+            ->where('is_deleted', 0)
+            ->whereHas(
+                'tasks',
+                fn (Builder $tasks): Builder => $tasks->where('status', TaskStatusEnum::IN_PROGRESS->value)
+                    ->where('started_at', '>=', now()->subHours(3))
+            );
+    }
+
+    public function everyTaskFinished(): bool
+    {
+        return $this->tasks()->exists()
+            && ! $this->tasks()->whereNotIn('status', TaskStatusEnum::completedStatusValues())->exists();
+    }
+
+    /**
+     * The agent that asked for this plan was told its last task finished, and answers the person in
+     * their conversation itself — so closing the plan afterwards is not news to either of them.
+     */
+    public function rememberFinishWasReported(): void
+    {
+        Cache::put($this->finishReportedKey(), true, now()->addHour());
+    }
+
+    public function finishWasReported(): bool
+    {
+        return Cache::has($this->finishReportedKey());
+    }
+
+    private function finishReportedKey(): string
+    {
+        return 'ns:plan:' . $this->getId() . ':finish-reported';
     }
 
     /**

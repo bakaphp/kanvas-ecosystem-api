@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 
@@ -28,7 +30,7 @@ class CodingChatCheckouts
      */
     public function all(): array
     {
-        $key = 'coding-chat-checkouts:' . $this->agent->getId();
+        $key = $this->cacheKey();
         $cached = Cache::get($key);
 
         if (is_array($cached)) {
@@ -60,6 +62,51 @@ class CodingChatCheckouts
         ));
 
         return count($named) === 1 ? $named[0] : null;
+    }
+
+    /**
+     * The checkout a workflow task works in. A `Repo: <name>` line decides: a kickoff names both the
+     * template and the app it creates, and a guess between two would send the work to the wrong folder.
+     * It is looked up past the cache, because the task after a kickoff names a checkout that did not
+     * exist five minutes ago, and a declared checkout the machine does not have fails the task instead of
+     * falling back to the agent's default. Without that line, the one checkout the text names.
+     */
+    public function forTask(string $text): ?string
+    {
+        $declared = TaskDirectives::repo($text);
+
+        if ($declared === null) {
+            return $this->namedIn($text);
+        }
+
+        $found = $this->find($declared);
+
+        if ($found === null) {
+            Cache::forget($this->cacheKey());
+            $found = $this->find($declared);
+        }
+
+        return $found ?? throw new ValidationException(
+            'The task says it works in "' . $declared . '", and the factory machine has no checkout by that name'
+            . ($this->all() === [] ? ' (its checkouts could not be listed).' : ': it has ' . implode(', ', $this->all()) . '.')
+            . ' A new app gets its checkout from a kickoff task in the template first.'
+        );
+    }
+
+    private function find(string $name): ?string
+    {
+        foreach ($this->all() as $repo) {
+            if (strcasecmp($repo, $name) === 0) {
+                return $repo;
+            }
+        }
+
+        return null;
+    }
+
+    private function cacheKey(): string
+    {
+        return 'coding-chat-checkouts:' . $this->agent->getId();
     }
 
     /**

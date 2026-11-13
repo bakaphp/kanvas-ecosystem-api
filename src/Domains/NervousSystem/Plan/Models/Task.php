@@ -117,6 +117,12 @@ class Task extends BaseModel
         return $this->title ?? '';
     }
 
+    /** Title and description together: where an orchestrator writes the `Repo:` / `Branch:` lines. */
+    public function fullText(): string
+    {
+        return trim($this->title . "\n" . $this->description);
+    }
+
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
@@ -164,6 +170,51 @@ class Task extends BaseModel
     public function hasOpenChildren(): bool
     {
         return $this->children()->open()->exists();
+    }
+
+    /**
+     * An earlier top-level task of the plan (lower sequence) has not finished well. Tasks sharing a
+     * sequence run side by side; a sub-task belongs to its parent's turn and is never in line. A blocked
+     * earlier task keeps this one waiting: logic is never built on a design that did not land.
+     */
+    public function waitsOnEarlierTasks(): bool
+    {
+        if ($this->parent_task_id !== null) {
+            return false;
+        }
+
+        return self::query()
+            ->where('plan_id', $this->plan_id)
+            ->whereNull('parent_task_id')
+            ->where('sequence', '<', (int) $this->sequence)
+            ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
+            ->where('is_deleted', 0)
+            ->exists();
+    }
+
+    /**
+     * The assigned task that may start now that this one is done: the earliest pending one after it with
+     * nothing unfinished before it.
+     */
+    public function nextInLine(): ?self
+    {
+        if ($this->parent_task_id !== null) {
+            return null;
+        }
+
+        /** @var self|null $next */
+        $next = self::query()
+            ->where('plan_id', $this->plan_id)
+            ->whereNull('parent_task_id')
+            ->where('sequence', '>', (int) $this->sequence)
+            ->where('status', TaskStatusEnum::PENDING->value)
+            ->whereNotNull('agent_id')
+            ->where('is_deleted', 0)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->first();
+
+        return $next !== null && ! $next->waitsOnEarlierTasks() ? $next : null;
     }
 
     /** Not yet at a terminal status — pending, in progress or waiting. */
