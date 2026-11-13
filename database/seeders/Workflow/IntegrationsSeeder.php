@@ -6,6 +6,7 @@ namespace Database\Seeders\Workflow;
 
 use Illuminate\Database\Seeder;
 use Kanvas\Connectors\CardNet\Handlers\CardNetHandler;
+use Kanvas\Connectors\Dhl\Handlers\DhlHandler;
 use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Connectors\Stripe\Handlers\StripeHandler;
 use Kanvas\Connectors\TeeTime\Handlers\TeeTimeHandler;
@@ -56,6 +57,16 @@ class IntegrationsSeeder extends Seeder
             ],
             [
                 'handler' => TeeTimeHandler::class,
+            ]
+        );
+
+        Integrations::firstOrCreate(
+            [
+                'name' => IntegrationsEnum::DHL->value,
+                'apps_id' => 0,
+            ],
+            [
+                'handler' => DhlHandler::class,
             ]
         );
     }

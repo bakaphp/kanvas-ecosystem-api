@@ -53,6 +53,7 @@ class SendOrderEmailsAction
             'order_status' => $this->order->status,
             'customer_name' => $this->order->people->name ?? 'Customer',
             'company_name' => $this->order->company->name ?? '',
+            'company_logo' => $this->order->company?->getPhoto()?->url,
             'recipient_name' => $recipientData['name'] ?? '',
             'external_company' => $externalCompany['name'] ?? null,
             'estimated_delivery_time' => $this->order->estimate_shipping_date

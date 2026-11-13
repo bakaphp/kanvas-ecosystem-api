@@ -74,4 +74,5 @@ enum IntegrationsEnum: string
     case ALANUBE = 'alanube';
     case WEBPOS = 'webpos';
     case SHORTIO = 'shortio';
+    case DHL = 'dhl';
 }
