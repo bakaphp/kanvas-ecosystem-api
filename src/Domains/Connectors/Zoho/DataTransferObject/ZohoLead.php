@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Override;
 use Spatie\LaravelData\Data;
@@ -60,7 +62,7 @@ class ZohoLead extends Data
         return new self(
             $people->firstname,
             $people->lastname,
-            $people->getPhones()->first()?->value,
+            self::phoneFor($people, $company),
             $people->getEmails()->first()?->value,
             $owner,
             $lead->description,
@@ -80,6 +82,21 @@ class ZohoLead extends Data
         }
 
         return array_filter($data, fn ($value) => ! empty($value));
+    }
+
+    /**
+     * The cellphone fallback is the pull's mapping in reverse; without the setting, a lead whose Zoho
+     * record carries only `Mobile` would get that number copied into `Phone` on its next push.
+     */
+    private static function phoneFor(?People $people, CompanyInterface $company): ?string
+    {
+        $phone = $people?->getPhones()->first();
+
+        if ($phone === null && ZohoFieldMapService::phoneIsMobile($company)) {
+            $phone = $people?->getCellPhones()->first();
+        }
+
+        return $phone?->value;
     }
 
     /**

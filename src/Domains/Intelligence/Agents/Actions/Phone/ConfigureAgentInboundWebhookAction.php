@@ -28,7 +28,9 @@ use function Sentry\captureException;
  * receiver for texts.
  *
  * A webhook another system set is left alone and reported as `conflict` unless
- * the caller asks to overwrite it, because the number may already be in use.
+ * the caller asks to overwrite it, because the number may already be in use. A
+ * voice number left on another voice runtime (another environment, or an old
+ * runtime URL) is not another system: it is moved to this one, with a warning.
  *
  * NON-BLOCKING but NOT SILENT: it is called on agent save and must never throw or
  * block the save, so it always returns a structured outcome instead of raising.
@@ -96,7 +98,10 @@ class ConfigureAgentInboundWebhookAction
             }
 
             $current = trim((string) $phone->{$this->channel->twilioUrlField()});
-            if ($current !== '' && $current !== $webhook && ! $this->overwrite) {
+            $fromOtherRuntime = $this->channel === AgentPhoneChannelEnum::VOICE
+                && $current !== $webhook
+                && VoiceRuntimeConfig::isRuntimeInboundUrl($current);
+            if ($current !== '' && $current !== $webhook && ! $this->overwrite && ! $fromOtherRuntime) {
                 return $this->result('conflict', "{$number} already points at another webhook, so it was left in place.", $current);
             }
 
@@ -123,7 +128,9 @@ class ConfigureAgentInboundWebhookAction
                         ),
                         ...$this->smsRuleWarnings($company, $number),
                     ]
-                    : []
+                    : ($fromOtherRuntime
+                        ? ["{$number} was moved here from another voice runtime ({$current}). A number can only reach one runtime, so if that environment saves it again, it moves back."]
+                        : [])
             );
         } catch (ValidationException $e) {
             // Expected, actionable misconfiguration — no need to page Sentry.
@@ -150,7 +157,7 @@ class ConfigureAgentInboundWebhookAction
     private function webhookUrl(): string
     {
         if ($this->channel === AgentPhoneChannelEnum::VOICE) {
-            return VoiceRuntimeConfig::inboundWebhookUrl($this->agent->app);
+            return VoiceRuntimeConfig::inboundWebhookUrl();
         }
 
         return new TwilioReceiverService()->ensure($this->agent)->getUrl();

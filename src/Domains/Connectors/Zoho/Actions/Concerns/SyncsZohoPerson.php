@@ -87,6 +87,7 @@ trait SyncsZohoPerson
         $contacts = [];
         $email = $this->personValue($record, $fieldMapping, 'email');
         $phone = $this->personValue($record, $fieldMapping, 'phone');
+        $mobile = $this->personValue($record, $fieldMapping, 'mobile');
 
         if ($email !== null) {
             $contacts[] = [
@@ -96,15 +97,30 @@ trait SyncsZohoPerson
             ];
         }
 
-        if ($phone !== null) {
+        if ($mobile !== null) {
             $contacts[] = [
-                'value' => $phone,
-                'contacts_types_id' => ContactTypeEnum::PHONE->value,
+                'value' => $mobile,
+                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
                 'weight' => 0,
             ];
         }
 
+        if ($phone !== null) {
+            $contacts[] = [
+                'value' => $phone,
+                'contacts_types_id' => $this->phoneContactType(),
+                'weight' => $mobile !== null ? 1 : 0,
+            ];
+        }
+
         return Contact::collect($contacts, DataCollection::class);
+    }
+
+    protected function phoneContactType(): int
+    {
+        return ZohoFieldMapService::phoneIsMobile($this->company)
+            ? ContactTypeEnum::CELLPHONE->value
+            : ContactTypeEnum::PHONE->value;
     }
 
     /**

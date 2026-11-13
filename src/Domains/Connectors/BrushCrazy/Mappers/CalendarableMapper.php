@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Support\CalendarableName;
 use Kanvas\Connectors\BrushCrazy\Support\EventInstant;
+use Kanvas\Connectors\BrushCrazy\Support\Money;
 
 /**
  * Turns one `lessons` / `events` / `workshops` row into the derived values an Event + EventVersion
@@ -143,6 +144,35 @@ class CalendarableMapper
         $hash = substr(md5(mb_strtolower($displayName)), 0, 10);
 
         return "bc-{$morph->value}-s{$studioId}-{$nameSlug}-{$hash}";
+    }
+
+    /**
+     * A class's ticket options (`calendarable_substrates`: "16x20 Canvas" $35, "RSVP" $0). Kanvas has
+     * no per-version option model, so they ride on the version as a snapshot, and price_per_ticket
+     * takes the cheapest one — the price a listing shows as "from". A $0 option (the RSVP seat) only
+     * counts when nothing is paid, or every class offering RSVP beside a canvas would list as free.
+     *
+     * @param  array<int, object>  $rows  live rows of one calendarable
+     * @return array{options: array<int, array{id: int, name: string, price_cents: int, sort_order: int, product_id: int|null}>, price_per_ticket: float}
+     */
+    public static function substrates(array $rows): array
+    {
+        $options = array_map(fn (object $row) => [
+            'id' => (int) $row->id,
+            'name' => (string) $row->name,
+            'price_cents' => Money::fromRaw($row->price ?? null)->cents,
+            'sort_order' => (int) ($row->sort_order ?? 0),
+            'product_id' => ($row->product_id ?? null) !== null ? (int) $row->product_id : null,
+        ], $rows);
+
+        usort($options, fn (array $a, array $b) => [$a['sort_order'], $a['id']] <=> [$b['sort_order'], $b['id']]);
+
+        $paid = array_filter(array_column($options, 'price_cents'), fn (int $cents) => $cents > 0);
+
+        return [
+            'options' => $options,
+            'price_per_ticket' => $paid !== [] ? Money::toDollars(min($paid)) : 0.0,
+        ];
     }
 
     private static function classification(object $row): ?string

@@ -147,8 +147,32 @@ final class MicrosoftIntegrationsTest extends TestCase
         $this->assertTrue($this->handler(MicrosoftHandler::class)->setup());
     }
 
+    public function test_an_app_without_its_own_registration_uses_kanvas(): void
+    {
+        config([
+            'services.microsoft.client_id' => 'kanvas-client',
+            'services.microsoft.client_secret' => 'kanvas-secret',
+            'services.microsoft.tenant_id' => 'common',
+        ]);
+
+        foreach ([ConfigurationEnum::CLIENT_ID, ConfigurationEnum::CLIENT_SECRET, ConfigurationEnum::TENANT_ID] as $key) {
+            $this->kanvasApp->del($key->value);
+        }
+
+        $consent = $this->authorizationQuery($this->receiverOf($this->save($this->appDrive, [])));
+        $this->assertSame('kanvas-client', $consent['client_id']);
+
+        $this->company->set(ConfigurationEnum::CLIENT_ID->value, 'company-client');
+        $this->kanvasApp->set(ConfigurationEnum::CLIENT_SECRET->value, '  ');
+
+        $this->assertSame('company-client', $this->companyStore()->credential(ConfigurationEnum::CLIENT_ID));
+        $this->assertSame('kanvas-client', $this->appStore()->credential(ConfigurationEnum::CLIENT_ID));
+        $this->assertSame('kanvas-secret', $this->appStore()->credential(ConfigurationEnum::CLIENT_SECRET));
+    }
+
     public function test_saving_without_an_app_registration_is_refused(): void
     {
+        config(['services.microsoft.client_secret' => null]);
         $this->kanvasApp->del(ConfigurationEnum::CLIENT_SECRET->value);
 
         $this->request($this->appDrive, [])

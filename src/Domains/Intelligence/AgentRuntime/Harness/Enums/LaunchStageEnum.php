@@ -13,6 +13,7 @@ enum LaunchStageEnum: string
     case STARTING_CONTAINER = 'starting_container';
     case PREPARING_WORKTREE = 'preparing_worktree';
     case PROMPTING = 'prompting';
+    case WAITING_FOR_FACTORY = 'waiting_for_factory';
 
     public function label(): string
     {
@@ -21,6 +22,7 @@ enum LaunchStageEnum: string
             self::STARTING_CONTAINER => 'starting the runtime',
             self::PREPARING_WORKTREE => 'preparing the worktree',
             self::PROMPTING => 'sending the prompt',
+            self::WAITING_FOR_FACTORY => 'waiting for its turn on the factory Mac',
         };
     }
 
@@ -34,6 +36,9 @@ enum LaunchStageEnum: string
     {
         return match ($this) {
             self::PREPARING_WORKTREE => max($default, 16),
+            // Touched on every one-minute retry, but those retries share the coding queue with launches
+            // that block for a whole baseline.
+            self::WAITING_FOR_FACTORY => max($default, 30),
             default => $default,
         };
     }

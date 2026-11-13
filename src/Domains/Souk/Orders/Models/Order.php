@@ -139,7 +139,12 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
     protected $table = 'orders';
     protected $guarded = [];
 
+    /**
+     * `is_deleted` is SoftDeletes' DELETED_AT here, which Laravel casts to a date unless told
+     * otherwise: 0 then reads back as a 1970 Carbon and every `if ($order->is_deleted)` is true.
+     */
     protected $casts = [
+        'is_deleted' => 'boolean',
         'total_gross_amount' => 'float',
         'total_net_amount' => 'float',
         'shipping_price_gross_amount' => 'float',

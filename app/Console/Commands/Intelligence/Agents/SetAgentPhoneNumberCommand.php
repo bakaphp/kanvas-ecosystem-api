@@ -100,7 +100,7 @@ class SetAgentPhoneNumberCommand extends Command
 
         $target = $channel === AgentPhoneChannelEnum::SMS
             ? new TwilioReceiverService()->find($agent)?->getUrl()
-            : VoiceRuntimeConfig::inboundWebhookUrl($agent->app);
+            : VoiceRuntimeConfig::inboundWebhookUrl();
         $this->line('Target webhook: ' . ($target ?: 'none'));
 
         try {
@@ -135,6 +135,7 @@ class SetAgentPhoneNumberCommand extends Command
         return match (true) {
             $channel === AgentPhoneChannelEnum::VOICE && $target === '' => 'error, the voice runtime URL is not configured',
             $current !== '' && $current === $target => 'wired, Twilio unchanged',
+            $channel === AgentPhoneChannelEnum::VOICE && VoiceRuntimeConfig::isRuntimeInboundUrl($current) => 'wired, moved from another voice runtime',
             $current !== '' && $target !== '' => 'conflict, webhook left in place',
             $current !== '' => 'conflict, webhook left in place; a new receiver would be created',
             $target === '' => 'wired, a new receiver is created and set on Twilio',

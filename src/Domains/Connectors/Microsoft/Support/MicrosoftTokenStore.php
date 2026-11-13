@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Microsoft\Support;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Enums\OneDriveDriveEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -111,12 +112,20 @@ final class MicrosoftTokenStore
     }
 
     /**
-     * App Registration settings. A company with its own registration overrides the app's for its mail;
-     * the app's OneDrive connection always uses the app's registration.
+     * App Registration settings: the company's own registration for its mail, then the app's, then
+     * Kanvas's. The app's OneDrive connection never reads the company's.
      */
     public function credential(ConfigurationEnum $key): string
     {
-        return (string) ($this->company?->get($key->value) ?? $this->app->get($key->value));
+        $candidates = [$this->company?->get($key->value), $this->app->get($key->value), $key->kanvasDefault()];
+
+        foreach ($candidates as $value) {
+            if (is_string($value) && ($value = Str::trimToNull($value)) !== null) {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**
