@@ -20,6 +20,8 @@ use PDO;
  */
 class Client
 {
+    public const string RDS_CA_BUNDLE = __DIR__ . '/Certs/rds-global-bundle.pem';
+
     protected ConnectionInterface $connection;
 
     public static function isConfigured(AppInterface $app): bool
@@ -64,7 +66,10 @@ class Client
      */
     private static function pdoOptions(AppInterface $app, string $host): array
     {
-        $sslCa = $app->get(ConfigurationEnum::BRUSHCRAZY_DB_SSL_CA->value);
+        // Without any SSL option PDO connects in plain text, which a REQUIRE SSL user rejects as
+        // "Access denied". The bundle only validates RDS certificates, so other hosts opt in.
+        $sslCa = $app->get(ConfigurationEnum::BRUSHCRAZY_DB_SSL_CA->value)
+            ?: (str_ends_with($host, '.rds.amazonaws.com') ? self::RDS_CA_BUNDLE : null);
 
         if (! $sslCa) {
             return [];
