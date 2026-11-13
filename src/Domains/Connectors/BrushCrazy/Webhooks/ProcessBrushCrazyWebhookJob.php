@@ -472,7 +472,9 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
         array &$results,
     ): void {
         try {
-            $row = $client->table('studio_employees')->where('id', $employmentId)->first(['studio_id', 'user_id']);
+            $row = $client->table('studio_employees')
+                ->where('id', $employmentId)
+                ->first(['studio_id', 'user_id']);
 
             if ($row === null) {
                 $results['missing']++;

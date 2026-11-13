@@ -58,8 +58,12 @@ class SyncPaintingFromBrushCrazyAction
     public static function paintingIdFor(Client $client, string $entityType, int $entityId): ?int
     {
         $paintingId = match ($entityType) {
-            PaintingMapper::PAINTING_MORPH => $client->table('paintings')->where('id', $entityId)->value('id'),
-            PaintingMapper::DIRECTION_MORPH => $client->table('painting_directions')->where('id', $entityId)->value('painting_id'),
+            PaintingMapper::PAINTING_MORPH => $client->table('paintings')
+                ->where('id', $entityId)
+                ->value('id'),
+            PaintingMapper::DIRECTION_MORPH => $client->table('painting_directions')
+                ->where('id', $entityId)
+                ->value('painting_id'),
             default => null,
         };
 

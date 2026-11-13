@@ -75,7 +75,9 @@ class RetireMovedBrushCrazyEntityAction
             return self::MISROUTED;
         }
 
-        $participations = EventVersionParticipant::withTrashed()->where('event_version_id', $version->getId())->get();
+        $participations = EventVersionParticipant::withTrashed()
+            ->where('event_version_id', $version->getId())
+            ->get();
         $mirrorKeys = $this->idMaps->loadReverse(
             0,
             EventVersionParticipant::class,
@@ -407,7 +409,13 @@ class RetireMovedBrushCrazyEntityAction
      */
     private function sweep(array $ids, callable $retire, string $label = ''): array
     {
-        $results = ['moved' => 0, 'needs_attention' => 0, 'failed' => 0, 'errors' => [], 'warnings' => []];
+        $results = [
+            'moved' => 0,
+            'needs_attention' => 0,
+            'failed' => 0,
+            'errors' => [],
+            'warnings' => [],
+        ];
 
         foreach ($ids as $id) {
             try {

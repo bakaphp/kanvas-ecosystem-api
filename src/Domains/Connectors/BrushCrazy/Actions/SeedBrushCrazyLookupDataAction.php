@@ -30,7 +30,7 @@ use Kanvas\Guild\Customers\Models\PeopleType;
  */
 class SeedBrushCrazyLookupDataAction
 {
-    public const UNASSIGNED = 'Unassigned';
+    public const string UNASSIGNED = 'Unassigned';
 
     public function __construct(
         protected AppInterface $app,

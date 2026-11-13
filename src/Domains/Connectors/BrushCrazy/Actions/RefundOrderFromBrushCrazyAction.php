@@ -115,7 +115,11 @@ class RefundOrderFromBrushCrazyAction
             ->get();
 
         if ($payments->isEmpty()) {
-            return ['status' => RefundLedger::MANUAL, 'amount_cents' => 0, 'message' => 'The order has no captured Kanvas payment to refund.'];
+            return [
+                'status' => RefundLedger::MANUAL,
+                'amount_cents' => 0,
+                'message' => 'The order has no captured Kanvas payment to refund.',
+            ];
         }
 
         $amount = min($cents, $this->refundableCents($payments->all()));
@@ -189,7 +193,13 @@ class RefundOrderFromBrushCrazyAction
     protected function refundPayment(Payments $payment, int $cents): array
     {
         $processorName = (string) ($payment->paymentMethod?->processor ?? $payment->processor ?? '');
-        $result = ['status' => RefundLedger::MANUAL, 'message' => null, 'processor' => $processorName ?: null, 'reference' => null, 'payment_refund_id' => null];
+        $result = [
+            'status' => RefundLedger::MANUAL,
+            'message' => null,
+            'processor' => $processorName ?: null,
+            'reference' => null,
+            'payment_refund_id' => null,
+        ];
 
         if ($processorName === '') {
             return ['message' => "Payment #{$payment->getId()} has no processor; refund it by hand."] + $result;

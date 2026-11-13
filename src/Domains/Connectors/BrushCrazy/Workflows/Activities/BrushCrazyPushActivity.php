@@ -46,8 +46,12 @@ abstract class BrushCrazyPushActivity extends KanvasActivity implements Workflow
     /**
      * @param Closure(array): array $onSuccess receives BrushCrazy's decoded response
      */
-    protected function post(AppInterface $app, string $path, array $body, Closure $onSuccess): array
-    {
+    protected function post(
+        AppInterface $app,
+        string $path,
+        array $body,
+        Closure $onSuccess
+    ): array {
         $api = BrushCrazyApi::forApp($app);
 
         if ($api === null) {

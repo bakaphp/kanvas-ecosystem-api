@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\BrushCrazy\Support;
 
+use Baka\Support\Str;
 use Illuminate\Support\Collection;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\BrushCrazy\Actions\SyncSaleFromBrushCrazyAction;
@@ -51,6 +52,12 @@ final class SiteBooking
     {
         return self::hasValue($order->get(CustomFieldEnum::BRUSHCRAZY_SALE_ID->value))
             && $order->get(CustomFieldEnum::BRUSHCRAZY_ORIGIN->value) !== SyncSaleFromBrushCrazyAction::ORIGIN_KANVAS;
+    }
+
+    public static function isConfirmedReservation(array $metadata): bool
+    {
+        return ($metadata['schema'] ?? null) === self::RESERVATION_SCHEMA
+            && ($metadata['state'] ?? null) === self::STATE_CONFIRMED;
     }
 
     public static function wasPushed(Order $order): bool
@@ -234,7 +241,7 @@ final class SiteBooking
             'email' => strtolower(trim((string) $email)),
             'first_name' => $firstName,
             'last_name' => trim((string) $lastName),
-            'phone' => $phone !== null && trim($phone) !== '' ? trim($phone) : null,
+            'phone' => Str::trimToNull($phone),
         ];
     }
 

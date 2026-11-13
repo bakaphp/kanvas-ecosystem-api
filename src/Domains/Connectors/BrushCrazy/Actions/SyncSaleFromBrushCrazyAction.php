@@ -677,7 +677,10 @@ class SyncSaleFromBrushCrazyAction
         }
 
         if ($mirrorOrderIds !== []) {
-            $items = OrderItem::withTrashed()->whereIn('order_id', $mirrorOrderIds)->get()->groupBy('order_id');
+            $items = OrderItem::withTrashed()
+                ->whereIn('order_id', $mirrorOrderIds)
+                ->get()
+                ->groupBy('order_id');
 
             foreach ($mirrorOrderIds as $orderId) {
                 $this->itemsByOrder[$orderId] = $items->get($orderId)?->all() ?? [];
