@@ -172,6 +172,87 @@ class TemplatesTest extends TestCase
         ]);
     }
 
+    public function testCreateTemplateSupportsTags(): void
+    {
+        $tagName = 'template-tag-' . uniqid();
+
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation createTemplate($input: TemplateInput!) {
+                createTemplate(input: $input) {
+                    id
+                    tags {
+                        data {
+                            name
+                        }
+                    }
+                }
+            }',
+            [
+                'input' => [
+                    'name' => 'template-' . uniqid(),
+                    'parent_template_id' => 0,
+                    'template_variables' => [],
+                    'template' => '<p>Tagged template</p>',
+                    'tags' => [['name' => $tagName]],
+                ],
+            ]
+        )->assertSuccessful();
+
+        $this->assertSame(
+            [$tagName],
+            array_column($response->json('data.createTemplate.tags.data'), 'name')
+        );
+    }
+
+    public function testUpdateTemplateSyncsTags(): void
+    {
+        $initialTag = 'template-tag-' . uniqid();
+        $updatedTag = 'template-tag-' . uniqid();
+
+        $created = $this->graphQL(/** @lang GraphQL */ '
+            mutation createTemplate($input: TemplateInput!) {
+                createTemplate(input: $input) { id }
+            }',
+            [
+                'input' => [
+                    'name' => 'template-' . uniqid(),
+                    'parent_template_id' => 0,
+                    'template_variables' => [],
+                    'template' => '<p>Tagged template</p>',
+                    'tags' => [['name' => $initialTag]],
+                ],
+            ]
+        )->assertSuccessful();
+
+        $id = $created->json('data.createTemplate.id');
+        $updated = $this->graphQL(/** @lang GraphQL */ '
+            mutation updateTemplate($id: ID!, $input: TemplateInput!) {
+                updateTemplate(id: $id, input: $input) {
+                    tags {
+                        data {
+                            name
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => $id,
+                'input' => [
+                    'name' => 'template-' . uniqid(),
+                    'parent_template_id' => 0,
+                    'template_variables' => [],
+                    'template' => '<p>Updated tagged template</p>',
+                    'tags' => [['name' => $updatedTag]],
+                ],
+            ]
+        )->assertSuccessful();
+
+        $this->assertSame(
+            [$updatedTag],
+            array_column($updated->json('data.updateTemplate.tags.data'), 'name')
+        );
+    }
+
     /**
      * Test Get Template
      */

@@ -37,6 +37,7 @@ trait ManagesTemplatesTrait
         string $body,
         ?string $subject = null,
         ?string $title = null,
+        ?array $tags = null,
     ): array {
         $name = trim($name);
         if ($name === '' || trim($body) === '') {
@@ -53,6 +54,7 @@ trait ManagesTemplatesTrait
                     title: $title,
                     company: $company,
                     user: $user,
+                    tags: $tags,
                 )
             )->execute(overwrite: false);
         } catch (ValidationException $e) {
@@ -78,6 +80,7 @@ trait ManagesTemplatesTrait
         return $this->ok([
             'template_id' => $template->getId(),
             'name' => $template->name,
+            'tags' => $template->tags()->pluck('name')->all(),
             'message' => 'Template created. Use generate_template_pdf with this name to render it to a PDF.',
         ]);
     }
@@ -93,9 +96,10 @@ trait ManagesTemplatesTrait
         ?string $body = null,
         ?string $subject = null,
         ?string $title = null,
+        ?array $tags = null,
     ): array {
-        if ($body === null && $subject === null && $title === null) {
-            return $this->invalidArgs('Nothing to update. Pass at least one of html, subject, or title.');
+        if ($body === null && $subject === null && $title === null && $tags === null) {
+            return $this->invalidArgs('Nothing to update. Pass at least one of html, subject, title, or tags.');
         }
 
         $owned = $this->resolveOwnedTemplate($app, $company, $user, $templateId);
@@ -109,9 +113,19 @@ trait ManagesTemplatesTrait
             return $this->invalidArgs($e->getMessage());
         }
 
+        if ($tags !== null) {
+            $template->syncTags(
+                $tags,
+                $app,
+                $user,
+                $company
+            );
+        }
+
         return $this->ok([
             'template_id' => $template->getId(),
             'name' => $template->name,
+            'tags' => $template->tags()->pluck('name')->all(),
             'message' => 'Template updated.',
         ]);
     }
@@ -219,6 +233,7 @@ trait ManagesTemplatesTrait
             'subject' => $template->subject,
             'title' => $template->title,
             'engine' => $template->engine->value,
+            'tags' => $template->tags()->pluck('name')->all(),
             'owned' => $this->ownsTemplate($template, $user),
             'is_system' => (bool) $template->is_system,
             ...$this->templateTenantFields($template, $company, $user),
@@ -267,6 +282,7 @@ trait ManagesTemplatesTrait
                 'title' => $template->title,
                 'html' => $template->template,
                 'engine' => $template->engine->value,
+                'tags' => $template->tags()->pluck('name')->all(),
                 'owned' => $owned,
                 'is_system' => (bool) $template->is_system,
                 ...$this->templateTenantFields($template, $company, $user),
