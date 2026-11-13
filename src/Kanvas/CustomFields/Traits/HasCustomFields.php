@@ -439,23 +439,23 @@ trait HasCustomFields
             return;
         }
 
-        /***
-         * if column name exist this is a CustomFieldEntityInput
-         * we need to convert it to key => value
-         */
-        if (isset($fields[0])) {
-            $keyField = array_key_exists('name', $fields[0]) ? 'name' : (array_key_exists('key', $fields[0]) ? 'key' : null);
+        $this->customFields = static::normalizeCustomFields($fields);
+    }
 
-            if ($keyField) {
-                $valueField = array_key_exists('data', $fields[0]) ? 'data' : (array_key_exists('value', $fields[0]) ? 'value' : null);
-
-                if ($valueField) {
-                    $fields = array_column($fields, $valueField, $keyField);
-                }
-            }
+    /**
+     * A CustomFieldEntityInput list (`[{name|key, data|value}]`) as key => value; a key => value
+     * array is returned as it is.
+     */
+    public static function normalizeCustomFields(array $fields): array
+    {
+        if (! isset($fields[0]) || ! is_array($fields[0])) {
+            return $fields;
         }
 
-        $this->customFields = $fields;
+        $keyField = array_key_exists('name', $fields[0]) ? 'name' : (array_key_exists('key', $fields[0]) ? 'key' : null);
+        $valueField = array_key_exists('data', $fields[0]) ? 'data' : (array_key_exists('value', $fields[0]) ? 'value' : null);
+
+        return $keyField && $valueField ? array_column($fields, $valueField, $keyField) : $fields;
     }
 
     /**

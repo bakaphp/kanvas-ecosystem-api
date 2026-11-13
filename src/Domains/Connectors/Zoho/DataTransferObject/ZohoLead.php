@@ -37,8 +37,7 @@ class ZohoLead extends Data
     {
         $customFields = $lead->getAll();
         $company = $lead->company()->first();
-        $companyZohoMapFields = $company->get(CustomFieldEnum::FIELDS_MAP->value);
-        $companyZohoMapFields = is_array($companyZohoMapFields) ? $companyZohoMapFields : [];
+        $companyZohoMapFields = ZohoFieldMapService::leadMapFor($company);
         $people = $lead->people()->first();
 
         $additionalFields = [

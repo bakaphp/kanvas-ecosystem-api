@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFields;
 use Kanvas\Connectors\Zoho\Actions\PullConvertedLeadDealAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\Services\ZohoLeadDuplicateService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -32,7 +34,9 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
  * A Zoho-only match is pulled into Kanvas first so later submissions find it locally. When that
  * match was already converted in Zoho it is a deal now: the lead and its deal are pulled, and
  * nothing is reassigned, because the converted lead is read-only and the deal has its own owner.
- * Without `duplicate_zoho_owner_id` in the webhook configuration it is the standard receiver.
+ * With `zoho_fill_empty_only` the submission also fills the fields that are empty on the matched lead,
+ * in Zoho and in Kanvas, and never touches one that has a value; the owner is only reassigned when
+ * `duplicate_zoho_owner_id` is set too. Without either key it is the standard receiver.
  */
 #[WorkflowAction(
     name: 'Zoho Lead Receiver With Duplicate Check',
@@ -40,31 +44,47 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
         . 'lead with the same email or phone. On a match no lead is created: the existing lead is reassigned to '
         . 'the configured owner, keeps its lead source, and records the form origin in its description. '
         . 'A match Zoho already converted to a deal is pulled in with its deal and left with its owner. '
+        . 'With zoho_fill_empty_only, the submission only fills fields the existing lead has empty. '
         . 'Only useful if this company runs Zoho.',
     integration: IntegrationsEnum::ZOHO,
 )]
 class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
 {
+    use TracksZohoSyncedFields;
+
     public const string STATUS_MATCHED = 'matched';
     public const string STATUS_CLEAR = 'clear';
     public const string STATUS_FAILED = 'failed';
+
+    /**
+     * Values Zoho returns for a field nobody filled: a picklist left on its placeholder reads `-None-`.
+     */
+    private const array UNFILLED_VALUES = [null, '', [], '-None-'];
+
+    /**
+     * Owner and Description have their own rules on a match; Lead_Status belongs to the reps.
+     */
+    private const array NEVER_FILLED_FIELDS = ['Owner', 'Description', 'Lead_Status'];
 
     /**
      * @var array{status: string, kanvas_lead_ids: int[], zoho_ids: string[], pulled_lead_ids: int[], converted: bool}|null
      */
     private ?array $duplicateCheck = null;
 
+    private array $submission = [];
+
     #[Override]
     public function execute(): array
     {
         $zohoOwnerId = $this->duplicateZohoOwnerId();
 
-        if ($zohoOwnerId === null) {
+        if ($zohoOwnerId === null && ! $this->fillsEmptyFieldsOnly()) {
             return parent::execute();
         }
 
         $leadReceiver = $this->loadReceiver();
-        [$email, $phones] = $this->contactsFromPayload($this->buildPayload($leadReceiver));
+        $this->submission = $this->buildPayload($leadReceiver);
+        [$email, $phones] = $this->contactsFromPayload($this->submission);
         $this->duplicateCheck = $this->checkForDuplicates($leadReceiver, $email, $phones);
 
         if ($this->duplicateCheck['status'] !== self::STATUS_MATCHED) {
@@ -110,7 +130,7 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
      * and the Zoho lead may have been edited since. That push also rebuilds Description, so the origin
      * line goes on both sides. The custom field covers a matched lead whose first push is still queued.
      */
-    private function reassignExistingLead(LeadReceiver $leadReceiver, string $zohoOwnerId): array
+    private function reassignExistingLead(LeadReceiver $leadReceiver, ?string $zohoOwnerId): array
     {
         $attempt = $this->createAttempt($leadReceiver);
         $lead = $this->mostRecentMatchedLead();
@@ -128,8 +148,12 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
             $lead->disableWorkflows();
             $lead->saveOrFail();
 
-            if (! $converted) {
+            if (! $converted && $zohoOwnerId !== null) {
                 $lead->set(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value, $zohoOwnerId);
+            }
+
+            if ($this->fillsEmptyFieldsOnly()) {
+                $this->fillEmptyKanvasFields($lead);
             }
 
             $attempt->leads_id = $lead->getId();
@@ -141,7 +165,12 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
             ?? ($this->duplicateCheck['zoho_ids'][0] ?? null);
         $zohoUpdated = ! $converted
             && $zohoLeadId !== null
-            && $this->reassignInZoho($zohoLeadId, $zohoOwnerId, $origin);
+            && $this->reassignInZoho(
+                $zohoLeadId,
+                $zohoOwnerId,
+                $origin,
+                $lead
+            );
 
         return [
             'message' => $converted
@@ -156,31 +185,126 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
         ];
     }
 
-    private function reassignInZoho(string $zohoLeadId, string $zohoOwnerId, string $origin): bool
-    {
+    /**
+     * The fill reads Zoho's current record to know which fields are empty; when that read fails nothing
+     * is filled, since any field may already hold a value.
+     */
+    private function reassignInZoho(
+        string $zohoLeadId,
+        ?string $zohoOwnerId,
+        string $origin,
+        ?Lead $lead
+    ): bool {
         $module = $this->zohoLeadsModule();
-        $data = ['Owner' => $zohoOwnerId];
+        $data = $zohoOwnerId !== null ? ['Owner' => $zohoOwnerId] : [];
+        $filled = [];
 
         try {
             $current = $module->get($zohoLeadId);
 
             // An empty read must not replace the whole description with the one line.
             if ($current->getId() !== null) {
-                $data['Description'] = $this->appendOrigin($current->getData()['Description'] ?? null, $origin);
+                $currentData = $current->getData();
+                $data['Description'] = $this->appendOrigin($currentData['Description'] ?? null, $origin);
+
+                if ($this->fillsEmptyFieldsOnly()) {
+                    $filled = $this->emptyZohoFields($currentData);
+                    $data = [...$filled, ...$data];
+                }
             }
         } catch (Throwable $e) {
             report($e);
         }
 
+        if ($data === []) {
+            return false;
+        }
+
         try {
-            $module->update($zohoLeadId, $data);
+            $this->updateRecord($module, $zohoLeadId, $data);
         } catch (Throwable $e) {
             report($e);
 
             return false;
         }
 
+        if ($lead !== null && $filled !== []) {
+            $this->rememberSyncedFields(
+                $lead,
+                CustomFieldEnum::ZOHO_LEAD_SYNCED_FIELDS,
+                $zohoLeadId,
+                $filled
+            );
+        }
+
         return true;
+    }
+
+    /**
+     * The submission as Zoho fields, kept only where the Zoho record has no value.
+     */
+    private function emptyZohoFields(array $zohoRecord): array
+    {
+        $fieldsMap = ZohoFieldMapService::leadMapFor($this->receiver->company);
+        $people = $this->submission['people'] ?? [];
+        [$email, $phones] = $this->contactsFromPayload($this->submission);
+
+        $fields = [
+            ...ZohoFieldMapService::map($fieldsMap, $this->submissionCustomFields()),
+            ZohoFieldMapService::personFieldName($fieldsMap, 'first_name') => $people['firstname'] ?? null,
+            ZohoFieldMapService::personFieldName($fieldsMap, 'last_name') => $people['lastname'] ?? null,
+            ZohoFieldMapService::personFieldName($fieldsMap, 'email') => $email,
+            ZohoFieldMapService::personFieldName($fieldsMap, 'phone') => $phones[0] ?? null,
+        ];
+
+        return array_filter(
+            $fields,
+            fn (mixed $value, string $key) => ! $this->isUnfilled($value)
+                && ! in_array($key, self::NEVER_FILLED_FIELDS, true)
+                && $this->isUnfilled($zohoRecord[$key] ?? null),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
+
+    private function isUnfilled(mixed $value): bool
+    {
+        return in_array(is_string($value) ? trim($value) : $value, self::UNFILLED_VALUES, true);
+    }
+
+    /**
+     * Call only on a lead with workflows disabled: each set() fires one, and the regular push would
+     * send these values over the ones Zoho has.
+     */
+    private function fillEmptyKanvasFields(Lead $lead): void
+    {
+        foreach ($this->submissionCustomFields() as $key => $value) {
+            if (! $this->isUnfilled($value) && $this->isUnfilled($lead->get((string) $key))) {
+                $lead->set((string) $key, $value);
+            }
+        }
+    }
+
+    /**
+     * Table columns are left out: the lead already holds them, and the fill only writes custom fields.
+     */
+    private function submissionCustomFields(): array
+    {
+        $customFields = $this->submission['custom_fields'] ?? [];
+
+        if (! is_array($customFields)) {
+            return [];
+        }
+
+        return array_filter(
+            Lead::normalizeCustomFields($customFields),
+            fn (mixed $key) => is_string($key) && ! Lead::schemaHasColumn($key),
+            ARRAY_FILTER_USE_KEY
+        );
+    }
+
+    private function fillsEmptyFieldsOnly(): bool
+    {
+        return (bool) ($this->receiver->configuration['zoho_fill_empty_only'] ?? false);
     }
 
     /**

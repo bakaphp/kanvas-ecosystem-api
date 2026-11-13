@@ -99,7 +99,7 @@ class SyncZohoLeadAction
         $leadSource = $this->resolveLeadSource($zohoLead->Lead_Source);
 
         $user = $agent?->user ?? $this->company->user;
-        $companyZohoMapFields = $this->company->get(CustomFieldEnum::FIELDS_MAP->value) ?? [];
+        $companyZohoMapFields = ZohoFieldMapService::leadMapFor($this->company);
         $record = $zohoLead->getData();
 
         if (! $localLead) {
