@@ -34,6 +34,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -43,9 +44,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SaveSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetDefaultSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
@@ -182,6 +185,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new AttachQuoteFileTool(),
             new GenerateQuoteSowTool(),
             new GetQuoteSowTool(),
+            new GetSowTemplateTool(),
             new ScheduleBillingTool(),
             new ListBillingSchedulesTool(),
             new SetInvoiceTermsTool(),
@@ -207,6 +211,8 @@ class AccountsReceivableAgent extends SystemUserAgent
         if ($person !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new ImportIssuedEcfExportTool()->withContext($this->app, $this->company, $person);
             $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
+            $tools[] = new SaveSowTemplateTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SetDefaultSowTemplateTool()->withContext($this->app, $this->company, $person);
         }
 
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
@@ -302,6 +308,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
             . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '
             . 'invoice — it is not the vendor PDF an invoice email arrived with.',
+            '- The company\'s SOW layout is its own Twig template, in named versions with one default. "Change how our '
+            . 'SOW looks" → get_sow_template, edit the Twig, save_sow_template (make_default when they want it used from now '
+            . 'on); "use the retainer layout for this one" → generate_quote_sow with template; "go back to the normal '
+            . 'layout" → set_default_sow_template with no version. Show the person what changed before you make it the default.',
             '- Services quotes need a Statement of Work. "Write the SOW for quote X" → get_quote_sow (for the quote line '
             . 'ids), draft the SOW from the lines, the conversation and past SOWs in your knowledge, then '
             . 'generate_quote_sow. If it refuses, fix every listed problem or ask the user, and call it again. '

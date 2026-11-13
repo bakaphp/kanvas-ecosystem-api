@@ -24,6 +24,8 @@ final readonly class CodingOutcome
         public ?string $pullRequestError = null,
         public ?ApprovalRequest $approval = null,
         public ?int $decidedByUserId = null,
+        /** What the agent itself said it did, when it said anything — a factory run's whole account. */
+        public ?string $reply = null,
     ) {
     }
 
@@ -42,9 +44,9 @@ final readonly class CodingOutcome
         return new self(CodingOutcomeEnum::REVIEW_ONLY, $diff);
     }
 
-    public static function ran(HarnessDiff $diff): self
+    public static function ran(HarnessDiff $diff, ?string $reply = null): self
     {
-        return new self(CodingOutcomeEnum::RAN, $diff);
+        return new self(CodingOutcomeEnum::RAN, $diff, reply: $reply);
     }
 
     /**
@@ -129,6 +131,8 @@ final readonly class CodingOutcome
     {
         return array_filter([
             'outcome' => $this->kind->value,
+            // The key a resumed parent task reads first (`RecordChildOutcomeAction::summary()`).
+            'worker_summary' => $this->reply,
             'summary' => $this->diff?->summary(),
             'files' => $this->diff?->paths(),
             'branch' => $this->branch ?? $session->branch,

@@ -92,6 +92,14 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   Per tenant: `scribe:setup-document-actions {app_id} {company_id?}`. Links shorten through the
   company's short.io integration, else the app's; the page base URL is the company's
   `link_page_base_url`, else the app's `NEW_ACTION_PAGE_V4` (`ShortIoConfigurationService`).
+- **A company's SOW layouts are named versions with a switchable default.** Company-level template rows
+  `scribe-sow-{version}` (`CompanySowTemplateService`), the default a pointer in the company setting
+  `scribe_sow_default_template` (none = the app's stock `scribe-sow`), so switching never overwrites a layout. The AR
+  agent edits them (`get_sow_template`, `save_sow_template`, `set_default_sow_template`; the writes only while a person
+  is asking). `RecordQuoteSowAction` freezes the version into the SOW payload (`template`), so a SOW renders the layout
+  it was written with on the PDF and the `sign-sow` page whatever the default becomes, and the signature hash covers
+  it. `SaveCompanySowTemplateAction` test-renders before saving and refuses scripts and remote assets, which the
+  signing page's sandboxed iframe would block.
 - **Every primary document exposes `files`.** Bill, Invoice, Quote, Expense, SalesReceipt and Payment all
   carry Kanvas Filesystem attachments (the source invoice PDF an AP/AR agent was handed, a rendered
   `invoice_pdf` / `quote_pdf`, a receipt, a remittance) and all expose them as `files: [Filesystem!]!

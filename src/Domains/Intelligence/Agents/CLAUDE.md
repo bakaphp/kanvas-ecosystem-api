@@ -70,6 +70,8 @@ the positive signal used to key sessions/persistence on the user thread instead 
 What the customer marker actually gates today (add to this list, don't invent a parallel flag):
 
 - **`read_my_ledger`** — company-wide cross-entity recall; never on a customer surface.
+- **`movipass_export_payments_financial_report`** — the provider's revenue as a downloadable Excel;
+  refused on a customer surface.
 - **`ReadFileTool`** and the plan/task file tools — `read_file` reaches any file the company owns, so
   a prospect who talks the agent into a `filesystem_id` reads another prospect's quote. These are
   **granted per agent from the catalog**, never universal baseline. The task-level pair

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
@@ -197,6 +198,17 @@ class AgentChatKernel
 
     protected function runHandler(): string
     {
+        // Ahead of every backend: the agent's chat is then a terminal for the opencode factory, and no
+        // model of the agent's own reads the message.
+        if (CodingChatSettingEnum::isEnabledFor($this->agent)) {
+            return new RunCodingChatAction(
+                agent: $this->agent,
+                session: $this->session,
+                message: $this->message,
+                user: $this->user,
+            )->execute();
+        }
+
         if ($this->agent->isContainerRuntime()) {
             return new RunRuntimeChatAction(
                 agent: $this->agent,

@@ -54,7 +54,7 @@ trait HasFilesystemTrait
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
         //@todo allow to share media between company only of it the apps specifies it
-        $fileSystem = Filesystem::fromApp()
+        $fileSystem = Filesystem::fromApp($app)
             ->when($companyId > 0, function ($query) use ($companyId) {
                 $company = Companies::getById($companyId);
 

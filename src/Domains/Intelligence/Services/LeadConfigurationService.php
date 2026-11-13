@@ -9,6 +9,7 @@ use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
@@ -29,8 +30,14 @@ class LeadConfigurationService
 
     private function findConfigKeyBySuffix(Lead $lead, string $suffix): string
     {
-        $leadTypeConfig = $lead->type()->first()?->config ?? [];
+        return $this->configKeyBySuffix($lead->type()->first()?->config ?? [], $suffix);
+    }
 
+    /**
+     * @param array<string, mixed> $leadTypeConfig
+     */
+    private function configKeyBySuffix(array $leadTypeConfig, string $suffix): string
+    {
         foreach (array_keys($leadTypeConfig) as $key) {
             if ($key === $suffix || str_ends_with((string) $key, '_' . $suffix)) {
                 return (string) $key;
@@ -38,6 +45,18 @@ class LeadConfigurationService
         }
 
         return $suffix;
+    }
+
+    /**
+     * Stricter than allowsContinuedFollowUp(), where a missing key allows: this asks whether the
+     * lead type explicitly turned follow-up on for open leads.
+     */
+    public function hasContinuedFollowUpActive(LeadType $leadType): bool
+    {
+        $config = $leadType->config ?? [];
+        $key = $this->configKeyBySuffix($config, 'con_fu_active_default');
+
+        return filter_var($config[$key] ?? false, FILTER_VALIDATE_BOOLEAN);
     }
 
     public function getAiModeKey(Lead $lead): string

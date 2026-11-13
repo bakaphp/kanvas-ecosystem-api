@@ -29,4 +29,17 @@ enum ConfigurationEnum: string
     {
         return '-' . $app->getId() . '-' . $company->getId();
     }
+
+    /**
+     * Kanvas's own App Registration, used by every app that has not configured one.
+     */
+    public function kanvasDefault(): ?string
+    {
+        return match ($this) {
+            self::CLIENT_ID => config('services.microsoft.client_id'),
+            self::CLIENT_SECRET => config('services.microsoft.client_secret'),
+            self::TENANT_ID => config('services.microsoft.tenant_id'),
+            default => null,
+        };
+    }
 }

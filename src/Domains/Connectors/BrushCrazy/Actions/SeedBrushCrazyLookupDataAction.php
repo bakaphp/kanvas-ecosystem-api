@@ -18,6 +18,7 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Guild\Customers\Models\PeopleType;
 
 /**
  * Seeds every lookup row the import needs before it can insert a single event.
@@ -52,6 +53,7 @@ class SeedBrushCrazyLookupDataAction
             'event_statuses' => $this->seedEventStatuses(),
             'event_categories' => $this->seedCategoryRoots($types, $classes),
             'participant_types' => $this->seedParticipantType(),
+            'people_types' => $this->seedCustomerPeopleType(),
             'themes' => $this->seedUnassignedTheme(),
             'theme_areas' => $this->seedUnassignedThemeArea(),
         ];
@@ -157,6 +159,28 @@ class SeedBrushCrazyLookupDataAction
         );
 
         $type->set(CustomFieldEnum::BRUSHCRAZY_LOOKUP_KEY->value, 'participant-type:attendee');
+
+        return 1;
+    }
+
+    /**
+     * Default only when the company has none yet: a company that already runs Kanvas CRM keeps the
+     * type its own leads default to.
+     */
+    protected function seedCustomerPeopleType(): int
+    {
+        $hasDefault = PeopleType::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('is_default', true)
+            ->exists();
+
+        $type = PeopleType::firstOrCreate(
+            $this->scope(['name' => 'Customer']),
+            ['users_id' => $this->user->getId(), 'is_default' => ! $hasDefault],
+        );
+
+        $type->set(CustomFieldEnum::BRUSHCRAZY_LOOKUP_KEY->value, 'people-type:customer');
 
         return 1;
     }

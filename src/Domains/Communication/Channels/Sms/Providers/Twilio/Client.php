@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Channels\Sms\Providers\Twilio;
 
 use Baka\Contracts\AppInterface;
+use DateTimeInterface;
 use Exception;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
@@ -74,6 +75,33 @@ final class Client
         $client = new TwilioClient($sid, $token);
 
         return $client->incomingPhoneNumbers->read(['phoneNumber' => $phoneNumber], 1) !== [];
+    }
+
+    /**
+     * The shape StoreMessageSidAction and RecordMessageAttemptAction read from a send result's `messages`.
+     */
+    public static function describeMessage(object $twilioMessage): array
+    {
+        return [
+            'sid' => $twilioMessage->sid,
+            'account_sid' => $twilioMessage->accountSid,
+            'messaging_service_sid' => $twilioMessage->messagingServiceSid,
+            'status' => $twilioMessage->status,
+            'direction' => $twilioMessage->direction,
+            'from' => $twilioMessage->from,
+            'to' => $twilioMessage->to,
+            'body' => $twilioMessage->body,
+            'num_segments' => $twilioMessage->numSegments,
+            'num_media' => $twilioMessage->numMedia,
+            'error_code' => $twilioMessage->errorCode,
+            'error_message' => $twilioMessage->errorMessage,
+            'price' => $twilioMessage->price,
+            'price_unit' => $twilioMessage->priceUnit,
+            'date_created' => $twilioMessage->dateCreated?->format(DateTimeInterface::ATOM),
+            'date_sent' => $twilioMessage->dateSent?->format(DateTimeInterface::ATOM),
+            'date_updated' => $twilioMessage->dateUpdated?->format(DateTimeInterface::ATOM),
+            'uri' => $twilioMessage->uri,
+        ];
     }
 
     /**
