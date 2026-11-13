@@ -39,7 +39,7 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
 
     private const string ZOHO_OWNER_ID = '5550000000123456';
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'workflow'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'workflow', 'ecosystem'];
 
     private ReceiverWebhook $receiver;
     private LeadReceiver $leadReceiver;
@@ -408,6 +408,120 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         $this->assertSame($this->rotationAgent->getId(), Lead::find($result['lead_id'])->leads_owner_id);
     }
 
+    public function testFillEmptyOnlyWritesOnlyTheFieldsTheExistingLeadHasEmpty(): void
+    {
+        $email = $this->uniqueEmail();
+        $phone = $this->uniquePhoneDigits();
+        $existing = $this->existingFillOnlyLead($email, 'zl-20');
+        $existing->set('loan_amount', '5000');
+        $origin = 'New submission from ' . $this->leadReceiver->name . ' on ' . now()->format('m/d/Y') . '.';
+
+        $module = $this->module();
+        $module->method('get')->willReturn(new Record([
+            'id' => 'zl-20',
+            'First_Name' => 'Dana',
+            'Last_Name' => 'Original',
+            'Email' => $email,
+            'Loan_Amount' => '9000',
+            'Business_Name' => null,
+            'Industry' => '-None-',
+        ], $module));
+        $module->expects($this->once())
+            ->method('update')
+            ->with('zl-20', [
+                'Business_Name' => 'Acme',
+                'Industry' => 'Retail',
+                'Phone' => $phone,
+                'Description' => $origin,
+            ]);
+
+        $result = $this->runReceiver(
+            $this->payload($email, $phone, [
+                'loan_amount' => '7000',
+                'business_name' => 'Acme',
+                'industry' => 'Retail',
+            ]),
+            $module
+        );
+
+        $lead = $existing->fresh();
+        $this->assertTrue($result['zoho_updated']);
+        $this->assertSame(1, $this->receiverLeadCount());
+        $this->assertSame('5000', (string) $lead->get('loan_amount'));
+        $this->assertSame('Acme', $lead->get('business_name'));
+        $this->assertSame('Retail', $lead->get('industry'));
+        $this->assertSame($this->rotationAgent->getId(), $lead->leads_owner_id);
+        $this->assertNull($lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value));
+        $this->assertSame(
+            ['Business_Name', 'Industry', 'Phone'],
+            array_keys($lead->get(CustomFieldEnum::ZOHO_LEAD_SYNCED_FIELDS->value)['fields'])
+        );
+    }
+
+    public function testFillEmptyOnlyStillReassignsTheOwnerWhenTheZohoOwnerIsConfigured(): void
+    {
+        $email = $this->uniqueEmail();
+        $this->existingFillOnlyLead($email, 'zl-21');
+        $this->receiver->update([
+            'configuration' => [
+                ...$this->receiver->configuration,
+                'duplicate_owner_users_id' => auth()->user()->getId(),
+                'duplicate_zoho_owner_id' => self::ZOHO_OWNER_ID,
+            ],
+        ]);
+
+        $module = $this->module();
+        $module->method('get')->willReturn(new Record([
+            'id' => 'zl-21',
+            'Description' => 'Edited in Zoho',
+            'Business_Name' => 'Kept',
+        ], $module));
+        $module->expects($this->once())
+            ->method('update')
+            ->with('zl-21', $this->callback(
+                fn (array $data) => $data['Owner'] === self::ZOHO_OWNER_ID && ! array_key_exists('Business_Name', $data)
+            ));
+
+        $result = $this->runReceiver($this->payload($email, customFields: ['business_name' => 'Acme']), $module);
+
+        $this->assertReassigned(Lead::find($result['lead_id']));
+    }
+
+    public function testFillEmptyOnlyWritesNothingWhenZohoCannotBeRead(): void
+    {
+        $email = $this->uniqueEmail();
+        $this->existingFillOnlyLead($email, 'zl-22');
+
+        $module = $this->module();
+        $module->method('get')->willThrowException(new RuntimeException('Zoho is down'));
+        $module->expects($this->never())->method('update');
+
+        $result = $this->runReceiver($this->payload($email, customFields: ['business_name' => 'Acme']), $module);
+
+        $this->assertFalse($result['zoho_updated']);
+    }
+
+    private function existingFillOnlyLead(string $email, string $zohoLeadId): Lead
+    {
+        $this->receiver->update([
+            'configuration' => [
+                'receiver_id' => $this->leadReceiver->getId(),
+                'zoho_fill_empty_only' => true,
+            ],
+        ]);
+        auth()->user()->getCurrentCompany()->set(CustomFieldEnum::FIELDS_MAP->value, [
+            'loan_amount' => 'Loan_Amount',
+            'business_name' => 'Business_Name',
+            'industry' => 'Industry',
+        ]);
+
+        $first = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+        $lead = Lead::find($first['lead_id']);
+        $lead->set(CustomFieldEnum::ZOHO_LEAD_ID->value, $zohoLeadId);
+
+        return $lead;
+    }
+
     private function setUpDuplicateConfiguration(): void
     {
         $this->receiver->update([
@@ -474,7 +588,7 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         };
     }
 
-    private function payload(string $email, ?string $phone = null): array
+    private function payload(string $email, ?string $phone = null, array $customFields = []): array
     {
         $contacts = [['value' => $email, 'weight' => 0, 'contacts_types_id' => ContactTypeEnum::EMAIL->value]];
 
@@ -490,6 +604,7 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
                 'contacts' => $contacts,
             ],
             'pipeline_stage_id' => 0,
+            'custom_fields' => $customFields,
         ];
     }
 
