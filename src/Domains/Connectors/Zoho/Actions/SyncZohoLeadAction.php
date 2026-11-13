@@ -11,6 +11,8 @@ use Exception;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Zoho\Actions\Concerns\ResolvesZohoOwner;
 use Kanvas\Connectors\Zoho\Actions\Concerns\SyncsZohoPerson;
+use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFields;
+use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\ZohoService;
@@ -35,6 +37,7 @@ class SyncZohoLeadAction
 {
     use ResolvesZohoOwner;
     use SyncsZohoPerson;
+    use TracksZohoSyncedFields;
 
     public function __construct(
         protected AppInterface $app,
@@ -136,6 +139,7 @@ class SyncZohoLeadAction
 
             $localLead = new CreateLeadAction($lead)->execute();
             $this->syncAddressCustomFields($localLead, $localLead->people?->getDefaultAddress());
+            $this->markInSyncWithZoho($localLead);
 
             return $localLead;
         }
@@ -182,8 +186,23 @@ class SyncZohoLeadAction
 
         $this->syncPerson($localLead->people, $record, $companyZohoMapFields);
         $this->syncAddressCustomFields($localLead, $localLead->people->getDefaultAddress());
+        $this->markInSyncWithZoho($localLead);
 
         return $localLead;
+    }
+
+    /**
+     * Zoho is the source of truth: what the lead holds right after a pull is what Zoho has, so only
+     * a later change made in Kanvas is pushed back.
+     */
+    protected function markInSyncWithZoho(Lead $lead): void
+    {
+        $this->rememberSyncedFields(
+            $lead,
+            CustomFieldEnum::ZOHO_LEAD_SYNCED_FIELDS,
+            $this->zohoLeadId,
+            ZohoLead::fromLead($lead)->toArray()
+        );
     }
 
     /**
