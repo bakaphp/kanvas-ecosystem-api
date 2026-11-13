@@ -1,7 +1,6 @@
 # Mailgun Connector — outbound email events
 
-The code lives in `src/Domains/Communication/Channels/Email/Providers/Mailgun/` (namespace
-`Kanvas\Communication\Channels\Email\Providers\Mailgun`): `MailgunHandler` is a `CommunicationProvider`
+`MailgunHandler` is a `CommunicationProvider`
 like Meta WhatsApp, with `EmailTransport`, `MailgunInbound` and `MailgunProvisioner`. The company's
 address on its Mailgun domain (`MAILGUN_FROM_ADDRESS`, else its from email when on the domain) is the
 connection: setup gives it a route to the communication receiver and points the domain's events there,
@@ -12,6 +11,15 @@ names are carried by discovery), so no migration is needed. **Setup is opt-in**:
 has the Mailgun integration, so the sweep leaves a company alone until it (or the app) lists
 `mailgun` in the `communication_providers` setting (`config('communication.opt_in')`); until then
 the domain's events stay on the legacy receivers.
+
+**A domain's events are shared by every tenant on it.** The domain falls back from the company to the
+app setting to `services.mailgun.domain`, so many companies (and apps) usually share one. Mailgun calls
+one URL per domain and event, so whichever receiver holds it hears every company's mail. Two rules
+follow: the event actions take the tenant from the delivery they match by Message-Id, never from the
+receiver (`RecordMailgunOpenAction` falls back to the receiver only when no delivery was filed); and
+`MailgunProvisioner` never moves a domain webhook off another tenant's live receiver
+(`SharedRegistry::isAnotherTenantsReceiver()`) — moving it would hand a company that never opted in to
+the one that did.
 
 Loads when work touches the Mailgun provider. Covers what happens to an email after Mailgun
 accepts it; the inbound receivers and agent mailboxes are documented in their classes.

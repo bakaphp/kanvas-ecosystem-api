@@ -1,7 +1,6 @@
 # Twilio Connector (SMS / MMS)
 
-The code lives in `src/Domains/Communication/Channels/Sms/Providers/Twilio/` (namespace
-`Kanvas\Communication\Channels\Sms\Providers\Twilio`): `TwilioHandlers` is a `CommunicationProvider`
+`TwilioHandlers` is a `CommunicationProvider`
 like Meta WhatsApp, with `SmsTransport`, `TwilioInbound` and `TwilioProvisioner`. A number set up
 through the integration points at the company's communication receiver and goes through the shared
 `ReceiveMessageAction`; the two legacy jobs below keep serving receivers made before that. The classes
