@@ -1,0 +1,123 @@
+# Twilio Connector (SMS / MMS)
+
+`TwilioHandlers` is a `CommunicationProvider`
+like Meta WhatsApp, with `SmsTransport`, `TwilioInbound` and `TwilioProvisioner`. A number set up
+through the integration points at the company's communication receiver and goes through the shared
+`ReceiveMessageAction`; the two legacy jobs below keep serving receivers made before that. The classes
+under `src/Domains/Connectors/Twilio/` are empty subclasses so rows and queued payloads that still name
+them resolve; `kanvas:workflow-sync-actions` renames the `actions` row in place (legacy names are
+carried by discovery), so no migration is needed. **Setup is opt-in**: every dealer already has the
+Twilio integration, so the sweep leaves a company alone until it (or the app) lists `twilio` in the
+`communication_providers` setting (`config('communication.opt_in')`); until then the number keeps its
+legacy receiver.
+
+Inbound and outbound SMS. One webhook job files the message, opens or finds the Lead, and hands the
+conversation to a workflow rule; the agent answers from there.
+
+## Inbound flow
+
+`ProcessTwilioWebhookJob::execute()` runs per delivery:
+
+1. Session hijack override (`allow_session_hijack` + `overwrite_phone_number`) — test/demo only.
+2. People → Lead → `ProcessInboundConsentAction`. **The lead has to exist before consent runs**: a
+   stop is person-wide and every outbound guard reads the lead.
+3. Channel (`twilio-{normalizedPhone}`), message filed under a deterministic slug so a Twilio retry
+   updates rather than double-files.
+4. **Consent halt** — a real stop, a phrase-tier stop, or `HELP` returns here. No burst is armed, so
+   no agent turn can ever fire for that message. `HELP` rides along because Twilio answers it itself
+   with the carrier advisory; `START` deliberately does not, because someone asking to hear from us
+   again should get a real reply.
+5. Media download, `agent_communication_channel = sms`, stakeholder notification.
+6. `announceMessage()` — outbound fires the workflow immediately, inbound goes into a burst.
+
+**Nothing here replies.** `AFTER_ADDING_MESSAGE_TO_CHANNEL` expects a rule carrying
+`AgentChannelResponderActivity`. A receiver with no such rule files texts and stays silent — that is
+configuration, not a bug. Giving an agent an SMS number creates that rule (`EnsureSmsResponderRuleAction`,
+condition `communication_channel == sms`) and the human reply rule, unless the company already runs
+those activities from a rule of its own.
+
+## Bursts — the agent answers a flurry once
+
+Someone who sends three texts in a row gets **one** answer. Parts chain onto a head via `parent_id`
+and the debounce closes when they go quiet.
+
+This is the **shared** layer, not a Twilio invention:
+`Social\Messages\Concerns\ChainsInboundBursts` + `MessageBurstService` + `FlushMessageBurstJob`, the
+same machinery WhatsApp uses. What lives in this connector is
+`ProcessTwilioWebhookJob::burstPolicy()` (the correlation key) and `FlushSmsBurstAction` (what happens
+once the burst closes — here, just announcing it, because the agent pass belongs to the workflow
+activity that already owns the AI-mode guards and the support-mode handoff).
+
+- **Correlation key is the sender's number.** SMS has no album id or thread id, so one burst per
+  sender per channel is the whole of it.
+- The agent receives `burst_text` — every body joined by a blank line — not just the head's.
+- **An MMS reaches the agent as a picture.** The responder passes the head message's files to the
+  kernel through `inboundContent()`, which also supplies text for a textless MMS so Gemini has
+  the required text part beside the image (KANVAS-ECOSYSTEM-6QC).
+- **Outbound (`From === To`) never bursts.** It has no flurry to collapse, and rules listening for the
+  company's own messages expect them without a delay.
+
+### Config (company-scoped)
+
+| Key | Default | Notes |
+|---|---|---|
+| `twilio_burst_idle_seconds` | `15` | both the chain window and the close wait |
+| `twilio_burst_max_seconds` | `90` | ceiling, so a sender who never pauses still flushes |
+| `twilio_burst_jitter_seconds` | `0` | off — jitter is a WhatsApp anti-ban measure; on SMS it is pure user-visible latency |
+| `twilio_batch_delay_seconds` | — | **legacy**, superseded by `twilio_burst_idle_seconds`; still read as the idle fallback so a tenant who tuned it keeps their tuning |
+
+**The idle window must exceed the gap between two texts a person sends back to back.** The 3 seconds
+this replaced did not, so each text opened its own turn and the agent answered twice — with the
+support-mode path that meant two SMS thirty minutes later, which is what a customer actually saw.
+Below ~5s you are back to that bug. First reply costs `idle + agent time`; drop it to 8–10 for a
+tenant who wants it snappier.
+
+## Foot-guns
+
+**Do not reintroduce a "last message id" batch guard.** The previous design kept a `message_batch:`
+array in cache and compared `last_message_id` — it could not collapse anything the 3s window missed,
+and its companion cancel flag was set and `Cache::forget`-ed in the same request, so it never
+cancelled anything. The token-supersede debounce replaces both.
+
+**Support mode does not answer inline.** When the lead `isAiSupport()`,
+`AgentChannelResponderActivity` queues `SendUnrespondedAgentMessageJob` for
+`un_responded_salesperson_messages` minutes (default
+`Companies\Enums\ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT`, 10) to give the human
+a window. That job carries its own per-channel supersede token — a later inbound message replaces the
+pending turn rather than adding a second one. `is_un_response` alone cannot do that job: it only
+closes once the winning turn's model call has returned.
+
+**A `21610` from Twilio is an opt-out, not a fault.** The recipient texted STOP and Twilio
+auto-unsubscribed them; `AgentChannelResponderAction` swallows that code, records a lead note and
+opts out the phone contacts rather than retrying 3× into Sentry.
+
+**Outbound delivery status is a separate webhook.** `ProcessTwilioMessageStatusWebhookJob` handles
+carrier failures; it does not touch bursts.
+
+**A carrier failure is never retried.** `21610` opts the phone out; `30003`, `30005` and `30006` mark
+the matching phone contacts invalid on the first failure (`suppress_sms`). Don't add a delayed retry for
+`30003`/`30005`. A person can resend a failed text with the `twilioResendMessage` mutation
+(`ResendFailedMessageAction`): same message, same number, every send guard still applies.
+
+**A delivery outcome is pushed, not polled.** `RecordDeliveryOnMessageAction` writes `delivery` into the
+message body and, for `delivered` / `undelivered` / `failed`, broadcasts `message.delivery.updated`
+(`MessageDeliveryStatusEvent`) on the same Pusher channels as `message.channel.added`. It only fires
+when the status advances, so a replayed callback does not push twice.
+
+**Every outbound SMS to a lead must set `statusCallback` and hand its result to `StoreMessageSidAction`.**
+The status job finds the message by its stored SID; a send that skips either step never gets a
+delivery status. The agent's reply (`AgentChannelResponderAction::dispatchMessage`) calls the API
+directly, so it does both itself; the URL comes from `TwilioReceiverService::statusCallbackUrl()`.
+
+**Outbound SMS to a lead only goes to `mobile`.** `SendMessageToLeadAction::lookupPhoneNumber` is an
+allow-list: any other Lookup line type (`fixedVoip`, `tollFree`, `unknown`...), a missing type or a
+`line_type_intelligence` error throws `LeadMissingContactException` before `messages->create`. Keep it
+an allow-list — a block-list lets every type Twilio adds later through.
+
+**Two receivers, two Twilio URLs.** The status receiver is only ever reached through the
+`statusCallback` set per outbound message; the Messaging Service's *incoming-message* URL must point
+at the inbound receiver. A tenant who pastes the status URL there sends every customer reply to the
+status job. Twilio only reports `received` for inbound texts, so the status job re-files such a
+payload as a call on the company's inbound receiver (422 when there is none). That keeps the
+conversation alive, but the Twilio console is still wrong — a `re-routed` result in the receiver
+history is the tell.

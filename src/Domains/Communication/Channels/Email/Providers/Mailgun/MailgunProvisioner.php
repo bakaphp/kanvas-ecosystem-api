@@ -212,9 +212,20 @@ class MailgunProvisioner implements Provisioner
             $domain,
             self::DOMAIN_EVENTS,
             $domain,
-            function () use ($client, $domain, $inboundUrl): string {
+            function () use ($client, $connection, $domain, $inboundUrl): string {
                 foreach (self::EVENTS as $event) {
                     $current = $client->webhookUrls($domain, $event);
+
+                    // Its receiver records events for every tenant on the domain (the tenant comes
+                    // from the matched delivery), so it already serves this connection.
+                    $heldByAnotherTenant = array_filter(
+                        $current,
+                        fn (string $url): bool => SharedRegistry::isAnotherTenantsReceiver($url, $connection)
+                    );
+
+                    if ($heldByAnotherTenant !== []) {
+                        continue;
+                    }
 
                     foreach ($current as $url) {
                         SharedRegistry::assertSettable($url, $inboundUrl, 'Mailgun ' . $event . ' webhook for ' . $domain);

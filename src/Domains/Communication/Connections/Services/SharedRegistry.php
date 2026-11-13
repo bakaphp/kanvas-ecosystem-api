@@ -9,6 +9,7 @@ use Kanvas\Communication\Connections\Exceptions\SetupBlockedException;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\SharedDependent;
 use Kanvas\Communication\Connections\Models\SharedRegistration;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 
 /**
  * Vendor resources several connections share are owned by the vendor account and resource, not by
@@ -115,5 +116,27 @@ class SharedRegistry
         $url = trim((string) $url);
 
         return $url !== '' && str_starts_with($url, rtrim((string) config('app.url'), '/') . '/v1/receiver/');
+    }
+
+    /**
+     * A live Kanvas receiver of another app or company. A vendor resource shared across tenants (a
+     * Mailgun domain's events) must stay on it: moving it would hand that tenant's traffic to this
+     * connection's receiver, including tenants that never opted in.
+     */
+    public static function isAnotherTenantsReceiver(?string $url, Connection $connection): bool
+    {
+        if (! self::isKanvasReceiverUrl($url)) {
+            return false;
+        }
+
+        $receiver = ReceiverWebhook::query()
+            ->where('uuid', basename((string) parse_url(trim((string) $url), PHP_URL_PATH)))
+            ->where('is_active', true)
+            ->notDeleted()
+            ->first();
+
+        return $receiver !== null
+            && ((int) $receiver->apps_id !== (int) $connection->apps_id
+                || (int) $receiver->companies_id !== (int) $connection->companies_id);
     }
 }

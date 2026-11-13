@@ -252,6 +252,46 @@ final class MailgunProviderTest extends TestCase
         $this->assertSame(array_fill_keys(MailgunProvisioner::EVENTS, self::OURS), $vendor->webhooks);
     }
 
+    public function testADomainsEventsHeldByAnotherCompanysReceiverStayThere(): void
+    {
+        $vendor = $this->fakeMailgun();
+        $theirs = new CommunicationReceivers()->ensure($this->currentApp(), $this->otherCompany(), 'mailgun')->getUrl();
+        $vendor->webhooks = array_fill_keys(MailgunProvisioner::EVENTS, $theirs);
+        $connection = $this->connection('mailgun', self::OUR_ADDRESS, ['config' => ['domain' => self::DOMAIN]]);
+
+        $registration = new MailgunProvisioner()->registerInbound($connection, self::OURS);
+
+        $this->assertSame(array_fill_keys(MailgunProvisioner::EVENTS, $theirs), $vendor->webhooks);
+        $this->assertSame('forward("' . self::OURS . '")', $vendor->routes['r-1']['actions'][0]);
+        $this->assertSame(self::OURS, $registration->shared?->registered_value);
+    }
+
+    public function testADomainsEventsOnAnOldReceiverOfTheSameCompanyAreMoved(): void
+    {
+        $vendor = $this->fakeMailgun();
+        $vendor->webhooks = array_fill_keys(MailgunProvisioner::EVENTS, 'https://kanvas.test/v1/receiver/retired');
+        $connection = $this->connection('mailgun', self::OUR_ADDRESS, ['config' => ['domain' => self::DOMAIN]]);
+
+        new MailgunProvisioner()->registerInbound($connection, self::OURS);
+
+        $this->assertSame(array_fill_keys(MailgunProvisioner::EVENTS, self::OURS), $vendor->webhooks);
+    }
+
+    public function testAnOpenHeardOnAnotherCompanysReceiverIsRecordedForTheSendersCompany(): void
+    {
+        $delivery = $this->acceptedMailgunDelivery('20261112.1@mg.kanvas.test');
+        $lead = $this->leadOf($this->personWithEmail('ana@customer.test'));
+        $theirReceiver = new CommunicationReceivers()->ensure($this->currentApp(), $this->otherCompany(), 'mailgun');
+
+        $result = $this->processCall(
+            $this->eventPayload('opened', '<20261112.1@mg.kanvas.test>', ['user-variables' => ['lead_id' => (string) $lead->getId()]]),
+            $theirReceiver
+        );
+
+        $this->assertSame($lead->getId(), $result['lead_id'] ?? null);
+        $this->assertSame(DeliveryStatusEnum::READ, $delivery->fresh()->status);
+    }
+
     public function testARouteForwardingSomewhereElseIsBlockedNotReplaced(): void
     {
         $vendor = $this->fakeMailgun();
@@ -389,9 +429,9 @@ final class MailgunProviderTest extends TestCase
     /**
      * Straight to the job, the way a call already authenticated runs.
      */
-    private function processCall(array $payload): array
+    private function processCall(array $payload, ?ReceiverWebhook $receiver = null): array
     {
-        $receiver = $this->receiver();
+        $receiver ??= $this->receiver();
 
         return new ProcessCommunicationWebhookJob(ReceiverWebhookCall::create([
             'receiver_webhooks_id' => $receiver->getId(),

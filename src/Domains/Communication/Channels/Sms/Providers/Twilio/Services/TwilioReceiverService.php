@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Channels\Sms\Providers\Twilio\Services;
 
-use Kanvas\Apps\Models\Apps;
+use Baka\Contracts\AppInterface;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Companies\Models\Companies;
@@ -37,7 +37,7 @@ class TwilioReceiverService
     /**
      * Only looked up, never created: without one, Twilio is not asked for delivery callbacks.
      */
-    public function statusCallbackUrl(Apps $app, Companies $company): ?string
+    public function statusCallbackUrl(AppInterface $app, Companies $company): ?string
     {
         return ReceiverWebhook::query()
             ->fromApp($app)

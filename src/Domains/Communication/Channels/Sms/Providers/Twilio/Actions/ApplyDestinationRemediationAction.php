@@ -13,7 +13,7 @@ use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 /**
  * What a carrier failure says about the number itself. `21610` is the person's own STOP, so the
  * number is opted out; `30003`, `30005` and `30006` mean the number cannot be reached at all, so the
- * matching contacts are marked invalid. Nothing is retried: see Twilio/CLAUDE.md.
+ * matching contacts are marked invalid. Nothing is retried: see this provider's CLAUDE.md.
  */
 final class ApplyDestinationRemediationAction
 {

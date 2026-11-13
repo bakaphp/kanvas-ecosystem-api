@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\MailgunEngagementPayloadService;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Campaigns\Actions\RecordCampaignRecipientOpenAction;
@@ -21,14 +22,20 @@ use Kanvas\Guild\Leads\Models\Lead;
  * A Mailgun `opened` event, shared by the legacy opened receiver and the communication webhook: the
  * email's `read` on its delivery, the campaign slot opened, and a note on the lead or person the
  * sender stamped on the message (`v:lead_id` / `v:people_id`).
+ *
+ * The tenant is the matched delivery's, not the receiver's: a domain's opens all reach one URL, so
+ * one company's receiver hears every company on that domain. The receiver's tenant is only the
+ * fallback for mail sent before deliveries were filed.
  */
 final class RecordMailgunOpenAction
 {
     private const int DEDUPE_TTL_SECONDS = 86400;
 
+    private ?Delivery $delivery = null;
+
     public function __construct(
-        private readonly AppInterface $app,
-        private readonly Companies $company,
+        private AppInterface $app,
+        private Companies $company,
         private readonly MailgunEngagementPayloadService $payload
     ) {
     }
@@ -51,6 +58,13 @@ final class RecordMailgunOpenAction
         $eventId = $this->payload->eventId();
         if ($eventId !== '' && ! Cache::add('mailgun:email-opened:' . $eventId, true, self::DEDUPE_TTL_SECONDS)) {
             return ['message' => 'Duplicate delivery'];
+        }
+
+        $this->delivery = RecordEmailEventOnDeliveryAction::findDelivery($this->app, $this->payload);
+
+        if ($this->delivery !== null) {
+            $this->app = $this->delivery->app;
+            $this->company = $this->delivery->company;
         }
 
         $trackingResult = [...$this->recordOnDelivery(), ...$this->recordOnCampaignRecipient()];
@@ -76,15 +90,13 @@ final class RecordMailgunOpenAction
      */
     private function recordOnDelivery(): array
     {
-        $delivery = RecordEmailEventOnDeliveryAction::findDelivery($this->app, $this->payload);
-
-        if ($delivery === null) {
+        if ($this->delivery === null) {
             return [];
         }
 
-        new RecordEmailEventOnDeliveryAction($delivery, DeliveryStatusEnum::OPENED, $this->payload)->execute();
+        new RecordEmailEventOnDeliveryAction($this->delivery, DeliveryStatusEnum::OPENED, $this->payload)->execute();
 
-        return ['delivery_id' => $delivery->getId(), 'delivery_status' => $delivery->status->value];
+        return ['delivery_id' => $this->delivery->getId(), 'delivery_status' => $this->delivery->status->value];
     }
 
     /**
