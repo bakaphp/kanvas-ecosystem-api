@@ -7,9 +7,9 @@ namespace App\Console\Commands\Connectors\Mailgun;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\ValidatePeopleEmailAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
-use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Throwable;
 

@@ -1,0 +1,185 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions;
+
+use Baka\Http\SafeUrlFetcher;
+use Baka\Support\Str;
+use Closure;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Client;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Notifications\Support\MarkdownEmailRenderer;
+use Kanvas\Notifications\Support\UserEmailSignature;
+use Kanvas\Social\Messages\Models\Message;
+use Throwable;
+
+/**
+ * Ships one email from an agent's own address through Mailgun's API.
+ *
+ * The From is the whole point: only the account that owns the domain can authorize
+ * `sofia@agents.acme.com`, and the company's SMTP relay is usually a different domain entirely —
+ * which gets the mail rejected or spam-foldered. That is why an agent identity cannot be a header
+ * swap on the notification/SMTP path; it has to be a different transport.
+ *
+ * Everything above this (which agent, which lead, what to write) belongs to the caller. Reply-To is
+ * always the mailbox so the answer comes back to the agent's own inbox and the agent handles it.
+ */
+class SendAsAgentMailboxAction
+{
+    /**
+     * @param array<int, string> $cc
+     * @param array<string, string> $headers
+     * @param array<int, string> $attachmentUrls
+     */
+    public function __construct(
+        private readonly Agent $agent,
+        private readonly string $to,
+        private readonly string $subject,
+        private readonly string $markdownBody,
+        private readonly array $cc = [],
+        private readonly array $headers = [],
+        private readonly array $attachmentUrls = [],
+        private readonly ?UserEmailSignature $signature = null,
+        // Who this mail is about, when there is one — enables Mailgun open tracking and stamps a
+        // `v:people_id` variable so EmailOpenedWebhookJob can record the open back onto them. Left
+        // null for mail with no CRM subject (an admin notice, a platform-level send).
+        private readonly ?People $trackingPerson = null,
+        // Set alongside $trackingPerson when the mail is specifically about one Lead (as opposed to
+        // a standalone People) — stamps a second `v:lead_id` variable so the open lands on the
+        // Lead's own activity feed (RecordLeadNoteAction) instead of only the underlying People's.
+        private readonly ?Lead $trackingLead = null,
+        // Set when the mail is one slot of a batch campaign — stamps `v:campaign_recipient_id` so the
+        // open also marks that exact slot opened; people_id alone is ambiguous once the same person
+        // sits in several campaigns.
+        private readonly ?CampaignRecipient $trackingCampaignRecipient = null,
+        // The stored message this mail ships, when the caller wrote it before sending (an agent's
+        // reply); its `delivery` is written right away, accepted or refused.
+        private readonly ?Message $trackingMessage = null,
+        // The sender's own id for this send, used as the delivery's uuid so a send Mailgun refuses
+        // (no Message-Id) can still be linked to the message written afterwards.
+        private readonly ?string $attemptUuid = null,
+    ) {
+    }
+
+    public function execute(): string
+    {
+        $mailboxService = new AgentMailboxService();
+        $address = $mailboxService->addressFor($this->agent);
+
+        if ($address === null) {
+            throw new ValidationException('Agent ' . (int) $this->agent->getId() . ' has no mailbox to send from.');
+        }
+
+        if (trim($this->markdownBody) === '') {
+            throw new ValidationException('Cannot send an empty email');
+        }
+
+        if (trim($this->to) === '') {
+            throw new ValidationException('Outbound email has no recipient');
+        }
+
+        $attachments = $this->fetchAttachments();
+
+        try {
+            $messageId = new Client($this->agent->app)->sendMessage(
+                domain: $mailboxService->domainFor($this->agent),
+                from: $this->agent->name . ' <' . $address . '>',
+                to: $this->to,
+                subject: $this->subject,
+                text: $this->markdownBody . ($this->signature !== null ? "\n\nBest Regards,\n" . $this->signature->text : ''),
+                html: MarkdownEmailRenderer::toEmailHtml($this->markdownBody) . ($this->signature?->toHtml() ?? ''),
+                // Reply-To is not caller-overridable: an answer that lands anywhere but the agent's own
+                // inbox never reaches the agent, which is the entire point of giving it an address.
+                headers: array_merge($this->headers, ['Reply-To' => $address]),
+                cc: $this->cc,
+                attachments: $attachments,
+                trackOpens: $this->trackingPerson !== null,
+                variables: $this->trackingVariables(),
+            );
+        } catch (ValidationException $exception) {
+            // Mailgun answered and refused (Client::assertOk); a connection error is not a verdict on
+            // the email and stays unrecorded, so the caller's retry is not shown as a failure.
+            $this->fileDelivery(fn (FileEmailDeliveryAction $file) => $file->refused($exception->getMessage()));
+
+            throw $exception;
+        }
+
+        if ($messageId !== '') {
+            $this->fileDelivery(fn (FileEmailDeliveryAction $file) => $file->accepted($messageId));
+        }
+
+        return $messageId;
+    }
+
+    /**
+     * Filing the delivery is bookkeeping: a failure here must not read as a failed send, or a caller
+     * that retries on failure mails the person twice.
+     */
+    private function fileDelivery(Closure $file): void
+    {
+        try {
+            $file(new FileEmailDeliveryAction(
+                app: $this->agent->app,
+                company: $this->agent->company,
+                sender: Sender::agent($this->agent),
+                to: $this->to,
+                content: Content::text($this->markdownBody)->withSubject($this->subject),
+                people: $this->trackingPerson,
+                message: $this->trackingMessage,
+                campaignRecipient: $this->trackingCampaignRecipient,
+                uuid: $this->attemptUuid,
+            ));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function trackingVariables(): array
+    {
+        if ($this->trackingPerson === null) {
+            return [];
+        }
+
+        $variables = ['people_id' => (string) $this->trackingPerson->getId()];
+
+        if ($this->trackingLead !== null) {
+            $variables['lead_id'] = (string) $this->trackingLead->getId();
+        }
+
+        if ($this->trackingCampaignRecipient !== null) {
+            $variables['campaign_recipient_id'] = (string) $this->trackingCampaignRecipient->getId();
+        }
+
+        return $variables;
+    }
+
+    /**
+     * @return array<int, array{filename: string, contents: string}>
+     */
+    private function fetchAttachments(): array
+    {
+        $attachments = [];
+
+        foreach ($this->attachmentUrls as $url) {
+            $filename = Str::fileNameFromUrl($url, 'attachment');
+
+            $attachments[] = [
+                'filename' => $filename,
+                'contents' => SafeUrlFetcher::fetch($url),
+            ];
+        }
+
+        return $attachments;
+    }
+}

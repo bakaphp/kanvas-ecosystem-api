@@ -27,7 +27,7 @@ return new class () extends Migration {
         DB::connection('workflow')->table('integrations')->insert([
             'uuid' => (string) Str::uuid(),
             'name' => 'twilio',
-            'handler' => 'Kanvas\\Connectors\\Twilio\\Handlers\\TwilioHandlers',
+            'handler' => 'Kanvas\\Communication\\Channels\\Sms\\Providers\\Twilio\\Handlers\\TwilioHandlers',
             'apps_id' => 0,
             'config' => json_encode($config),
             'type' => 'key',

@@ -6,11 +6,11 @@ namespace Kanvas\Communication\Setup\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum as GoogleConfigurationEnum;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Rules\Actions\CreateRuleAction;
 use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;

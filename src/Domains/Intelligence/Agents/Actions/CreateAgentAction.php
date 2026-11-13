@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Support\Str;
-use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Jobs\ProvisionAgentMailboxJob;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;

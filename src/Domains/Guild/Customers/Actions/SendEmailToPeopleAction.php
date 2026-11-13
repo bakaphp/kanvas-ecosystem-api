@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Illuminate\Support\Facades\Notification;
-use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
-use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\FileEmailDeliveryAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;

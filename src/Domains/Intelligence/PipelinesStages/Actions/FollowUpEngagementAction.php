@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Exception;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;

@@ -6,12 +6,12 @@ namespace Kanvas\Connectors\SalesAssist\Supervisor\Services;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Workflows\AgentChannelResponderActivity as MailgunResponderActivity;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks\ProcessTwilioWebhookJob;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Workflows\AgentChannelResponderActivity as TwilioResponderActivity;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
-use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as MailgunResponderActivity;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
-use Kanvas\Connectors\Twilio\Workflows\AgentChannelResponderActivity as TwilioResponderActivity;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Agents\Activities\AgentReachOutActivity;
 use Kanvas\Intelligence\Agents\Models\Agent;

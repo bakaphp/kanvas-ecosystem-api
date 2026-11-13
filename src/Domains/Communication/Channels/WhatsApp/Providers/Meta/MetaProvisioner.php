@@ -146,8 +146,7 @@ class MetaProvisioner implements Provisioner
     #[Override]
     public function releaseShared(SharedRegistration $registration): CleanupTaskStatusEnum
     {
-        $dependent = $registration->dependents()->latest('id')->first();
-        $connection = Connection::query()->find($dependent?->connection_id);
+        $connection = $registration->latestConnection();
 
         if ($connection === null) {
             return CleanupTaskStatusEnum::SUPERSEDED;

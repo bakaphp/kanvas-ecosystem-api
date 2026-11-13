@@ -6,9 +6,9 @@ namespace App\Console\Commands\Connectors\Mailgun;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\Connectors\Mailgun\Actions\DisconnectAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Actions\ProvisionAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\DisconnectAgentMailboxAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\ProvisionAgentMailboxAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\MailboxAccessEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 

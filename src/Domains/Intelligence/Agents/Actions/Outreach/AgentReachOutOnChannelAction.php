@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnum;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
-use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;

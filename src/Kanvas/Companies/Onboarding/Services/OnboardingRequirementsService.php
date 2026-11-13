@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Onboarding\Services;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AccountingInboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Companies\Onboarding\DataTransferObject\SectionConfig;
 use Kanvas\Companies\Onboarding\Enums\RequirementModeEnum;
 use Kanvas\Companies\Onboarding\Enums\RequirementStatusEnum;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
-use Kanvas\Connectors\Mailgun\Services\AccountingInboxService;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;

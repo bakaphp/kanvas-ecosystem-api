@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\Twilio\Mutations;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
-use Kanvas\Connectors\Twilio\Actions\ResendFailedMessageAction;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\ResendFailedMessageAction;
 use Kanvas\Social\Messages\Models\Message;
 
 class TwilioMessageMutation

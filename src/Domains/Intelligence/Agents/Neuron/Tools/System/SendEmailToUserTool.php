@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\System;
 
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
-use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;

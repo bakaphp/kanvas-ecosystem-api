@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
-use Kanvas\Connectors\Twilio\Client as TwilioClient;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client as TwilioClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 

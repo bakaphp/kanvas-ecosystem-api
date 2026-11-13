@@ -13,7 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Twilio\Client as TwilioClient;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client as TwilioClient;
 use Kanvas\Connectors\VoiceBridge\Actions\FetchCallRecordingAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Leads\Models\Lead;
