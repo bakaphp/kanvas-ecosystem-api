@@ -21,7 +21,6 @@ use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\SharedRegistration;
 use Kanvas\Communication\Connections\Services\SharedRegistry;
 use Kanvas\Communication\Contracts\Provisioner;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Override;
 use RuntimeException;
@@ -42,9 +41,8 @@ class MailgunProvisioner implements Provisioner
      */
     public const array EVENTS = [...DeliveryWebhookReceiverService::EVENTS, 'opened'];
 
-    public function __construct(
-        protected SharedRegistry $sharedRegistry = new SharedRegistry()
-    ) {
+    public function __construct(protected SharedRegistry $sharedRegistry = new SharedRegistry())
+    {
     }
 
     #[Override]
@@ -106,7 +104,12 @@ class MailgunProvisioner implements Provisioner
         if ($route === null) {
             $route = $client->createRoute($address, $inboundUrl, $description);
         } elseif ($current !== $inboundUrl) {
-            $route = $client->updateRoute((string) $route['id'], $address, $inboundUrl, $description);
+            $route = $client->updateRoute(
+                (string) $route['id'],
+                $address,
+                $inboundUrl,
+                $description
+            );
         }
 
         $routeId = (string) ($route['id'] ?? '');
@@ -152,7 +155,9 @@ class MailgunProvisioner implements Provisioner
             return CleanupTaskStatusEnum::SUPERSEDED;
         }
 
-        $client->deleteRoute((string) $task->external_id);
+        if (! $client->deleteRoute((string) $task->external_id)) {
+            throw new RuntimeException('Mailgun did not delete route ' . $task->external_id);
+        }
 
         return CleanupTaskStatusEnum::DONE;
     }
@@ -160,8 +165,7 @@ class MailgunProvisioner implements Provisioner
     #[Override]
     public function releaseShared(SharedRegistration $registration): CleanupTaskStatusEnum
     {
-        $dependent = $registration->dependents()->latest('id')->first();
-        $connection = Connection::query()->find($dependent?->connection_id);
+        $connection = $registration->latestConnection();
 
         if ($connection === null) {
             return CleanupTaskStatusEnum::SUPERSEDED;
@@ -172,14 +176,13 @@ class MailgunProvisioner implements Provisioner
         $released = false;
 
         foreach (self::EVENTS as $event) {
-            try {
-                $urls = $client->webhookUrls($domain, $event);
-            } catch (ValidationException) {
-                return CleanupTaskStatusEnum::SUPERSEDED;
-            }
+            $urls = $client->webhookUrls($domain, $event);
 
             if ($urls === [$registration->registered_value]) {
-                $client->deleteWebhook($domain, $event);
+                if (! $client->deleteWebhook($domain, $event)) {
+                    throw new RuntimeException('Mailgun did not delete the ' . $event . ' webhook for ' . $domain);
+                }
+
                 $released = true;
             }
         }

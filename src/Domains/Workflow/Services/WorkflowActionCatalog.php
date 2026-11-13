@@ -107,9 +107,15 @@ class WorkflowActionCatalog
     protected function absorb(Action $old, Action $into): void
     {
         DB::connection('workflow')->transaction(function () use ($old, $into): void {
-            ReceiverWebhook::query()->where('action_id', $old->getId())->update(['action_id' => $into->getId()]);
-            RuleWorkflowAction::query()->where('actions_id', $old->getId())->update(['actions_id' => $into->getId()]);
-            Integrations::query()->where('actions_id', $old->getId())->update(['actions_id' => $into->getId()]);
+            ReceiverWebhook::query()
+                ->where('action_id', $old->getId())
+                ->update(['action_id' => $into->getId()]);
+            RuleWorkflowAction::query()
+                ->where('actions_id', $old->getId())
+                ->update(['actions_id' => $into->getId()]);
+            Integrations::query()
+                ->where('actions_id', $old->getId())
+                ->update(['actions_id' => $into->getId()]);
             $old->delete();
         });
     }

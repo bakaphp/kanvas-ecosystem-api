@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Channels\Sms\Providers\Twilio\Services;
 
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum;
-use Kanvas\Companies\Models\Companies;
 
 /**
  * US carriers drop texts from an unregistered 10DLC sender (Twilio error 30034). A tenant that
@@ -21,7 +21,7 @@ final class A2pRegistration
      *
      * @return string|null the registration status that blocks sending, or null when nothing does
      */
-    public static function blockingStatus(Companies $company, ?string $from): ?string
+    public static function blockingStatus(CompanyInterface $company, ?string $from): ?string
     {
         if ($from !== null && ! str_starts_with($from, '+1')) {
             return null;

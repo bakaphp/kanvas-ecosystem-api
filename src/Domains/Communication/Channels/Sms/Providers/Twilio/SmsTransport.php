@@ -35,11 +35,6 @@ class SmsTransport implements Transport
 
     public const string MESSAGE_VERB = 'twilio-sms';
 
-    /**
-     * The recipient texted STOP to Twilio, which unsubscribed them itself and refuses the send.
-     */
-    private const int UNSUBSCRIBED_RECIPIENT_CODE = 21610;
-
     #[Override]
     public function send(Delivery $delivery, Content $content): TransportResult
     {
@@ -72,17 +67,21 @@ class SmsTransport implements Transport
             'body' => $content->text,
             'mediaUrl' => $media,
             'statusCallback' => TwilioInbound::statusCallbackUrl($delivery->app, $company),
-        ]);
+        ], fn (mixed $value): bool => $value !== null && $value !== '' && $value !== []);
 
         try {
             $message = $this->client($delivery)->messages->create((string) $delivery->to_address, $payload);
         } catch (RestException $exception) {
             // Twilio answered, so the outcome is known: it refused. Anything else — a timeout, a
             // dropped connection — is left to bubble, and is recorded as unknown.
+            $classification = MessageErrorClassifier::classify($exception)['classification'];
+
+            // `opted_out` is Twilio's 21610: the recipient texted STOP to Twilio, which unsubscribed
+            // them itself and refuses the send.
             return TransportResult::failed(
                 (string) $exception->getCode(),
-                MessageErrorClassifier::classify($exception)['classification'] . ': ' . $exception->getMessage(),
-                $exception->getCode() === self::UNSUBSCRIBED_RECIPIENT_CODE
+                $classification . ': ' . $exception->getMessage(),
+                $classification === 'opted_out'
             );
         }
 

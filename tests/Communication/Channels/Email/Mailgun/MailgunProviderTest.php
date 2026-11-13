@@ -27,6 +27,7 @@ use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Communication\Support\TransportManager;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -37,6 +38,7 @@ use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use RuntimeException;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
 
@@ -231,7 +233,12 @@ final class MailgunProviderTest extends TestCase
         Http::fake(['api.mailgun.net/*' => Http::response(['message' => "'to' parameter is not a valid address"], 400)]);
 
         $delivery = $this->communication()
-            ->send($this->personWithEmail('ana@customer.test'), 'Hello', channels: ['email'], sync: true)
+            ->send(
+                $this->personWithEmail('ana@customer.test'),
+                'Hello',
+                channels: ['email'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::EMAIL);
 
         $this->assertSame(DeliveryStatusEnum::FAILED, $delivery->status);
@@ -286,6 +293,46 @@ final class MailgunProviderTest extends TestCase
 
         $this->assertSame(CleanupTaskStatusEnum::SUPERSEDED, new MailgunProvisioner()->cleanup($task));
         $this->assertArrayHasKey('r-7', $vendor->routes);
+    }
+
+    public function testCleanupDoesNotFinishWhenMailgunRefusesToDeleteTheRoute(): void
+    {
+        Http::fake(fn (HttpRequest $request) => $request->method() === 'DELETE'
+            ? Http::response(['message' => 'Unavailable'], 503)
+            : Http::response(['route' => ['actions' => ['forward("' . self::OURS . '")']]]));
+        $connection = $this->connection('mailgun', self::OUR_ADDRESS);
+        $task = new CleanupTask([
+            'resource_type' => MailgunProvisioner::ROUTE,
+            'external_id' => 'r-retry',
+            'expected_value' => self::OURS,
+        ]);
+        $task->setRelation('connection', $connection);
+
+        $this->expectException(RuntimeException::class);
+
+        new MailgunProvisioner()->cleanup($task);
+    }
+
+    public function testSharedCleanupDoesNotFinishWhenMailgunRefusesToDeleteAWebhook(): void
+    {
+        $vendor = $this->fakeMailgun();
+        $registration = new MailgunProvisioner()->registerInbound($this->connection('mailgun', self::OUR_ADDRESS), self::OURS)->shared;
+        $vendor->failMethod = 'DELETE';
+
+        $this->expectException(RuntimeException::class);
+
+        new MailgunProvisioner()->releaseShared($registration);
+    }
+
+    public function testSharedCleanupRetriesWhenMailgunCannotReadTheWebhook(): void
+    {
+        $vendor = $this->fakeMailgun();
+        $registration = new MailgunProvisioner()->registerInbound($this->connection('mailgun', self::OUR_ADDRESS), self::OURS)->shared;
+        $vendor->failMethod = 'GET';
+
+        $this->expectException(ValidationException::class);
+
+        new MailgunProvisioner()->releaseShared($registration);
     }
 
     private function mailgunConnection(): Connection
@@ -439,11 +486,17 @@ final class MailgunProviderTest extends TestCase
 
             /** @var array<string, string> */
             public array $webhooks = [];
+
+            public ?string $failMethod = null;
         };
 
         Http::fake(function (HttpRequest $request) use ($vendor) {
             $path = parse_url($request->url(), PHP_URL_PATH);
             $method = $request->method();
+
+            if ($method === $vendor->failMethod) {
+                return Http::response(['message' => 'Unavailable'], 503);
+            }
 
             if ($path === '/v3/routes' && $method === 'GET') {
                 return Http::response(['items' => array_values($vendor->routes)]);

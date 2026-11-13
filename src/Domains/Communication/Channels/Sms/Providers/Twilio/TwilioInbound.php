@@ -11,8 +11,8 @@ use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\DownloadMessageFi
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\RecordStatusCallbackAction;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\BurstConfigEnum;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Handlers\TwilioHandlers;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\TwilioReceiverService;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\WebhookSignatureValidator;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\InboundSource;
 use Kanvas\Communication\Messages\Actions\FlushInboundBurstAction;
@@ -46,14 +46,7 @@ class TwilioInbound implements InboundSource
             return $receiver->getUrl();
         }
 
-        return ReceiverWebhook::query()
-            ->fromApp($app)
-            ->fromCompany($company)
-            ->notDeleted()
-            ->where('is_active', true)
-            ->forJob(ProcessTwilioMessageStatusWebhookJob::class)
-            ->first()
-            ?->getUrl();
+        return new TwilioReceiverService()->statusCallbackUrl($app, $company);
     }
 
     #[Override]
@@ -75,13 +68,16 @@ class TwilioInbound implements InboundSource
     #[Override]
     public function recordStatuses(array $payload, ReceiverWebhook $receiver): ?array
     {
-        return $this->isStatusCallback($payload) ? new RecordStatusCallbackAction($receiver, $payload)->execute() : null;
+        return $this->isStatusCallback($payload)
+            ? new RecordStatusCallbackAction($receiver, $payload)->execute()
+            : null;
     }
 
     #[Override]
     public function downloadAttachment(Message $message, InboundAttachment $attachment): Filesystem
     {
-        return new DownloadMessageFileAction($message, $attachment->url, $attachment->contentType)->execute()['media'];
+        return new DownloadMessageFileAction($message, $attachment->url, $attachment->contentType)
+            ->execute()['media'];
     }
 
     /**

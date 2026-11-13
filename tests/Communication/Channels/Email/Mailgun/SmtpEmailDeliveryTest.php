@@ -44,6 +44,7 @@ final class SmtpEmailDeliveryTest extends TestCase
     {
         parent::setUp();
 
+        config(['queue.default' => 'sync', 'mail.default' => 'array']);
         $this->smtpHost('smtp.mailgun.org');
 
         // The local database may lack the templates these sends render; their content is not under test.

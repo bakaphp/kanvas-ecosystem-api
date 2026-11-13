@@ -53,6 +53,20 @@ final class SmsTransportTest extends TestCase
         $this->assertSame('SM101', $this->transport()->send($delivery, Content::text('Hello'))->externalId);
     }
 
+    public function testZeroIsSentAsText(): void
+    {
+        $delivery = $this->queuedDelivery();
+        $this->messages->shouldReceive('create')
+            ->once()
+            ->withArgs(fn (string $to, array $payload): bool => ($payload['body'] ?? null) === '0')
+            ->andReturn((object) ['sid' => 'SM-zero']);
+
+        $result = $this->transport()->send($delivery, Content::text('0'));
+
+        $this->assertSame(DeliveryStatusEnum::ACCEPTED, $result->status);
+        $this->assertSame('SM-zero', $result->externalId);
+    }
+
     public function testAttachmentsGoOutAsMedia(): void
     {
         $delivery = $this->queuedDelivery();

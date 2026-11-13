@@ -18,8 +18,10 @@ use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxS
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\RecordMessageAttemptAction;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Client;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\A2pRegistration;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\MessageErrorClassifier;
 use Kanvas\Communication\Channels\Sms\Providers\Twilio\Services\TwilioReceiverService;
+use Kanvas\Communication\Channels\Sms\Rules\BodyLength;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
@@ -55,8 +57,6 @@ use Twilio\Rest\Client as TwilioClient;
 class SendMessageToLeadAction
 {
     private const int TWILIO_UNSUBSCRIBED_RECIPIENT_CODE = 21610;
-    private const int DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH = 1600;
-    private const array APPROVED_A2P_REGISTRATION_STATUSES = ['approved', 'registered', 'verified', 'active'];
     private const string SMS_ALLOWED_LINE_TYPE = 'mobile';
 
     /**
@@ -714,37 +714,26 @@ class SendMessageToLeadAction
 
     protected function validateTwilioMessageBody(string $message): void
     {
-        $configuredLimit = (int) ($this->lead->company->get(
+        $configuredLimit = (int) $this->lead->company->get(
             TwilioConfigurationEnum::TWILIO_MAX_MESSAGE_BODY_LENGTH->value
-        ) ?: self::DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH);
-        $limit = max(1, min(self::DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH, $configuredLimit));
+        );
 
-        if (mb_strlen($message, 'UTF-8') > $limit) {
+        if (BodyLength::exceeds($message, $configuredLimit)) {
             throw new InvalidArgumentException(sprintf(
                 'Twilio message body exceeds the configured carrier-safe limit of %d characters (prevents avoidable error 30019)',
-                $limit,
+                BodyLength::limit($configuredLimit),
             ));
         }
     }
 
     protected function validateA2pRegistration(?string $from): void
     {
-        if ($from !== null && ! str_starts_with($from, '+1')) {
-            return;
-        }
+        $status = A2pRegistration::blockingStatus($this->lead->company, $from);
 
-        if (! $this->lead->company->getBool(TwilioConfigurationEnum::TWILIO_ENFORCE_A2P_REGISTRATION->value)) {
-            return;
-        }
-
-        $status = strtolower(trim((string) ($this->lead->company->get(
-            TwilioConfigurationEnum::TWILIO_A2P_REGISTRATION_STATUS->value
-        ) ?? '')));
-
-        if (! in_array($status, self::APPROVED_A2P_REGISTRATION_STATUSES, true)) {
+        if ($status !== null) {
             throw new InvalidArgumentException(sprintf(
                 'Twilio A2P sender registration is %s; outbound SMS is blocked to prevent error 30034',
-                $status !== '' ? $status : 'missing',
+                $status,
             ));
         }
     }

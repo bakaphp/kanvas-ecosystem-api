@@ -89,7 +89,8 @@ class TwilioProvisioner implements Provisioner
         SharedRegistry::assertSettable($number->smsUrl, $inboundUrl, 'Twilio number ' . $connection->account_key);
 
         if ($number->smsUrl !== $inboundUrl) {
-            $client->incomingPhoneNumbers($numberSid)->update(['smsUrl' => $inboundUrl, 'smsMethod' => 'POST']);
+            $client->incomingPhoneNumbers($numberSid)
+                ->update(['smsUrl' => $inboundUrl, 'smsMethod' => 'POST']);
         }
 
         if ($client->incomingPhoneNumbers($numberSid)->fetch()->smsUrl !== $inboundUrl) {
@@ -140,14 +141,16 @@ class TwilioProvisioner implements Provisioner
     #[Override]
     public function releaseShared(SharedRegistration $registration): CleanupTaskStatusEnum
     {
-        $dependent = $registration->dependents()->latest('id')->first();
-        $connection = Connection::query()->find($dependent?->connection_id);
+        $connection = $registration->latestConnection();
 
         if ($connection === null) {
             return CleanupTaskStatusEnum::SUPERSEDED;
         }
 
-        $service = $this->client($connection->company, $connection->app)->messaging->v1->services($registration->resource_key);
+        $service = $this->client($connection->company, $connection->app)
+            ->messaging
+            ->v1
+            ->services($registration->resource_key);
 
         if ($service->fetch()->inboundRequestUrl !== $registration->registered_value) {
             return CleanupTaskStatusEnum::SUPERSEDED;

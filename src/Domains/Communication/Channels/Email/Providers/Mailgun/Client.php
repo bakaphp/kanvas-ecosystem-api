@@ -175,13 +175,15 @@ class Client
      */
     public function webhookUrls(string $domain, string $event): array
     {
-        $response = $this->request()->get('/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event));
+        $response = $this->request()
+            ->get('/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event));
 
         if ($response->notFound()) {
             return [];
         }
 
-        $webhook = $this->assertOk($response, 'read ' . $event . ' webhook for ' . $domain)->json('webhook') ?? [];
+        $webhook = $this->assertOk($response, 'read ' . $event . ' webhook for ' . $domain)
+            ->json('webhook') ?? [];
         $urls = $webhook['urls'] ?? (isset($webhook['url']) ? [$webhook['url']] : []);
 
         return array_values(array_filter(array_map('strval', (array) $urls)));
@@ -189,7 +191,8 @@ class Client
 
     public function deleteWebhook(string $domain, string $event): bool
     {
-        $response = $this->request()->delete('/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event));
+        $response = $this->request()
+            ->delete('/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event));
 
         return $response->successful() || $response->notFound();
     }

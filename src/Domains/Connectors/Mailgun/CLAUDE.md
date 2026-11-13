@@ -40,9 +40,10 @@ it again repoints the domain's events at the same receiver; a receiver switched 
 
 Email deliveries live in Communication, not in a Mailgun table (a connector must not own a table the
 platform reads): one `communication_requests` row for the person, one `communication_deliveries` row
-(`channel = email`, `provider = 'mailgun'`, `connection_id` null — Mailgun is not a registered
-communication provider), and its events in `communication_delivery_events`. Twilio SMS still uses its own
-`twilio_message_attempts` until it moves onto deliveries.
+(`channel = email`, `provider = 'mailgun'`, `connection_id` null — these sends do not go through a
+connection; only a send through `EmailTransport` carries one), and its events in
+`communication_delivery_events`. Twilio SMS sent by the lead and agent paths still uses its own
+`twilio_message_attempts`; only a send through `SmsTransport` is a delivery.
 
 ## How an event finds its email
 

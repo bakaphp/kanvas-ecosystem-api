@@ -82,7 +82,8 @@ final class RecordMailgunOpenAction
             return [];
         }
 
-        new RecordEmailEventOnDeliveryAction($delivery, DeliveryStatusEnum::OPENED, $this->payload)->execute();
+        new RecordEmailEventOnDeliveryAction($delivery, DeliveryStatusEnum::OPENED, $this->payload)
+            ->execute();
 
         return ['delivery_id' => $delivery->getId(), 'delivery_status' => $delivery->status->value];
     }

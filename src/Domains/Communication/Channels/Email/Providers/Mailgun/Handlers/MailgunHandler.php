@@ -128,7 +128,9 @@ class MailgunHandler extends BaseIntegration implements CommunicationProvider
             return Str::after($configured, '@') === $domain ? $configured : null;
         }
 
-        $fromEmail = strtolower(trim((string) (new SmtpRuntimeConfiguration($app, $company)->getFromEmail()['address'] ?? '')));
+        $fromEmail = new SmtpRuntimeConfiguration($app, $company)
+            ->getFromEmail()['address'] ?? '';
+        $fromEmail = strtolower(trim((string) $fromEmail));
 
         return $fromEmail !== '' && Str::after($fromEmail, '@') === $domain ? $fromEmail : null;
     }
