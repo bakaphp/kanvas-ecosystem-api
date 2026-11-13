@@ -49,6 +49,19 @@ final class VoiceAgentDefaultVoiceTest extends TestCase
         $this->assertNull($this->voiceId([]));
     }
 
+    public function testAnAgentWithoutALanguageSpeaksEnglish(): void
+    {
+        $agent = Agent::factory()
+            ->withAppId($this->testApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['voice_config' => ['phone_number' => null]]);
+
+        $spec = new VoiceAgentSpecService($agent, $this->testApp)->compile();
+
+        $this->assertSame('en', $spec['language']);
+        $this->assertSame('en', $spec['models']['stt']['language']);
+    }
+
     public function testTheAdminCanReadTheDefault(): void
     {
         $response = $this->graphQL('query { voiceAgentDefaults { voice_id } }');
