@@ -183,6 +183,94 @@ private note is also left on the lead, because Zoho will not retry the step:
 | `link_missing: name` | The template names a link this call did not send, or sent empty or non-https |
 | `template_render_failed` | The template failed to render. Also reported to Sentry |
 
+### Reference configuration: a Kanvas agent sending a client's Zoho SMS cadence
+
+A complete configuration of this recipe, to copy for the next client and to pick up on the next iteration.
+It runs on app 9, company 7855, Zoho org657511937, with the agent Sally.
+
+| Piece | Value | State 2026-11-12 |
+|---|---|---|
+| Pipeline | slug `zoho_sms_campaign`, 21 stages, `is_default = 0`, agent_name Sally | built (`docs/zoho/zoho_pipeline.php`) |
+| Templates | `zoho_sms_{step_key}` | built with the pipeline |
+| Receiver | `https://graphapi.kanvas.dev/v1/receiver/01a1d2e8-5589-7277-9962-ab6b84a6bcec`, config `receiver_id: 3` | created |
+| Shared secret | `docs/zoho/finance-factory-zoho-campaign-setup.md` (gitignored), never in this file | set on the receiver |
+| Zoho org variable `kanvas_webhook_secret` | the same secret | created |
+| Zoho function `kanvasLeadFollowUp` | the function above plus a sixth argument `email` and an email allow-list checked first | created 2026-11-12 |
+| Zoho rules | one `Kanvas - {step_key}` function action added **beside** the existing SMS action on every step of the five live rules (21 steps) | done 2026-11-12; criteria, triggers and the old SMS actions unchanged |
+
+| Zoho email rules | one `Kanvas Email - {step_key}` action beside each customer-facing email (13 steps, campaign `zoho_email_campaign`, channel `email`) | done 2026-11-12, **switched off**: the function returns for any channel in `disabledChannels` (`email`) |
+
+Email steps, by rule: Lead Created - Welcome Email (`welcome_email`, 15 min); Follow Up Emails Day 1-17
+(`fu_email_day_1`..`_4` at 2, 4, 8, 17 days; fires on a `Lead_Status` change); Ready and Waiting
+(`ready_waiting_day_45`, `ready_waiting_day_60`, `cif_final_day_90`); Landing Pages (`landing_welcome_email`,
+5 min); one-off emails on a field change: `junk_bad_number`, `credit_frozen`, `rabbu_welcome`,
+`fiona_bad_credit`. Templates are `zoho_email_{step_key}`. Kanvas has no email pipeline or templates yet;
+build them before removing `email` from `disabledChannels`. Owner-addressed notifications (new lead alert,
+docs uploaded, duplicate agent lead, hot and dupe) are not wired.
+
+Not wired, and no Kanvas stages for them yet: the SMS on Follow Up Emails Day 1-17 (instant, 1 day, 2 days),
+Ready and Waiting (45 days), Credit Report is Frozen (instant) and Lead FU Follow Up Cadence SMS (7 days).
+
+**Pilot gate.** The function runs for every lead the live rules match, but posts to Kanvas only when the
+lead's `Email` is in `allowedEmails` at the top of the function; every other lead exits before any Zoho read
+or HTTP call. To add a test lead, add its email there. The old SMS actions still fire for every lead, so a
+pilot lead gets both messages: use our own phone numbers.
+
+The live rules fire on lead **create** (Landing Pages and LoanLeads.io on create or edit), so a test needs a
+newly created lead that matches a rule's criteria. The pipeline is not the default, so a lead the receiver
+pulls lands on the default pipeline and its first step stops with `lead_on_another_pipeline`; move the lead
+onto `zoho_sms_campaign` and later steps run. Each stage has `time_based` 60 minutes, so without
+`lead_follow_up_disabled` the hourly cron can also send to a pilot lead after an hour of silence.
+
+**Going live.** Remove the allow-list check from the function, then remove each step's old SMS action from
+the rule, one step at a time, never leaving both on a step. Make `zoho_sms_campaign` the company's default
+pipeline so step 1 finds the lead on it.
+
+Action arguments: `campaignKey` = `zoho_sms_campaign`, `stepKey` = the step key, `templateKey` =
+`zoho_sms_` + the step key, `channel` = `sms`. Steps, in stage order, with the Zoho rule each replaces and
+the link its template appends:
+
+| step_key | Zoho rule | Schedule | Link |
+|---|---|---|---|
+| `landing_welcome` | Landing Pages journey | Instant | none |
+| `new_instant_response` | New SMS Campaign | 2 minutes | form |
+| `loan_instant_response` | New SMS Campaign_LoanLeads.io | 2 minutes | none |
+| `new_value_add` | New SMS Campaign | 6 business hours | form |
+| `loan_value_add` | New SMS Campaign_LoanLeads.io | 6 business hours | form |
+| `new_easy_engagement` | New SMS Campaign | 12 business hours | form |
+| `loan_easy_engagement` | New SMS Campaign_LoanLeads.io | 12 business hours | form |
+| `new_low_effort_cta` | New SMS Campaign | 24 hours | form |
+| `landing_attempt_1` | Landing Pages journey | 2 business days | calendly |
+| `loan_low_effort_cta` | New SMS Campaign_LoanLeads.io | 3 business days | apply |
+| `new_polite_close` | New SMS Campaign | 40 business hours | calendly |
+| `loan_polite_close` | New SMS Campaign_LoanLeads.io | 5 business days | calendly |
+| `landing_attempt_2` | Landing Pages journey | 5 business days | apply |
+| `phase2_day_7` | New SMS Campaign Phase 2 | 7 business days | calendly |
+| `landing_attempt_3` | Landing Pages journey | 10 business days | apply |
+| `landing_attempt_4` | Landing Pages journey | 21 business days | apply |
+| `phase2_day_30` | New SMS Campaign Phase 2 | 30 days | consent |
+| `phase2_day_60` | New SMS Campaign Phase 2 | 60 days | consent |
+| `phase3_day_120` | New SMS Campaign Phase 3 | 120 days | consent |
+| `phase3_day_123` | New SMS Campaign Phase 3 | 123 days | none |
+| `phase3_day_127` | New SMS Campaign Phase 3 | 127 days | consent |
+
+Links the function sends: `form` = lead `Form_URL`, `calendly` = lead `Lead_Owner_Calendly_Link`,
+`consent` and `apply` = `https://apply2.financefactory.com/apply?lead_id={leadId}`. These are the intended
+links: the client's own SMS still point at `financefactory.com/consent-form-zoho/` and `apply.financefactory.com`
+and will move to these.
+
+Next: create a new Zoho lead with an allow-listed email that matches one of the rules, move it onto
+`zoho_sms_campaign` in Kanvas, and read each step's result on the receiver's webhook calls.
+
+Wiring by hand through Zoho's settings API (same browser session, `X-ZCSRF-TOKEN` from the `CSRF_TOKEN`
+cookie) is faster and safer than the rule editor, which drops an argument mapping if you open the function
+code from it: `POST /crm/v8/settings/automation/functions` creates a function action (needs `language`,
+`function.id` = the CRM function id from `GET /crm/v8/settings/functions`, `static` or `merge_field`
+arguments), and `PUT /crm/v8/settings/automation/workflow_rules/{id}` attaches it. The PUT must resend every
+existing action with its `details` exactly as read, and leave out an empty `instant_actions`. Zoho allows one
+function per scheduled step (`LIMIT_EXCEEDED`, `limit: 1`), and one email action can be reused on several
+steps, so match the step by its time as well as by the action id.
+
 ### Limits to tell the client
 
 - **From number.** The agent or company number sends, not the record owner's. A2P registration must cover it.
