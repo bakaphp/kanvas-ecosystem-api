@@ -37,9 +37,9 @@ final class ProviderRollout
     {
         $value = $owner->get(ConfigurationEnum::PROVIDERS->value);
 
+        // get() already decodes a JSON list; a value typed by hand in the UI arrives as "twilio,mailgun".
         if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            $value = is_array($decoded) ? $decoded : explode(',', $value);
+            $value = explode(',', $value);
         }
 
         if (! is_array($value)) {

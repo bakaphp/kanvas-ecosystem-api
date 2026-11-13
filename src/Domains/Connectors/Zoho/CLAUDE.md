@@ -82,7 +82,7 @@ the default pipeline; without it a missing lead stops the step.
   the whole company, including its other pipelines. The webhook path still runs.
 - Keep `follow_up.enabled`, AI mode and `ai_follow_up` on; those gates also block the webhook path.
 - Confirm no workflow rule runs `Agent Reach Out To Lead` or `TriggerLeadFollowUpActivity`.
-- SMS needs the channel connected and a sending number. See [`../Twilio/CLAUDE.md`](../Twilio/CLAUDE.md).
+- SMS needs the channel connected and a sending number. See [`Communication/Channels/Sms/Providers/Twilio/CLAUDE.md`](../../Communication/Channels/Sms/Providers/Twilio/CLAUDE.md).
 - For inbound replies to be answered, the company needs a rule running `AgentChannelResponderActivity`.
 
 ### 3. Set up Zoho
