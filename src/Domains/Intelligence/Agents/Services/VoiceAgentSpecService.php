@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -63,7 +64,7 @@ class VoiceAgentSpecService
                 'llm' => $this->llm(),
                 'tts' => [
                     'provider' => $tts['provider'] ?? 'elevenlabs',
-                    'voice_id' => $tts['voice_id'] ?? ($voice['voice_id'] ?? null),
+                    'voice_id' => self::ownVoiceId($voice) ?? VoiceRuntimeConfig::defaultVoiceId(),
                     'model' => $tts['model'] ?? null,
                     'stability' => $this->floatOrNull($tts['stability'] ?? null),
                     'similarity' => $this->floatOrNull($tts['similarity'] ?? null),
@@ -76,6 +77,17 @@ class VoiceAgentSpecService
             'context_schema' => array_values($voice['context_schema'] ?? []),
             'tools' => $this->tools(),
         ];
+    }
+
+    /**
+     * The voice the agent itself picked (voice_config.tts.voice_id, or the older top-level
+     * voice_id), or null when it picked none.
+     *
+     * @param array<string, mixed> $voice
+     */
+    public static function ownVoiceId(array $voice): ?string
+    {
+        return Str::trimToNull((string) ($voice['tts']['voice_id'] ?? $voice['voice_id'] ?? ''));
     }
 
     /**

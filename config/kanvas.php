@@ -65,6 +65,8 @@ return [
         // this makes every app-key a cross-tenant reader — leave false for
         // multi-key/tenant-scoped deployments.
         'cross_app' => env('VOICE_RUNTIME_CROSS_APP', false),
+        // ElevenLabs voice for agents that don't pick one; the admin pre-fills it.
+        'default_voice_id' => env('VOICE_DEFAULT_VOICE_ID'),
     ],
     'agents' => [
         // Cost ceiling on replayed chat history, applied after the model-ceiling sizing. The history is

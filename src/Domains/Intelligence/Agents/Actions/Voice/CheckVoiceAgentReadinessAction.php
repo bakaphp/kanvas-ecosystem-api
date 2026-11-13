@@ -174,8 +174,12 @@ class CheckVoiceAgentReadinessAction
      */
     private function voice(array $voice): array
     {
-        if (Str::trimToNull((string) ($voice['tts']['voice_id'] ?? $voice['voice_id'] ?? '')) === null) {
-            return $this->warning('voice', 'No voice picked, so calls use the runtime\'s default voice.', 'edit_voice');
+        if (VoiceAgentSpecService::ownVoiceId($voice) === null) {
+            $default = VoiceRuntimeConfig::defaultVoiceId();
+
+            return $default !== null
+                ? $this->ok('voice', "Default voice ({$default}).", 'edit_voice')
+                : $this->warning('voice', 'No voice picked, so calls use the runtime\'s default voice.', 'edit_voice');
         }
 
         return $this->ok('voice', 'Set.', 'edit_voice');

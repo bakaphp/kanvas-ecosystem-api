@@ -25,6 +25,17 @@ final class VoiceRuntimeConfig
         return $url !== '' ? $url . '/twilio/incoming' : '';
     }
 
+    /**
+     * The ElevenLabs voice for agents that don't pick one, or null when the environment sets none
+     * (the runtime then falls back to its own ELEVENLABS_VOICE_ID).
+     */
+    public static function defaultVoiceId(): ?string
+    {
+        $voiceId = trim((string) config('kanvas.voice_runtime.default_voice_id', ''));
+
+        return $voiceId !== '' ? $voiceId : null;
+    }
+
     public static function apiToken(): string
     {
         return trim((string) config('kanvas.voice_runtime.api_token', ''));
