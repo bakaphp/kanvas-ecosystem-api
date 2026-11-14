@@ -6,6 +6,7 @@ namespace Kanvas\Event\Participants\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -15,6 +16,13 @@ class ParticipantPass extends BaseModel
 {
     protected $table = 'participant_passes';
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'redeemed_at' => 'datetime',
+        ];
+    }
 
     /**
      * Passes of people who never checked in for something that already started.
@@ -50,6 +58,19 @@ class ParticipantPass extends BaseModel
             );
     }
 
+    private function redemptionHolderIsActive(): bool
+    {
+        if ($this->redeemed_event_version_id === null) {
+            return false;
+        }
+
+        return EventVersion::query()
+            ->whereKey($this->redeemed_event_version_id)
+            ->where('is_deleted', 0)
+            ->notCancelled()
+            ->exists();
+    }
+
     public function markAsUsed(): bool
     {
         $usedAt = now();
@@ -65,6 +86,25 @@ class ParticipantPass extends BaseModel
         }
 
         return $claimed;
+    }
+
+    public function isRedeemable(): bool
+    {
+        if ($this->revoked_at !== null || now()->gt(Carbon::parse($this->expiration_date)->endOfDay())) {
+            return false;
+        }
+
+        return $this->redeemed_at === null || ! $this->redemptionHolderIsActive();
+    }
+
+    public function isRedeemedBy(EventVersion $booking): bool
+    {
+        return $this->redeemed_at !== null && (int) $this->redeemed_event_version_id === $booking->getId();
+    }
+
+    public function redemptionHolder(): BelongsTo
+    {
+        return $this->belongsTo(EventVersion::class, 'redeemed_event_version_id');
     }
 
     public function participant(): BelongsTo
