@@ -37,7 +37,7 @@ class BuildDhlRatesPayloadAction
             ]],
             'plannedShippingDateAndTime' => $this->plannedShippingDate()->format(self::PLANNED_TIME_FORMAT),
             'unitOfMeasurement' => 'metric',
-            'isCustomsDeclarable' => false,
+            'isCustomsDeclarable' => self::crossesBorder($this->company, $this->destination['country_code'] ?? null),
             'packages' => array_map(fn (array $parcel): array => $this->packagePayload($parcel), $this->parcels),
             'valueAddedServices' => [[
                 'serviceCode' => $this->signatureService(),
@@ -60,6 +60,13 @@ class BuildDhlRatesPayloadAction
         }
 
         return Carbon::now($timezone);
+    }
+
+    public static function crossesBorder(CompanyInterface $company, ?string $countryCode): bool
+    {
+        $origin = (string) (((array) $company->get(ConfigurationEnum::ORIGIN->value))['country_code'] ?? '');
+
+        return strcasecmp($origin, (string) $countryCode) !== 0;
     }
 
     private function plannedShippingDate(): Carbon

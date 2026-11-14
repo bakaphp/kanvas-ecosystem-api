@@ -6,23 +6,33 @@ namespace Kanvas\Connectors\Dhl\Actions;
 
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\DataTransferObject\Consignee;
 use Kanvas\Connectors\Dhl\Enums\BookingStateEnum;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Dhl\Enums\CustomsAttributeEnum;
 use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Dhl\Exceptions\DhlBookingException;
 use Kanvas\Connectors\Dhl\Providers\DhlShippingProvider;
 use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
+use Throwable;
 
 class CreateDhlShipmentAction
 {
     public const string CUSTOMER_TEMPLATE = 'user-order-dispatched';
     public const string LABEL_FIELD = 'dhl-label';
+    public const string INVOICE_FIELD = 'dhl-commercial-invoice';
+    public const array DOCUMENT_FIELDS = [
+        'label' => self::LABEL_FIELD,
+        'invoice' => self::INVOICE_FIELD,
+    ];
     public const string PAST_PICKUP_CUTOFF = '5001:';
+    public const string LOCK_PREFIX = 'dhl-booking:';
+    public const int LOCK_SECONDS = 300;
 
     public function __construct(protected Order $order)
     {
@@ -36,6 +46,21 @@ class CreateDhlShipmentAction
             return $this->skipped('The order was not quoted with DHL');
         }
 
+        $lock = Cache::lock(self::LOCK_PREFIX . $this->order->uuid, self::LOCK_SECONDS);
+
+        if (! $lock->get()) {
+            return $this->skipped('Another booking of this order is running');
+        }
+
+        try {
+            return $this->bookOnce($shipping);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function bookOnce(array $shipping): array
+    {
         $state = $this->bookingState();
 
         if ($state === BookingStateEnum::PENDING && empty($this->order->tracking_client_id)) {
@@ -46,6 +71,10 @@ class CreateDhlShipmentAction
             return $this->skipped("Booking state is already {$state->value}");
         }
 
+        if ($this->order->orderStatus()->value('slug') !== OrderStatusEnum::READY_FOR_DISPATCH->value) {
+            return $this->skipped('The order is no longer ready for dispatch');
+        }
+
         $meta = $this->quoteMeta($shipping);
         $consignee = Consignee::fromOrder($this->order);
 
@@ -53,10 +82,12 @@ class CreateDhlShipmentAction
             throw DhlBookingException::missingConsigneeData($consignee->missingFields());
         }
 
+        $this->assertCustomsData($consignee);
+
         $response = $this->book($consignee, $meta);
 
         $this->persistBooking($response);
-        $this->attachLabel($response);
+        $this->attachDocuments($response);
         $this->moveToDispatched();
         $this->notifyCustomer($response);
 
@@ -129,20 +160,47 @@ class CreateDhlShipmentAction
         $this->order->set(CustomFieldEnum::BOOKING_STATE->value, BookingStateEnum::BOOKED->value);
     }
 
-    private function attachLabel(array $response): void
+    private function assertCustomsData(Consignee $consignee): void
     {
-        $label = collect($response['documents'] ?? [])->firstWhere('typeCode', 'label');
-
-        if ($label === null) {
+        if (! BuildDhlRatesPayloadAction::crossesBorder($this->order->company, $consignee->countryCode)) {
             return;
         }
 
-        app(AttachDhlDocumentAction::class)->execute(
-            $this->order,
-            $label['content'],
-            "dhl-label-{$response['shipmentTrackingNumber']}.pdf",
-            self::LABEL_FIELD
-        );
+        $missing = [];
+
+        foreach ($this->order->items as $item) {
+            $fields = $item->variant === null ? ['variant'] : CustomsAttributeEnum::missingFor($item->variant);
+
+            if ($fields !== []) {
+                $missing[(string) $item->product_name] = $fields;
+            }
+        }
+
+        if ($missing !== []) {
+            throw DhlBookingException::missingCustomsData($missing);
+        }
+    }
+
+    private function attachDocuments(array $response): void
+    {
+        foreach ($response['documents'] ?? [] as $document) {
+            $field = self::DOCUMENT_FIELDS[$document['typeCode'] ?? ''] ?? null;
+
+            if ($field === null || empty($document['content'])) {
+                continue;
+            }
+
+            try {
+                app(AttachDhlDocumentAction::class)->execute(
+                    $this->order,
+                    $document['content'],
+                    "{$field}-{$response['shipmentTrackingNumber']}.pdf",
+                    $field
+                );
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
     }
 
     private function moveToDispatched(): void

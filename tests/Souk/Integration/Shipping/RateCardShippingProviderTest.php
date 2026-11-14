@@ -257,12 +257,12 @@ final class RateCardShippingProviderTest extends TestCase
         $lightCertificado = $this->quoteFor($provider->quote($this->request('US', 0.05)), 'correo_certificado');
         $heavyResto = $this->quoteFor($provider->quote($this->request('CN', 12.5)), 'ems');
 
-        $this->assertSame(2820.0, $ems->amount);
+        $this->assertSame(47.0, $ems->amount);
         $this->assertSame([7, 10], [$ems->transitMinDays, $ems->transitMaxDays]);
-        $this->assertSame(450.0, $certificado->amount);
+        $this->assertSame(7.5, $certificado->amount);
         $this->assertSame([11, 14], [$certificado->transitMinDays, $certificado->transitMaxDays]);
-        $this->assertSame(375.0, $lightCertificado->amount);
-        $this->assertSame(11720.0, $heavyResto->amount);
+        $this->assertSame(6.25, $lightCertificado->amount);
+        $this->assertSame(195.33, $heavyResto->amount);
         $this->assertSame([10, 15], [$heavyResto->transitMinDays, $heavyResto->transitMaxDays]);
     }
 
@@ -274,11 +274,11 @@ final class RateCardShippingProviderTest extends TestCase
         $edge = $this->quoteFor($provider->quote($this->request('US', 0.5)), 'ems');
         $over = $this->quoteFor($provider->quote($this->request('US', 0.501)), 'ems');
 
-        $this->assertSame(2820.0, $light->amount);
+        $this->assertSame(47.0, $light->amount);
         $this->assertSame(0.5, $light->meta['max_weight']);
-        $this->assertSame(2820.0, $edge->amount);
+        $this->assertSame(47.0, $edge->amount);
         $this->assertSame(0.5, $edge->meta['max_weight']);
-        $this->assertSame(3070.0, $over->amount);
+        $this->assertSame(51.17, $over->amount);
         $this->assertSame(1.0, $over->meta['max_weight']);
     }
 

@@ -9,6 +9,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Dhl\Enums\CustomsAttributeEnum;
 use Kanvas\Connectors\Dhl\Providers\DhlShippingProvider;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Souk\Shipping\DataTransferObject\Parcel;
@@ -81,15 +82,40 @@ final class DhlShippingProviderTest extends TestCase
         $this->assertNotContains('7', array_map(fn ($quote): string => $quote->serviceCode, $quotes));
     }
 
-    public function testInternationalLanesAreNotSupportedAndNeverCallDhl(): void
+    public function testInternationalLanesAreQuotedAsCustomsDeclarableWhenEveryProductHasCustomsData(): void
+    {
+        $this->fakeDhl([self::DHL_HOST . '/rates' => Http::response($this->dhlRatesResponse())]);
+
+        $request = $this->request('US', variants: [$this->customsVariant('Robusto', $this->completeCustomsData())]);
+
+        $this->assertTrue($this->provider()->supports($request));
+        $this->assertNotSame([], $this->provider()->quote($request));
+        Http::assertSent(fn (Request $request): bool => $request['isCustomsDeclarable'] === true
+            && $request['customerDetails']['receiverDetails']['countryCode'] === 'US');
+    }
+
+    public function testAnInternationalLaneIsNotQuotedWhileAProductLacksRequiredCustomsData(): void
     {
         $this->fakeDhl();
+        $complete = $this->customsVariant('Robusto', $this->completeCustomsData());
+        $withoutCountry = $this->customsVariant('Torpedo', [CustomsAttributeEnum::DESCRIPTION->value => 'Cigars']);
+        $withoutWeight = $this->customsVariant('Lancero', $this->completeCustomsData(), weight: 0);
 
-        $request = $this->request('US');
-
-        $this->assertFalse($this->provider()->supports($request));
-        $this->assertSame([], $this->provider()->quote($request));
+        $this->assertFalse($this->provider()->supports($this->request('US', variants: [$complete, $withoutCountry])));
+        $this->assertFalse($this->provider()->supports($this->request('US', variants: [$withoutWeight])));
+        $this->assertSame([], $this->provider()->quote($this->request('US', variants: [$withoutCountry])));
         Http::assertNothingSent();
+    }
+
+    public function testTheHsCodeIsOptionalAndDomesticLanesNeedNoCustomsData(): void
+    {
+        $withoutHsCode = $this->customsVariant('Robusto', [
+            CustomsAttributeEnum::DESCRIPTION->value => 'Cigars',
+            CustomsAttributeEnum::MANUFACTURER_COUNTRY->value => 'DO',
+        ]);
+
+        $this->assertTrue($this->provider()->supports($this->request('US', variants: [$withoutHsCode])));
+        $this->assertTrue($this->provider()->supports($this->request('DO', variants: [$this->customsVariant('Plain', [])])));
     }
 
     public function testParcelsWithoutDimensionsAreNotSupported(): void
@@ -145,7 +171,7 @@ final class DhlShippingProviderTest extends TestCase
         return new DhlShippingProvider(app(Apps::class), $this->company);
     }
 
-    private function request(string $destinationCode, bool $withDimensions = true): ShipmentRequest
+    private function request(string $destinationCode, bool $withDimensions = true, array $variants = []): ShipmentRequest
     {
         $country = Countries::query()->where('code', strtolower($destinationCode))->firstOrFail();
 
@@ -161,6 +187,7 @@ final class DhlShippingProviderTest extends TestCase
             ]),
             destinationCity: 'Santiago',
             destinationPostalCode: '51000',
+            variants: $variants,
         );
     }
 }

@@ -15,6 +15,7 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 #[WorkflowAction(
     name: 'DHL Create Shipment',
@@ -44,20 +45,29 @@ class CreateDhlShipmentActivity extends KanvasActivity implements WorkflowActivi
                 try {
                     return new CreateDhlShipmentAction($order)->execute();
                 } catch (DhlBookingException $exception) {
-                    new SendOrderEmailsAction(
-                        $order,
-                        self::OWNER_FAILURE_TEMPLATE,
-                        ['reason' => $exception->getMessage()],
-                        ['mail'],
-                    )->execute();
+                    return $this->failBooking($order, $exception);
+                } catch (Throwable $exception) {
+                    report($exception);
 
-                    return $this->failWorkflow([
-                        'order' => $order->getId(),
-                        'message' => $exception->getMessage(),
-                    ]);
+                    return $this->failBooking($order, DhlBookingException::unconfirmed($exception->getMessage()));
                 }
             },
             company: $order->company,
         );
+    }
+
+    private function failBooking(Model $order, DhlBookingException $exception): array
+    {
+        new SendOrderEmailsAction(
+            $order,
+            self::OWNER_FAILURE_TEMPLATE,
+            ['reason' => $exception->getMessage()],
+            ['mail'],
+        )->execute();
+
+        return $this->failWorkflow([
+            'order' => $order->getId(),
+            'message' => $exception->getMessage(),
+        ]);
     }
 }
