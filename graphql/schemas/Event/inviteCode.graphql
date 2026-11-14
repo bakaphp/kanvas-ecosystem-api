@@ -1,0 +1,11 @@
+type InviteCodeCheck {
+    valid: Boolean!
+    time_slot: TimeSlots
+}
+
+extend type Query @guard {
+    verifyInviteCode(product_id: ID!, code: String!): InviteCodeCheck!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\InviteCodeQuery@verify"
+        )
+}

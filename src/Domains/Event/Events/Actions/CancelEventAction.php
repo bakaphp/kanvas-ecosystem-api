@@ -8,6 +8,7 @@ use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Event\Passes\Actions\ReleasePassAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -59,6 +60,7 @@ class CancelEventAction
         ]]);
 
         $this->eventVersion->refresh();
+        new ReleasePassAction($this->eventVersion->app, $this->eventVersion->getId())->execute();
         $this->eventVersion->timeSlot?->autoUpdateStatus();
         new ScheduleEventReminderAction($this->eventVersion)->execute();
 

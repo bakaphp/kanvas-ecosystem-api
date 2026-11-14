@@ -38,7 +38,7 @@ trait CreatesEventVersions
         ]);
     }
 
-    private function createEventVersion(Event $event, ?Companies $company = null): EventVersion
+    private function createEventVersion(Event $event, ?Companies $company = null, ?Carbon $startAt = null): EventVersion
     {
         return EventVersion::create([
             'event_id' => $event->getId(),
@@ -51,7 +51,8 @@ trait CreatesEventVersions
             'version' => '1',
             'price_per_ticket' => 0,
             'total_attendees' => 0,
-            'end_at' => Carbon::now()->addDays(30),
+            'start_at' => $startAt,
+            'end_at' => $startAt?->copy()->addDay() ?? Carbon::now()->addDays(30),
         ]);
     }
 }

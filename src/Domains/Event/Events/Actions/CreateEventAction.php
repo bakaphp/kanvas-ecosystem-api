@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
@@ -36,6 +37,7 @@ class CreateEventAction
 {
     protected bool $runWorkflow = true;
     protected bool $sendNotifications = true;
+    protected ?Closure $bookingClaim = null;
 
     public function __construct(
         protected Event $event,
@@ -117,6 +119,10 @@ class CreateEventAction
                 $createParticipant->execute();
             }
 
+            if ($this->bookingClaim !== null) {
+                ($this->bookingClaim)($eventVersion);
+            }
+
             $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
             $orderCreated = false;
             if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
@@ -178,6 +184,13 @@ class CreateEventAction
     public function disableWorkflow(): self
     {
         $this->runWorkflow = false;
+
+        return $this;
+    }
+
+    public function claimingBookingWith(Closure $claim): self
+    {
+        $this->bookingClaim = $claim;
 
         return $this;
     }

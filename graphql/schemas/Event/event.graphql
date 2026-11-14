@@ -278,6 +278,7 @@ input EventVersionParticipantUpdateInput {
 
 input TimeSlotBookingInput {
     time_slot_id: ID
+    invite_code: String
     participants: Mixed
     event_name: String
     event_description: String
@@ -421,6 +422,11 @@ extend type Mutation @guard {
     bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
+        )
+
+    cancelTimeSlotBooking(id: ID!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@cancel"
         )
 
     updateTimeSlotBooking(input: TimeSlotBookingUpdateInput!): EventVersion!
