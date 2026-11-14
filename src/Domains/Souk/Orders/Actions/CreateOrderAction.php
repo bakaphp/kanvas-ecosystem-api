@@ -34,6 +34,7 @@ class CreateOrderAction
 
     private ?OrderTypes $resolvedOrderType = null;
     public bool $sendNotifications = true;
+    private bool $enforceVariantCapacity = true;
 
     public function __construct(
         protected Order $orderData
@@ -218,6 +219,13 @@ class CreateOrderAction
         return $this;
     }
 
+    public function skipVariantCapacityCheck(): self
+    {
+        $this->enforceVariantCapacity = false;
+
+        return $this;
+    }
+
     public function disableNotifications(): self
     {
         $this->sendNotifications = false;
@@ -277,7 +285,7 @@ class CreateOrderAction
 
     private function resolveCapacityLimitedVariants(): array
     {
-        if (! $this->resolveOrderType()?->isExpirable()) {
+        if (! $this->enforceVariantCapacity || ! $this->resolveOrderType()?->isExpirable()) {
             return [];
         }
 

@@ -26,6 +26,7 @@ use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Event\Events\Models\Event;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -938,6 +939,11 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         }
 
         return $query;
+    }
+
+    public function isEventBacked(): bool
+    {
+        return $this->resources_type === new Event()->getMorphClass();
     }
 
     public function setOrderType(string $orderType): void

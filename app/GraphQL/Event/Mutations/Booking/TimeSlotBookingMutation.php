@@ -127,6 +127,8 @@ class TimeSlotBookingMutation
 
         // Build event data using the same action as bookResource
         $eventData = new BuildEventDataAction($resource, $user, $company, $bookingData)->execute();
+        $eventData['start_at'] = $bookingData['start_at'];
+        $eventData['end_at'] = $bookingData['end_at'];
         $eventDto = EventDto::from($app, $user, $company, $eventData);
         $metadata = $bookingData['metadata'] ?? [];
         unset($metadata['invite_code']);
