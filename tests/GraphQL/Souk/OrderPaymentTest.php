@@ -91,6 +91,64 @@ class OrderPaymentTest extends OrderBase
         $this->assertEquals(PaymentStatusEnum::PAID->value, $data['payment']['status']);
     }
 
+    public function testPaymentAmountDefaultsToNetTotalAfterOrderDiscount(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+        $order->updateQuietly([
+            'total_gross_amount' => 100.0,
+            'total_net_amount' => 70.0,
+        ]);
+
+        $this->addCashPayment($order);
+
+        $payment = Payments::where('payable_id', $order->id)
+            ->where('payable_type', get_class($order))
+            ->firstOrFail();
+        $this->assertEquals(70.0, (float) $payment->amount);
+    }
+
+    public function testPaymentAmountMatchesOrderTotalWhenOrderHasNoDiscount(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+        $order->updateQuietly([
+            'total_gross_amount' => 100.0,
+            'total_net_amount' => 100.0,
+        ]);
+
+        $this->addCashPayment($order);
+
+        $payment = Payments::where('payable_id', $order->id)
+            ->where('payable_type', get_class($order))
+            ->firstOrFail();
+        $this->assertEquals(100.0, (float) $payment->amount);
+    }
+
+    private function addCashPayment(Order $order): void
+    {
+        $this->graphQL('
+            mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                addPaymentToOrder(orderID: $orderID, input: $input) {
+                    status
+                }
+            }
+        ', [
+            'orderID' => $order->id,
+            'input' => [
+                'payment_method' => 'CASH',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ])->assertSuccessful();
+    }
+
     public function testMakePaymentIntentFromOrderReassignsPendingPaymentToProcessor(): void
     {
         $order = $this->createOrderFromCart(

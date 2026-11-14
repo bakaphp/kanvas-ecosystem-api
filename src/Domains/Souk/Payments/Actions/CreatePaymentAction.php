@@ -82,7 +82,7 @@ class CreatePaymentAction
         }
 
         $paymentFormData = [
-            'amount' => $formData['amount'] ?? $this->order->getTotalAmount(),
+            'amount' => $formData['amount'] ?? $this->order->getTotalDueAmount(),
             'payment_date' => $formData['payment_date'] ?? date('Y-m-d'),
             'concept' => $formData['concept'] ?? "Payment {$this->order->reference}",
             'payment_methods_id' => $paymentMethodId,
