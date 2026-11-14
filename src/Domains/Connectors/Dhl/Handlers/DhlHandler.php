@@ -45,6 +45,7 @@ class DhlHandler extends BaseIntegration
         $this->company->set(ConfigurationEnum::ORIGIN->value, $dhl->origin);
         $this->company->set(ConfigurationEnum::REQUEST_PICKUP->value, $dhl->requestPickup ? 1 : 0);
         $this->company->set(ConfigurationEnum::PICKUP_CLOSE_TIME->value, $dhl->pickupCloseTime);
+        $this->company->set(ConfigurationEnum::INCOTERM->value, $dhl->incoterm);
 
         if ($dhl->contentDescription !== null) {
             $this->company->set(ConfigurationEnum::CONTENT_DESCRIPTION->value, $dhl->contentDescription);

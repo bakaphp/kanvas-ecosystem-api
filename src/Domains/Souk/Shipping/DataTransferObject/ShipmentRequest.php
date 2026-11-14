@@ -22,6 +22,7 @@ class ShipmentRequest extends Data
         public readonly ?string $originCity = null,
         public readonly ?string $originPostalCode = null,
         public readonly ?Carbon $shipDate = null,
+        public readonly array $variants = [],
     ) {
     }
 

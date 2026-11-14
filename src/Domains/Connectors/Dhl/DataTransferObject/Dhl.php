@@ -12,6 +12,17 @@ use Kanvas\Regions\Models\Regions;
 
 class Dhl
 {
+    public const string ORIGIN_FIELD_PREFIX = 'origin_';
+    public const array ORIGIN_FIELDS = [
+        'company_name',
+        'contact_name',
+        'phone',
+        'email',
+        'address_line1',
+        'city',
+        'country_code',
+        'postal_code',
+    ];
     private const array REQUIRED_ORIGIN_FIELDS = [
         'company_name',
         'contact_name',
@@ -36,6 +47,7 @@ class Dhl
         public readonly bool $requestPickup = true,
         public readonly string $pickupCloseTime = ConfigurationEnum::DEFAULT_PICKUP_CLOSE_TIME,
         public readonly ?string $contentDescription = null,
+        public readonly string $incoterm = ConfigurationEnum::DEFAULT_INCOTERM,
     ) {
     }
 
@@ -45,7 +57,7 @@ class Dhl
         CompanyInterface $company,
         Regions $region
     ): self {
-        $origin = $data['origin'] ?? [];
+        $origin = $data['origin'] ?? self::flatOrigin($data);
 
         foreach (self::REQUIRED_ORIGIN_FIELDS as $field) {
             if (empty($origin[$field])) {
@@ -67,6 +79,20 @@ class Dhl
             requestPickup: (bool) ($data['request_pickup'] ?? true),
             pickupCloseTime: $data['pickup_close_time'] ?? ConfigurationEnum::DEFAULT_PICKUP_CLOSE_TIME,
             contentDescription: $data['content_description'] ?? null,
+            incoterm: strtoupper((string) ($data['incoterm'] ?? ConfigurationEnum::DEFAULT_INCOTERM)),
         );
+    }
+
+    private static function flatOrigin(array $data): array
+    {
+        $origin = [];
+
+        foreach (self::ORIGIN_FIELDS as $field) {
+            if (isset($data[self::ORIGIN_FIELD_PREFIX . $field])) {
+                $origin[$field] = $data[self::ORIGIN_FIELD_PREFIX . $field];
+            }
+        }
+
+        return $origin;
     }
 }

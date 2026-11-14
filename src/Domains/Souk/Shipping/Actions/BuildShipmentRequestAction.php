@@ -49,6 +49,7 @@ class BuildShipmentRequestAction
             parcels: new DataCollection(Parcel::class, [$this->buildParcel($weight)]),
             destinationCity: $destination->city,
             destinationPostalCode: $destination->postalCode,
+            variants: $this->variants,
         );
     }
 
