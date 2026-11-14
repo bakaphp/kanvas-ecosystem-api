@@ -25,15 +25,19 @@ class CrmLeadSourceSynchronizer
      */
     public function canSync(Lead $lead): bool
     {
-        $externalIdKey = match (new PullLeadAction($lead)->detectConnector()) {
-            'elead' => EleadCustomFieldEnum::LEAD_ID->value,
-            'vinsolution' => VinSolutionCustomFieldEnum::LEADS->value,
-            'dealersocket' => DealerSocketCustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value,
-            'drivecentric' => DriveCentricCustomFieldEnum::DRIVE_CENTRIC_DEAL_ID->value,
-            default => null,
+        $externalIdKeys = match (new PullLeadAction($lead)->detectConnector()) {
+            // Leads imported from eLead carry only the opportunity id, never the popup lead id.
+            'elead' => [
+                EleadCustomFieldEnum::LEAD_ID->value,
+                EleadCustomFieldEnum::OPPORTUNITY_ID->value,
+            ],
+            'vinsolution' => [VinSolutionCustomFieldEnum::LEADS->value],
+            'dealersocket' => [DealerSocketCustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value],
+            'drivecentric' => [DriveCentricCustomFieldEnum::DRIVE_CENTRIC_DEAL_ID->value],
+            default => [],
         };
 
-        return $externalIdKey !== null && filled($lead->get($externalIdKey));
+        return array_any($externalIdKeys, fn (string $key) => filled($lead->get($key)));
     }
 
     public function sync(Lead $lead): void
