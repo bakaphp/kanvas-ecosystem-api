@@ -73,6 +73,7 @@ type EventVersion {
     eventStatus: EventStatus @belongsTo(relation: "eventStatus")
     timeSlot: TimeSlots @belongsTo(relation: "timeSlot")
     max_capacity: Int @method(name: "getMaxCapacity")
+    pass_code: String @method(name: "getPassCode")
     created_at: DateTime
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")

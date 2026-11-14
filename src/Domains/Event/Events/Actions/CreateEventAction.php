@@ -17,6 +17,7 @@ use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
+use Kanvas\Event\Passes\Enums\PassFormatEnum;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -170,7 +171,8 @@ class CreateEventAction
             if (! $participants->isEmpty() && (! $orderCreated || $this->freeBooking)) {
                 $codes = new CreatePassAction(
                     event: $eventVersion->event,
-                    eventVersion: $eventVersion
+                    eventVersion: $eventVersion,
+                    format: $this->freeBooking ? PassFormatEnum::QR_CODE : PassFormatEnum::NUMERIC_PIN
                 )->forAllParticipants();
             }
 

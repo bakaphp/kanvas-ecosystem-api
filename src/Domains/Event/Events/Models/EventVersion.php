@@ -25,6 +25,7 @@ use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
+use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -242,6 +243,24 @@ class EventVersion extends BaseModel implements ReadableAtLocation
         }
 
         return isset($metadata['max_capacity']) ? (int) $metadata['max_capacity'] : null;
+    }
+
+    public function getPassCode(): ?string
+    {
+        $user = auth()->user();
+
+        if ($user === null || ($this->users_id !== $user->getId() && ! $user->isAdmin())) {
+            return null;
+        }
+
+        $pass = ParticipantPass::query()
+            ->where('event_version_id', $this->getId())
+            ->whereNull('participant_id')
+            ->whereNull('revoked_at')
+            ->notDeleted()
+            ->first();
+
+        return $pass ? decrypt($pass->code) : null;
     }
 
     public function searchableAs(): string

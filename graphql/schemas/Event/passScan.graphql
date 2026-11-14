@@ -1,0 +1,29 @@
+enum EventPassScanResultCode {
+    ADMITTED @enum(value: "admitted")
+    ALREADY_ADMITTED @enum(value: "already_admitted")
+    INVALID_CODE @enum(value: "invalid_code")
+    NOT_ACTIVE @enum(value: "not_active")
+    WRONG_RESOURCE @enum(value: "wrong_resource")
+    OUTSIDE_WINDOW @enum(value: "outside_window")
+    FORBIDDEN @enum(value: "forbidden")
+}
+
+type ScannedBooking {
+    plate: String
+    arrival_hour: String
+    date: String
+    guest: String
+}
+
+type EventPassScanResult {
+    result: EventPassScanResultCode! @method(name: "resultValue")
+    admitted: Boolean! @method(name: "admitted")
+    booking: ScannedBooking
+}
+
+extend type Mutation @guard {
+    scanEventPass(code: String!, product_id: ID!): EventPassScanResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassScanMutation@scan"
+        )
+}
