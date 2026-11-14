@@ -50,6 +50,23 @@ class ParticipantPass extends BaseModel
             );
     }
 
+    public function markAsUsed(): bool
+    {
+        $usedAt = now();
+
+        $claimed = static::query()
+            ->whereKey($this->getKey())
+            ->whereNull('used_date')
+            ->update(['used_date' => $usedAt]) === 1;
+
+        if ($claimed) {
+            $this->used_date = $usedAt;
+            $this->syncOriginal();
+        }
+
+        return $claimed;
+    }
+
     public function participant(): BelongsTo
     {
         return $this->belongsTo(Participant::class);

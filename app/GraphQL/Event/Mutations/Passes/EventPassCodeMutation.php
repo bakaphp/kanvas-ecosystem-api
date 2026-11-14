@@ -168,8 +168,9 @@ class EventPassCodeMutation
         $pass = new ScanPassAction($app, $company, $code, $format)->execute();
 
         // Mark the pass as used
-        $pass->used_date = now();
-        $pass->save();
+        if (! $pass->markAsUsed()) {
+            throw new ValidationException('PIN code has already been used.');
+        }
 
         // Load relationships
         $pass->load(['event', 'eventVersion', 'participant', 'motive']);

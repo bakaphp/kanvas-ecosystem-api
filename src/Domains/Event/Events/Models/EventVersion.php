@@ -11,6 +11,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,6 +21,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
@@ -58,6 +60,17 @@ class EventVersion extends BaseModel implements ReadableAtLocation
     public function eventStatus(): BelongsTo
     {
         return $this->belongsTo(EventStatus::class);
+    }
+
+    public function scopeNotCancelled(Builder $query): Builder
+    {
+        return $query->whereDoesntHave(
+            'event.eventStatus',
+            fn (Builder $status) => $status->whereRaw(
+                'LOWER(COALESCE(NULLIF(slug, ""), name)) = ?',
+                [strtolower(EventStatusEnum::CANCELLED->value)]
+            )
+        );
     }
 
     public function timeSlot(): BelongsTo

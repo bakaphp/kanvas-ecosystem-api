@@ -59,6 +59,7 @@ class CancelEventAction
         ]]);
 
         $this->eventVersion->refresh();
+        $this->eventVersion->timeSlot?->autoUpdateStatus();
         new ScheduleEventReminderAction($this->eventVersion)->execute();
 
         if ($this->sendNotifications) {

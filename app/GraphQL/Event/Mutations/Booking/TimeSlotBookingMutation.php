@@ -7,6 +7,7 @@ namespace App\GraphQL\Event\Mutations\Booking;
 use Baka\Support\Str;
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\BuildEventDataAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
@@ -14,7 +15,9 @@ use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
 use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\TimeSlots;
+use Kanvas\Event\Events\Services\TimeSlotBookingLock;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class TimeSlotBookingMutation
@@ -38,6 +41,25 @@ class TimeSlotBookingMutation
             throw new ValidationException('This time slot has already started and can no longer be booked. Slot start: ' . $timeSlot->start_at->toDateTimeString());
         }
 
+        return TimeSlotBookingLock::run(
+            [$timeSlot->id],
+            fn (): EventVersion => $this->createLockedBooking(
+                $timeSlot->refresh(),
+                $input,
+                $user,
+                $company,
+                $app
+            )
+        );
+    }
+
+    private function createLockedBooking(
+        TimeSlots $timeSlot,
+        array $input,
+        Users $user,
+        Companies $company,
+        Apps $app
+    ): EventVersion {
         // Validate capacity before booking
         $participantCount = count($input['participants'] ?? []);
         if (! $timeSlot->hasAvailableCapacity($participantCount)) {
@@ -121,6 +143,23 @@ class TimeSlotBookingMutation
             throw new ValidationException('This time slot has already started and can no longer be booked. Slot start: ' . $newTimeSlot->start_at->toDateTimeString());
         }
 
+        return TimeSlotBookingLock::run(
+            [$oldTimeSlot->id, $newTimeSlot->id],
+            fn (): EventVersion => $this->moveLockedBooking(
+                $eventVersion,
+                $oldTimeSlot->refresh(),
+                $newTimeSlot->refresh(),
+                $input
+            )
+        );
+    }
+
+    private function moveLockedBooking(
+        EventVersion $eventVersion,
+        TimeSlots $oldTimeSlot,
+        TimeSlots $newTimeSlot,
+        array $input
+    ): EventVersion {
         // Validate capacity for the new time slot
         $participantCount = count($input['participants'] ?? $eventVersion->participants ?? []);
         if (! $newTimeSlot->hasAvailableCapacity($participantCount)) {
