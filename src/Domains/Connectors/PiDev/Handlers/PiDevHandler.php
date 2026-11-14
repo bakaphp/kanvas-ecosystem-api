@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PiDev\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\PiDev\Client;
 use Kanvas\Connectors\PiDev\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

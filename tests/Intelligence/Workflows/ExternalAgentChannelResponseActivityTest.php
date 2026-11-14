@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Workflows;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Leads\Actions\DeliverConversationMessageAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
+use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Intelligence\Workflows\ExternalAgentChannelResponseActivity;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -16,25 +20,29 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
 /**
- * Locks the gating behavior of ExternalAgentChannelResponseActivity: only messages flagged
- * from_ia / from_orchestrator are delivered, and a from-phone is required only for the
- * phone-based channels (SMS / WhatsApp), never for email.
+ * Only messages flagged from_ia / from_orchestrator are delivered, and they leave the way a
+ * person's reply does: on the company's connection for the medium, with no number to name.
  */
 class ExternalAgentChannelResponseActivityTest extends TestCase
 {
+    use BuildsCommunicationFixtures;
     use DatabaseTransactions;
     use HasIntegrationCompany;
 
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
+
     private const string FROM_PHONE = '+19998887777';
-    private const string CUSTOMER_PHONE = '+15551234567';
+    private const string CUSTOMER_PHONE = '+18095550802';
 
     public function testRejectsMessageWithOnlyOneExternalAiFlag(): void
     {
@@ -55,8 +63,11 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
         $this->assertStringContainsString('not from an external AI', $result['message'] ?? '');
     }
 
-    public function testRequiresFromPhoneForSms(): void
+    public function testATextLeavesOnTheCompanysConnectionWithNoNumberNamed(): void
     {
+        $transport = $this->useFakeProvider();
+        $this->defaultSmsConnection(number: '+18095550801');
+        Event::fake([LeadAiTriggeredEvent::class]);
         [$app, $channel, $message] = $this->makeChannelMessage(
             verb: 'sms',
             content: 'Orchestrator says hi',
@@ -70,14 +81,23 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             ['message' => $message],
         );
 
-        $this->assertStringContainsString('From phone number is required for sms', $result['message'] ?? '');
+        $this->assertStringContainsString('Message sent to lead via sms', $result['message'] ?? '');
+        $this->assertCount(1, $transport->sent);
+        $this->assertStringContainsString(
+            SmsOptOutNoticeService::NOTICE,
+            $transport->sent[0]['text'],
+            'the first text of a conversation carries the opt-out clause whoever wrote it'
+        );
+        $this->assertTrue((bool) $message->fresh()->is_un_response);
+        Event::assertNotDispatched(LeadAiTriggeredEvent::class);
     }
 
-    public function testEmailDoesNotRequireFromPhone(): void
+    public function testATextTheCompanyCannotSendIsNotedAndAnswersNothing(): void
     {
+        $transport = $this->useFakeProvider();
         [$app, $channel, $message] = $this->makeChannelMessage(
-            verb: 'email',
-            content: 'Orchestrator email body',
+            verb: 'sms',
+            content: 'Orchestrator says hi',
             fromIa: true,
             fromOrchestrator: true,
         );
@@ -88,10 +108,16 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             ['message' => $message],
         );
 
-        // Email bypasses the phone gate — whatever the downstream send does, it must never be
-        // rejected for a missing from-phone.
-        $combined = ($result['message'] ?? '') . ($result['error'] ?? '');
-        $this->assertStringNotContainsString('From phone number is required', $combined);
+        $this->assertStringContainsString('no sms connection', $result['message'] ?? '');
+        $this->assertSame([], $transport->sent);
+        $this->assertFalse((bool) $message->fresh()->is_un_response);
+        $this->assertTrue(
+            MessagesRepository::getLatestMessagesByLead($channel->entityData(), 20)->contains(
+                fn (Message $note): bool => $note->tags()
+                    ->where('name', DeliverConversationMessageAction::NOT_DELIVERED_TAG)
+                    ->exists()
+            )
+        );
     }
 
     public function testRejectsEmptyContentAndNoFiles(): void

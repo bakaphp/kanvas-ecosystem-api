@@ -26,7 +26,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 /**
  * Creates a Kanvas social message from a Microsoft Graph email response.
  *
- * Mirrors the Mailgun CreateMessageFromEmailAction pattern:
+ * What it does:
  * 1. Creates a 'microsoft-email' message type
  * 2. Stores the Graph message ID and conversationId for reply threading
  * 3. If a lead is found: creates/gets a channel tied to the lead, links the message
@@ -34,8 +34,6 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  * 4. If no lead: creates a standalone message
  *
  * The $emailData param expects a Microsoft Graph message object (from Client::getMessage()).
- *
- * @see \Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\CreateMessageFromEmailAction
  */
 class CreateMessageFromMicrosoftEmailAction
 {

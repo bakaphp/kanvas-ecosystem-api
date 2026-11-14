@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Tavily\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Tavily\Client;
 use Kanvas\Connectors\Tavily\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

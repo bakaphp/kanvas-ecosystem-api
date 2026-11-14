@@ -54,6 +54,7 @@ enum WorkflowEnum: string
 
     case CONTACT_SAVED = 'contact-saved';
     case TRIGGER_AI = 'trigger-ai';
+    case AGENT_REACHED_OUT = 'agent-reached-out';
     case AFTER_LEGACY_FEED = 'after-legacy-feed';
     case SUBSCRIPTION_LIFECYCLE = 'subscription-lifecycle';
     case FOLLOW_UP_PROMPT = 'follow-up-prompt';

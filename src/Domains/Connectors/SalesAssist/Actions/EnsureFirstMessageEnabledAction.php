@@ -21,9 +21,10 @@ final class EnsureFirstMessageEnabledAction
     public function execute(): array
     {
         $leadTypeConfig = $this->lead->type()->first()?->config ?? [];
-        $configKey = new LeadConfigurationService()->getFirstMessageDefaultKey($this->lead);
+        $configService = new LeadConfigurationService();
+        $configKey = $configService->getFirstMessageDefaultKey($this->lead);
 
-        if (array_key_exists($configKey, $leadTypeConfig) && ! (bool) $leadTypeConfig[$configKey]) {
+        if (! $configService->isFirstMessageEnabled($this->lead)) {
             throw new FirstMessageDisabledException(
                 "First message disabled by lead type configuration [{$configKey}]"
             );

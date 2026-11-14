@@ -563,6 +563,11 @@ class People extends BaseModel implements ExposesTemplateData
             ->count();
     }
 
+    public function isPhoneLandline(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(fn (Contact $contact): bool => $contact->isLandline() === true);
+    }
+
     public function markEmailBounced(string $email): int
     {
         return $this->emailContactsMatching($email)

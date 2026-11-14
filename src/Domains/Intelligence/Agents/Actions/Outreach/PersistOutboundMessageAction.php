@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
+use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -101,12 +100,7 @@ class PersistOutboundMessageAction
             $message->addEntity($people);
         }
 
-        // A WhatsApp result carries no `channel`, which StoreMessageSidAction would read as SMS.
-        if ($this->channelType === ChannelCategoryEnum::SMS->value) {
-            new StoreMessageSidAction($message)->execute($providerResponse);
-        } else {
-            new LinkDeliveryMessageAction($message)->execute($providerResponse);
-        }
+        new LinkDeliveryMessageAction($message)->execute($providerResponse);
 
         $message->fireWorkflow(
             WorkflowEnum::CREATED->value,

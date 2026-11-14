@@ -28,7 +28,7 @@ class ProcessLeadCampaignJobTest extends TestCase
     use DatabaseTransactions;
     use MakesAgents;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'ecosystem', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'ecosystem', 'intelligence', 'workflow'];
 
     private function campaignFor(Companies $company, string $channel, ?string $subject = null): Campaign
     {

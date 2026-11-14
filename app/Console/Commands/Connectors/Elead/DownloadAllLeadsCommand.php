@@ -16,6 +16,7 @@ use Kanvas\Connectors\Elead\Entities\Lead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
+use Kanvas\Guild\Leads\Events\LeadCreatedEvent;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
@@ -157,6 +158,7 @@ class DownloadAllLeadsCommand extends Command
                                     }
 
                                     $newLead->enableWorkflows();
+                                    LeadCreatedEvent::dispatch($newLead);
                                     $newLead->fireWorkflow(
                                         WorkflowEnum::CREATED->value,
                                         true,

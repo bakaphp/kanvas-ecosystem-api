@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\WaSender;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
@@ -127,6 +127,33 @@ final class CreateLeadMessageActionTest extends TestCase
         $this->assertSame(3, $update['result']['updates'][0]['status']);
     }
 
+    /**
+     * A photo WaSender will not hand over (too large, expired key, no credentials) must not take
+     * the customer's message down with it: it is filed, flagged, and the turn carries on.
+     */
+    public function testAPhotoThatCannotBeDownloadedIsStillFiledAndFlagged(): void
+    {
+        Exceptions::fake();
+
+        $payload = $this->directText(Str::uuid()->toString());
+        unset($payload['messageBody']);
+        $payload['message'] = [
+            'imageMessage' => [
+                'url' => 'https://mmg.whatsapp.net/o1/v/t24/f2/m000/EXAMPLE',
+                'mimetype' => 'image/jpeg',
+                'mediaKey' => 'ZXhhbXBsZS1tZWRpYS1rZXktZm9yLXRlc3RzLW9ubHky',
+            ],
+        ];
+
+        $result = $this->ingest($payload);
+        $message = Message::findOrFail($result['result']['messages'][0]['message_id']);
+
+        $this->assertSame('whatsapp-image', $result['result']['messages'][0]['type']);
+        $this->assertInstanceOf(Lead::class, $message->entity());
+        $this->assertTrue($message->tags()->where('name', 'media-not-downloaded')->exists());
+        $this->assertNotSame('', (string) $message->get('media_download_error'));
+    }
+
     private function ingest(array $messageData): array
     {
         return $this->runEvent(WebhookEventEnum::MESSAGES_UPSERT->value, ['messages' => $messageData]);
@@ -144,7 +171,7 @@ final class CreateLeadMessageActionTest extends TestCase
             ],
         ]);
 
-        return new ProcessWaSenderWebhookJob($webhookCall)->execute();
+        return new WaSenderWebhookJob($webhookCall)->execute();
     }
 
     private ?ReceiverWebhook $receiver = null;
@@ -172,8 +199,8 @@ final class CreateLeadMessageActionTest extends TestCase
         );
 
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
+            ['model_name' => WaSenderWebhookJob::class],
+            ['name' => 'WaSenderWebhookJob'],
         );
 
         return $this->receiver = ReceiverWebhook::factory()

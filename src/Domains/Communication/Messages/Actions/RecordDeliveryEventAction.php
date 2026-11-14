@@ -14,7 +14,8 @@ use Kanvas\Communication\Support\ProviderRegistry;
 
 /**
  * Records what a provider reported about a delivery. Providers repeat and reorder their callbacks,
- * so the same event is stored once and the delivery's status only ever moves forward.
+ * so the same event is stored once and the delivery's status only ever moves forward. A status that
+ * did move is written on the message and pushed to its channels.
  */
 final class RecordDeliveryEventAction
 {
@@ -37,11 +38,20 @@ final class RecordDeliveryEventAction
      */
     public function execute(): bool
     {
+        $statusBefore = $this->delivery->status;
+
         try {
-            return DB::connection('workflow')->transaction(fn (): bool => $this->record());
+            $recorded = DB::connection('workflow')->transaction(fn (): bool => $this->record());
         } catch (UniqueConstraintViolationException) {
             return false;
         }
+
+        // After the commit, so a client told about the new status reads it back.
+        if ($recorded && $this->delivery->status !== $statusBefore) {
+            new RecordDeliveryOnMessageAction($this->delivery)->execute();
+        }
+
+        return $recorded;
     }
 
     private function record(): bool
@@ -71,8 +81,9 @@ final class RecordDeliveryEventAction
         if ($delivery->status->canAdvanceTo($this->status)) {
             $changes += [
                 'status' => $this->status,
-                'error_code' => $this->status === DeliveryStatusEnum::FAILED ? $this->errorCode : $delivery->error_code,
-                'error' => $this->status === DeliveryStatusEnum::FAILED ? $this->error : $delivery->error,
+                // A delivery whose outcome was lost and then reported keeps no trace of the loss.
+                'error_code' => $this->status === DeliveryStatusEnum::FAILED ? $this->errorCode : null,
+                'error' => $this->status === DeliveryStatusEnum::FAILED ? $this->error : null,
             ];
         }
 
@@ -88,8 +99,8 @@ final class RecordDeliveryEventAction
 
     /**
      * Terminal is the provider's call, not ours: after `delivered` Twilio says nothing more, while
-     * WhatsApp can still report `read`. A provider that only reports on deliveries (Mailgun email) is
-     * not registered, so its deliveries stay open; none of them holds a connection.
+     * WhatsApp can still report `read`. A provider that is no longer registered names no terminal
+     * events, so this never closes its deliveries.
      */
     private function isTerminal(Delivery $delivery): bool
     {

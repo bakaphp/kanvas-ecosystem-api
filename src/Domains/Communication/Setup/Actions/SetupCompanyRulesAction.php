@@ -4,13 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Setup\Actions;
 
-use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Google\Enums\ConfigurationEnum as GoogleConfigurationEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Rules\Actions\CreateRuleAction;
 use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;
@@ -18,15 +14,16 @@ use Kanvas\Workflow\Rules\DataTransferObject\RuleActionData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
+use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Services\WorkflowActionCatalog;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * The company's default workflow rules, last of the setup because a rule acts the moment it exists.
- * A rule is skipped when one already runs the same activities on the same event for this company or
- * for the whole app, so nothing ever runs twice; and when what it needs is not there yet (a sender
- * number, Google Calendar).
+ * The workflow rules setup still gives a company, last of the setup because a rule acts the moment
+ * it exists. A rule is skipped when one already runs the same activities on the same event for this
+ * company or for the whole app, so nothing ever runs twice; and when what it needs is not there yet
+ * (Google Calendar).
  */
 final class SetupCompanyRulesAction
 {
@@ -58,16 +55,13 @@ final class SetupCompanyRulesAction
     }
 
     /**
-     * @param array<string, mixed>|null $fallbackParams for a caller that holds what the company
-     *                                                  itself has not configured, e.g. a sender number
-     *
      * @return string|null why the rule was skipped, null when it was created
      */
-    public function ensure(DefaultRuleEnum $default, ?array $fallbackParams = null): ?string
+    private function ensure(DefaultRuleEnum $default): ?string
     {
-        $params = $this->params($default) ?? $fallbackParams;
+        $requiredSetting = $default->requiredCompanySetting();
 
-        if ($params === null) {
+        if ($requiredSetting !== null && ! $this->company->get($requiredSetting)) {
             return 'not_configured';
         }
 
@@ -95,8 +89,8 @@ final class SetupCompanyRulesAction
             ruleType: $ruleType,
             systemModule: $systemModule,
             name: $default->value,
-            pattern: $conditions === [] ? '1' : implode(' AND ', range(1, count($conditions))),
-            params: $params,
+            pattern: implode(' AND ', range(1, count($conditions))),
+            params: [],
             is_async: true,
             conditions: RuleConditionData::collect(array_map(
                 fn (array $condition): RuleConditionData => new RuleConditionData(...$condition),
@@ -110,27 +104,6 @@ final class SetupCompanyRulesAction
         ))->execute();
 
         return null;
-    }
-
-    /**
-     * @return array<string, mixed>|null null when the company lacks what the rule needs to run
-     */
-    private function params(DefaultRuleEnum $default): ?array
-    {
-        return match ($default) {
-            DefaultRuleEnum::AI_ASSIST_RESPONDER => ($polly = DefaultAgentEnum::POLLY->of($this->app, $this->company)) !== null
-                ? ['agent_id' => $polly->getId()]
-                : null,
-            // It sends through the lead's legacy SMS route, which needs the number to send from.
-            // A number saved without its "+" is read back as an int, and the activity passes it on as a string.
-            DefaultRuleEnum::HUMAN_AGENT_RESPONSE => ($from = Str::trimToNull((string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value))) !== null
-                ? ['from' => $from]
-                : null,
-            DefaultRuleEnum::GOOGLE_CALENDAR_EVENT => $this->company->get(GoogleConfigurationEnum::GOOGLE_CALENDAR_CONFIG->value)
-                ? []
-                : null,
-            default => $default->params(),
-        };
     }
 
     /**
@@ -158,7 +131,7 @@ final class SetupCompanyRulesAction
 
             $ruleActionIds = $rule->workflowActivities
                 ->where('is_deleted', 0)
-                ->map(fn ($ruleAction) => (int) $ruleAction->activity?->actions_id)
+                ->map(fn (RuleAction $ruleAction): int => (int) $ruleAction->activity?->actions_id)
                 ->all();
 
             if (array_diff($actionIds, $ruleActionIds) === []) {

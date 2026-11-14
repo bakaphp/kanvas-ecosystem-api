@@ -15,19 +15,22 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Exceptions\InboundNotAnsweredException;
+use Kanvas\Communication\Messages\Jobs\RespondToInboundMessageJob;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 
 class SendUnrespondedAgentMessageJob implements ShouldQueue
@@ -118,22 +121,29 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         }
 
         try {
-            $action = new $this->actionClass(
+            $actionResult = new $this->actionClass(
                 $this->channel,
                 $this->message,
                 $this->agent,
                 $this->session
-            );
+            )->execute($this->params);
+        } catch (AgentReplySkippedException $skipped) {
+            // The delay ran out on a turn this agent no longer answers: the connection was switched
+            // off or the agent deactivated. Expected, so nothing fails and nothing that follows a
+            // reply runs.
+            $this->updateIntegrationHistoryResult(['message' => $skipped->getMessage(), 'entity' => null]);
 
-            $actionResult = $action->execute($this->params);
+            // Handed to another agent while it waited: the message is the new owner's to answer.
+            if ($skipped instanceof InboundNotAnsweredException && $skipped->reason === 'owner_changed') {
+                RespondToInboundMessageJob::dispatchIfOwned($this->channel, $this->message);
+            }
+
+            return;
+        }
+
+        try {
             $this->updateIntegrationHistoryResult($actionResult);
-            $lead->fireWorkflow(
-                WorkflowEnum::TRIGGER_AI->value,
-                true,
-                [
-                    'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
-                ]
-            );
+            LeadAiTriggeredEvent::announce($lead, TriggersEnum::AI_TAKEOVER->value);
 
             DailyReportService::track(
                 $lead->app,

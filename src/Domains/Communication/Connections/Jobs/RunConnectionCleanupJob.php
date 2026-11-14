@@ -10,7 +10,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Actions\RunConnectionCleanupAction;
 use Kanvas\Communication\Connections\Models\Connection;
 
@@ -31,14 +30,13 @@ final class RunConnectionCleanupJob implements ShouldQueue
     public int $tries = 1;
 
     public function __construct(
-        public readonly Apps $app,
         public readonly Connection $communicationConnection
     ) {
     }
 
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
+        $this->overwriteAppService($this->communicationConnection->app);
 
         new RunConnectionCleanupAction($this->communicationConnection)->execute();
     }

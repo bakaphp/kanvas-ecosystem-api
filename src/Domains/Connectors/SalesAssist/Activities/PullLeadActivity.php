@@ -29,10 +29,10 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
@@ -177,15 +177,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 new ApplyLeadClosingStatusAction($resolvedLead)->execute();
 
                 if ($resolvedLead->get('ai_mode') == null) {
-                    $resolvedLead->fireWorkflow(
-                        WorkflowEnum::TRIGGER_AI->value,
-                        true,
-                        [
-                            'app' => $resolvedLead->app,
-                            'company' => $resolvedLead->company,
-                            'trigger_type' => TriggersEnum::NEW_LEAD->value,
-                        ]
-                    );
+                    LeadAiTriggeredEvent::announce($resolvedLead, TriggersEnum::NEW_LEAD->value);
                 }
             }
         } catch (Throwable $e) {

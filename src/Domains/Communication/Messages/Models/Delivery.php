@@ -6,10 +6,12 @@ namespace Kanvas\Communication\Messages\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Communication\Connections\Models\Connection;
+use Kanvas\Communication\Messages\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Models\BaseModel;
@@ -81,8 +83,30 @@ class Delivery extends BaseModel
     }
 
     /**
+     * The delivery a provider is reporting on, by the id it gave the message. The caller adds the
+     * tenant it knows: the receiver's company, or only its app when one receiver serves several.
+     *
+     * @param list<string>|string $providers
+     * @param list<string>|string $externalIds
+     */
+    public function scopeReportedBy(Builder $query, array|string $providers, array|string $externalIds): Builder
+    {
+        return $query
+            ->whereIn('provider', (array) $providers)
+            ->whereIn('external_id', (array) $externalIds);
+    }
+
+    /**
+     * Whether the provider took the message. Anything else is a send the caller has to report.
+     */
+    public function wasAccepted(): bool
+    {
+        return $this->status === DeliveryStatusEnum::ACCEPTED;
+    }
+
+    /**
      * Ends the delivery without a vendor call. Closed in the same write: nothing was sent, so no
-     * provider event can ever arrive for it.
+     * provider event can ever arrive for it. A message already filed for it shows why.
      */
     public function finishWithoutSending(DeliveryStatusEnum $status, string $errorCode, ?string $error = null): void
     {
@@ -92,6 +116,8 @@ class Delivery extends BaseModel
             'error' => $error,
             'events_closed_at' => now(),
         ])->saveOrFail();
+
+        new RecordDeliveryOnMessageAction($this)->execute();
     }
 
     /**

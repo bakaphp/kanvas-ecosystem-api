@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
@@ -287,13 +287,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         title: $firstLeadMessage['title'] ?? null,
                                         fromAgent: $this->resolveOutreachAgent($params, $app),
                                     );
-                                    new StoreMessageSidAction($createMessage)->execute($providerResponse);
+                                    new LinkDeliveryMessageAction($createMessage)->execute($providerResponse);
 
                                     $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
-                                    $lead->set('title_email_follow_up', $firstLeadMessage['title'] ?? null);
+                                    $lead->anchorEmailThread($firstLeadMessage['title'] ?? null);
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
 

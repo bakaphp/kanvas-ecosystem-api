@@ -4,63 +4,50 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
-use Baka\Http\SafeUrl;
+use Baka\Http\SafeUrlFetcher;
 use Exception;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
+/**
+ * WhatsApp media is encrypted where it sits: WaSender decrypts it from the key in the payload and
+ * hands back a short-lived URL, whose bytes become a file on the message.
+ */
 class DownloadMessageFileAction
 {
-    protected FilesystemServices $filesystemService;
-    protected string $messageTypeKey;
+    private string $contentKey;
 
     /**
-     * The unwrapped media node. Resolved by known media key rather than by position: group
-     * payloads lead with `messageContextInfo` / `senderKeyDistributionMessage` often enough that
-     * `array_key_first` picked a metadata sibling and the download read a mediaKey off it.
+     * Resolved by known media key, not by position: a group payload often leads with
+     * `messageContextInfo` / `senderKeyDistributionMessage`, which carry no media.
      */
-    protected array $mediaNode;
+    private array $mediaNode;
 
     public function __construct(
-        protected Channel $channel,
-        protected Message $message,
-        protected ?Agent $agent = null,
+        protected Message $message
     ) {
-        if (! MessageTypeEnum::isDocumentType($this->message->messageType->verb)) {
+        if (MessageTypeEnum::tryFrom((string) $this->message->messageType->verb)?->isDocumentType() !== true) {
             throw new Exception('Invalid message type');
         }
 
-        $this->filesystemService = new FilesystemServices(
-            $this->message->app,
-            $this->message->company ?? null
-        );
-
         $rawMessage = (array) ($this->message->message['raw_data']['message'] ?? []);
-        $mediaKey = MessageTypeEnum::mediaKey($rawMessage);
+        $contentKey = MessageTypeEnum::mediaKey($rawMessage);
         $mediaNode = MessageTypeEnum::mediaNode($rawMessage);
 
-        if ($mediaKey === null || $mediaNode === null) {
+        if ($contentKey === null || $mediaNode === null) {
             throw new Exception('Message carries no downloadable media node');
         }
 
-        $this->messageTypeKey = $mediaKey;
+        $this->contentKey = $contentKey;
         $this->mediaNode = $mediaNode;
     }
 
-    public function execute(array $params = []): ?Filesystem
+    public function execute(): ?Filesystem
     {
-        /*  $mediaKey = 'SBqPa+ZHCoVLDdbSve+7sUbh+YDHyf+XoRuuvxdXj48=';
-         $url = 'https://mmg.whatsapp.net/o1/v/t62.7118-24/f2/m231/AQMBvwf5EiyXOdUQvtUDTcmS4ke_uYG1VJplhYBV8CejeAVhezKVUmB-cjS8kSl69SH0DeZss_i1c9h3ft18D5v7WncL7VF1BXO3zFwjGQ?ccb=9-4&oh=01_Q5Aa1gF5H2Hatef7zk77Pi86h_nQGkPchoxSCFh_amWPEp7vvg&oe=684B23A9&_nc_sid=e6ed6c&mms3=true';
-
-         decryptWhatsAppMedia($mediaKey, $url, DIR . '/decrypted_image.jpg');  */
         $mediaKey = $this->mediaNode['mediaKey'] ?? null;
         $url = $this->mediaNode['url'] ?? null;
         $mimeType = $this->mediaNode['mimetype'] ?? null;
@@ -69,80 +56,36 @@ class DownloadMessageFileAction
             return null;
         }
 
-        return $this->processWhatsAppMedia(
-            (string) $this->message->message['message_id'],
-            (string) $mediaKey,
-            (string) $url,
-            (string) $mimeType
-        );
-    }
+        $mimeType = (string) $mimeType;
+        $fileName = uniqid() . '.' . MediaTypeEnum::extensionForMime($mimeType);
 
-    protected function decryptWhatsAppMedia(
-        string $messageId,
-        string $mediaKey,
-        string $url,
-        string $type = 'image'
-    ): array {
-        $payload = [
+        $decrypted = new MessageService($this->message->app, $this->message->company)->decryptMediaFile([
             'data' => [
                 'messages' => [
                     'key' => [
-                        'id' => $messageId,
+                        'id' => (string) $this->message->message['message_id'],
                     ],
                     'message' => [
-                        $this->messageTypeKey => [
-                            'url' => $url,
-                            'mimetype' => $type,
-                            'mediaKey' => $mediaKey,
-                            'fileName' => uniqid() . '.' . MediaTypeEnum::extensionForMime($type),
+                        $this->contentKey => [
+                            'url' => (string) $url,
+                            'mimetype' => $mimeType,
+                            'mediaKey' => (string) $mediaKey,
+                            'fileName' => $fileName,
                         ],
                     ],
                 ],
             ],
-        ];
-        $messageService = new MessageService($this->message->app, $this->message->company);
-        $response = $messageService->decryptMediaFile($payload);
-        SafeUrl::assertSafe($response['publicUrl']);
-        $content = Http::get($response['publicUrl']);
-        // Generate a unique filename
-        $filename = uniqid() . '.' . MediaTypeEnum::extensionForMime($type);
+        ]);
 
-        // Save to temporary storage using Laravel's Storage
-        $tempPath = 'temp/' . $filename;
-        Storage::put($tempPath, $content->body());
+        $file = new FilesystemServices($this->message->app, $this->message->company)
+            ->createFileSystemFromBase64(
+                base64_encode(SafeUrlFetcher::fetch((string) $decrypted['publicUrl'])),
+                $fileName,
+                $this->message->user
+            );
 
-        return [
-            'content' => $content->body(),
-            'path' => Storage::path($tempPath),
-            'filename' => $filename,
-        ];
-    }
+        $this->message->addFile($file, $mimeType);
 
-    protected function processWhatsAppMedia(
-        string $messageId,
-        string $mediaKey,
-        string $url,
-        string $type = 'image'
-    ): Filesystem {
-        // Get user from message
-        $user = $this->message->user;
-
-        // Decrypt the media
-        $decryptedMedia = $this->decryptWhatsAppMedia($messageId, $mediaKey, $url, $type);
-
-        // Use FilesystemServices to create a filesystem entity from the decrypted content
-        $fileSystem = $this->filesystemService->createFileSystemFromBase64(
-            base64_encode($decryptedMedia['content']), // Convert content to base64
-            $decryptedMedia['filename'],
-            $user
-        );
-
-        // Attach the file to the message (assuming Message model implements HasFilesystemTrait)
-        $this->message->addFile($fileSystem, $type);
-
-        // Clean up temporary file
-        Storage::delete('temp/' . $decryptedMedia['filename']);
-
-        return $fileSystem;
+        return $file;
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Communication\Connections\Concerns\SchedulesRetries;
 use Kanvas\Communication\Connections\Enums\CleanupTaskStatusEnum;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Models\CleanupTask;
@@ -17,18 +18,22 @@ use Kanvas\Communication\Support\ProviderRegistry;
 use Throwable;
 
 /**
- * Phases B and C of a disconnect. Each task runs under the same resource lock provisioning takes
- * and asks the vendor first: only a value we set is removed, so a cleanup that runs after a new
- * owner registered the number finds their value, supersedes itself, and touches nothing.
+ * The second half of a disconnect: the vendor calls {@see RetireConnectionAction} wrote down as
+ * cleanup tasks, then the release of the claim. Each task runs under the same resource lock
+ * provisioning takes and asks the vendor first: only a value we set is removed, so a cleanup that
+ * runs after a new owner registered the number finds their value, supersedes itself, and touches
+ * nothing.
  */
 final class RunConnectionCleanupAction
 {
+    use SchedulesRetries;
+
     private const int LEASE_MINUTES = 5;
     private const array BACKOFF_MINUTES = [1, 5, 15, 30, 60];
 
     /**
-     * Decision Z: past this, the claim is released even with tasks left, so a vendor outage does not
-     * hold the customer's number hostage. The remaining tasks keep running, still ownership-checked.
+     * Past this, the claim is released even with tasks left, so a vendor outage does not hold the
+     * customer's number hostage. The remaining tasks keep running, still ownership-checked.
      */
     private const int FORCE_RELEASE_AFTER_MINUTES = 60;
     private const int FORCE_RELEASE_AFTER_ATTEMPTS = 6;
@@ -95,10 +100,7 @@ final class RunConnectionCleanupAction
      */
     private function run(CleanupTask $task, callable $cleanup): void
     {
-        $lock = Cache::lock(
-            EnsureCommunicationSetupAction::resourceLock($this->connection->provider, $task->resource_key),
-            self::LEASE_MINUTES * 60
-        );
+        $lock = Cache::lock($this->connection->resourceLockKey(), self::LEASE_MINUTES * 60);
 
         if (! $lock->get()) {
             return;
@@ -119,7 +121,7 @@ final class RunConnectionCleanupAction
                 'status' => CleanupTaskStatusEnum::PENDING,
                 'lease_until' => null,
                 'last_error' => $exception->getMessage(),
-                'next_attempt_at' => now()->addMinutes(self::BACKOFF_MINUTES[min($task->attempts, count(self::BACKOFF_MINUTES)) - 1]),
+                'next_attempt_at' => $this->retryAt($task->attempts, self::BACKOFF_MINUTES),
             ])->saveOrFail();
         } finally {
             $lock->release();

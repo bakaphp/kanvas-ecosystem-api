@@ -1000,6 +1000,43 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         }
     }
 
+    /**
+     * The subject every email of this lead threads under: the first outreach writes it, a cold
+     * inbound gives it, replies and follow-ups read it.
+     */
+    public function emailThreadSubject(): ?string
+    {
+        $subject = $this->get(ConfigurationEnum::EMAIL_THREAD_SUBJECT->value);
+
+        return is_string($subject) ? Str::trimToNull($subject) : null;
+    }
+
+    /**
+     * First touch wins: a later email never renames the thread.
+     */
+    public function anchorEmailThread(?string $subject): void
+    {
+        $subject = Str::trimToNull($subject);
+
+        if ($subject !== null && $this->emailThreadSubject() === null) {
+            $this->set(ConfigurationEnum::EMAIL_THREAD_SUBJECT->value, $subject);
+        }
+    }
+
+    /**
+     * The thread subject as a reply carries it, or null when the lead has no thread yet.
+     */
+    public function emailThreadReplySubject(): ?string
+    {
+        $subject = $this->emailThreadSubject();
+
+        if ($subject === null) {
+            return null;
+        }
+
+        return preg_match('/^\s*re:/i', $subject) === 1 ? $subject : 'Re: ' . $subject;
+    }
+
     public function hasBeenContacted(): bool
     {
         return $this->get(ConfigurationEnum::CONTACTED->value) && $this->get(ConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;

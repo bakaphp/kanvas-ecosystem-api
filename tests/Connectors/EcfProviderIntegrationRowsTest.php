@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Connectors;
 
+use Baka\Contracts\BaseIntegration;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Alanube\Handlers\AlanubeHandler;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\WebPos\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WebPos\Handlers\WebPosHandler;
 use Kanvas\Exceptions\ValidationException;

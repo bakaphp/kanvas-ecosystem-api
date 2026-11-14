@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnum;
+use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -88,17 +88,8 @@ class AgentReachOutOnChannelAction
                 $responseText = $parsed['body'];
             }
 
-            // Anchor the email thread: the follow-up engine reuses this subject
-            // (as "Re: ...") so later touches thread under the original email
-            // instead of starting a fresh one. First touch wins — don't clobber
-            // an existing anchor on subsequent reach-outs.
-            if (
-                $emailSubject !== null
-                && $emailSubject !== ''
-                && ! $this->lead->get('title_email_follow_up')
-            ) {
-                $this->lead->set('title_email_follow_up', $emailSubject);
-            }
+            // Later touches reuse this subject (as "Re: ...") so they thread under this email.
+            $this->lead->anchorEmailThread($emailSubject);
         }
 
         // No first-outbound gate: this lane is the first touch by construction, and its
@@ -199,7 +190,7 @@ class AgentReachOutOnChannelAction
                     to: $this->recipient,
                     fromAgent: $this->agent,
                 );
-            new StoreMessageSidAction($outbound)->execute($providerResponse);
+            new LinkDeliveryMessageAction($outbound)->execute($providerResponse);
         }
 
         return $outbound;

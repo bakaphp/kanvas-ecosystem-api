@@ -17,8 +17,8 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class HandOffAction
 {
@@ -116,14 +116,7 @@ class HandOffAction
             ? TriggersEnum::HUMAN_HANDOFF->value
             : TriggersEnum::HANDOFF->value;
 
-        $this->lead->fireWorkflow(
-            WorkflowEnum::TRIGGER_AI->value,
-            true,
-            [
-                'app' => $this->app,
-                'trigger_type' => $triggerType,
-            ]
-        );
+        LeadAiTriggeredEvent::announce($this->lead, $triggerType);
     }
 
     protected function applyHandOffType(HandOffTypeEnum $handOffType): void

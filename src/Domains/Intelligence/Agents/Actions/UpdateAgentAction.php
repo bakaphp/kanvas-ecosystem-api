@@ -45,6 +45,8 @@ class UpdateAgentAction
             'tools_config' => $this->agent->toolsConfig,
             'voice_config' => $this->agent->voiceConfig,
             'sms_config' => $this->agent->smsConfig,
+            'whatsapp_config' => $this->agent->whatsappConfig,
+            'reach_out_config' => $this->agent->reachOutConfig,
             'parent_id' => $this->agent->parentAgent?->getId(),
             'is_sub_agent' => $this->agent->isSubAgent,
         ]);

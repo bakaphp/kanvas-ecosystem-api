@@ -121,14 +121,13 @@ prospect-isolated), switched by who it's talking to.** Concretely: add a persona
 ## End-to-end flow
 
 ```
-Customer ─── inbound ──▶ Webhook
-                         (per-connector ProcessXxxWebhookJob)
-                         │ persists inbound Message, fires AFTER_ADDING_MESSAGE_TO_CHANNEL
+Customer ─── inbound ──▶ Communication webhook (ProcessCommunicationWebhookJob, one for every provider)
+                         │ the provider's InboundSource authenticates and parses;
+                         │ ReceiveMessageAction files the person, lead, consent and conversation
                          ▼
-                         Workflow rule → AgentChannelResponderActivity (per connector)
-                         │ creates Session, resolves agent, calls action
+                         RespondToInboundMessageJob — queued when the connection has an owning agent
                          ▼
-                         AgentChannelResponderAction extends BaseAgentChannelReplyAction
+                         Communication\...\AgentChannelResponderAction extends BaseAgentChannelReplyAction
                          │ guards (AI-mode, is_un_response), extracts inbound text
                          ▼
                          AgentChatKernel — routes on $agent
@@ -139,10 +138,15 @@ Customer ─── inbound ──▶ Webhook
                          │
                          │ returns response string
                          ▼
-                         Action: createMessage() persists outbound, then sends via connector client
+                         createMessage() files the reply (held for approval when it is an email and the
+                         company asks), then DeliverAgentReplyAction sends it through Communication::reply()
                          ▼
                                     Customer
 ```
+
+No workflow rule and no per-connector responder is involved: who answers is the agent that owns the
+number or mailbox. Channels that are not Communication providers (Microsoft, Slack) still bring their
+own responder action on the same base class.
 
 ## Where things live
 
@@ -151,8 +155,8 @@ Customer ─── inbound ──▶ Webhook
 | Kernel entry point | `Actions/Chat/AgentChatKernel.php` |
 | Per-backend chat runners | `Actions/Chat/Run{ADK,Laravel,Neuron,Runtime}ChatAction.php` |
 | Base class for connector reply actions | `Actions/BaseAgentChannelReplyAction.php` |
-| Per-connector reply actions | `src/Domains/Connectors/{X}/Actions/AgentChannelResponderAction.php` |
-| Per-connector activities (workflow entry) | `src/Domains/Connectors/{X}/Workflows/AgentChannelResponderActivity.php` |
+| The reply action for every messaging provider | `src/Domains/Communication/Messages/Actions/AgentChannelResponderAction.php` |
+| Sending a filed reply (also on approval) | `src/Domains/Communication/Messages/Actions/DeliverAgentReplyAction.php` |
 | Neuron agents (SalesAgent, generic) | `Neuron/` |
 | Neuron tools (`#[AgentTool]`) | `Neuron/Tools/{CRM,System,Accounting,HumanResources,NervousSystem,...}/` |
 | Shared tool traits (resolve-or-error, context, admin-guard) | `Neuron/Tools/Traits/` |
@@ -191,7 +195,7 @@ new AgentChatKernel(
 
 **`agent` is the tenant.** `$this->agent->app` and `$this->agent->company` are the only source of truth. Passing a different tenant is meaningless; an agent bound to app X cannot run for app Y. No `Apps` / `Companies` constructor params.
 
-**`persistConversation` (default `true`):** when `true`, the kernel runs `PersistChatTurnToSocialAction` and exposes the reply via `persistedReply()`. When `false` (connector path), persistence is left to the caller — the connector's `BaseAgentChannelReplyAction::createMessage()` writes the reply with the right message-type verb, channel tagging, and fires `MarkLeadMessagesAsRespondedAction` + `NotifyLeadStakeholdersService`.
+**`persistConversation` (default `true`):** when `true`, the kernel runs `PersistChatTurnToSocialAction` and exposes the reply via `persistedReply()`. When `false` (connector path), persistence is left to the caller — the connector's `BaseAgentChannelReplyAction::createMessage()` writes the reply with the right message-type verb, channel tagging, and fires `MarkLeadMessagesAsRespondedAction` + `NotifyLeadStakeholdersService`. The reply marks as answered only what it could have read: messages up to the inbound it answers, that inbound's burst parts and itself. A text that arrived mid-turn stays unanswered and gets its own turn.
 
 **`fallbackOnFailure` (default `true`):** a failed turn normally comes back as prose — `RunNeuronChatAction::humanizedFallback()` returns "I ran into a hiccup processing that…" so the person on the other end sees something. That is only right when a **human reads the reply**. A customer-facing agent (`$agent->conversesWithCustomer()` — SalesAgent, ReceptionistAgent) gets only "What do you mean?" for **every** failure: a prospect is talking to a persona, and a hiccup, an overloaded AI or a safety filter all read as a broken system. A caller whose reply feeds a pipeline must pass `false` and handle the exception: the newsroom burst publishes whatever the agent writes, so a Gemini response with no `parts` was filed as the reply and shipped as an article titled "I ran into a hiccup processing that" (KANVAS-ECOSYSTEM-691). `AgentBurstResponderAction` keys it on whether it will actually speak — `fallbackOnFailure: $shouldReply`. The Mailgun email responder passes `false` too: the fallback copy is written for staff, and an internal agent (AP/AR) answering an outside sender emailed "narrow it down — an exact name, email, or date range" to a vendor (KANVAS-ECOSYSTEM-6GW); a failed email turn now sends nothing and fails the webhook call instead. `WakeAgentInSessionAction` (scheduled agent tasks, MCP job resumes) passes `false` too: it posts whatever comes back into the channel, so a thread busy past the wait posted "I ran into a hiccup" into Slack and the scheduled task counted as fired (KANVAS-ECOSYSTEM-6JQ); its jobs now release on `RunInFlightException` and run once the thread settles. It also drops a `NO_UPDATE` reply rather than posting it, as `ContinueAgentTurnJob` does, and a scheduled task reaches the agent framed by `RunScheduledAgentActionJob` so a recurring task is not read as a check-in. When it is `false` the action rethrows without `report()`, so the caller reports once rather than twice. The partless response itself no longer fails the turn: `KanvasGemini::processChatResult()` turns it into an empty reply, which connector responders already skip via `AgentReplySkippedException`.
 
@@ -203,7 +207,7 @@ new AgentChatKernel(
 
 ## Connector contract (`BaseAgentChannelReplyAction` subclasses)
 
-Each connector's `AgentChannelResponderAction::execute()` follows this shape — see [`Connectors/WaSender/Actions/AgentChannelResponderAction.php`](../../Connectors/WaSender/Actions/AgentChannelResponderAction.php) as the canonical reference.
+A reply action's `execute()` follows this shape — see [`Communication/Messages/Actions/AgentChannelResponderAction.php`](../../Communication/Messages/Actions/AgentChannelResponderAction.php) as the canonical reference.
 
 ```php
 public function execute(array $params = []): array
@@ -211,9 +215,8 @@ public function execute(array $params = []): array
     // 1. Extract inbound text — connector-specific webhook payload shape
     $messageConversation = /* connector-specific */;
 
-    // 2. Validate entity
+    // 2. The lead, when the conversation has one
     $entity = $this->message->entity();
-    if ($entity === null) { throw new ValidationException('No entity found'); }
     $currentLead = $entity instanceof Lead ? $entity : null;
 
     // 3. Resolve text and attachments together; Gemini requires text alongside media (KANVAS-ECOSYSTEM-6QC).
@@ -302,14 +305,13 @@ one; Anthropic's and OpenAI's mappers drop it, so the agent would answer a custo
 3. If the backend needs `sourceChannel` / `sourceMessage` (e.g. for remote session identity), add them to your action's constructor — they're already on the kernel and available via `$this->sourceChannel` / `$this->sourceMessage`.
 4. Add a test stub mirroring `tests/Stubs/Intelligence/FakeNeuronProvider.php` so the new backend can be exercised end-to-end without network.
 
-## Adding a new channel connector
+## Adding a new messaging channel
 
-1. Build the inbound stack the way Mailgun/WaSender/RespondIO/Twilio already do: `ProcessXxxWebhookJob` → persist `Message` + associate Lead/People + fire `AFTER_ADDING_MESSAGE_TO_CHANNEL`.
-2. Build an `AgentChannelResponderActivity` that resolves the agent, creates a `Session` via `CreateSessionAction` keyed on `SessionChannelService::buildChannelSessionUuid($channel, $app, $company)`, and calls `AgentChannelResponderAction::execute()`.
-3. Write `AgentChannelResponderAction extends BaseAgentChannelReplyAction`:
-   - Set `$messageTypeVerb` + `$communicationChannel`
-   - Implement `execute()` following the shape above
-4. Mirror the end-to-end test from `tests/Connectors/Integration/WaSender/AgentChannelResponderEndToEndTest.php` — same setup, swap the connector-specific outbound mocking strategy.
+A new SMS, email or WhatsApp vendor is a Communication provider, not a responder: implement the
+contracts in `src/Domains/Communication/CLAUDE.md` ("Adding a provider") and the agent that owns the
+connection answers with no code here. Write a responder action of your own only for a channel that
+is not a messaging provider (a workspace chat like Slack), extending `BaseAgentChannelReplyAction`
+and following the shape above.
 
 ## Testing pattern
 
@@ -606,8 +608,10 @@ There is no approved path for a free-text external recipient.
 | `send_email_to_user` | A Kanvas user in the company (internal) | assistant turn in the recipient's own chat with the agent (Social channel **and** `agent_conversation_messages`) + `agent.email.sent_to_user` ledger event |
 | `gmail_reply_to_thread` | The bill/invoice approver, inside an existing Gmail thread | the Gmail thread itself |
 
-Every send leaves from the agent's own mailbox when it has one (`AgentMailboxService::addressFor()` →
-`SendAsAgentMailboxAction`, Reply-To included) and only otherwise from the company SMTP sender
+A send to a lead or a person goes through `Communication::send()`, from the mailbox the speaking
+agent owns when it has one and otherwise from the company's email connection. `send_email_to_user`
+is the one send outside it (a teammate is not a People row): `SendAsAgentMailboxAction` from the
+agent's mailbox, Reply-To included, and only otherwise the company SMTP sender
 (`SmtpRuntimeConfiguration::getFromEmail()`). That sender is one identity for the whole company — a
 company whose `from_email_name` is its outreach agent put Sofia's teammate email in the inbox as "Sally
 Castro" (2026-10-28) — so a new send path takes the mailbox branch first, never the SMTP sender alone.
@@ -820,7 +824,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - **`persistConversation: false` requires the caller to persist.** If you omit `createMessage()` after the kernel call, the outbound reply never lands in `messages` and the next inbound turn won't see it in history. `BaseAgentChannelReplyAction::createMessage()` is the one true persistence path on the connector side.
 - **Don't instantiate agent handlers manually.** Pre-refactor, every connector did `new $this->agent->type->handler()` + `setConfiguration()` by hand. This bypassed the kernel and the four backends got out of sync. Always go through `new AgentChatKernel(...)->execute()`.
 - **`EntityRollupMessageStore` rolls up cross-channel by design.** If you find yourself wanting to scope it to a specific channel, re-read its class docblock first — the rollup is the design intent for sales agents.
-- **The email outreach anchors the thread subject on the lead.** `AgentReachOutOnChannelAction` persists the agent's email subject to the lead's `title_email_follow_up` custom field (first touch wins). The inbound Mailgun responder and the cron follow-up engine both **read** that field as the outbound subject so every email stays in one thread. Don't repurpose, overwrite, or stop writing `title_email_follow_up` from the outreach without updating both readers — see [FollowUp/CLAUDE.md → "Email follow-ups thread under the original outreach"](../FollowUp/CLAUDE.md).
+- **The email outreach anchors the thread subject on the lead.** `AgentReachOutOnChannelAction` calls `Lead::anchorEmailThread()` with the agent's email subject (first touch wins; the field is `title_email_follow_up`). The inbound email responder and the cron follow-up engine read it back through `Lead::emailThreadReplySubject()` so every email stays in one thread. Never read or write the field by name, and don't stop anchoring from the outreach without updating both readers — see [FollowUp/CLAUDE.md → "Email follow-ups thread under the original outreach"](../FollowUp/CLAUDE.md).
 - **A message store loads rows; it never folds or trims them.** `KanvasHistoryTrimmer` runs inside the
   `ChatHistory` that `resources()` builds. A store that pre-cuts hides rows from the fold and the two
   diverge. New store = extend `KanvasMessageStore`, implement `loadActive()` + `persist()`, pick it in
@@ -828,6 +832,17 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - **A `privateUserTurn` is not broadcast by the kernel.** Nobody typed it, so whatever drove the turn
   delivers the reply (see `ContinueAgentTurnJob`, `RunScheduledAgentActionJob`). A new private-turn caller
   that expects the kernel to push the reply to the live chat will show nothing.
+- **What an agent does on its own is a listener switched on the agent, not a workflow rule.** The new-lead
+  reach-out (`reach_out_config.new_leads`, `Agent::forNewLeads()`), the AI Assist answer, a lead's AI mode and
+  indexing an agent's documents each listen to a domain event (`LeadCreatedEvent`, `LeadAiTriggeredEvent`, ...), not to the workflow engine. Don't add a company
+  setting or a seeded rule to turn one on; table and rules in
+  [`Communication/CLAUDE.md`](../../Communication/CLAUDE.md) → "What an agent does on its own".
+- **A new lead's AI mode is applied once.** The reach-out gives the lead its mode itself, right before
+  reading it, so a creator that also dispatches `LeadCreatedEvent` raises the trigger with
+  `LeadAiTriggeredEvent::announceNewLead($lead)`: it skips the event when an agent reaches out to the
+  company's new leads and still fires `trigger-ai`. An import that dispatches no `LeadCreatedEvent`
+  keeps `announce($lead, NEW_LEAD)`, or its leads never get a mode. A queued reach-out that finds its
+  switch off when it runs hands the mode back by dispatching the event.
 - **Never let a tool send to an LLM-chosen destination.** A new outbound tool must resolve its recipient from the entity or verify it against a closed set (company membership / on-file contacts) before sending — see "Destination safety" above. A free-text external recipient is an exfiltration hole, not a feature.
 
 ## Pointers to deeper context
@@ -836,7 +851,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
 - Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`, Neuron twin in `Neuron/Tools/Inventory/`) — both parse through `DiscoveryInputParser` into `RecommendProductsAction`; the search backend is resolved per tenant behind it. The agent passes the verbatim `request` AND what it understood (catalog-terms `search_query`, preferences, price, numeric limits) in ONE call; an invalid filter comes back as a correctable error. Usage, output shape and configuration: [`src/Domains/Inventory/Recommendations/CLAUDE.md`](../../Inventory/Recommendations/CLAUDE.md).
-- Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
+- The shared responder's tests in [`tests/Communication/Messages/RespondToInboundMessageActionTest.php`](../../../../tests/Communication/Messages/RespondToInboundMessageActionTest.php) — copy-paste shape when adding a new connector
 
 ## Laravel agents: a tool result must never be empty, and a sub-agent needs steps to answer in
 

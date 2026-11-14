@@ -99,7 +99,7 @@ class SharedRegistry
         }
     }
 
-    public static function isOursOrFree(?string $current, string $ours): bool
+    private static function isOursOrFree(?string $current, string $ours): bool
     {
         $current = trim((string) $current);
 

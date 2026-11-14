@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Exception;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
@@ -318,7 +318,7 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
                 $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
 
                 if ($followUpDay->send_message) {
-                    $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
+                    $emailTitle = $this->lead->emailThreadSubject() ?? $this->lead->company->name;
                     $messageToSend = $message;
 
                     // If WhatsApp and outside 24h window, send the stage template instead
@@ -334,7 +334,7 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
                     );
                     $createdMessage = $creator->getCreatedMessage();
                     if ($createdMessage !== null) {
-                        new StoreMessageSidAction($createdMessage)->execute($providerResponse);
+                        new LinkDeliveryMessageAction($createdMessage)->execute($providerResponse);
                     }
 
                     $this->logSuccess('message_sent', 'Follow-up message sent to lead', $session, $messageToSend);

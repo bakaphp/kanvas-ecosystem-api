@@ -6,8 +6,13 @@ namespace Kanvas\Communication\Support;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Arr;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Contracts\CommunicationProvider;
 use Kanvas\Communication\Enums\ConfigurationEnum;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 /**
  * Which tenants a provider is provisioned for. A provider that predates this domain already has an
@@ -17,9 +22,66 @@ use Kanvas\Communication\Enums\ConfigurationEnum;
 final class ProviderRollout
 {
     /**
+     * The provider this domain provisions the integration with, or null when it leaves the row
+     * alone: it carries no messages, it belongs to another app, or its provider is still held back
+     * for the tenant.
+     *
+     * @return class-string<CommunicationProvider>|null
+     */
+    public function providerFor(IntegrationsCompany $integrationCompany, Apps $app): ?string
+    {
+        $provider = new ProviderRegistry()->forIntegration($integrationCompany);
+
+        if ($provider === null || (int) $integrationCompany->apps_id !== $app->getId()) {
+            return null;
+        }
+
+        return $this->allows($provider, $app, $integrationCompany->company) ? $provider : null;
+    }
+
+    /**
+     * The company's integrations this domain provisions.
+     *
+     * @return array<class-string<CommunicationProvider>, IntegrationsCompany> by provider
+     */
+    public function managed(Apps $app, Companies $company): array
+    {
+        $managed = [];
+
+        $integrations = IntegrationsCompany::query()
+            ->fromApp($app)
+            ->fromCompany($company->getId())
+            ->notDeleted()
+            ->with('integration')
+            ->get();
+
+        foreach ($integrations as $integrationCompany) {
+            $provider = $this->providerFor($integrationCompany, $app);
+
+            if ($provider !== null) {
+                $managed[$provider] = $integrationCompany;
+            }
+        }
+
+        return $managed;
+    }
+
+    /**
+     * Whether this domain provisions that integration for the company, so nothing else should point
+     * the vendor's webhook anywhere.
+     */
+    public function manages(IntegrationsEnum $integration, Apps $app, Companies $company): bool
+    {
+        return array_any(
+            array_keys($this->managed($app, $company)),
+            fn (string $provider): bool => $provider::integration() === $integration
+        );
+    }
+
+    /**
      * @param class-string<CommunicationProvider> $provider
      */
-    public function allows(string $provider, AppInterface $app, CompanyInterface $company): bool
+    private function allows(string $provider, AppInterface $app, CompanyInterface $company): bool
     {
         $slug = $provider::slug();
 
@@ -35,20 +97,6 @@ final class ProviderRollout
      */
     private function optedIn(AppInterface|CompanyInterface $owner): array
     {
-        $value = $owner->get(ConfigurationEnum::PROVIDERS->value);
-
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            $value = is_array($decoded) ? $decoded : explode(',', $value);
-        }
-
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_filter(array_map(
-            fn (mixed $slug): string => strtolower(trim((string) $slug)),
-            $value
-        )));
+        return array_map(strtolower(...), Arr::fromSettingList($owner->get(ConfigurationEnum::PROVIDERS->value)));
     }
 }

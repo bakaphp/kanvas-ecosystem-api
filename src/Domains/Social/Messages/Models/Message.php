@@ -175,6 +175,14 @@ class Message extends BaseModel
         );
     }
 
+    /**
+     * Written by a person on the team, as opposed to the customer or an agent.
+     */
+    public function isFromHuman(): bool
+    {
+        return (bool) ($this->message['from_human'] ?? false);
+    }
+
     public function appModuleMessage(): HasOne
     {
         return $this->hasOne(AppModuleMessage::class, 'message_id');

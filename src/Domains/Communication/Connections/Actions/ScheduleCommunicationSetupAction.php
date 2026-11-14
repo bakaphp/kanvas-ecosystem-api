@@ -8,14 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Jobs\EnsureCommunicationSetupJob;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
-use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Communication\Support\ProviderRollout;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 /**
- * The trigger: completing a messaging integration is the only thing a tenant does. Called from the
- * handler's saved() hook, inside the transaction that saves the integration, so the connection rows
- * it writes commit with the selection they come from; the vendor work runs after commit, in a job.
+ * Brings an integration's connection rows in line with its accounts now, and queues the vendor
+ * work. Runs wherever the accounts can change: the handler's saved() hook, an account linked without
+ * the integration form, an agent given a number or a mailbox. Inside a transaction the rows commit
+ * with the change they come from; the vendor work runs after commit, in a job.
  */
 final class ScheduleCommunicationSetupAction
 {
@@ -27,13 +27,9 @@ final class ScheduleCommunicationSetupAction
 
     public function execute(): bool
     {
-        $provider = new ProviderRegistry()->forIntegration($this->integrationCompany);
+        $provider = new ProviderRollout()->providerFor($this->integrationCompany, $this->app);
 
-        if ($provider === null || (int) $this->integrationCompany->apps_id !== $this->app->getId()) {
-            return false;
-        }
-
-        if (! new ProviderRollout()->allows($provider, $this->app, $this->integrationCompany->company)) {
+        if ($provider === null) {
             return false;
         }
 

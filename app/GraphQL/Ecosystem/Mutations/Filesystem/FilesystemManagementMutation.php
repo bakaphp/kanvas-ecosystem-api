@@ -20,6 +20,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
 use Kanvas\Filesystem\DataTransferObject\FilesystemEntityUpdate;
+use Kanvas\Filesystem\Events\FileDeletedEvent;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\CsvReaderService;
@@ -180,6 +181,7 @@ class FilesystemManagementMutation
             return;
         }
 
+        FileDeletedEvent::dispatch($file);
         $file->fireWorkflow(
             WorkflowEnum::DELETED->value,
             true,

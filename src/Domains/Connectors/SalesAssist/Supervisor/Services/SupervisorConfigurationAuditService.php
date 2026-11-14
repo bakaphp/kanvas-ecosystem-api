@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Supervisor\Services;
 
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Workflows\AgentChannelResponderActivity as MailgunResponderActivity;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Webhooks\ProcessTwilioWebhookJob;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Workflows\AgentChannelResponderActivity as TwilioResponderActivity;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Agents\Activities\AgentReachOutActivity;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
 
@@ -42,13 +37,7 @@ final class SupervisorConfigurationAuditService
     ];
 
     private const array AGENT_SETTINGS = [
-        'agent_reach_out_default_agent_id',
         'ai_assist_agent',
-    ];
-
-    private const array TWILIO_NUMBER_SETTINGS = [
-        TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value,
-        TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value,
     ];
 
     /** @var list<array{code: string, severity: string, summary: string, evidence: array<string, mixed>}> */
@@ -74,13 +63,12 @@ final class SupervisorConfigurationAuditService
             ->notDeleted()
             ->get();
         $agentsById = $agents->keyBy('id')->all();
-        $ruleClasses = $this->ruleActionClasses();
+        $rules = $this->rules();
 
         $this->auditCompanyRecord();
         $this->auditRequiredSettings();
         $this->auditAgentSettings($agentsById);
-        $this->auditReachOut($ruleClasses, $agentsById);
-        $this->auditResponders($ruleClasses);
+        $this->auditReachOut($rules);
         $this->auditPipelines();
         $this->auditCrossTenantPrompts($agents->all());
 
@@ -135,81 +123,26 @@ final class SupervisorConfigurationAuditService
     }
 
     /**
-     * Reach-out resolves its agent without checking is_active, so an inactive First Message still
-     * contacts every new lead once the rule exists.
+     * A reach-out rule with no agent of its own runs as the agent that has reach-out switched on;
+     * with none, every new lead fails the rule. A rule that names its agent (`params.agent_id`)
+     * runs as that one whatever the switch says, so it is not part of the finding.
      *
-     * @param array<int, list<class-string>> $ruleClasses
-     * @param array<int, Agent> $agents
+     * @param Collection<int, Rule> $rules
      */
-    private function auditReachOut(array $ruleClasses, array $agents): void
+    private function auditReachOut(Collection $rules): void
     {
-        $rules = $this->rulesRunning($ruleClasses, AgentReachOutActivity::class);
-        if ($rules === []) {
-            return;
-        }
+        $ruleIds = $this->rulesRunning(
+            $rules->filter(static fn (Rule $rule): bool => empty($rule->params['agent_id'])),
+            AgentReachOutActivity::class
+        );
 
-        $agentId = (int) $this->company->get('agent_reach_out_default_agent_id');
-        $agent = $agents[$agentId] ?? null;
-
-        if ($agent === null || ! $agent->is_active) {
+        if ($ruleIds !== [] && Agent::forNewLeads($this->app, $this->company) === null) {
             $this->add(
                 'rule.reach_out_without_active_agent',
                 self::SEVERITY_CRITICAL,
-                'A reach-out rule is live while the First Message agent is missing or inactive; reach-out does not '
-                    . 'check is_active, so new leads can still be contacted.',
-                ['rule_ids' => $rules, 'agent_id' => $agentId],
-            );
-        }
-    }
-
-    /**
-     * @param array<int, list<class-string>> $ruleClasses
-     */
-    private function auditResponders(array $ruleClasses): void
-    {
-        $twilioRules = $this->rulesRunning($ruleClasses, TwilioResponderActivity::class);
-        if ($twilioRules !== []) {
-            // Both are needed: follow-ups read one and notifications the other.
-            $missing = array_values(array_filter(self::TWILIO_NUMBER_SETTINGS, fn (string $key): bool => empty($this->company->get($key))));
-
-            if ($missing !== []) {
-                $this->add(
-                    'rule.twilio_responder_without_number',
-                    self::SEVERITY_HIGH,
-                    'A Twilio responder rule exists but a Twilio number setting is missing.',
-                    ['rule_ids' => $twilioRules, 'settings' => $missing],
-                );
-            }
-
-            $this->requireReceiver($twilioRules, ProcessTwilioWebhookJob::class, 'rule.twilio_responder_without_receiver');
-        }
-
-        $mailgunRules = $this->rulesRunning($ruleClasses, MailgunResponderActivity::class);
-        if ($mailgunRules !== []) {
-            $this->requireReceiver($mailgunRules, AgentProcessEmailWebhookJob::class, 'rule.mailgun_responder_without_receiver');
-        }
-    }
-
-    /**
-     * @param list<int> $ruleIds
-     * @param class-string $jobClass
-     */
-    private function requireReceiver(array $ruleIds, string $jobClass, string $code): void
-    {
-        $exists = ReceiverWebhook::query()
-            ->forJob($jobClass)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_active', 1)
-            ->where('is_deleted', 0)
-            ->exists();
-
-        if (! $exists) {
-            $this->add(
-                $code,
-                self::SEVERITY_MEDIUM,
-                'A responder rule exists but no active receiver feeds it, so inbound messages never reach it.',
-                ['rule_ids' => $ruleIds, 'receiver_job' => class_basename($jobClass)],
+                'A reach-out rule is live while no active agent has reach-out switched on '
+                    . '(reach_out_config.new_leads).',
+                ['rule_ids' => $ruleIds],
             );
         }
     }
@@ -297,48 +230,34 @@ final class SupervisorConfigurationAuditService
     }
 
     /**
-     * @return array<int, list<class-string>>
+     * @return Collection<int, Rule>
      */
-    private function ruleActionClasses(): array
+    private function rules(): Collection
     {
-        $rules = Rule::query()
+        return Rule::query()
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
             ->where('is_deleted', 0)
             ->with('workflowActivities.activity.action')
             ->get();
-
-        $classes = [];
-        foreach ($rules as $rule) {
-            $classes[$rule->getId()] = $rule->workflowActivities
-                ->map(static fn (RuleAction $step): ?string => $step->activity?->actionClass())
-                ->filter()
-                ->values()
-                ->all();
-        }
-
-        return $classes;
     }
 
     /**
-     * @param array<int, list<class-string>> $ruleClasses
+     * @param Collection<int, Rule> $rules
      * @param class-string $activity
      * @return list<int>
      */
-    private function rulesRunning(array $ruleClasses, string $activity): array
+    private function rulesRunning(Collection $rules, string $activity): array
     {
-        $ids = [];
-        foreach ($ruleClasses as $ruleId => $classes) {
-            foreach ($classes as $class) {
-                if (is_a($class, $activity, true)) {
-                    $ids[] = $ruleId;
-
-                    break;
-                }
-            }
-        }
-
-        return $ids;
+        return $rules
+            ->filter(
+                static fn (Rule $rule): bool => $rule->workflowActivities->contains(
+                    static fn (RuleAction $step): bool => is_a((string) $step->activity?->actionClass(), $activity, true)
+                )
+            )
+            ->map(static fn (Rule $rule): int => $rule->getId())
+            ->values()
+            ->all();
     }
 
     /**

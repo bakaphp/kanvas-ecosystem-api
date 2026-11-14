@@ -17,7 +17,6 @@ use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -476,7 +475,7 @@ final class CreateGroupMessageActionTest extends TestCase
             ],
         ]);
 
-        return new ProcessWaSenderWebhookJob($webhookCall)->execute();
+        return new WaSenderWebhookJob($webhookCall)->execute();
     }
 
     private ?ReceiverWebhook $receiver = null;
@@ -492,8 +491,8 @@ final class CreateGroupMessageActionTest extends TestCase
         $user = auth()->user();
 
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
+            ['model_name' => WaSenderWebhookJob::class],
+            ['name' => 'WaSenderWebhookJob'],
         );
 
         return $this->receiver = ReceiverWebhook::factory()

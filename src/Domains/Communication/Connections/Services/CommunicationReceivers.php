@@ -73,7 +73,7 @@ class CommunicationReceivers
     {
         return ReceiverWebhook::query()
             ->fromApp($app)
-            ->when(! $this->sharesAppReceiver($provider), fn (Builder $query) => $query->fromCompany($company))
+            ->when(! $this->sharesAppReceiver($provider), fn (Builder $query) => $query->fromCompany($company->getId()))
             ->notDeleted()
             ->where('configuration->communication->provider', $provider)
             ->whereHas('action', fn (Builder $query) => $query->where('model_name', ProcessCommunicationWebhookJob::class))
@@ -88,7 +88,7 @@ class CommunicationReceivers
     public function sharesAppReceiver(string $provider): bool
     {
         try {
-            return $this->registry->get($provider)::sharesAppReceiver();
+            return $this->registry->provider($provider)::sharesAppReceiver();
         } catch (InvalidArgumentException) {
             return false;
         }

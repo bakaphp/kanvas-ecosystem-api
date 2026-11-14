@@ -210,7 +210,7 @@ class BaseAgentChannelReplyAction
         $channel->addMessage($newMessage);
 
         if ($lead instanceof Lead) {
-            new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
+            new MarkLeadMessagesAsRespondedAction($lead, $newMessage, $message)->execute();
             new NotifyLeadStakeholdersService($lead)->onAgentReply($newMessage, isHuman: false);
 
             // Non-ADK agents (Neuron / Laravel / Runtime) get the master Lead + People

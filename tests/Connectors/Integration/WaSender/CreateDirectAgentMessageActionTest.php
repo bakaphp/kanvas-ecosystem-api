@@ -12,7 +12,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Enums\DirectConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\DirectConversationModeEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Social\Channels\Models\Channel;
@@ -196,7 +195,7 @@ final class CreateDirectAgentMessageActionTest extends TestCase
             ],
         ]);
 
-        return new ProcessWaSenderWebhookJob($webhookCall)->execute();
+        return new WaSenderWebhookJob($webhookCall)->execute();
     }
 
     private ?ReceiverWebhook $receiver = null;
@@ -224,8 +223,8 @@ final class CreateDirectAgentMessageActionTest extends TestCase
         );
 
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
+            ['model_name' => WaSenderWebhookJob::class],
+            ['name' => 'WaSenderWebhookJob'],
         );
 
         return $this->receiver = ReceiverWebhook::factory()

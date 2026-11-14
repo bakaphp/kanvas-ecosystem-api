@@ -7,9 +7,9 @@ namespace App\Console\Commands\Connectors\Mailgun;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\ValidatePeopleEmailAction;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
+use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Guild\Customers\Models\People;
 use Throwable;
 
@@ -26,11 +26,6 @@ class ValidateAllPeopleEmailsCommand extends Command
 
     private const int RATE_LIMIT_WINDOW_SECONDS = 60;
 
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'kanvas:guild-mailgun-email-validate {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=0 : Skip people validated within N days (0 = validate once, never re-validate)} {--force : Re-validate everyone, ignoring the cooldown} {--rate-limit=250 : Max Mailgun validation requests per minute (Mailgun caps the account at 300)}';
 
     /** @var list<float> Unix timestamps (with microseconds) of validation requests issued within the trailing window. */
@@ -38,11 +33,6 @@ class ValidateAllPeopleEmailsCommand extends Command
 
     private int $rateLimit = 250;
 
-    /**
-     * The console command description.
-     *
-     * @var string|null
-     */
     protected $description = 'Validate the email addresses of all people in a company with Mailgun, flagging hard bounces / invalid addresses';
 
     public function handle(): int
@@ -52,8 +42,8 @@ class ValidateAllPeopleEmailsCommand extends Command
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        if ((string) $app->get(ConfigurationEnum::API_KEY->value) === '') {
-            $this->error("No MAILGUN_API_KEY configured for app {$app->name}; nothing to validate.");
+        if (Client::apiKeyFor($app) === '') {
+            $this->error("No Mailgun API key configured for app {$app->name}; nothing to validate.");
 
             return self::FAILURE;
         }

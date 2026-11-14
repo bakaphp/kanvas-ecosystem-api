@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Recombee\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

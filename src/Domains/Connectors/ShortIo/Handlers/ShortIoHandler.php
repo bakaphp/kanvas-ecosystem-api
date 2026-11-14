@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ShortIo\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Validator;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\ShortIo\Client;
 use Kanvas\Connectors\ShortIo\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

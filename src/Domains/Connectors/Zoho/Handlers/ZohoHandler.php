@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
-use Kanvas\Connectors\Contracts\DefaultRule;
+use Baka\Contracts\BaseIntegration;
+use Baka\Contracts\DefaultRule;
 use Kanvas\Connectors\Zoho\Activities\ZohoPullDealActivity;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;

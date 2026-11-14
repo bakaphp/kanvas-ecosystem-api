@@ -1,84 +1,83 @@
-# Mailgun Connector — outbound email events
+# Mailgun Connector
 
-The code lives in `src/Domains/Communication/Channels/Email/Providers/Mailgun/` (namespace
-`Kanvas\Communication\Channels\Email\Providers\Mailgun`): `MailgunHandler` is a `CommunicationProvider`
-like Meta WhatsApp, with `EmailTransport`, `MailgunInbound` and `MailgunProvisioner`. The company's
-address on its Mailgun domain (`MAILGUN_FROM_ADDRESS`, else its from email when on the domain) is the
-connection: setup gives it a route to the communication receiver and points the domain's events there,
-and the receiver records them through the same actions the two legacy event receivers use. The
-classes under `src/Domains/Connectors/Mailgun/` are empty subclasses so rows and queued payloads that
-still name them resolve; `kanvas:workflow-sync-actions` renames the `actions` row in place (legacy
-names are carried by discovery), so no migration is needed. **Setup is opt-in**: every tenant already
-has the Mailgun integration, so the sweep leaves a company alone until it (or the app) lists
-`mailgun` in the `communication_providers` setting (`config('communication.opt_in')`); until then
-the domain's events stay on the legacy receivers.
+`MailgunHandler` is a Communication provider: it implements `Communication\Contracts\CommunicationProvider`
+and is named in `config/communication.php`, with `EmailTransport`, `MailgunInbound` and
+`MailgunProvisioner` behind it. The Communication domain never imports this connector
+(`CommunicationLayoutTest`). Loads when work touches the Mailgun provider.
 
-Loads when work touches the Mailgun provider. Covers what happens to an email after Mailgun
-accepts it; the inbound receivers and agent mailboxes are documented in their classes.
+Every address is a connection, and everything about an email (in, out, its events) goes through the
+one communication receiver. There are no Mailgun webhook jobs for conversations any more: the four
+that existed (company inbox, agent inbox, delivery events, opens) are retired per company by
+`RetireLegacyEmailInboundAction` the first time its connection is ready.
 
-## Two event receivers, one per concern
+## Which addresses are connections
 
-| Receiver | Events | Setup |
-|---|---|---|
-| `EmailOpenedWebhookJob` | `opened` → note on the lead/person, campaign slot opened, delivery `read` | `kanvas:mailgun-setup-email-opened-webhook` |
-| `EmailDeliveryWebhookJob` | `delivered`, `failed` (temporary / permanent), `complained`, `unsubscribed` | `kanvas:mailgun-setup-delivery-webhooks` |
+`MailgunHandler::accounts()` returns:
 
-Keep them apart: each command registers only its own Mailgun webhook ids, so setting up one never
-repoints the other. An open still reaches the delivery: `EmailOpenedWebhookJob` matches it by Message-Id through the
-same `RecordEmailEventOnDeliveryAction`, so `opened` is never added to the delivery receiver's events.
+- the **company's address** on its Mailgun domain (`MAILGUN_FROM_ADDRESS`, else its from email when
+  that is on the domain) — the default email connection;
+- **every agent mailbox** (`MAILGUN_MAILBOX_ADDRESS` custom field on the agent), carrying the agent.
 
-**The delivery receiver is one per app and sending domain** (`DeliveryWebhookReceiverService`,
-`configuration.mailgun.domain`), not per company: Mailgun keeps one URL per domain and event, and Mailgun
-has no per-message status callback the way Twilio does (routes only forward inbound mail). Its company is
-only whoever set it up first. It is set up by hand, once per domain, never from a send: run the command
-for any company on that domain. The domain defaults to the company's from email (`from_email_address`,
-e.g. `tom@mg.salesassist.io` → `mg.salesassist.io`), which is what company SMTP mail goes out as, then
-the company's Mailgun domain; `--domain=` overrides both (an agent mailbox domain, for instance). Running
-it again repoints the domain's events at the same receiver; a receiver switched off stays off.
+Never the **accounting inbox** (`AccountingInboxService`): it turns attached PDFs into bills on its
+own receiver (`ScribePdfInboundWebhookJob`), is not a conversation, and stays exactly as it was.
 
-## Where it is recorded: the communication ledger
+## An agent's own mailbox vs the company line an agent answers
 
-Email deliveries live in Communication, not in a Mailgun table (a connector must not own a table the
-platform reads): one `communication_requests` row for the person, one `communication_deliveries` row
-(`channel = email`, `provider = 'mailgun'`, `connection_id` null — these sends do not go through a
-connection; only a send through `EmailTransport` carries one), and its events in
-`communication_delivery_events`. Twilio SMS sent by the lead and agent paths still uses its own
-`twilio_message_attempts`; only a send through `SmsTransport` is a delivery.
+`MailboxAccessEnum` on the agent decides what its address is:
 
-## How an event finds its email
+| Access | What the address is | A stranger writes | Thread | Goes out as |
+|---|---|---|---|---|
+| `restricted` | the agent's own mailbox | turned away (`unknown_sender`) | per agent and sender | the agent, text as written, Reply-To the mailbox |
+| `open` | the agent's own mailbox | answered | per agent and sender | same |
+| `customer_line` | the **company's** address, which this agent answers | a person and a lead | the company's | the company, in the `agent-email-response` template |
 
-- **Send through the API:** `SendAsAgentMailboxAction` is the one place mail leaves through Mailgun's API. After the send
-  `FileEmailDeliveryAction` files the request + delivery keyed by the Message-Id the API returned, without
-  the angle brackets (`FileEmailDeliveryAction::normalizeMessageId()`), because events spell it that way,
-  and starts it `accepted`: a 200 from the send API is exactly Mailgun's `accepted` ("placed in queue"),
-  which is why that webhook is not registered. A send Mailgun refuses (`Client::assertOk`) is filed
-  `failed` under the sender's attempt uuid (the delivery's uuid), since there is no Message-Id; a
-  connection error is not a verdict and files nothing. A failure to file is reported, never thrown.
-- **Send on the company SMTP identity:** an agent without a mailbox (`SendAgentEmailAction`) and a lead
-  send without one (`SendMessageToLeadAction::sendEmailMessage()`) go out as a queued `Blank`. When the
-  company's (or app's) SMTP host is Mailgun's (`FileEmailDeliveryAction::sendsOnMailgunSmtp()`, checked
-  by the caller), `FileEmailDeliveryAction::sending()` fixes our own
-  Message-ID on the notification (`Notification::setMessageId()`, written as the header in `toMail()`)
-  and files the delivery `sending` before the job is queued, so the send result can link it like a
-  mailbox send. Communication's `MarkSmtpEmailAcceptedListener` (`NotificationSent`) moves any email
-  delivery `sending` under that Message-ID to `accepted` once the SMTP server takes it. Any other SMTP host never reports back, so nothing is filed.
-- **Campaign:** a campaign send stores its `lead_campaign_recipients` id on the request
-  (`campaign_recipient_id`). The campaign tables are not written; delivered/failed per campaign is read
-  from the ledger. Opens stay with `EmailOpenedWebhookJob` (`v:campaign_recipient_id`).
-- **Link:** the Message is usually written after the send. The send result carries `provider` +
-  `provider_message_id` (or `attempt_uuid` for a refused send), and `StoreMessageSidAction` /
-  `PersistOutboundMessageAction` hand it to Communication's `LinkDeliveryMessageAction`, which also writes
-  the delivery's state onto the message. An agent reply already has its Message, passed as `trackingMessage`.
-- **Event:** `EmailDeliveryWebhookJob` matches `message.headers.message-id` to the delivery **within the
-  receiver's app** and takes the company from the delivery, not the receiver: one sending domain can serve
-  several companies, and Mailgun calls one URL per domain. An event with no delivery is ignored, never
-  guessed onto a tenant.
+The domain only sees `Connection::PERSONAL` (`config.personal`), which `accounts()` sets from the
+access. `Connection::personalOwner()` is what `EmailTransport` and the reply delivery read; never
+check `agent()` to decide how an email is written.
 
-Events go through `RecordDeliveryEventAction`: deduped on delivery + Mailgun event + timestamp (Mailgun
-retries until it gets a 2xx), and the status only moves forward, so a late `accepted` or a temporary
-failure Mailgun recovered from never overwrites `delivered`.
+`customer_line` is how the agent a company's old responder rule named keeps answering the company's
+mail: `RetireLegacyEmailInboundAction` gives the company address to that agent when it has no
+mailbox of its own. An agent that already has one is left alone, and the company address is then
+filed and not answered until someone assigns it.
 
-## What each outcome does
+## Giving an agent a mailbox
+
+`ProvisionAgentMailboxAction` sets the address and access on the agent and reconciles the company's
+connections (`RefreshAgentConnectionsAction`). It takes `restricted` or `open` and refuses
+`customer_line`: that access is only ever written by `RetireLegacyEmailInboundAction`, on the
+company's address. The route in Mailgun is registered by the setup job
+through `MailgunProvisioner::registerInbound()`, never by the mailbox itself; `DisconnectAgentMailboxAction`
+clears the fields and reconciles, and the connection's cleanup removes the route.
+
+Mailgun can be configured once for a whole app, so a company may have mailboxes without ever having
+integrated it. `Communication\...\EnsureProviderIntegrationAction` gives such a company the integration row its
+connection hangs off, with its first mailbox. For mailboxes that existed before this, run
+`kanvas:mailgun:adopt-agent-mailboxes` once at the cutover.
+
+## Outbound
+
+- **Through a connection** (everything a customer or a lead receives): `EmailTransport`, composed by
+  the domain's `EmailComposer`. The delivery is on the ledger with `provider = 'mailgun'` and its
+  Message-Id (without angle brackets — `FileEmailDeliveryAction::normalizeMessageId()`), which is
+  what events carry back.
+- **Company SMTP** (`provider = 'smtp'`): the domain's built-in carrier. Mailgun events still find
+  it when the SMTP host is Mailgun's, because `RecordEmailEventOnDeliveryAction::findDelivery()`
+  matches both providers.
+- **`SendAsAgentMailboxAction`** is the one send left outside a connection: the email an agent sends
+  a **teammate** (`send_email_to_user`). A teammate is a user, never a People row, and the facade
+  sends to people. It takes the agent, the recipient, a subject and the text, writes the body with
+  the same `EmailComposer::writtenHtml()` / `writtenText()` an agent's own mailbox uses, and files
+  its own delivery through `FileEmailDeliveryAction`. Do not add callers.
+
+## Events
+
+`MailgunInbound::recordStatuses()` handles a domain event on the communication receiver:
+`RecordMailgunDeliveryEventAction` for `delivered` / `failed` / `complained` / `unsubscribed`,
+`RecordMailgunOpenAction` for `opened`. The delivery is found by Message-Id **within the receiver's
+app** and the company comes from the delivery, because one sending domain can serve several
+companies and Mailgun calls one URL per domain. An event with no delivery is ignored, never guessed
+onto a tenant. Events go through `RecordDeliveryEventAction`: deduped, and the status only moves
+forward.
 
 | Event | Delivery / message | Contact |
 |---|---|---|
@@ -86,15 +85,26 @@ failure Mailgun recovered from never overwrites `delivered`.
 | `failed`, temporary | event recorded, stays `accepted` (Mailgun retries) | — |
 | `failed`, permanent | `failed` + SMTP code, pushed | that address → `hard_bounce` |
 | `complained` / `unsubscribed` | event recorded, reads as `delivered` | `ApplyDoNotContactAction` — person-wide, like a STOP |
-| `opened` (on the opened receiver) | `read`, pushed; a bot open is ignored | — |
+| `opened` | `read`, pushed; note on the lead or person; campaign slot opened; a bot open is ignored | — |
 
 A complaint or an unsubscribe is the person asking us to stop, so it follows the consent rule in
 `Guild/Customers/CLAUDE.md` rather than opting out the one address.
 
-## Not covered
+**One events URL per domain.** Each address has its own route, but Mailgun keeps a single webhook
+URL per domain and event. When several companies share a sending domain, the first to register
+keeps the events (`MailgunProvisioner::receiverStillServing()`): a later company gets its route and
+leaves the events where they are, which works because the tenant is read off the delivery. The
+events only move to the company provisioning when Mailgun no longer sends to the registered URL or
+the receiver behind it is switched off.
 
-- A queued SMTP send that never goes out (the job fails for good) stays `sending`: the generic
-  notification layer has no hook into Communication, and marking it `failed` on the first failed try
-  would freeze it there even when a retry sends it.
-- Other `Blank` emails (notifications to users, `SendEmailToPeopleAction`, ...) are not filed; their
-  events are ignored.
+**The signing key** is resolved in one place, `ConfigurationEnum::signingKeyFor($app, $company)`:
+the company's own, else the app's for a company that has none because it sends through the app's
+Mailgun. The webhook check and every "is Mailgun configured" check read it from there.
+
+## Replies
+
+There is no Mailgun responder. `MailgunInbound` parses the mail, the shared pipeline files it, and
+the agent that owns the connection answers through the domain (`RespondToInboundMessageJob` →
+`DeliverAgentReplyAction`). What is specific to email lives there, not here: the approval hold, no
+fallback copy on a failed turn, the file markers in the prompt, and the lead's thread subject
+(`Lead::emailThreadSubject()`). See `src/Domains/Communication/CLAUDE.md`.

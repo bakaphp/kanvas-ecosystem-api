@@ -52,7 +52,7 @@ final class ReconcileDeliveriesJob implements ShouldQueue
             ->whereIn('status', [DeliveryStatusEnum::SENDING->value, DeliveryStatusEnum::UNKNOWN->value])
             ->whereNull('events_closed_at')
             ->where('updated_at', '<', now()->subMinutes((int) config('communication.reconcile_after_minutes')))
-            ->each(function (Delivery $delivery): void {
+            ->eachById(function (Delivery $delivery): void {
                 try {
                     $this->settle($delivery);
                 } catch (Throwable $exception) {
@@ -103,7 +103,7 @@ final class ReconcileDeliveriesJob implements ShouldQueue
                 ->whereNull('events_closed_at')
                 ->whereNotIn('status', [DeliveryStatusEnum::PENDING->value, DeliveryStatusEnum::SENDING->value])
                 ->where('last_event_at', '<', now()->sub($provider::eventRetention()->window))
-                ->each(function (Delivery $delivery): void {
+                ->eachById(function (Delivery $delivery): void {
                     $delivery->forceFill(['events_closed_at' => now()])->saveOrFail();
 
                     if ($delivery->status === DeliveryStatusEnum::UNKNOWN) {

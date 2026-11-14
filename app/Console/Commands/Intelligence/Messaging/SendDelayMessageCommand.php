@@ -10,7 +10,7 @@ use Exception;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketCustomFieldEnum;
@@ -260,7 +260,7 @@ class SendDelayMessageCommand extends Command
                 $fromNumber,
                 $title,
             );
-            new StoreMessageSidAction($message)->execute($providerResponse);
+            new LinkDeliveryMessageAction($message)->execute($providerResponse);
 
             $message->setUnlock();
             $message->setPublic();

@@ -15,6 +15,7 @@ use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
+use Kanvas\Guild\Leads\Events\LeadCreatedEvent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -24,7 +25,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -33,7 +34,6 @@ use function Sentry\captureException;
 class CreateLeadAction
 {
     protected CompanyInterface $company;
-    protected bool $runWorkflow = true;
 
     public function __construct(
         protected readonly LeadDataInput $leadData,
@@ -92,7 +92,7 @@ class CreateLeadAction
             }
 
             if ($this->leadData->organization instanceof Organization) {
-                $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();
+                $organization = new CreateOrganizationAction($this->leadData->organization)->execute();
                 $newLead->organization_id = $organization->getId();
             }
             $newLead->saveOrFail();
@@ -115,32 +115,27 @@ class CreateLeadAction
                 $this->leadAttempt->saveOrFail();
             }
 
-            if ($this->runWorkflow) {
-                $newLead->fireWorkflow(
-                    WorkflowEnum::CREATED->value,
-                    true
-                );
+            // A lead brought in by an import is not announced: nothing reaches out to it and the AI
+            // is not told it is new. Its contacts are still saved, so its channels open.
+            if ($this->leadData->runWorkflow) {
+                LeadCreatedEvent::dispatch($newLead);
+                $newLead->fireWorkflow(WorkflowEnum::CREATED->value);
+            }
 
-                //@todo improve this for create social channels
-                $newLead->people->contacts->each(function (Contact $contact) use ($newLead) {
-                    $contact->fireWorkflow(
-                        WorkflowEnum::CONTACT_SAVED->value,
-                        true,
-                        [
-                            'company' => $this->company,
-                            'app' => $newLead->app,
-                        ]
-                    );
-                });
-                $newLead->fireWorkflow(
-                    WorkflowEnum::TRIGGER_AI->value,
+            //@todo improve this for create social channels
+            $newLead->people->contacts->each(function (Contact $contact) use ($newLead) {
+                $contact->fireWorkflow(
+                    WorkflowEnum::CONTACT_SAVED->value,
                     true,
                     [
                         'company' => $this->company,
                         'app' => $newLead->app,
-                        'trigger_type' => TriggersEnum::NEW_LEAD->value,
                     ]
                 );
+            });
+
+            if ($this->leadData->runWorkflow) {
+                LeadAiTriggeredEvent::announceNewLead($newLead);
             }
 
             try {

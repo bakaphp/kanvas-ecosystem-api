@@ -153,7 +153,7 @@ class CommunicationSetupCommand extends Command
     }
 
     /**
-     * Decision R: an integration saved before numbers were selected in the integration flow gets
+     * An integration saved before numbers were selected in the integration flow gets
      * the number its company already sends from, persisted on the row like any selection.
      */
     private function importLegacySelection(IntegrationsCompany $integrationCompany): void

@@ -8,9 +8,9 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Approvals\Contracts\ApprovalHandlerInterface;
 use Kanvas\Approvals\Contracts\ApprovalRejectionHandlerInterface;
 use Kanvas\Approvals\Models\ApprovalRequest;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\SendAgentEmailAction;
+use Kanvas\Communication\Messages\Actions\DeliverAgentReplyAction;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Support\MessageApproval;
 use Override;
@@ -19,8 +19,8 @@ use Override;
  * What approving a held agent draft DOES — the one handler behind every message approval.
  *
  * The approvals domain binds a handler per policy, but a message names its own action per instance, so
- * this dispatches to the card's `approval.handler` and falls back to shipping the draft down its own
- * channel. That indirection is what lets a new approval kind ship a handler class and nothing else —
+ * this dispatches to the card's `approval.handler` and falls back to sending the draft in the
+ * conversation it answers. That indirection is what lets a new approval kind ship a handler class and nothing else —
  * no policy edit, no arm added to a match here.
  */
 class AgentMessageApprovalHandler implements ApprovalHandlerInterface, ApprovalRejectionHandlerInterface
@@ -33,21 +33,24 @@ class AgentMessageApprovalHandler implements ApprovalHandlerInterface, ApprovalR
     {
         $message = $this->resolveMessage($request);
         $handlerClass = MessageApproval::handler($message);
+        $delivery = null;
 
         if ($handlerClass !== null) {
             new $handlerClass()->approve($message, $this->mergedContext($message, $request));
         } else {
-            $this->sendByVerb($message);
+            $delivery = $this->sendHeldReply($message);
         }
 
-        // The card renders off approval.status, not the lock, so unlocking alone leaves an approved
-        // draft still offering a live Approve button for work that is already done.
+        // Settled before anything else can throw: a failure past this point is recorded as a failed
+        // approval, and a card left pending would offer the same send again. The card renders off
+        // approval.status, not the lock, so unlocking alone leaves a live Approve button.
         MessageApproval::settle($message, MessageApproval::STATUS_APPROVED);
         $message->setUnlock();
 
         return [
             'message_id' => $message->getId(),
             'kind' => MessageApproval::kind($message),
+            ...($delivery !== null ? ['delivery_status' => $delivery->status->value] : []),
         ];
     }
 
@@ -97,18 +100,37 @@ class AgentMessageApprovalHandler implements ApprovalHandlerInterface, ApprovalR
     }
 
     /**
-     * No handler on the card → an outbound the agent already composed, and approving means shipping
-     * it. Mailgun is the only verb wired so far.
+     * No handler on the card → a reply the agent already wrote, and approving means sending it in
+     * the conversation it answers, whatever the medium.
+     *
+     * Throwing makes the approval retryable, and a retry sends. So only a send that certainly did
+     * not leave throws: one whose outcome was lost may be with the provider, and is settled as it
+     * stands for the delivery ledger to resolve. For the same reason a draft that already has such
+     * a delivery is not sent a second time.
      */
-    private function sendByVerb(Message $message): void
+    private function sendHeldReply(Message $message): Delivery
     {
-        $verb = $message->messageType?->verb;
+        $delivery = $this->deliveryThatMayHaveLeft($message)
+            ?? DeliverAgentReplyAction::forHeldReply($message)->execute();
 
-        match ($verb) {
-            ChannelCategoryEnum::MAILGUN->value => new SendAgentEmailAction($message)->execute(),
-            default => throw new ValidationException(
-                'Approval send is not supported for message type: ' . (string) $verb,
-            ),
-        };
+        if ($delivery === null || ! $delivery->status->mayHaveReachedTheProvider()) {
+            throw new ValidationException(
+                'The approved message was not sent: '
+                . ($delivery?->error ?? $delivery?->error_code ?? 'no connection')
+            );
+        }
+
+        return $delivery;
+    }
+
+    private function deliveryThatMayHaveLeft(Message $message): ?Delivery
+    {
+        return Delivery::query()
+            ->fromApp($message->app)
+            ->fromCompany((int) $message->companies_id)
+            ->where('message_id', $message->getId())
+            ->orderByDesc('id')
+            ->get()
+            ->first(fn (Delivery $delivery): bool => $delivery->status->mayHaveReachedTheProvider());
     }
 }

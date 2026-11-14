@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Concerns;
 
-use Kanvas\Connectors\Contracts\DefaultRule;
+use Baka\Contracts\DefaultRule;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Guild\Customers\Models\People;

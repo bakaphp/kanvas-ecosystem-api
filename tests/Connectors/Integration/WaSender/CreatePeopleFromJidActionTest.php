@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\WaSender;
 
+use DateTime;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\CreatePeopleFromJidAction;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -86,6 +87,38 @@ final class CreatePeopleFromJidActionTest extends TestCase
         $this->assertSame('Original Name', $resolved?->getName());
     }
 
+    /**
+     * An echo of our own send carries no display name. The person it reaches is the CRM's, so the
+     * name and date of birth on file must survive it.
+     */
+    public function testAnEchoOfOurOwnSendLeavesAKnownPersonAsTheyAre(): void
+    {
+        $tenDigits = '809559' . random_int(1000, 9999);
+        $jid = '1' . $tenDigits . '@s.whatsapp.net';
+        $existing = $this->peopleWithPhone($tenDigits, 'Juan Pérez', new DateTime('1988-04-12'));
+
+        $resolved = new CreatePeopleFromJidAction($this->receiver(), $jid)->execute();
+
+        $this->assertSame($existing->getId(), $resolved?->getId());
+
+        $stored = People::findOrFail($existing->getId());
+
+        $this->assertSame('Juan', $stored->firstname);
+        $this->assertSame('Pérez', $stored->lastname);
+        $this->assertSame('1988-04-12', Carbon::parse($stored->dob)->toDateString());
+        $this->assertSame($jid, (string) $stored->get('whatsapp_jid'));
+    }
+
+    public function testAWhatsAppDisplayNameDoesNotRenameAKnownPerson(): void
+    {
+        $tenDigits = '809560' . random_int(1000, 9999);
+        $existing = $this->peopleWithPhone($tenDigits, 'Juan Pérez');
+
+        new CreatePeopleFromJidAction($this->receiver(), '1' . $tenDigits . '@s.whatsapp.net', 'JP 🚗')->execute();
+
+        $this->assertSame('Juan Pérez', People::findOrFail($existing->getId())->getName());
+    }
+
     public function testGroupJidResolvesToNoPersonAtAll(): void
     {
         $this->assertNull(
@@ -93,7 +126,7 @@ final class CreatePeopleFromJidActionTest extends TestCase
         );
     }
 
-    private function peopleWithPhone(string $phone, string $name = 'Known Person'): People
+    private function peopleWithPhone(string $phone, string $name = 'Known Person', ?DateTime $dob = null): People
     {
         /** @var Users $user */
         $user = auth()->user();
@@ -114,6 +147,7 @@ final class CreatePeopleFromJidActionTest extends TestCase
                 ], DataCollection::class),
                 address: Address::collect([], DataCollection::class),
                 lastname: $parts[1] ?? '',
+                dob: $dob,
             )
         )->execute();
     }
@@ -131,8 +165,8 @@ final class CreatePeopleFromJidActionTest extends TestCase
         $user = auth()->user();
 
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
+            ['model_name' => WaSenderWebhookJob::class],
+            ['name' => 'WaSenderWebhookJob'],
         );
 
         return $this->receiver = ReceiverWebhook::factory()

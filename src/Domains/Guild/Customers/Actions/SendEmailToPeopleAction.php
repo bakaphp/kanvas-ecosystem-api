@@ -4,35 +4,29 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
-use Illuminate\Support\Facades\Notification;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\FileEmailDeliveryAction;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Actions\SendAsAgentMailboxAction;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
+use Baka\Support\Str;
+use Kanvas\Communication\Channels\Email\EmailComposer;
+use Kanvas\Communication\Communication;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\EmailOptions;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 
 /**
- * The People-only counterpart of SendMessageToLeadAction's email path, for a recipient that has no
- * Lead behind it (a bulk-imported campaign recipient). No SMS lane — that stays Lead-shaped until a
- * real need shows up here. Defaults to the same `first-time-agent-engagement` template Leads already
- * use, so the common case needs no new `templates` row — but the caller can point at any other
- * template it owns (see create_template).
+ * An email to a person with no lead behind them (a campaign recipient). It leaves the way a lead's
+ * email does: from the agent's own mailbox when that is a connection (the text as written), else
+ * on the company's email connection, in the template the caller names or the default one.
  *
- * Mirrors SendMessageToLeadAction's dual path: an agent with a mailbox sends through Mailgun's API
- * with open tracking on (SendAsAgentMailboxAction's trackingPerson), everyone else falls back to the
- * company's SMTP identity via Notification, same as before this existed.
+ * A send that is refused or skipped throws, which every caller treats as "not sent".
  */
 class SendEmailToPeopleAction
 {
-    private const string DEFAULT_TEMPLATE = 'first-time-agent-engagement';
-
     public function __construct(
         protected readonly People $people,
     ) {
@@ -64,67 +58,54 @@ class SendEmailToPeopleAction
         }
 
         $subject ??= 'Message from ' . $this->people->company->name;
-        $mailboxAddress = $fromAgent !== null ? new AgentMailboxService()->addressFor($fromAgent) : null;
         $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
+        $communication = Communication::for($this->people->app, $this->people->company);
+        $writesAsItself = $communication->speaksFromOwnAddress(ChannelTypeEnum::EMAIL, $fromAgent);
 
-        if ($mailboxAddress !== null) {
-            $mailgunMessageId = new SendAsAgentMailboxAction(
-                agent: $fromAgent,
-                to: $to,
-                subject: $subject,
-                markdownBody: $message,
-                cc: $cc,
-                attachmentUrls: $attachmentUrls,
-                signature: $ownerSignature,
-                trackingPerson: $trackOpens ? $this->people : null,
-                trackingCampaignRecipient: $trackOpens ? $campaignRecipient : null,
-            )->execute();
+        // An agent's own mailbox writes the text as it is; any other address sends the company's
+        // templated email.
+        $template = $writesAsItself
+            ? null
+            : (Str::trimToNull($templateName) ?? EmailComposer::DEFAULT_TEMPLATE);
 
-            return [
-                'channel' => 'email',
-                'to' => $to,
-                'template' => 'agent-mailbox',
-                'from' => $mailboxAddress,
-                'people_id' => $this->people->getId(),
-                'provider' => IntegrationsEnum::MAILGUN->value,
-                'provider_message_id' => FileEmailDeliveryAction::normalizeMessageId($mailgunMessageId),
-            ];
+        $delivery = $communication
+            ->send(
+                $this->people,
+                Content::text($message)
+                    ->withSubject($subject)
+                    ->withAttachments($attachmentUrls)
+                    ->withEmail(new EmailOptions(
+                        cc: $cc,
+                        template: $template,
+                        templateData: [...$variables, 'noHi' => true],
+                        signatureUserId: $ownerSignature !== null ? $signatureOwner?->getId() : null,
+                        campaignRecipientId: $campaignRecipient?->getId(),
+                        trackOpens: $trackOpens,
+                        important: $important
+                    )),
+                channels: [ChannelTypeEnum::EMAIL->value],
+                from: Sender::speaking($fromAgent, $signatureOwner),
+                sync: true,
+                toAddress: $to,
+                file: false
+            )
+            ->delivery(ChannelTypeEnum::EMAIL);
+
+        if ($delivery?->wasAccepted() !== true) {
+            throw new ValidationException(
+                'The email was not sent: ' . ($delivery?->error ?? $delivery?->error_code ?? 'the company has no email address to send from')
+            );
         }
-
-        $templateName = $templateName !== null && trim($templateName) !== '' ? trim($templateName) : self::DEFAULT_TEMPLATE;
-        $html = MarkdownEmailRenderer::toEmailHtml($message);
-
-        $notification = new Blank(
-            $templateName,
-            [
-                'content' => $html,
-                'people' => $this->people,
-                ...$variables,
-                'noHi' => true,
-                'company' => $this->people->company,
-                'signature' => false,
-            ],
-            ['mail'],
-            $this->people,
-            $attachmentUrls !== [] ? $attachmentUrls : null,
-        );
-        $notification->setSubject($subject);
-        $notification->setUserSignature($ownerSignature);
-        if ($important) {
-            $notification->setImportant();
-        }
-        if ($cc !== []) {
-            $notification->setCc($cc);
-        }
-
-        Notification::route('mail', $to)->notify($notification);
 
         return [
             'channel' => 'email',
             'to' => $to,
-            'template' => $templateName,
-            'body_length' => strlen($html),
+            'template' => $template ?? 'agent-mailbox',
+            'from' => $delivery->connection?->account_key,
             'people_id' => $this->people->getId(),
+            'provider' => $delivery->provider,
+            'provider_message_id' => $delivery->external_id,
+            'operation_id' => $delivery->request_id,
         ];
     }
 }

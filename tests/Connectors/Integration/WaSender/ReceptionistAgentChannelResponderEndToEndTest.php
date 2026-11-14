@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
+use Kanvas\Communication\Messages\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -23,7 +23,6 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Tests\Stubs\Intelligence\ReceptionistNeuronAgentStub;
 use Tests\TestCase;
-use Throwable;
 
 /**
  * End-to-end simulation: inbound WhatsApp message → kernel dispatch → the REAL ReceptionistAgent
@@ -33,7 +32,10 @@ use Throwable;
  */
 class ReceptionistAgentChannelResponderEndToEndTest extends TestCase
 {
+    use ArrivesOnWaSenderConnection;
     use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
     public function testInboundWhatsAppGetsReceptionistAutoReply(): void
     {
@@ -140,17 +142,12 @@ class ReceptionistAgentChannelResponderEndToEndTest extends TestCase
 
         $action = new AgentChannelResponderAction(
             $channel,
-            $inbound,
+            $this->arrivedOnConnection($inbound, $agent),
             $agent,
             $session,
         );
 
-        try {
-            $action->execute([]);
-        } catch (Throwable) {
-            // Expected: outbound WaSender API call fails without real credentials.
-            // The agent dispatch + reply persistence ran before that point.
-        }
+        $action->execute([]);
 
         $outbound = Message::query()
             ->where('apps_id', $app->getId())

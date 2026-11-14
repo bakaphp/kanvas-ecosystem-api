@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Communication\Connections;
 
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Actions\ReleaseUnusedRegistrationsAction;
 use Kanvas\Communication\Connections\Actions\RetireConnectionAction;
 use Kanvas\Communication\Connections\Actions\RunConnectionCleanupAction;
@@ -14,6 +18,7 @@ use Kanvas\Communication\Connections\DataTransferObject\SetupReport;
 use Kanvas\Communication\Connections\Enums\CleanupTaskStatusEnum;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Jobs\EnsureCommunicationSetupJob;
+use Kanvas\Communication\Connections\Jobs\RunConnectionCleanupJob;
 use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\InboundClaim;
@@ -31,7 +36,7 @@ use Tests\Communication\Fixtures\FakeTransport;
 use Tests\TestCase;
 
 /**
- * §10 on a provider-neutral fake: what completing an integration sets up, and how a change of
+ * On a provider-neutral fake: what completing an integration sets up, and how a change of
  * selection, a retry and a teardown leave it.
  */
 final class EnsureCommunicationSetupActionTest extends TestCase
@@ -61,7 +66,7 @@ final class EnsureCommunicationSetupActionTest extends TestCase
 
         $this->assertFalse(Connection::query()->where('integrations_company_id', $integration->getId())->exists());
         Queue::assertNotPushed(EnsureCommunicationSetupJob::class);
-        $this->assertSame('provider_not_opted_in', $this->runSetup($integration)->reason);
+        $this->assertSame('not_provisioned_here', $this->runSetup($integration)->reason);
 
         // Settings live in Redis and on `ecosystem`, outside the transaction: cleared by hand.
         $this->currentCompany()->set(ConfigurationEnum::PROVIDERS->value, ['fake']);
@@ -142,6 +147,104 @@ final class EnsureCommunicationSetupActionTest extends TestCase
 
         $this->assertSame(1, Connection::query()->where('integrations_company_id', $integration->getId())->count());
         $this->assertSame(1, $this->receivers());
+    }
+
+    /**
+     * MySQL hands a JSON object back with its keys in its own order, which says nothing about
+     * whether the account changed.
+     */
+    public function testAnAccountWhoseAttributesOnlyComeBackInAnotherOrderIsNotRewritten(): void
+    {
+        $account = ['phone_number' => '+18095550104', 'attributes' => ['agent_id' => 7, 'sid' => 'PN104']];
+        $integration = $this->integrateMessaging([$account]);
+        $connection = $this->connectionFor($integration, '+18095550104');
+        DB::connection('workflow')
+            ->table('communication_connections')
+            ->where('id', $connection->getId())
+            ->update(['config' => '{"sid": "PN104", "agent_id": 7}']);
+
+        $rewrites = 0;
+        Connection::updating(function (Connection $connection) use (&$rewrites): void {
+            $rewrites += (int) $connection->isDirty('config');
+        });
+
+        $this->resaveIntegration($integration, [$account]);
+        $this->assertSame(0, $rewrites);
+
+        $account['attributes']['agent_id'] = 8;
+        $this->resaveIntegration($integration, [$account]);
+
+        $this->assertSame(1, $rewrites);
+        $this->assertEquals(['agent_id' => 8, 'sid' => 'PN104'], $connection->fresh()->config);
+    }
+
+    /**
+     * Saving the integration reconciles outside the setup lock, so it can meet the sweep on the
+     * same account: the row appears between this pass reading the connections and inserting its own.
+     */
+    public function testAReconcileThatLosesTheRaceToMakeAConnectionKeepsTheOneThatWon(): void
+    {
+        $raced = false;
+        DB::connection('workflow')->listen(function (QueryExecuted $query) use (&$raced): void {
+            $readsTheConnections = str_starts_with($query->sql, 'select')
+                && str_contains($query->sql, 'communication_connections')
+                && str_contains($query->sql, 'integrations_company_id');
+
+            if ($raced || ! $readsTheConnections) {
+                return;
+            }
+
+            $raced = true;
+            DB::connection('workflow')->table('communication_connections')->insert([
+                'uuid' => (string) Str::uuid(),
+                'apps_id' => $this->currentApp()->getId(),
+                'companies_id' => $this->currentCompany()->getId(),
+                'integrations_company_id' => last($query->bindings),
+                'provider' => 'fake',
+                'account_key' => '+18095550105',
+                'setup_status' => SetupStatusEnum::PENDING_SETUP->value,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $integration = $this->integrateMessaging(['+18095550105']);
+
+        $this->assertTrue($raced);
+        $this->assertSame(1, Connection::query()->live()->ofIntegration($integration)->count());
+        $this->assertSame(SetupReport::READY, $this->runSetup($integration)->outcome);
+    }
+
+    public function testAnAccountLiveOnAnotherIntegrationOfTheCompanyIsLeftToIt(): void
+    {
+        $first = $this->integrateMessaging(['+18095550106']);
+        $second = $this->integrateMessaging(['+18095550106']);
+
+        $this->assertSame(1, Connection::query()->live()->ofIntegration($first)->count());
+        $this->assertSame(0, Connection::query()->live()->ofIntegration($second)->count());
+    }
+
+    public function testTheQueuedCleanupRunsAsTheConnectionsOwnApp(): void
+    {
+        $integration = $this->integrateMessaging(['+18095550107']);
+        $this->runSetup($integration);
+        $connection = $this->connectionFor($integration, '+18095550107');
+
+        $this->resaveIntegration($integration, []);
+        Queue::assertPushed(
+            RunConnectionCleanupJob::class,
+            fn (RunConnectionCleanupJob $job): bool => $job->communicationConnection->is($connection)
+        );
+
+        // A worker is still bound to the app of whatever job it ran before.
+        $app = $this->currentApp();
+        $this->overwriteAppService(new Apps()->forceFill(['id' => PHP_INT_MAX]));
+
+        new RunConnectionCleanupJob($connection->fresh())->handle();
+
+        $this->assertTrue($this->currentApp()->is($app));
+        $this->assertSame(SetupStatusEnum::DISCONNECTED, $connection->fresh()->setup_status);
+        $this->assertArrayNotHasKey('+18095550107', $this->vendor->vendor);
     }
 
     public function testChangingNumbersFromABToBC(): void
@@ -253,6 +356,21 @@ final class EnsureCommunicationSetupActionTest extends TestCase
      * Saving the integration replaces its selection; a sweep never does. A number the person
      * disconnected stays disconnected through any number of sweeps until they select it again.
      */
+    public function testAnAccountTheProviderStoppedListingIsNotRememberedAsRetired(): void
+    {
+        $integration = $this->integrateMessaging(['+18095550139']);
+        $this->runSetup($integration);
+
+        $this->resaveIntegration($integration->fresh(), []);
+
+        $this->assertSame(0, Connection::query()->live()->where('integrations_company_id', $integration->getId())->count());
+        $this->assertArrayNotHasKey(
+            'retired_accounts',
+            $integration->fresh()->config ?? [],
+            'giving the same number back must make a connection again'
+        );
+    }
+
     public function testDisconnectWhileStillSelectedThenRepeatedSweepsRecreateNothing(): void
     {
         $integration = $this->integrateMessaging(['+18095550131']);
@@ -271,6 +389,21 @@ final class EnsureCommunicationSetupActionTest extends TestCase
         $this->runSetup($integration);
 
         $this->assertSame(1, Connection::query()->live()->where('integrations_company_id', $integration->getId())->count());
+    }
+
+    public function testAVendorFailureOnARepairPassLeavesAWorkingNumberReady(): void
+    {
+        $integration = $this->integrateMessaging(['+18095550141']);
+        $this->runSetup($integration);
+
+        $this->vendor->probeError = 'The vendor did not answer.';
+        $this->runSetup($integration);
+
+        $connection = $this->connectionFor($integration, '+18095550141');
+
+        $this->assertSame(SetupStatusEnum::READY, $connection->setup_status);
+        $this->assertSame('The vendor did not answer.', $connection->last_error);
+        $this->assertNull($connection->unavailableReason());
     }
 
     public function testVendorRegistrationFailsThenSweepCompletesSetup(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WaSender\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\WaSender\Enums\CustomFieldEnum;
 use Kanvas\Connectors\WaSender\Services\ConversationChannelService;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -37,56 +38,65 @@ class CreatePeopleFromJidAction
             return null;
         }
 
-        $existingCustomer = People::getByCustomField(
-            'whatsapp_jid',
-            $this->jid,
-            $this->receiver->company
-        );
+        $existing = $this->existingPerson();
 
-        $phoneNumber = str_replace('@s.whatsapp.net', '', $this->jid);
-
-        if (! $existingCustomer) {
-            $existingCustomer = PeoplesRepository::getByPhoneNumber(
-                $this->receiver->app,
-                $this->receiver->company,
-                $this->normalizedPhones()
-            )->first();
-        }
-
-        // Session hijack maps someone else's traffic onto this record; overwriting their name and
-        // contacts with the hijacked JID's data would corrupt the real person.
-        if ($existingCustomer && $this->keepExisting) {
-            return $existingCustomer;
+        if ($existing !== null) {
+            return $existing;
         }
 
         $displayName = $this->name ?? ConversationChannelService::extractContactName($this->jid);
         $nameParts = explode(' ', $displayName, 2);
 
-        $peopleDto = new PeopleDTO(
-            app: $this->receiver->app,
-            branch: $this->receiver->company->defaultBranch,
-            user: $this->receiver->user,
-            firstname: $nameParts[0] ?? 'WhatsApp',
-            contacts: Contact::collect([
-                [
-                    'value' => $phoneNumber,
-                    'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
-                    'weight' => 100,
+        return new CreatePeopleAction(
+            new PeopleDTO(
+                app: $this->receiver->app,
+                branch: $this->receiver->company->defaultBranch,
+                user: $this->receiver->user,
+                firstname: $nameParts[0] ?? 'WhatsApp',
+                contacts: Contact::collect([
+                    [
+                        'value' => str_replace('@s.whatsapp.net', '', $this->jid),
+                        'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                        'weight' => 100,
+                    ],
+                ], DataCollection::class),
+                address: Address::collect([], DataCollection::class),
+                lastname: $nameParts[1] ?? 'Contact',
+                custom_fields: [
+                    CustomFieldEnum::WHATSAPP_JID->value => $this->jid,
                 ],
-            ], DataCollection::class),
-            address: Address::collect([], DataCollection::class),
-            lastname: $nameParts[1] ?? 'Contact',
-            custom_fields: [
-                'whatsapp_jid' => $this->jid,
-            ],
-            tags: ['whatsapp', 'wa-contact']
-        );
+                tags: ['whatsapp', 'wa-contact']
+            )
+        )->execute();
+    }
 
-        if ($existingCustomer) {
-            $peopleDto->id = $existingCustomer->getId();
+    /**
+     * A person already on file is returned as they are. A WhatsApp display name, or the absence of
+     * one on an echo of our own send, says nothing about who the CRM knows them to be, and running
+     * them through the create action would replace their name and blank what the payload does not
+     * carry (date of birth, licence). The JID is the one thing added, so the next lookup is direct.
+     */
+    private function existingPerson(): ?People
+    {
+        $existing = People::getByCustomField(
+            CustomFieldEnum::WHATSAPP_JID->value,
+            $this->jid,
+            $this->receiver->company
+        ) ?? PeoplesRepository::getByPhoneNumber(
+            $this->receiver->app,
+            $this->receiver->company,
+            $this->normalizedPhones()
+        )->first();
+
+        // A hijacked session carries someone else's JID, which must not be pinned on this person.
+        if ($existing !== null
+            && ! $this->keepExisting
+            && empty($existing->get(CustomFieldEnum::WHATSAPP_JID->value))
+        ) {
+            $existing->set(CustomFieldEnum::WHATSAPP_JID->value, $this->jid);
         }
 
-        return new CreatePeopleAction($peopleDto)->execute();
+        return $existing;
     }
 
     /**

@@ -6,22 +6,23 @@ namespace Tests\Connectors\Integration\WaSender;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WaSender\Actions\ConfigureWhatsAppGroupsAction;
-use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupReplyModeEnum;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\TestCase;
 
 /**
- * PR4: the allow-list is opt-in, written onto the agent's receiver, and validated — a bare phone
- * number silently allow-lists nothing, since a group thread is only ever addressed by its @g.us JID.
+ * PR4: the allow-list is opt-in, written onto the WhatsApp receiver of the agent's company, and
+ * validated — a bare phone number silently allow-lists nothing, since a group thread is only ever
+ * addressed by its @g.us JID.
  */
 final class ConfigureWhatsAppGroupsActionTest extends TestCase
 {
@@ -135,9 +136,9 @@ final class ConfigureWhatsAppGroupsActionTest extends TestCase
         )->execute();
     }
 
-    public function testAnAgentWithNoWhatsAppConnectionIsRejected(): void
+    public function testAnAgentWhoseCompanyHasNoWhatsAppReceiverIsRejected(): void
     {
-        $agent = $this->agent();
+        $agent = $this->agent(Companies::factory()->create());
 
         $this->expectException(ValidationException::class);
 
@@ -152,15 +153,16 @@ final class ConfigureWhatsAppGroupsActionTest extends TestCase
      */
     private function connectedAgent(): array
     {
-        $agent = $this->agent();
-        $receiver = $this->receiver();
+        // A company of its own: the receiver is found by company, not by an id the agent holds.
+        $company = Companies::factory()->create();
 
-        $agent->set(ConnectionFieldEnum::RECEIVER_ID->value, $receiver->getId());
-
-        return [$agent, $receiver];
+        return [
+            $this->agent($company),
+            new CommunicationReceivers()->ensure(app(Apps::class), $company, WaSenderHandler::slug()),
+        ];
     }
 
-    private function agent(): Agent
+    private function agent(Companies $company): Agent
     {
         $app = app(Apps::class);
         /** @var Users $user */
@@ -168,32 +170,10 @@ final class ConfigureWhatsAppGroupsActionTest extends TestCase
 
         return Agent::factory()
             ->withAppId($app->getId())
-            ->withCompanyId($user->getCurrentCompany()->getId())
+            ->withCompanyId($company->getId())
             ->create([
                 'agent_type_id' => AgentType::factory()->create(['apps_id' => $app->getId()]),
                 'user_id' => $user->getId(),
-            ]);
-    }
-
-    private function receiver(): ReceiverWebhook
-    {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-
-        $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
-        );
-
-        return ReceiverWebhook::factory()
-            ->app($app->getId())
-            ->company($user->getCurrentCompany()->getId())
-            ->user($user->getId())
-            ->create([
-                'action_id' => $action->getId(),
-                'configuration' => [],
-                'is_active' => true,
             ]);
     }
 }

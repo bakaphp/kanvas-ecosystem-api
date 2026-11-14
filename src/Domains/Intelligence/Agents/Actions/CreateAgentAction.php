@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Support\Str;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Jobs\ProvisionAgentMailboxJob;
-use Kanvas\Communication\Channels\Email\Providers\Mailgun\Services\AgentMailboxService;
+use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
+use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
@@ -45,6 +45,8 @@ class CreateAgentAction
             'tools_config' => $this->agent->toolsConfig,
             'voice_config' => $this->agent->voiceConfig,
             'sms_config' => $this->agent->smsConfig,
+            'whatsapp_config' => $this->agent->whatsappConfig,
+            'reach_out_config' => $this->agent->reachOutConfig,
             'parent_id' => $this->agent->parentAgent?->getId(),
             'is_sub_agent' => $this->agent->isSubAgent,
             'deployment_status' => 'pending',

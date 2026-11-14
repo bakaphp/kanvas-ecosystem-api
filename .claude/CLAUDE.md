@@ -69,6 +69,7 @@ Big task-shaped recipes have been moved to skills under `.claude/skills/`. They 
 Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
+- `src/Domains/Communication/CLAUDE.md` — messaging as a first-party domain: sending from any domain through `Communication::for($app, $company)->send()/reply()`, what stays in the domain vs in a connector, `config/communication.php` as the only join (providers, opt-in, default rules), how to add a provider without touching the core, and the inbound → auto-reply flow.
 - `src/Domains/Connectors/Microsoft/CLAUDE.md` — Outlook + OneDrive: a company's own account (Outlook + its drive) vs the app's shared OneDrive (`MicrosoftTokenStore`), the tools' `drive` choice, the `microsoft`/`onedrive` OAuth integrations and their `oauth_url`, App Registration for personal accounts, granted-scopes refresh, Word-by-XML / Excel write limits, eTag and delete rules, native tools vs `microsoft365_mcp`.
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).

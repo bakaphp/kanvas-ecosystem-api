@@ -5,58 +5,38 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\RespondIO\Actions;
 
 use Kanvas\Connectors\RespondIO\BaseRespondIOAction;
-use Kanvas\Connectors\RespondIO\Traits\HasChannelProcessing;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Override;
 
 class ProcessConversationClosedAction extends BaseRespondIOAction
 {
-    use HasChannelProcessing;
-
     #[Override]
     public function execute(): array
     {
-        /** @var array<string, mixed> $contact */
-        $contact = $this->payload['contact'] ?? [];
         /** @var array<string, mixed> $conversation */
         $conversation = $this->payload['conversation'] ?? [];
+        $channel = $this->resolveChannel();
 
-        $identifier = $this->getContactIdentifier($contact);
-
-        if ($identifier === null) {
-            return ['error' => 'Missing contact identifier'];
+        if ($channel === null) {
+            return $this->unresolved('no_channel_found');
         }
 
-        $channel = $this->findChannelByIdentifier($this->app, $this->company, $identifier);
+        $lead = $this->resolveLead($channel);
 
-        if (! $channel) {
-            return ['status' => 'no_channel_found', 'identifier' => $identifier];
-        }
-
-        $lead = $this->findLeadFromChannel($this->app, $this->company, $channel);
-
-        if ($lead instanceof Lead) {
+        if ($lead !== null) {
             $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
             $lead->set(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value, 'conversation_closed');
 
-            $lead->fireWorkflow(
-                WorkflowEnum::TRIGGER_AI->value,
-                true,
-                [
-                    'app' => $this->app,
-                    'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
-                ]
-            );
+            LeadAiTriggeredEvent::announce($lead, TriggersEnum::HUMAN_TAKEOVER->value);
         }
 
         return [
             'status' => 'conversation_closed',
             'channel_id' => $channel->getId(),
             'lead_id' => $lead?->getId(),
-            'identifier' => $identifier,
+            'identifier' => $this->contactIdentifier(),
             'summary' => $conversation['summary'] ?? null,
             'category' => $conversation['category'] ?? null,
         ];

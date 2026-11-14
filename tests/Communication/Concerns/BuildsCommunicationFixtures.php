@@ -194,7 +194,8 @@ trait BuildsCommunicationFixtures
     }
 
     /**
-     * The app's global agents a company's setup copies; without them setup is blocked.
+     * The app's agent templates (`companies_id = 0`) a company's setup copies; without them setup
+     * is blocked.
      *
      * @return array<string, Agent> by name
      */

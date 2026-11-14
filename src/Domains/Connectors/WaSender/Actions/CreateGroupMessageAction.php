@@ -6,19 +6,9 @@ namespace Kanvas\Connectors\WaSender\Actions;
 
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
-use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
-use Kanvas\Connectors\WaSender\Services\ConversationChannelService;
 use Kanvas\Connectors\WaSender\Services\GroupMentionService;
-use Kanvas\Connectors\WaSender\Services\GroupSpeakerService;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Override;
 
 /**
@@ -38,86 +28,35 @@ class CreateGroupMessageAction extends BaseInboundMessageAction
             return null;
         }
 
-        $app = $this->receiver->app;
-        $company = $this->receiver->company;
+        $message = parent::execute();
 
-        $content = $this->messageData['message'] ?? [];
-        $messageType = MessageTypeEnum::getMessageType($content);
-        $text = MessageTypeEnum::extractText($content);
-
-        // Checked before resolving the speaker: a forwarded ad card carries neither text nor media
-        // and must not leave a People row behind for a message we never file.
-        if ($text === null && MessageTypeEnum::mediaKey($content) === null) {
-            return null;
-        }
-
-        $people = new GroupSpeakerService($this->receiver, $this->inbound)->resolve();
-
-        $messageTypeModel = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $app->getId(),
-                0,
-                $messageType->value,
-                $messageType->value,
-            )
-        )->execute();
-
-        $message = new CreateMessageAction(
-            new MessageInput(
-                app: $app,
-                company: $company,
-                user: $this->receiver->user,
-                type: $messageTypeModel,
-                message: [
-                    ...AiChatMessagePayload::from([
-                        'content' => $this->attribute($text, $people),
-                        'from_me' => $this->inbound->isFromMe,
-                        'from_ia' => false,
-                        'raw_data' => $this->messageData,
-                        'message_id' => $this->inbound->messageId,
-                        'chat_jid' => $this->inbound->conversationJid,
-                    ])->toArray(),
-                    'conversation_type' => $this->inbound->conversationType->value,
-                    'group_jid' => $this->inbound->conversationJid,
-                    'sender_jid' => $this->inbound->senderJid,
-                    'sender_lid' => $this->inbound->senderLid,
-                    'sender_phone' => $this->inbound->senderPhone,
-                    'sender_name' => $this->inbound->pushName,
-                    'sender_identity' => $this->inbound->senderIdentity(),
-                    'album_id' => $this->inbound->albumId,
-                    'mentioned_jids' => $this->inbound->mentionedJids,
-                    'quoted_message_id' => $this->inbound->quotedMessageId,
-                    'quoted_participant' => $this->inbound->quotedParticipant,
-                ],
-                is_public: 1,
-                slug: ConversationChannelService::messageSlug(
-                    $this->inbound->messageId,
-                    $this->inbound->conversationJid
-                ),
-                tags: [$this->inbound->conversationJid],
-            ),
-            SystemModulesRepository::getByModelName(Channel::class, $app),
-            $this->channel->getId(),
-        )->execute();
-
-        $message->people_id = $people->getId();
-        $message->saveOrFail();
-
-        $this->channel->addMessage($message);
-
-        // Our own message is the one moment WhatsApp discloses our lid, so it is filed and read —
-        // but never burst. `messages.upsert` echoes outgoing messages back, so arming a burst on
-        // one would have the agent answer itself, forever.
-        if ($this->inbound->isFromMe) {
+        // Our own message is the one moment WhatsApp discloses our lid.
+        if ($message !== null) {
             new GroupMentionService($this->receiver, $this->channel)->rememberOwnLid($this->inbound);
-            $this->attachMedia($message, $messageType);
-
-            return $message;
         }
-
-        $this->fileIntoBurstWithMedia($message, $messageType);
 
         return $message;
+    }
+
+    #[Override]
+    protected function storedText(?string $text, ?People $speaker): ?string
+    {
+        $name = $this->inbound->pushName ?? $speaker?->getName();
+
+        if ($text === null || $name === null || trim($name) === '') {
+            return $text;
+        }
+
+        return trim($name) . ': ' . $text;
+    }
+
+    #[Override]
+    protected function shapePayload(): array
+    {
+        return [
+            'group_jid' => $this->inbound->conversationJid,
+            'mentioned_jids' => $this->inbound->mentionedJids,
+        ];
     }
 
     #[Override]
@@ -145,16 +84,5 @@ class CreateGroupMessageAction extends BaseInboundMessageAction
             GroupConfigEnum::ALLOWED_GROUP_JIDS->getList($this->receiver),
             true
         );
-    }
-
-    private function attribute(?string $text, ?People $people): ?string
-    {
-        $name = $this->inbound->pushName ?? $people?->getName();
-
-        if ($text === null || $name === null || trim($name) === '') {
-            return $text;
-        }
-
-        return trim($name) . ': ' . $text;
     }
 }

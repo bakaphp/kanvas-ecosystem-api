@@ -6,6 +6,7 @@ namespace Kanvas\Communication\Messages\Actions;
 
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\ConversationRef;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Support\TransportManager;
 use Kanvas\Guild\Customers\Models\People;
@@ -35,20 +36,29 @@ final class FileDeliveryMessageAction
             ->for($connection->provider, $this->delivery->channel)
             ->conversation($connection, (string) $this->delivery->to_address);
 
-        if ($request->filed_message_id !== null) {
-            return $this->stampFiledMessage((int) $request->filed_message_id, $conversation->thread);
+        // Filed by the caller, or by an earlier attempt of this delivery: the message is there
+        // already, and a second one would show the same text twice in the conversation.
+        $filedId = $request->filed_message_id ?? $this->delivery->message_id;
+
+        if ($filedId !== null) {
+            $message = $this->stampFiledMessage((int) $filedId, $conversation->thread);
+
+            // It may still show the failure this send replaces.
+            new RecordDeliveryOnMessageAction($this->delivery)->execute();
+
+            return $message;
         }
 
         $app = $this->delivery->app;
         $company = $this->delivery->company;
-        $user = Users::query()->find($request->users_id) ?? $company->user;
-        $fromAgent = ($request->sender['type'] ?? null) === 'agent';
+        $user = $request->user ?? $company->user;
+        $sender = Sender::fromArray($request->sender);
 
         $payload = new AiChatMessagePayload(
             content: $this->content->text,
             from_me: true,
-            from_ia: $fromAgent,
-            agent_id: $fromAgent ? $request->sender['id'] : null,
+            from_ia: $sender->isAgent(),
+            agent_id: $sender->isAgent() ? $sender->id : null,
             message_id: $this->delivery->external_id,
             chat_jid: $conversation->thread,
         )->toArray();
@@ -118,24 +128,14 @@ final class FileDeliveryMessageAction
      */
     private function channelFor(ConversationRef $conversation, Users $user): Channel
     {
-        $channel = Channel::query()
-            ->fromApp($this->delivery->app)
-            ->fromCompany($this->delivery->company)
-            ->where('slug', $conversation->channelSlug)
-            ->orderByDesc('last_message_id')
-            ->first();
-
-        if ($channel !== null) {
-            return $channel;
-        }
-
         $request = $this->delivery->request;
 
-        return Channel::create(array_filter([
+        return new FindOrCreateConversationChannelAction(
+            $this->delivery->app,
+            $this->delivery->company,
+            $conversation->channelSlug
+        )->execute(array_filter([
             'users_id' => $user->getId(),
-            'apps_id' => $this->delivery->apps_id,
-            'companies_id' => $this->delivery->companies_id,
-            'slug' => $conversation->channelSlug,
             'name' => $conversation->thread,
             'description' => 'Conversation with ' . $conversation->thread,
             'entity_namespace' => $request->people_id !== null ? People::class : null,

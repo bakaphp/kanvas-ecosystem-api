@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Connections\Actions;
 
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Concerns\SchedulesRetries;
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\DataTransferObject\InboundRegistration;
 use Kanvas\Communication\Connections\DataTransferObject\SetupReport;
@@ -20,15 +22,10 @@ use Kanvas\Communication\Connections\Models\InboundClaim;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\CommunicationProvider;
 use Kanvas\Communication\Contracts\Provisioner;
-use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Setup\Actions\SetupCompanyDefaultsAction;
 use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
-use Kanvas\Communication\Support\AutoReplyPolicy;
-use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Communication\Support\ProviderRollout;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
-use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
-use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 use RuntimeException;
 use Throwable;
 
@@ -42,12 +39,9 @@ use Throwable;
  */
 final class EnsureCommunicationSetupAction
 {
-    private const int LOCK_SECONDS = 300;
+    use SchedulesRetries;
 
-    /**
-     * Minutes before a failed connection is retried, by attempt; past the last, the sweep keeps
-     * retrying at its own pace.
-     */
+    private const int LOCK_SECONDS = 300;
     private const array BACKOFF_MINUTES = [1, 5, 30];
 
     /** @var Collection<string, AccountSelection>|null */
@@ -66,18 +60,10 @@ final class EnsureCommunicationSetupAction
 
     public function execute(): SetupReport
     {
-        $provider = new ProviderRegistry()->forIntegration($this->integrationCompany);
+        $provider = new ProviderRollout()->providerFor($this->integrationCompany, $this->app);
 
         if ($provider === null) {
-            return SetupReport::skipped('not_a_communication_provider');
-        }
-
-        if ((int) $this->integrationCompany->apps_id !== $this->app->getId()) {
-            return SetupReport::skipped('integration_belongs_to_another_app');
-        }
-
-        if (! new ProviderRollout()->allows($provider, $this->app, $this->integrationCompany->company)) {
-            return SetupReport::skipped('provider_not_opted_in');
+            return SetupReport::skipped('not_provisioned_here');
         }
 
         $lock = Cache::lock(
@@ -109,20 +95,14 @@ final class EnsureCommunicationSetupAction
         $desired = $this->desiredAccounts($provider);
         $current = Connection::query()
             ->live()
-            ->where('integrations_company_id', $this->integrationCompany->getId())
+            ->ofIntegration($this->integrationCompany)
             ->get()
             ->keyBy('account_key');
 
         foreach ($desired as $key => $account) {
-            $connection = $current->get($key);
+            $connection = $current->get($key) ?? $this->createConnection($provider, $account);
 
-            if ($connection === null) {
-                $this->createConnection($provider, $account);
-
-                continue;
-            }
-
-            if (($connection->config ?? []) !== $account->attributes) {
+            if ($connection !== null && ! $this->hasConfig($connection, $account->attributes)) {
                 $connection->forceFill(['config' => $account->attributes ?: null])->saveOrFail();
             }
         }
@@ -131,6 +111,16 @@ final class EnsureCommunicationSetupAction
         foreach ($current->reject(fn (Connection $connection): bool => $desired->has($connection->account_key)) as $connection) {
             new RetireConnectionAction($connection, 'account_removed')->execute();
         }
+    }
+
+    /**
+     * Whatever order the keys come back in: a JSON column does not keep the one it was written in.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function hasConfig(Connection $connection, array $attributes): bool
+    {
+        return Arr::sortRecursive($connection->config ?? []) === Arr::sortRecursive($attributes);
     }
 
     /**
@@ -145,7 +135,7 @@ final class EnsureCommunicationSetupAction
 
         $connections = Connection::query()
             ->live()
-            ->where('integrations_company_id', $this->integrationCompany->getId())
+            ->ofIntegration($this->integrationCompany)
             ->orderBy('account_key')
             ->get();
 
@@ -175,9 +165,11 @@ final class EnsureCommunicationSetupAction
      */
     private function provision(string $provider, Provisioner $provisioner, Connection $connection): void
     {
-        // A ready connection being repaired stays ready, or every send during the repair would
-        // fail as not ready.
-        if ($connection->setup_status !== SetupStatusEnum::READY) {
+        // A ready connection being repaired stays ready, during the repair and when it fails: one
+        // vendor blip on a sweep must not stop a working number from sending.
+        $wasReady = $connection->setup_status === SetupStatusEnum::READY;
+
+        if (! $wasReady) {
             $connection->forceFill([
                 'setup_status' => SetupStatusEnum::PROVISIONING,
                 'provisioning_started_at' => now(),
@@ -208,47 +200,72 @@ final class EnsureCommunicationSetupAction
             }
 
             new SetupCompanyDefaultsAction($this->app, $connection->company)->execute();
-            $this->ensureAutoReply($provider, $provisioner);
             $this->ensureChannelDefaults($provider, $connection);
+            $this->markReady($connection);
 
-            $connection->forceFill([
-                'setup_status' => SetupStatusEnum::READY,
-                'last_error' => null,
-                'setup_attempts' => 0,
-                'next_setup_at' => null,
-            ]);
-
-            // Switched on once, by the first setup that succeeds. After that only the person's
-            // own On/Off decides — repair must never turn back on what they turned off.
-            $firstReady = $connection->first_ready_at === null;
-
-            if ($firstReady) {
-                $connection->first_ready_at = now();
-                $connection->enabled = true;
-            }
-
-            $connection->saveOrFail();
-
-            // The people a company already has get their channels once, when it first goes live.
-            if ($firstReady) {
-                SetupPeopleChannelsJob::dispatch($this->app, $connection->company);
-            }
+            // Only now: the vendor already sends here, so nothing is left unanswered in between.
+            $provisioner->retireLegacy($connection);
         } catch (SetupBlockedException $blocked) {
-            $connection->forceFill([
-                'setup_status' => SetupStatusEnum::BLOCKED,
-                'last_error' => $blocked->reason . ($blocked->getMessage() !== $blocked->reason ? ': ' . $blocked->getMessage() : ''),
-            ])->saveOrFail();
+            $this->markBlocked($connection, $blocked, $wasReady);
         } catch (Throwable $exception) {
             report($exception);
-
-            $attempts = $connection->setup_attempts + 1;
-            $connection->forceFill([
-                'setup_status' => SetupStatusEnum::FAILED,
-                'last_error' => $exception->getMessage(),
-                'setup_attempts' => $attempts,
-                'next_setup_at' => now()->addMinutes(self::BACKOFF_MINUTES[min($attempts, count(self::BACKOFF_MINUTES)) - 1]),
-            ])->saveOrFail();
+            $this->markFailed($connection, $exception, $wasReady);
         }
+    }
+
+    private function markReady(Connection $connection): void
+    {
+        $connection->forceFill([
+            'setup_status' => SetupStatusEnum::READY,
+            'last_error' => null,
+            'setup_attempts' => 0,
+            'next_setup_at' => null,
+        ]);
+
+        // Switched on once, by the first setup that succeeds. After that only the person's own
+        // On/Off decides — repair must never turn back on what they turned off.
+        $firstReady = $connection->first_ready_at === null;
+
+        if ($firstReady) {
+            $connection->first_ready_at = now();
+            $connection->enabled = true;
+        }
+
+        $connection->saveOrFail();
+
+        // The people a company already has get their channels once, when it first goes live.
+        // Queued here, before the legacy is retired: `first_ready_at` is saved, so a failure
+        // there would otherwise leave the company without them for good.
+        if ($firstReady) {
+            SetupPeopleChannelsJob::dispatch($this->app, $connection->company);
+        }
+    }
+
+    private function markBlocked(Connection $connection, SetupBlockedException $blocked, bool $wasReady): void
+    {
+        $reason = $blocked->reason . ($blocked->getMessage() !== $blocked->reason ? ': ' . $blocked->getMessage() : '');
+
+        $connection->forceFill(
+            ['last_error' => $reason] + ($wasReady ? [] : ['setup_status' => SetupStatusEnum::BLOCKED])
+        )->saveOrFail();
+    }
+
+    private function markFailed(Connection $connection, Throwable $exception, bool $wasReady): void
+    {
+        if ($wasReady) {
+            $connection->forceFill(['last_error' => $exception->getMessage()])->saveOrFail();
+
+            return;
+        }
+
+        $attempts = $connection->setup_attempts + 1;
+
+        $connection->forceFill([
+            'setup_status' => SetupStatusEnum::FAILED,
+            'last_error' => $exception->getMessage(),
+            'setup_attempts' => $attempts,
+            'next_setup_at' => $this->retryAt($attempts, self::BACKOFF_MINUTES),
+        ])->saveOrFail();
     }
 
     /**
@@ -259,7 +276,7 @@ final class EnsureCommunicationSetupAction
     {
         $inbound = new CommunicationReceivers()->ensure($this->app, $connection->company, $connection->provider);
 
-        return Cache::lock(self::resourceLock($connection->provider, $connection->account_key), self::LOCK_SECONDS)
+        return Cache::lock($connection->resourceLockKey(), self::LOCK_SECONDS)
             ->block(30, fn () => $provisioner->registerInbound($connection, $inbound->getUrl()));
     }
 
@@ -278,32 +295,6 @@ final class EnsureCommunicationSetupAction
 
         $connection->provisioning = $provisioning;
         $connection->saveOrFail();
-    }
-
-    /**
-     * @param class-string<CommunicationProvider> $provider
-     */
-    private function ensureAutoReply(string $provider, Provisioner $provisioner): void
-    {
-        $autoReply = $provisioner->autoReply();
-
-        if ($autoReply === null) {
-            return;
-        }
-
-        foreach (array_keys($provider::transports()) as $channel) {
-            $agent = new AutoReplyPolicy()->agentFor($this->app, $this->integrationCompany->company, ChannelTypeEnum::from($channel));
-
-            if ($agent !== null) {
-                new EnsureAutoReplyRuleAction(
-                    $agent,
-                    new RuleConditionData('slug', RuleConditionOperatorEnum::MATCHES, $autoReply['channel_slug_pattern']),
-                    $autoReply['legacy_responder']
-                )->execute();
-
-                return;
-            }
-        }
     }
 
     /**
@@ -359,26 +350,45 @@ final class EnsureCommunicationSetupAction
 
     /**
      * @param class-string<CommunicationProvider> $provider
+     *
+     * @return Connection|null null when the account is live on another of the company's integrations
      */
-    private function createConnection(string $provider, AccountSelection $account): void
+    private function createConnection(string $provider, AccountSelection $account): ?Connection
     {
-        DB::connection('workflow')->transaction(function () use ($provider, $account) {
-            $connection = Connection::query()->create([
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->integrationCompany->companies_id,
-                'integrations_company_id' => $this->integrationCompany->getId(),
-                'provider' => $provider::slug(),
-                'account_key' => $account->key,
-                'label' => $account->label,
-                'config' => $account->attributes ?: null,
-                'setup_status' => SetupStatusEnum::PENDING_SETUP,
-                'health' => 'unknown',
-                'enabled' => false,
-                'activation_version' => 1,
-            ]);
+        try {
+            return DB::connection('workflow')->transaction(fn (): Connection => $this->insertConnection($provider, $account));
+        } catch (UniqueConstraintViolationException) {
+            // A reconcile outside the setup lock raced this one to make it; the index picked one.
+            return Connection::query()
+                ->live()
+                ->ofIntegration($this->integrationCompany)
+                ->where('account_key', $account->key)
+                ->first();
+        }
+    }
 
-            $this->holdsClaim($connection);
-        });
+    /**
+     * @param class-string<CommunicationProvider> $provider
+     */
+    private function insertConnection(string $provider, AccountSelection $account): Connection
+    {
+        $connection = Connection::query()->create([
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->integrationCompany->companies_id,
+            'integrations_company_id' => $this->integrationCompany->getId(),
+            'provider' => $provider::slug(),
+            'account_key' => $account->key,
+            'label' => $account->label,
+            'config' => $account->attributes ?: null,
+            'setup_status' => SetupStatusEnum::PENDING_SETUP,
+            'health' => 'unknown',
+            'enabled' => false,
+            'activation_version' => 1,
+        ]);
+
+        $this->holdsClaim($connection);
+
+        return $connection;
     }
 
     /**
@@ -411,10 +421,5 @@ final class EnsureCommunicationSetupAction
         }
 
         return true;
-    }
-
-    public static function resourceLock(string $provider, string $resourceKey): string
-    {
-        return "communication:resource:{$provider}:{$resourceKey}";
     }
 }

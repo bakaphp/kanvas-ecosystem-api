@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\LicensePlateExtractor\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ConfigurationEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ProviderEnum;
 use Kanvas\Exceptions\ValidationException;

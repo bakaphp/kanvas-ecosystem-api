@@ -14,13 +14,16 @@ use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
+/**
+ * A contact is named by an identifier: `phone:+1234567890`, `id:123` or `email:user@example.com`.
+ */
 class Client
 {
     protected string $baseUrl = 'https://api.respond.io/v2';
     protected string $bearerToken;
 
     /**
-     * Max requests per second per method+path (Respond.io limit).
+     * Respond.io's limit, per method and path.
      */
     protected int $maxRequestsPerSecond = 5;
 
@@ -42,64 +45,23 @@ class Client
         $this->bearerToken = $bearerToken;
     }
 
-    public function get(string $path, array $params = []): array
-    {
-        $this->throttle('GET', $path);
-
-        /** @var \Illuminate\Http\Client\Response $response */
-        $response = Http::withToken($this->bearerToken)
-            ->get($this->baseUrl . $path, $params);
-
-        return $this->handleResponse($response);
-    }
-
-    public function post(string $path, array $data = [], array $params = []): array
+    public function post(string $path, array $data = []): array
     {
         $this->throttle('POST', $path);
 
-        /** @var \Illuminate\Http\Client\Response $response */
-        $response = Http::withToken($this->bearerToken)
-                        ->withOptions($params)
-                        ->post($this->baseUrl . $path, $data);
-
-        return $this->handleResponse($response);
+        return $this->handleResponse(
+            Http::withToken($this->bearerToken)->post($this->baseUrl . $path, $data)
+        );
     }
 
-    public function put(string $path, array $data = []): array
+    public function sendMessage(string $phone, string $message): array
     {
-        $this->throttle('PUT', $path);
-
-        /** @var \Illuminate\Http\Client\Response $response */
-        $response = Http::withToken($this->bearerToken)
-            ->put($this->baseUrl . $path, $data);
-
-        return $this->handleResponse($response);
-    }
-
-    public function delete(string $path, array $data = []): array
-    {
-        $this->throttle('DELETE', $path);
-
-        /** @var \Illuminate\Http\Client\Response $response */
-        $response = Http::withToken($this->bearerToken)
-            ->delete($this->baseUrl . $path, $data);
-
-        return $this->handleResponse($response);
-    }
-
-    public function sendMessage(string $phone, string $message, array $params = []): array
-    {
-        $phone = Str::ensurePhonePrefix($phone);
-
-        $path = "/contact/phone:{$phone}/message";
-        $data = [
+        return $this->post('/contact/phone:' . Str::ensurePhonePrefix($phone) . '/message', [
             'message' => [
                 'type' => 'text',
                 'text' => $message,
             ],
-        ];
-
-        return $this->post($path, $data, $params);
+        ]);
     }
 
     public function sendAttachment(
@@ -108,46 +70,23 @@ class Client
         string $url,
         ?string $caption = null
     ): array {
-        $phone = Str::ensurePhonePrefix($phone);
-
-        $path = "/contact/phone:{$phone}/message";
-        $attachment = [
-            'type' => $type,
-            'url' => $url,
-        ];
-
-        if ($caption !== null) {
-            $attachment['caption'] = $caption;
-        }
-
-        $data = [
+        return $this->post('/contact/phone:' . Str::ensurePhonePrefix($phone) . '/message', [
             'message' => [
                 'type' => 'attachment',
-                'attachment' => $attachment,
+                'attachment' => array_filter(
+                    [
+                        'type' => $type,
+                        'url' => $url,
+                        'caption' => $caption,
+                    ],
+                    static fn (?string $value): bool => $value !== null
+                ),
             ],
-        ];
-
-        return $this->post($path, $data);
+        ]);
     }
 
     /**
-     * Assign a conversation to a user or unassign it.
-     *
-     * @param string $identifier Contact identifier (e.g., "phone:+1234567890" or "id:123")
-     * @param int|string|null $assignee User ID, email, or null to unassign
-     */
-    public function assignConversation(string $identifier, int|string|null $assignee = null): array
-    {
-        $path = "/contact/{$identifier}/conversation/assignee";
-
-        return $this->post($path, ['assignee' => $assignee]);
-    }
-
-    /**
-     * Open or close a conversation.
-     *
-     * @param string $identifier Contact identifier (e.g., "phone:+1234567890" or "id:123")
-     * @param string $status "open" or "close"
+     * @param string $status "open" or "close"; the closing note only goes with "close"
      */
     public function updateConversationStatus(
         string $identifier,
@@ -155,7 +94,6 @@ class Client
         ?string $closingNoteCategory = null,
         ?string $closingNoteSummary = null
     ): array {
-        $path = "/contact/{$identifier}/conversation/status";
         $data = ['status' => $status];
 
         if ($status === 'close') {
@@ -167,35 +105,15 @@ class Client
             }
         }
 
-        return $this->post($path, $data);
+        return $this->post("/contact/{$identifier}/conversation/status", $data);
     }
 
-    /**
-     * Create or update a contact (upsert).
-     *
-     * @param string $identifier Contact identifier (e.g., "phone:+1234567890" or "email:user@example.com")
-     */
     public function createOrUpdateContact(string $identifier, array $data): array
     {
-        $path = "/contact/create_or_update/{$identifier}";
-
-        return $this->post($path, $data);
+        return $this->post("/contact/create_or_update/{$identifier}", $data);
     }
 
     /**
-     * Get a contact by identifier.
-     *
-     * @param string $identifier Contact identifier (e.g., "phone:+1234567890", "id:123", "email:user@example.com")
-     */
-    public function getContact(string $identifier): array
-    {
-        return $this->get("/contact/{$identifier}");
-    }
-
-    /**
-     * Add tags to a contact.
-     *
-     * @param string $identifier Contact identifier
      * @param array<string> $tags 1-10 tags, max 255 chars each
      */
     public function addContactTags(string $identifier, array $tags): array
@@ -203,40 +121,26 @@ class Client
         return $this->post("/contact/{$identifier}/tag", ['tags' => $tags]);
     }
 
-    /**
-     * Remove tags from a contact.
-     *
-     * @param string $identifier Contact identifier
-     * @param array<string> $tags Tags to remove
-     */
-    public function removeContactTags(string $identifier, array $tags): array
-    {
-        return $this->delete("/contact/{$identifier}/tag", ['tags' => $tags]);
-    }
-
     public static function validateCredentials(string $bearerToken): bool
     {
         try {
-            $response = Http::withToken($bearerToken)
-                ->get('https://api.respond.io/v2/space/user');
-
-            return $response->successful();
-        } catch (Exception $e) {
+            return Http::withToken($bearerToken)
+                ->get('https://api.respond.io/v2/space/user')
+                ->successful();
+        } catch (Exception) {
             return false;
         }
     }
 
     /**
-     * Handle API response, throwing on errors and respecting rate limits.
+     * Any answer that is not a success is a refusal, a rate limit included: the caller decides
+     * whether to try again, so nothing waits here.
      */
     protected function handleResponse(Response $response): array
     {
         if ($response->status() === 429) {
-            $retryAfter = max(1, (int) $response->header('Retry-After'));
-            sleep(max(1, min($retryAfter, 10)));
-
             throw new ValidationException(
-                'Respond.io rate limit exceeded. Retry after ' . $retryAfter . ' seconds.'
+                'Respond.io rate limit exceeded. Retry after ' . max(1, (int) $response->header('Retry-After')) . ' seconds.'
             );
         }
 
@@ -254,7 +158,7 @@ class Client
     }
 
     /**
-     * Throttle requests to stay within Respond.io rate limits (5 req/sec per method+path).
+     * Waits for a free slot instead of spending a request on a 429.
      */
     protected function throttle(string $method, string $path): void
     {
@@ -269,8 +173,7 @@ class Client
         );
 
         if (! $executed) {
-            $availableIn = RateLimiter::availableIn($key);
-            sleep(max(1, $availableIn));
+            sleep(max(1, RateLimiter::availableIn($key)));
         }
     }
 }

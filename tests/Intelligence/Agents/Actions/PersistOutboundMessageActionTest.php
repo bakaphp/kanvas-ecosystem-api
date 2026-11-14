@@ -7,9 +7,8 @@ namespace Tests\Intelligence\Agents\Actions;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Enums\CustomFieldEnum;
-use Kanvas\Communication\Channels\Sms\Providers\Twilio\Models\MessageAttempt;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
@@ -82,7 +81,7 @@ class PersistOutboundMessageActionTest extends TestCase
         $this->assertTrue($channel->messages()->whereKey($message->getId())->exists());
     }
 
-    public function testAnSmsSendStoresTheSidAndFiresMessageCreated(): void
+    public function testAnSmsSendFiresMessageCreated(): void
     {
         $lead = $this->makeLead();
         $sid = 'SM' . uniqid();
@@ -96,7 +95,6 @@ class PersistOutboundMessageActionTest extends TestCase
         )->execute(['messages' => [['sid' => $sid, 'status' => 'queued']]]);
 
         $this->assertSame([$message->getId()], RecordingActivity::entityIds());
-        $this->assertSame($sid, $message->get(CustomFieldEnum::MESSAGE_SID->value));
     }
 
     public function testAWhatsAppSendIsNotFiledAsAFailedText(): void

@@ -15,9 +15,7 @@ use Throwable;
 
 /**
  * Outbound-first reach-out orchestrator: idempotency, source allowlist, AI-mode
- * mute, agent resolution, channel walk. Called by AgentReachOutActivity (the
- * workflow-engine adapter) but lives here as a plain Action so it's directly
- * testable without workflow-engine internals.
+ * mute, agent resolution, channel walk.
  *
  * The LLM prompt lives on the agent row (role / soul / instructions /
  * output_format) — not here.
@@ -26,22 +24,35 @@ class AgentReachOutAction
 {
     /**
      * @param array<string, mixed> $params
+     * @param Agent|null $agent the agent a caller already holds; otherwise the one `agent_id`
+     *                          names in the params, else the one with reach-out switched on
      */
     public function __construct(
         protected readonly Lead $lead,
         protected readonly array $params = [],
         protected readonly ?bool $deferDelivery = null,
+        protected readonly ?Agent $agent = null,
     ) {
     }
 
     /**
-     * @return array<string, mixed>
+     * Whether a result of this action means a message went out or is waiting to: every other
+     * outcome (skipped, muted, already done, failed) left the lead untouched.
+     *
+     * @param array<string, mixed> $result
+     */
+    public static function reachedTheLead(array $result): bool
+    {
+        return ($result['channels_sent'] ?? []) !== [] || ($result['channels_scheduled'] ?? []) !== [];
+    }
+
+    /**
+     * @return array<string, mixed> with `agent_id` once an agent was resolved
      */
     public function execute(): array
     {
         $allowResend = (bool) ($this->params['allow_resend'] ?? false);
 
-        // === Idempotency ===
         $status = (string) $this->lead->get(AgentReachOutConfigEnum::STATUS->value);
         if ($status === AgentReachOutConfigEnum::STATUS_SENT && ! $allowResend) {
             return ['message' => 'Already reached out', 'status' => $status];
@@ -53,7 +64,6 @@ class AgentReachOutAction
             return ['message' => 'Reach-out already in flight (concurrent)', 'status' => $status];
         }
 
-        // === Active-lead guard ===
         // Only reach out to open leads (named status). A lead already closed
         // (won/lost/inactive) must not receive an outbound agent touch even if a
         // workflow rule re-fires CREATED on it.
@@ -64,7 +74,6 @@ class AgentReachOutAction
             return ['message' => 'Lead is not active', 'status' => 'skipped'];
         }
 
-        // === Source allowlist ===
         $allowlist = (array) ($this->params['lead_source_allowlist'] ?? []);
         if ($allowlist !== []) {
             $source = strtolower((string) ($this->lead->source?->name ?? ''));
@@ -76,16 +85,14 @@ class AgentReachOutAction
             }
         }
 
-        // === AI-mode mute check ===
         if ($this->lead->isAiMuted()) {
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_MUTED);
 
             return ['message' => 'Lead AI mode is off', 'status' => 'muted'];
         }
 
-        // === Do-not-contact guard ===
-        // The flag first: this action names 'do_not_contact' as a skip reason but used to check only
-        // the description, so a prospect who actually asked to stop could still be cold-reached.
+        // The flag first: a prospect who asked to stop is never cold-reached, whatever the
+        // description says.
         if ((bool) $this->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
             || (bool) $this->lead->people?->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
         ) {
@@ -104,30 +111,28 @@ class AgentReachOutAction
             return ['message' => 'Lead description requests no contact', 'status' => 'skipped'];
         }
 
-        // === Agent resolution: params > company config > throw ===
-        $agentId = (int) (
-            $this->params['agent_id']
-            ?? $this->lead->company->get(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value)
+        $agent = $this->agent ?? (
+            isset($this->params['agent_id'])
+                ? Agent::getById((int) $this->params['agent_id'], $this->lead->app)
+                : Agent::forNewLeads($this->lead->app, $this->lead->company)
         );
 
-        if ($agentId === 0) {
+        if ($agent === null) {
             throw new ValidationException(sprintf(
-                'No agent configured for reach-out on lead #%d. Pass agent_id in workflow rule '
-                . 'params or set company config %s.',
+                'No agent reaches out to new leads for lead #%d. Switch it on for an agent '
+                . '(reach_out_config.new_leads) or pass agent_id in the workflow rule params.',
                 $this->lead->getId(),
-                CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value,
             ));
         }
 
-        $agent = Agent::getById($agentId, $this->lead->app);
+        $agentId = $agent->getId();
 
-        // === Channel walk ===
         $channels = new ResolveLeadChannelPreferencesAction($this->lead)->execute();
         if ($channels === []) {
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SKIPPED);
             $this->lead->set(AgentReachOutConfigEnum::REASON->value, 'no_contact_info');
 
-            return ['message' => 'Lead has no usable contact info', 'status' => 'skipped'];
+            return ['message' => 'Lead has no usable contact info', 'status' => 'skipped', 'agent_id' => $agentId];
         }
 
         $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_IN_PROGRESS);
@@ -168,7 +173,7 @@ class AgentReachOutAction
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_FAILED);
             $this->lead->set(AgentReachOutConfigEnum::LAST_ERROR->value, json_encode($errors));
 
-            return ['message' => 'All channels failed', 'errors' => $errors];
+            return ['message' => 'All channels failed', 'errors' => $errors, 'agent_id' => $agentId];
         }
 
         $this->lead->moveToNextPipelineStage();
@@ -180,6 +185,7 @@ class AgentReachOutAction
             return [
                 'message' => 'Reach-out scheduled for support mode',
                 'status' => AgentReachOutConfigEnum::STATUS_SCHEDULED,
+                'agent_id' => $agentId,
                 'channels_scheduled' => $scheduledChannels,
                 'message_ids_scheduled' => $scheduledMessageIds,
                 'message_ids_sent' => [],
@@ -197,6 +203,7 @@ class AgentReachOutAction
         return [
             'message' => 'Reach-out sent',
             'status' => AgentReachOutConfigEnum::STATUS_SENT,
+            'agent_id' => $agentId,
             'channels_sent' => $sentChannels,
             'message_ids_sent' => $sentMessageIds,
             'message_ids_scheduled' => [],

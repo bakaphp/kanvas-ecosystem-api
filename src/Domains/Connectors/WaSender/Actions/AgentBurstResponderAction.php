@@ -17,7 +17,8 @@ use Throwable;
  * Runs the agent over one finished burst — a group room or an assistant 1:1 alike — and, when it
  * is allowed to speak, posts the answer back into that conversation.
  *
- * Differs from the lead-flow responder (AgentChannelResponderAction) in three ways:
+ * Differs from the responder that answers a lead (`Communication\...\AgentChannelResponderAction`)
+ * in three ways:
  *  - no lead AI-mode guard: a per-customer switch must not mute an agent in a room, and an
  *    assistant conversation has no lead to read the switch from
  *  - the burst's media is handed to the kernel, so a photo posted with an article is actually seen

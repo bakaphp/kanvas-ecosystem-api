@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Actions;
 
+use Baka\Contracts\BaseIntegration;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as IntegrationsCompanyModel;
