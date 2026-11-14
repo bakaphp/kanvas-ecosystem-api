@@ -22,6 +22,16 @@ use Kanvas\Intelligence\Knowledge\VectorStores\TypesenseKnowledgeStore;
 final class KnowledgeComponents
 {
     /**
+     * Whether the app has a knowledge base to write to at all. An app with no search credentials
+     * has nothing indexed, and building the store for it throws; work that only keeps the
+     * knowledge base in step with files (indexing, pruning) is not started for it.
+     */
+    public static function isAvailable(Apps $app): bool
+    {
+        return SearchEngineResolver::hasTypesenseCredentials(SearchEngineResolver::typesenseSettings($app));
+    }
+
+    /**
      * @param string|null $collection a dedicated collection for a consumer whose vectors must never surface
      *                                in agent knowledge retrieval (e.g. WordPress duplicate detection)
      */

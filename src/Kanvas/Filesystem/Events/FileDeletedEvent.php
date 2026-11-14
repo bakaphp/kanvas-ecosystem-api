@@ -6,11 +6,12 @@ namespace Kanvas\Filesystem\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Apps\Models\Apps;
 
 /**
- * A file was taken off the record it was attached to. Raised wherever the file's `deleted`
- * workflow event is.
+ * A file was taken off the record it was attached to, or deleted. Raised wherever the file's
+ * `deleted` workflow event is. It names the file instead of carrying it: by the time a queued
+ * listener runs, a deleted file's row can no longer be loaded.
  */
 final class FileDeletedEvent
 {
@@ -18,7 +19,9 @@ final class FileDeletedEvent
     use SerializesModels;
 
     public function __construct(
-        public readonly Filesystem $filesystem
+        public readonly Apps $app,
+        public readonly int $companiesId,
+        public readonly string $uuid
     ) {
     }
 }

@@ -181,7 +181,7 @@ class FilesystemManagementMutation
             return;
         }
 
-        FileDeletedEvent::dispatch($file);
+        FileDeletedEvent::dispatch($file->app, (int) $file->companies_id, (string) $file->uuid);
         $file->fireWorkflow(
             WorkflowEnum::DELETED->value,
             true,

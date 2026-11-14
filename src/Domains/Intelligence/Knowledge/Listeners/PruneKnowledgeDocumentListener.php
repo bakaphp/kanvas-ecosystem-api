@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Kanvas\Filesystem\Events\FileDeletedEvent;
 use Kanvas\Intelligence\Knowledge\Actions\PruneKnowledgeDocumentAction;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 
 final class PruneKnowledgeDocumentListener implements ShouldQueue
 {
@@ -18,10 +19,15 @@ final class PruneKnowledgeDocumentListener implements ShouldQueue
     public string $queue = 'workflow';
     public int $tries = 3;
 
+    public function shouldQueue(FileDeletedEvent $event): bool
+    {
+        return KnowledgeComponents::isAvailable($event->app);
+    }
+
     public function handle(FileDeletedEvent $event): void
     {
-        $this->overwriteAppService($event->filesystem->app);
+        $this->overwriteAppService($event->app);
 
-        new PruneKnowledgeDocumentAction($event->filesystem)->execute();
+        new PruneKnowledgeDocumentAction($event->app, $event->companiesId, $event->uuid)->execute();
     }
 }

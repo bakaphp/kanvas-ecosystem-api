@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Knowledge\Actions;
 
-use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Knowledge\Services\CompanyKnowledgeService;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 
@@ -15,21 +15,23 @@ use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 final class PruneKnowledgeDocumentAction
 {
     public function __construct(
-        private readonly Filesystem $file
+        private readonly Apps $app,
+        private readonly int $companiesId,
+        private readonly string $fileUuid
     ) {
     }
 
     public function execute(): void
     {
-        $app = $this->file->app;
+        $store = KnowledgeComponents::store($this->app);
 
         // A file uuid is unique, so pruning both document kinds never touches another file.
         foreach ([IndexAgentDocumentsAction::SOURCE_TYPE, CompanyKnowledgeService::SOURCE_TYPE_DOCUMENT] as $sourceType) {
-            KnowledgeComponents::store($app)->deleteBySourceAcrossEntities(
-                $app->getId(),
-                $this->file->companies_id,
+            $store->deleteBySourceAcrossEntities(
+                $this->app->getId(),
+                $this->companiesId,
                 $sourceType,
-                $this->file->uuid,
+                $this->fileUuid,
             );
         }
     }

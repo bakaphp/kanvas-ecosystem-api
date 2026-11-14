@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Connectors\WaSender\Actions\WaSenderBurstHandler;
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
@@ -799,9 +800,11 @@ final class WaSenderBurstTest extends TestCase
         /** @var Users $user */
         $user = auth()->user();
 
+        // The catalog row CI seeds before the run: a row for the test stub would be inserted by every
+        // test in every parallel process, and those inserts deadlock on the unique model name.
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => WaSenderWebhookJob::class],
-            ['name' => 'WaSenderWebhookJob'],
+            ['model_name' => ProcessCommunicationWebhookJob::class],
+            ['name' => 'ProcessCommunicationWebhookJob'],
         );
 
         return $this->receiver = ReceiverWebhook::factory()

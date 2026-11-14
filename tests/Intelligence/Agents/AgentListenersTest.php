@@ -303,6 +303,7 @@ final class AgentListenersTest extends TestCase
     public function testAFileAttachedToAnAgentIsIndexedWithoutARule(): void
     {
         Queue::fake();
+        config(['scout.typesense.api_key' => 'a-key']);
         $agent = $this->agent();
 
         FileAttachedToEntityEvent::dispatch($this->lead(), new Filesystem());
@@ -319,15 +320,34 @@ final class AgentListenersTest extends TestCase
     public function testADeletedFileIsPrunedFromTheKnowledgeBaseWithoutARule(): void
     {
         Queue::fake();
-        $file = new Filesystem();
-        $file->uuid = 'a-deleted-file';
+        config(['scout.typesense.api_key' => 'a-key']);
 
-        FileDeletedEvent::dispatch($file);
+        FileDeletedEvent::dispatch(new Apps(), 7, 'a-deleted-file');
 
         $this->assertListenerQueued(
             PruneKnowledgeDocumentListener::class,
-            fn (FileDeletedEvent $event): bool => $event->filesystem->uuid === 'a-deleted-file'
+            fn (FileDeletedEvent $event): bool => $event->uuid === 'a-deleted-file' && $event->companiesId === 7
         );
+    }
+
+    /**
+     * Building the knowledge store throws without credentials, and deleting a file must not fail
+     * because an app that never indexed anything has nothing to prune.
+     */
+    public function testAnAppWithNoKnowledgeBaseNeitherIndexesNorPrunes(): void
+    {
+        Queue::fake();
+        config(['scout.typesense.api_key' => '']);
+        // An app row that was never saved has no settings of its own: only the platform key decides.
+        $app = new Apps();
+        $agent = new Agent();
+        $agent->setRelation('app', $app);
+
+        FileDeletedEvent::dispatch($app, 7, 'a-deleted-file');
+        FileAttachedToEntityEvent::dispatch($agent, new Filesystem());
+
+        $this->assertListenerNotQueued(PruneKnowledgeDocumentListener::class);
+        $this->assertListenerNotQueued(IndexAgentDocumentsListener::class);
     }
 
     public function testSalesAssistHearsAReachOut(): void

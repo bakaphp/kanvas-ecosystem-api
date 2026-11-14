@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Kanvas\Filesystem\Events\FileAttachedToEntityEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Knowledge\Actions\IndexAgentDocumentsAction;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 
 final class IndexAgentDocumentsListener implements ShouldQueue
 {
@@ -21,7 +22,7 @@ final class IndexAgentDocumentsListener implements ShouldQueue
 
     public function shouldQueue(FileAttachedToEntityEvent $event): bool
     {
-        return $event->entity instanceof Agent;
+        return $event->entity instanceof Agent && KnowledgeComponents::isAvailable($event->entity->app);
     }
 
     public function handle(FileAttachedToEntityEvent $event): void
