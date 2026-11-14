@@ -42,7 +42,7 @@ class VoiceAgentSpecService
         $voice = $this->agent->voice_config ?? [];
         $tts = $voice['tts'] ?? [];
         $stt = $voice['stt'] ?? [];
-        $language = $voice['language'] ?? 'es';
+        $language = Str::trimToNull((string) ($voice['language'] ?? '')) ?? 'en';
 
         return [
             'agent_id' => $this->agent->uuid,
