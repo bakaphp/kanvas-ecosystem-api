@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\ActivateEventBookingOrderAction;
+use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
 use Kanvas\Event\Events\Actions\BuildEventDataAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
@@ -83,10 +84,55 @@ class InviteBookingOrderTest extends TestCase
         $this->assertEquals(0, $order->items->first()->unit_price_gross_amount);
         $this->assertTrue($order->isEventBacked());
         $this->assertSame('created', $order->orderStatus->slug);
-        $this->assertSame($this->days[0]['slot']->start_at->toDateTimeString(), $order->metadata['data']['start_at']);
-        $this->assertSame($this->days[0]['slot']->end_at->toDateTimeString(), $order->metadata['data']['end_at']);
         $this->assertSame('18:00', $order->metadata['data']['arrival_hour']);
         $this->assertSame('A123456', $order->metadata['data']['vehiclePlate']);
+        $this->assertSame($this->gatedVariant->getId(), $order->metadata['data']['variants_ids']['parking_variant_id']);
+    }
+
+    public function testTheOrderWindowIsInTheAppTimezoneLikeACartOrder(): void
+    {
+        $timezone = $this->apps->get('timezone') ?: config('app.timezone');
+        $slot = $this->days[0]['slot'];
+
+        $data = $this->orderOf($this->bookDay(0))->metadata['data'];
+
+        $this->assertSame($slot->start_at->copy()->setTimezone($timezone)->format('Y-m-d H:i'), $data['start_at']);
+        $this->assertSame($slot->end_at->copy()->setTimezone($timezone)->format('Y-m-d H:i'), $data['end_at']);
+    }
+
+    public function testTheExpiryReminderCountsDownToTheEndOfTheBookedDay(): void
+    {
+        $timezone = $this->apps->get('timezone') ?: config('app.timezone');
+        $slot = $this->days[0]['slot'];
+        $order = $this->orderOf($this->bookDay(0));
+        $now = $slot->end_at->copy()->subMinutes(30);
+
+        $found = new CheckExpiringOrders($this->apps)->execute(
+            $now->copy()->setTimezone($timezone)->toDateTimeString(),
+            [30],
+            [$order->getId()]
+        );
+
+        $this->assertSame([$order->getId()], $found->pluck('id')->all());
+    }
+
+    public function testTheVehicleKeysTheAppSendsOnACartOrderReachTheOrder(): void
+    {
+        $data = $this->orderOf($this->bookDay(0, [
+            'vehiclePlate' => 'A847657',
+            'vehicleBrand' => 'Kia',
+            'vehicleColor' => 'Blanco',
+            'terms_and_conditions' => true,
+            'variants_ids' => ['vehicle_variant_id' => '764076'],
+        ]))->metadata['data'];
+
+        $this->assertSame('Kia', $data['vehicleBrand']);
+        $this->assertSame('Blanco', $data['vehicleColor']);
+        $this->assertTrue($data['terms_and_conditions']);
+        $this->assertSame(
+            ['parking_variant_id' => $this->gatedVariant->getId(), 'vehicle_variant_id' => 764076],
+            $data['variants_ids']
+        );
     }
 
     public function testThePlateIsOptional(): void

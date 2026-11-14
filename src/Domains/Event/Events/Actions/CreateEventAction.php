@@ -31,6 +31,7 @@ use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\Actions\ResolveEventBookingOrderTypeAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -381,6 +382,7 @@ class CreateEventAction
             'totalDiscount' => 0.0,
             'totalShipping' => 0.0,
             'status' => OrderStatusEnum::COMPLETED->value,
+            'fulfillmentStatus' => $bookingOrderType === null ? null : OrderFulfillmentStatusEnum::PENDING->value,
             'checkoutToken' => '',
             'currency' => $orderCurrency,
             'items' => $items,
@@ -407,13 +409,23 @@ class CreateEventAction
 
     protected function bookingOrderMetadata(ModelsEventVersion $eventVersion): array
     {
+        $timezone = $eventVersion->event->app->get('timezone') ?: config('app.timezone');
+        $vehicleVariantId = $this->metadata['variants_ids']['vehicle_variant_id'] ?? null;
+
         return [
             'data' => array_filter([
-                'start_at' => $eventVersion->start_at?->toDateTimeString(),
-                'end_at' => $eventVersion->end_at?->toDateTimeString(),
+                'start_at' => $eventVersion->start_at?->copy()->setTimezone($timezone)->format('Y-m-d H:i'),
+                'end_at' => $eventVersion->end_at?->copy()->setTimezone($timezone)->format('Y-m-d H:i'),
                 'arrival_hour' => $this->metadata['arrival_hour'] ?? null,
                 'vehiclePlate' => $this->metadata['vehiclePlate'] ?? null,
-            ]),
+                'vehicleBrand' => $this->metadata['vehicleBrand'] ?? null,
+                'vehicleColor' => $this->metadata['vehicleColor'] ?? null,
+                'terms_and_conditions' => $this->metadata['terms_and_conditions'] ?? null,
+                'variants_ids' => array_filter([
+                    'parking_variant_id' => $eventVersion->event->resource?->getId(),
+                    'vehicle_variant_id' => $vehicleVariantId !== null ? (int) $vehicleVariantId : null,
+                ]),
+            ], fn ($value) => $value !== null && $value !== []),
         ];
     }
 
