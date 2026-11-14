@@ -134,7 +134,10 @@ mutation passes no synchronizer, so a manual click never pulls.
 - `canSync()` requires the company to run a pull-capable connector (Elead, VinSolutions,
   DealerSocket, DriveCentric — Reynolds is webhook-only) AND the lead to carry that connector's
   external id. Without the id the pull becomes a people search by phone, which can create or
-  close leads; an hourly cron must not trigger that.
+  close leads; an hourly cron must not trigger that. For Elead either id counts: leads imported
+  from Elead carry only `ELEAD_OPPORTUNITY_ID` (never the popup `ELEAD_LEAD_ID`), and those sync
+  on the opportunity directly. Checking the popup id alone skipped the pull for those leads, so a
+  lead already sold in Elead still got a "still available" nudge.
 - Throttle: the lead custom field `guild_follow_up_source_synced_at` is stamped after a pull and
   skips the next one for `lead_follow_up_sync_interval_minutes` (company setting, default 55) —
   one CRM call per lead per tick, forced runs in between share it.

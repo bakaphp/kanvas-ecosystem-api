@@ -63,23 +63,7 @@ class PullLeadAction
                 $entityId
             );
 
-            try {
-                $debounce = new EleadDebounce($this->app, $this->company);
-                $isRapidCall = $debounce->shouldSkip('pull_lead', (string) $entityId, 30);
-
-                $eLead = new SyncLeadAction($lead, fresh: ! $isRapidCall)->execute();
-                $this->setContactStatus($lead, $eLead->subStatus);
-                new PullPeopleFromOpportunityAction($lead, $eLead, fresh: ! $isRapidCall)->execute();
-
-                if (! $isRapidCall) {
-                    $this->pullAppointments($lead);
-                }
-            } catch (ClientException $e) {
-                // If the opportunity doesn't exist in Elead (404), close the lead and return it
-                if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
-                    $lead->close();
-                }
-            }
+            $this->pullKnownLead($lead, (string) $entityId);
 
             $nameRank = PeopleMatchScore::for(
                 $lead->people,
@@ -229,6 +213,31 @@ class PullLeadAction
         usort($results, fn (array $a, array $b) => ($b['rank'] ?? 0) <=> ($a['rank'] ?? 0));
 
         return $results;
+    }
+
+    /**
+     * Syncs a lead we already hold (status, owner, people, appointments) through its opportunity id.
+     * `SyncLeadAction` creates the opportunity when the lead has none, so callers pass a linked lead.
+     */
+    public function pullKnownLead(ModelsLead $lead, string $debounceKey): void
+    {
+        try {
+            $debounce = new EleadDebounce($this->app, $this->company);
+            $isRapidCall = $debounce->shouldSkip('pull_lead', $debounceKey, 30);
+
+            $eLead = new SyncLeadAction($lead, fresh: ! $isRapidCall)->execute();
+            $this->setContactStatus($lead, $eLead->subStatus);
+            new PullPeopleFromOpportunityAction($lead, $eLead, fresh: ! $isRapidCall)->execute();
+
+            if (! $isRapidCall) {
+                $this->pullAppointments($lead);
+            }
+        } catch (ClientException $e) {
+            // If the opportunity doesn't exist in Elead (404), close the lead and return it
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
+                $lead->close();
+            }
+        }
     }
 
     protected function pullAppointments(ModelsLead $lead): void
