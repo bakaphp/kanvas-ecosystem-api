@@ -512,7 +512,7 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             : 'pi:payment:' . $payment->getId();
 
         $params = [
-            'amount' => $this->toCents($order->getTotalAmount()),
+            'amount' => $this->toCents($order->getTotalDueAmount()),
             'currency' => strtolower((string) $order->currency),
             'confirm' => true,
             'off_session' => $context['off_session'] ?? true,
