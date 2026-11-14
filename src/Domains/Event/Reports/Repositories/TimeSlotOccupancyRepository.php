@@ -7,7 +7,9 @@ namespace Kanvas\Event\Reports\Repositories;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Reports\DataTransferObject\TimeSlotOccupancyBucket;
 
 class TimeSlotOccupancyRepository
@@ -23,9 +25,10 @@ class TimeSlotOccupancyRepository
      * SUM per row, which is fine for a day and falls over on a month.
      *
      * @return array{
-     *     capacity:int, booked:int, occupancy_percentage:float, slots_count:int,
+     *     capacity:int, booked:int, admitted:int, occupancy_percentage:float, slots_count:int,
      *     byHour:array<int, TimeSlotOccupancyBucket>, byDay:array<int, TimeSlotOccupancyBucket>,
-     *     peak:?TimeSlotOccupancyBucket, lowest:?TimeSlotOccupancyBucket
+     *     peak:?TimeSlotOccupancyBucket, lowest:?TimeSlotOccupancyBucket,
+     *     byArrivalHour:array<int, array{label:string, arrivals:int}>
      * }
      */
     public static function occupancy(
@@ -41,8 +44,10 @@ class TimeSlotOccupancyRepository
             ->table('time_slots as ts')
             ->leftJoin('event_versions as ev', function ($join) {
                 $join->on('ev.time_slot_id', '=', 'ts.id')
-                    ->where('ev.is_deleted', 0);
+                    ->where('ev.is_deleted', 0)
+                    ->whereNotIn('ev.event_id', self::cancelledEventIds());
             })
+            ->leftJoin('participant_pass_scans as sc', 'sc.admitted_event_version_id', '=', 'ev.id')
             ->where('ts.apps_id', $app->getId())
             ->where('ts.companies_id', $company->getId())
             ->where('ts.is_deleted', 0)
@@ -55,11 +60,13 @@ class TimeSlotOccupancyRepository
                 'ts.start_at',
                 'ts.initial_capacity',
                 DB::raw('COALESCE(SUM(ev.total_attendees), 0) as booked'),
+                DB::raw('COALESCE(SUM(CASE WHEN sc.id IS NULL THEN 0 ELSE ev.total_attendees END), 0) as admitted'),
             ])
             ->get();
 
         $totalCapacity = 0;
         $totalBooked = 0;
+        $totalAdmitted = 0;
         $byHour = [];
         $byDay = [];
 
@@ -69,6 +76,7 @@ class TimeSlotOccupancyRepository
 
             $totalCapacity += $capacity;
             $totalBooked += $booked;
+            $totalAdmitted += (int) $slot->admitted;
 
             // start_at is stored in UTC; the buckets have to read as venue wall clock or the
             // "peak hour" lands hours away from when players actually tee off.
@@ -87,13 +95,60 @@ class TimeSlotOccupancyRepository
         return [
             'capacity' => $totalCapacity,
             'booked' => $totalBooked,
+            'admitted' => $totalAdmitted,
             'occupancy_percentage' => $totalCapacity > 0 ? round($totalBooked / $totalCapacity * 100, 2) : 0.0,
             'slots_count' => $slots->count(),
             'byHour' => $hourBuckets,
             'byDay' => $dayBuckets,
             'peak' => self::pick($hourBuckets, highest: true),
             'lowest' => self::pick($hourBuckets, highest: false),
+            'byArrivalHour' => self::arrivalsByHour($app, $company, $start, $end, $resourcesId, $resourcesType),
         ];
+    }
+
+    private static function arrivalsByHour(
+        AppInterface $app,
+        CompanyInterface $company,
+        Carbon $start,
+        Carbon $end,
+        ?int $resourcesId,
+        ?string $resourcesType,
+    ): array {
+        $hour = "LEFT(JSON_UNQUOTE(JSON_EXTRACT(ev.metadata, '$.arrival_hour')), 2)";
+
+        return DB::connection('event')
+            ->table('time_slots as ts')
+            ->join('event_versions as ev', 'ev.time_slot_id', '=', 'ts.id')
+            ->where('ev.is_deleted', 0)
+            ->whereNotIn('ev.event_id', self::cancelledEventIds())
+            ->where('ts.apps_id', $app->getId())
+            ->where('ts.companies_id', $company->getId())
+            ->where('ts.is_deleted', 0)
+            ->whereBetween('ts.start_at', [$start, $end])
+            ->when($resourcesId !== null, fn ($q) => $q->where('ts.resources_id', $resourcesId))
+            ->when($resourcesType !== null, fn ($q) => $q->where('ts.resources_type', $resourcesType))
+            ->whereRaw("JSON_EXTRACT(ev.metadata, '$.arrival_hour') IS NOT NULL")
+            ->groupBy(DB::raw($hour))
+            ->orderBy(DB::raw($hour))
+            ->select([
+                DB::raw("$hour as hour"),
+                DB::raw('SUM(ev.total_attendees) as arrivals'),
+            ])
+            ->get()
+            ->map(fn ($row): array => [
+                'label' => sprintf('%02d:00', (int) $row->hour),
+                'arrivals' => (int) $row->arrivals,
+            ])
+            ->all();
+    }
+
+    private static function cancelledEventIds(): Closure
+    {
+        return fn ($query) => $query
+            ->select('cancelled_events.id')
+            ->from('events as cancelled_events')
+            ->join('event_statuses as cancelled_status', 'cancelled_status.id', '=', 'cancelled_events.event_status_id')
+            ->whereRaw('LOWER(COALESCE(NULLIF(cancelled_status.slug, ""), cancelled_status.name)) = ?', [strtolower(EventStatusEnum::CANCELLED->value)]);
     }
 
     /**

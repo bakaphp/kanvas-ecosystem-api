@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Validators;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Exceptions\ValidationException;
 
@@ -67,11 +68,11 @@ class EventTimeSlotValidator
         // This ensures we don't count the event being updated against available capacity
         if ($excludeEventId && $timeSlot->isFullyBooked()) {
             // If excluding an event, check if slot would be fully booked without counting that event
-            $bookingsCount = DB::connection('event')
-                ->table('event_versions')
+            $bookingsCount = EventVersion::query()
                 ->where('time_slot_id', $timeSlotId)
                 ->where('event_id', '!=', $excludeEventId)
                 ->where('is_deleted', 0)
+                ->notCancelled()
                 ->count();
 
             if ($bookingsCount >= $timeSlot->initial_capacity) {
