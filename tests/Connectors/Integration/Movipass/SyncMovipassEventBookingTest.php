@@ -19,13 +19,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
-use Tests\Event\Concerns\BuildsInviteOnlyFestival;
+use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 final class SyncMovipassEventBookingTest extends TestCase
 {
-    use BuildsInviteOnlyFestival;
+    use BuildsInviteOnlyParking;
     use DatabaseTransactions;
     use HasIntegrationCompany;
     use InventoryCases;
@@ -61,7 +61,7 @@ final class SyncMovipassEventBookingTest extends TestCase
         new Setup($this->apps, $this->user, $this->company)->run();
         $this->setIntegration($this->apps, IntegrationsEnum::MOVIPASS, MovipassHandler::class, $this->company, $this->user);
 
-        $this->days = $this->buildFestival(days: 1, capacity: 5);
+        $this->days = $this->buildInviteOnlyParking(days: 1, capacity: 5);
         $this->configureBookingOrderType('movipass');
         RateLimiter::clear('invite-code:user:' . $this->user->getId());
     }

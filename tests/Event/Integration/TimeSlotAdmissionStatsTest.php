@@ -16,13 +16,13 @@ use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Passes\Actions\ScanEventPassAction;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Regions\Models\Regions;
-use Tests\Event\Concerns\BuildsInviteOnlyFestival;
+use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class TimeSlotAdmissionStatsTest extends TestCase
 {
-    use BuildsInviteOnlyFestival;
+    use BuildsInviteOnlyParking;
     use DatabaseTransactions;
     use InventoryCases;
 
@@ -52,7 +52,7 @@ class TimeSlotAdmissionStatsTest extends TestCase
 
         new Setup($this->apps, $this->user, $this->company)->run();
 
-        $this->days = $this->buildFestival(days: 2, capacity: 10);
+        $this->days = $this->buildInviteOnlyParking(days: 2, capacity: 10);
         RateLimiter::clear('invite-code:user:' . $this->user->getId());
     }
 

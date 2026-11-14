@@ -21,32 +21,32 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 
-trait BuildsInviteOnlyFestival
+trait BuildsInviteOnlyParking
 {
     use CreatesEventVersions;
 
-    protected Event $festival;
+    protected Event $gatedEvent;
     protected Products $gatedProduct;
     protected Variants $gatedVariant;
-    protected ?array $festivalWarehouse = null;
-    protected ?array $festivalChannel = null;
+    protected ?array $gatedWarehouse = null;
+    protected ?array $gatedChannel = null;
 
-    private function buildFestival(int $days = 2, int $capacity = 5): array
+    private function buildInviteOnlyParking(int $days = 2, int $capacity = 5): array
     {
-        $this->festival = $this->createEvent();
+        $this->gatedEvent = $this->createEvent();
         $firstDay = Carbon::now()->addDays(10)->setTime(15, 0);
         $slots = [];
 
         foreach (range(0, $days - 1) as $offset) {
             $start = $firstDay->copy()->addDays($offset);
-            $version = $this->createEventVersion($this->festival, startAt: $start);
+            $version = $this->createEventVersion($this->gatedEvent, startAt: $start);
             $slots[$offset] = ['version' => $version, 'slot' => null, 'start' => $start];
         }
 
-        $this->buildGatedProduct($this->festival);
+        $this->buildGatedProduct($this->gatedEvent);
 
         foreach ($slots as $offset => $day) {
-            $slots[$offset]['slot'] = $this->makeFestivalSlot($this->gatedVariant, $day['start'], $capacity);
+            $slots[$offset]['slot'] = $this->makeDaySlot($this->gatedVariant, $day['start'], $capacity);
         }
 
         return $slots;
@@ -66,13 +66,13 @@ trait BuildsInviteOnlyFestival
         $this->makeVariantSellable($this->gatedVariant);
     }
 
-    private function configureBookingOrderType(string $name = 'festival-parking'): OrderTypes
+    private function configureBookingOrderType(string $name = 'event-parking'): OrderTypes
     {
         $productType = new CreateProductTypeAction(
             new ProductTypeDto(
                 company: $this->company,
                 user: $this->user,
-                name: 'Festival parking',
+                name: 'Event parking',
                 slug: $name,
             ),
             $this->user,
@@ -95,15 +95,15 @@ trait BuildsInviteOnlyFestival
 
     private function ensureWarehouseAndChannel(): void
     {
-        $this->festivalWarehouse ??= $this->graphQLData($this->createWarehouses((string) $this->region->getId()), 'createWarehouse');
-        $this->festivalChannel ??= $this->graphQLData($this->createChannel(), 'createChannel');
+        $this->gatedWarehouse ??= $this->graphQLData($this->createWarehouses((string) $this->region->getId()), 'createWarehouse');
+        $this->gatedChannel ??= $this->graphQLData($this->createChannel(), 'createChannel');
     }
 
     private function makeVariantSellable(Variants $variant): void
     {
         $this->ensureWarehouseAndChannel();
-        $warehouse = $this->festivalWarehouse;
-        $channel = $this->festivalChannel;
+        $warehouse = $this->gatedWarehouse;
+        $channel = $this->gatedChannel;
 
         $this->graphQLData(
             $this->addVariantToChannel(
@@ -124,7 +124,7 @@ trait BuildsInviteOnlyFestival
         );
     }
 
-    private function makeFestivalSlot(Variants $variant, Carbon $start, int $capacity): TimeSlots
+    private function makeDaySlot(Variants $variant, Carbon $start, int $capacity): TimeSlots
     {
         return TimeSlots::create([
             'apps_id' => $this->apps->getId(),

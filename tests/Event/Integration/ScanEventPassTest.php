@@ -25,13 +25,13 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Silber\Bouncer\BouncerFacade as Bouncer;
-use Tests\Event\Concerns\BuildsInviteOnlyFestival;
+use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class ScanEventPassTest extends TestCase
 {
-    use BuildsInviteOnlyFestival;
+    use BuildsInviteOnlyParking;
     use DatabaseTransactions;
     use InventoryCases;
 
@@ -61,7 +61,7 @@ class ScanEventPassTest extends TestCase
 
         new Setup($this->apps, $this->user, $this->company)->run();
 
-        $this->days = $this->buildFestival(days: 2, capacity: 5);
+        $this->days = $this->buildInviteOnlyParking(days: 2, capacity: 5);
         $this->configureBookingOrderType();
         $this->clearLimiters();
     }

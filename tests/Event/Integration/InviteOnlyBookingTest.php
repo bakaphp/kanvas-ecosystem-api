@@ -17,13 +17,13 @@ use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Passes\Services\PassAttemptLimiter;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Regions\Models\Regions;
-use Tests\Event\Concerns\BuildsInviteOnlyFestival;
+use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class InviteOnlyBookingTest extends TestCase
 {
-    use BuildsInviteOnlyFestival;
+    use BuildsInviteOnlyParking;
     use DatabaseTransactions;
     use InventoryCases;
 
@@ -53,7 +53,7 @@ class InviteOnlyBookingTest extends TestCase
 
         new Setup($this->apps, $this->user, $this->company)->run();
 
-        $this->days = $this->buildFestival(days: 2, capacity: 2);
+        $this->days = $this->buildInviteOnlyParking(days: 2, capacity: 2);
         $this->flushAttempts();
     }
 
@@ -273,7 +273,7 @@ class InviteOnlyBookingTest extends TestCase
     {
         $plainProduct = $this->graphQLData($this->createProduct(), 'createProduct');
         $plainVariant = \Kanvas\Inventory\Products\Models\Products::find($plainProduct['id'])->variants()->first();
-        $plainSlot = $this->makeFestivalSlot($plainVariant, now()->addDays(3), 2);
+        $plainSlot = $this->makeDaySlot($plainVariant, now()->addDays(3), 2);
 
         $response = $this->graphQL('
             mutation bookTimeSlot($input: TimeSlotBookingInput!) {
@@ -299,8 +299,8 @@ class InviteOnlyBookingTest extends TestCase
 
     public function testMalformedAccessConfigurationLocksTheProduct(): void
     {
-        $this->buildGatedProduct($this->festival, ['unexpected' => true]);
-        $slot = $this->makeFestivalSlot($this->gatedVariant, now()->addDays(4), 2);
+        $this->buildGatedProduct($this->gatedEvent, ['unexpected' => true]);
+        $slot = $this->makeDaySlot($this->gatedVariant, now()->addDays(4), 2);
         $code = $this->issueInvite($this->days[0]['version']);
 
         $response = $this->bookWithInvite($slot, $code);
@@ -320,7 +320,7 @@ class InviteOnlyBookingTest extends TestCase
             'initial_capacity' => 2,
             'status' => 'open',
         ]);
-        $version = $this->createEventVersion($this->festival, startAt: now()->subHour());
+        $version = $this->createEventVersion($this->gatedEvent, startAt: now()->subHour());
         $code = $this->issueInvite($version);
 
         $response = $this->bookWithInvite($startedSlot, $code);

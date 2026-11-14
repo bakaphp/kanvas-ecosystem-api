@@ -23,13 +23,13 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use RuntimeException;
-use Tests\Event\Concerns\BuildsInviteOnlyFestival;
+use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class InviteBookingOrderTest extends TestCase
 {
-    use BuildsInviteOnlyFestival;
+    use BuildsInviteOnlyParking;
     use DatabaseTransactions;
     use InventoryCases;
 
@@ -60,7 +60,7 @@ class InviteBookingOrderTest extends TestCase
 
         new Setup($this->apps, $this->user, $this->company)->run();
 
-        $this->days = $this->buildFestival(days: 2, capacity: 5);
+        $this->days = $this->buildInviteOnlyParking(days: 2, capacity: 5);
         $this->orderType = $this->configureBookingOrderType();
         RateLimiter::clear('invite-code:user:' . $this->user->getId());
     }
@@ -223,7 +223,7 @@ class InviteBookingOrderTest extends TestCase
         $plainResponse = $this->graphQLData($this->createProduct(), 'createProduct');
         $plainVariant = Products::find($plainResponse['id'])->variants()->first();
         $this->makeVariantSellable($plainVariant);
-        $slot = $this->makeFestivalSlot($plainVariant, now()->addDays(3), 3);
+        $slot = $this->makeDaySlot($plainVariant, now()->addDays(3), 3);
 
         $response = $this->graphQL('
             mutation bookTimeSlot($input: TimeSlotBookingInput!) {
