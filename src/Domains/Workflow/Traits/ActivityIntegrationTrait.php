@@ -53,6 +53,17 @@ trait ActivityIntegrationTrait
         return $message;
     }
 
+    /**
+     * For a run that had nothing to do, as opposed to one that went wrong: recorded as SKIPPED with
+     * the reason, so "why did nothing happen" has an answer without the history filling with red.
+     */
+    public function skipWorkflow(string $reason, array $context = []): array
+    {
+        $this->setWorkflowStatus(StatusEnum::SKIPPED);
+
+        return ['message' => $reason, 'entity' => null, 'skipped' => true] + $context;
+    }
+
     public function getStatus(StatusEnum $status): ?Status
     {
         return Status::where('slug', $status->value)

@@ -13,7 +13,6 @@ use Kanvas\Communication\Messages\DataTransferObject\InboundAttachment;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\DataTransferObject\InboundSenderPolicy;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
-use Kanvas\Communication\Messages\Jobs\RespondToInboundMessageJob;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
@@ -25,12 +24,14 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 use LogicException;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Fixtures\FakeInbound;
 use Tests\TestCase;
+use Tests\Workflow\Support\WatchesWorkflowEvents;
 
 /**
  * The shared inbound pipeline, driven by a provider that is not Twilio on a medium that is not SMS:
@@ -40,6 +41,7 @@ final class ReceiveMessageActionTest extends TestCase
 {
     use BuildsCommunicationFixtures;
     use DatabaseTransactions;
+    use WatchesWorkflowEvents;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm', 'social'];
 
@@ -100,24 +102,27 @@ final class ReceiveMessageActionTest extends TestCase
         );
     }
 
-    public function testAClosedBurstQueuesTheReplyOnlyWhenAnAgentOwnsTheConnection(): void
+    /**
+     * A closed burst is one turn: announced once, on its first message, with the whole flurry as the
+     * text the agent answers. Who answers is the activity's to decide (RespondToInboundMessageActionTest).
+     */
+    public function testAClosedBurstIsAnnouncedOnItsFirstMessageWithTheFlurryAsTheTurn(): void
     {
+        $turns = $this->watchWorkflowEvent(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value, Channel::class);
         $connection = $this->connection('fake', '+18095550700');
         $this->claim($connection);
+        $connection->forceFill(['config' => ['agent_id' => $this->agent()->getId()]])->saveOrFail();
         $result = $this->receive($this->inbound('+18095550711', 'wamid.20', 'Hola'));
         $channel = Channel::query()->findOrFail($result['channel_id']);
         $messages = Message::query()->whereKey($result['message_id'])->get();
 
-        new FlushInboundBurstAction($this->currentApp(), $channel, $messages)->execute();
-        Queue::assertNotPushed(RespondToInboundMessageJob::class);
-
-        $connection->forceFill(['config' => ['agent_id' => $this->agent()->getId()]])->saveOrFail();
+        $this->assertCount(0, $this->firedWith($turns), 'a burst part waits for the burst to close');
 
         new FlushInboundBurstAction($this->currentApp(), $channel, $messages)->execute();
-        Queue::assertPushed(
-            RespondToInboundMessageJob::class,
-            fn (RespondToInboundMessageJob $job): bool => $job->message->is($messages->first()) && $job->burstText === 'Hola'
-        );
+
+        $turn = $this->firedWith($turns)->sole();
+        $this->assertTrue($turn['message']->is($messages->first()));
+        $this->assertSame('Hola', $turn['burst_text']);
     }
 
     public function testANumberAnotherWorkspaceClaimsFilesNothingHere(): void
@@ -238,11 +243,11 @@ final class ReceiveMessageActionTest extends TestCase
     }
 
     /**
-     * A medium with real threading has no flurry to collapse: the turn is announced as it arrives,
-     * and the agent that owns the connection is queued at once.
+     * A medium with real threading has no flurry to collapse: the turn is announced as it arrives.
      */
     public function testAMediumWithoutBurstsIsAnnouncedAsItArrives(): void
     {
+        $turns = $this->watchWorkflowEvent(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value, Channel::class);
         $connection = $this->connection('fake', '+18095550700');
         $this->claim($connection);
         $connection->forceFill(['config' => ['agent_id' => $this->agent()->getId()]])->saveOrFail();
@@ -255,11 +260,9 @@ final class ReceiveMessageActionTest extends TestCase
         )->execute();
 
         Queue::assertNotPushed(FlushMessageBurstJob::class);
-        Queue::assertPushed(
-            RespondToInboundMessageJob::class,
-            fn (RespondToInboundMessageJob $job): bool => $job->message->getId() === $result['message_id']
-                && $job->burstText === null
-        );
+        $turn = $this->firedWith($turns)->sole();
+        $this->assertSame($result['message_id'], $turn['message']->getId());
+        $this->assertArrayNotHasKey('burst_text', $turn);
     }
 
     public function testOurOwnSideOfAConversationIsNeverAnswered(): void
@@ -283,7 +286,6 @@ final class ReceiveMessageActionTest extends TestCase
 
         $this->assertTrue($result['is_from_me']);
         Queue::assertNotPushed(FlushMessageBurstJob::class);
-        Queue::assertNotPushed(RespondToInboundMessageJob::class);
     }
 
     public function testEveryMessageOfACounterpartLandsInOneConversation(): void

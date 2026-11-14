@@ -18,7 +18,6 @@ use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -384,7 +383,7 @@ class SyncCrmLeadAction
             }
 
             $lead->enableWorkflows();
-            LeadAiTriggeredEvent::announce($lead, TriggersEnum::NEW_LEAD->value);
+            $lead->announceAiTrigger(TriggersEnum::NEW_LEAD->value);
         } catch (Throwable $exception) {
             report($exception);
         }

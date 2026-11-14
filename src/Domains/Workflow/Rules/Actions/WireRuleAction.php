@@ -20,8 +20,9 @@ use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
  * creates those on deploy, and a setup command must say so rather than create a dangling rule.
  *
  * `$conditions` is a list of `['attribute_name' => string, 'operator' => RuleConditionOperatorEnum|string,
- * 'value' => string]`. The pattern stays `1`: with no conditions it is a literal true, with one it is
- * condition #1, so a caller needing `1 and 2` passes the conditions and sets the pattern itself.
+ * 'value' => string]`. The pattern defaults to `1`: with no conditions it is a literal true, with one it
+ * is condition #1, so a caller with several passes `$pattern` (`1 and 2`). It is written when the rule
+ * is created, never over a pattern someone edited since.
  */
 final class WireRuleAction
 {
@@ -36,6 +37,9 @@ final class WireRuleAction
         private readonly string $name,
         private readonly string $description,
         private readonly array $conditions = [],
+        private readonly array $params = [],
+        private readonly bool $isAsync = false,
+        private readonly ?string $pattern = null,
     ) {
     }
 
@@ -60,11 +64,16 @@ final class WireRuleAction
             [
                 'description' => $this->description,
                 // pattern '1' with no conditions evaluates truthy — the activity self-guards on entity/type.
-                'pattern' => 1,
-                'params' => [],
+                'pattern' => $this->pattern ?? 1,
+                'params' => $this->params,
+                'is_async' => $this->isAsync,
                 'is_deleted' => 0,
             ]
         );
+
+        if ((int) $rule->is_deleted === 1) {
+            $rule->forceFill(['is_deleted' => 0])->saveOrFail();
+        }
 
         foreach ($this->conditions as $condition) {
             $operator = $condition['operator'] instanceof RuleConditionOperatorEnum
@@ -87,13 +96,22 @@ final class WireRuleAction
             ['is_deleted' => 0]
         );
 
-        RuleAction::firstOrCreate(
+        if ((int) $ruleWorkflowAction->is_deleted === 1) {
+            $ruleWorkflowAction->forceFill(['is_deleted' => 0])->saveOrFail();
+        }
+
+        $step = RuleAction::firstOrCreate(
             [
                 'rules_id' => $rule->getId(),
                 'rules_workflow_actions_id' => $ruleWorkflowAction->getId(),
             ],
             ['weight' => 0, 'is_deleted' => 0]
         );
+
+        // A rule wired again is meant to run: a step someone removed comes back with it.
+        if ((int) $step->is_deleted === 1) {
+            $step->forceFill(['is_deleted' => 0])->saveOrFail();
+        }
 
         return $rule;
     }

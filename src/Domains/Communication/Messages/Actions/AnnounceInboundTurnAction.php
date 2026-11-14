@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Messages\Actions;
 
-use Kanvas\Communication\Messages\Jobs\RespondToInboundMessageJob;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
- * A filed message becomes a turn: the workflow event for the rules a tenant wrote, and the reply job
- * when an agent owns the connection it arrived on. The answer never depends on a rule existing.
+ * A filed message becomes a turn: the workflow event, which the app default rule answers with
+ * RespondToInboundMessageActivity (the agent that owns the connection replies) and any rule a
+ * tenant wrote also hears.
  */
 final class AnnounceInboundTurnAction
 {
@@ -42,12 +42,8 @@ final class AnnounceInboundTurnAction
                 'company' => $this->message->company,
                 'text' => $this->text,
                 ...$this->context,
+                ...array_filter(['burst_text' => $this->burstText]),
             ]
         );
-
-        // Our own side of the conversation is announced for the rules that listen, never answered.
-        if (! ($this->message->message['from_me'] ?? false)) {
-            RespondToInboundMessageJob::dispatchIfOwned($this->channel, $this->message, $this->burstText);
-        }
     }
 }

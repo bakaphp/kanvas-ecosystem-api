@@ -19,10 +19,10 @@ use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 
 /**
- * Files an accepted delivery in the conversation it belongs to, so what a company said shows up
+ * Puts an accepted delivery in the conversation it belongs to, so what a company said shows up
  * beside what it was told — in the same Social channel the provider's inbound messages land in.
  */
-final class FileDeliveryMessageAction
+final class RecordSentMessageAction
 {
     public function __construct(private readonly Delivery $delivery, private readonly Content $content)
     {

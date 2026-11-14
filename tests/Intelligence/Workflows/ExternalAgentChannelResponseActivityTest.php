@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Workflows;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Actions\DeliverConversationMessageAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Intelligence\Workflows\ExternalAgentChannelResponseActivity;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -24,10 +22,12 @@ use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
+use Tests\Workflow\Support\WatchesWorkflowEvents;
 
 /**
  * Only messages flagged from_ia / from_orchestrator are delivered, and they leave the way a
@@ -38,6 +38,7 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
     use BuildsCommunicationFixtures;
     use DatabaseTransactions;
     use HasIntegrationCompany;
+    use WatchesWorkflowEvents;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
@@ -54,7 +55,12 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             fromOrchestrator: false,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message, 'from' => self::FROM_PHONE],
@@ -67,7 +73,7 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
     {
         $transport = $this->useFakeProvider();
         $this->defaultSmsConnection(number: '+18095550801');
-        Event::fake([LeadAiTriggeredEvent::class]);
+        $aiTrigger = $this->watchWorkflowEvent(WorkflowEnum::TRIGGER_AI->value, Lead::class);
         [$app, $channel, $message] = $this->makeChannelMessage(
             verb: 'sms',
             content: 'Orchestrator says hi',
@@ -75,7 +81,12 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             fromOrchestrator: true,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message],
@@ -89,7 +100,7 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             'the first text of a conversation carries the opt-out clause whoever wrote it'
         );
         $this->assertTrue((bool) $message->fresh()->is_un_response);
-        Event::assertNotDispatched(LeadAiTriggeredEvent::class);
+        $this->assertCount(0, $this->firedWith($aiTrigger), 'another AI writing does not take the lead over');
     }
 
     public function testATextTheCompanyCannotSendIsNotedAndAnswersNothing(): void
@@ -102,7 +113,12 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             fromOrchestrator: true,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message],
@@ -129,7 +145,12 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             fromOrchestrator: true,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message, 'from' => self::FROM_PHONE],

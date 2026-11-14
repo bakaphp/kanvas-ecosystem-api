@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Messages\Actions;
 
+use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\DataTransferObject\InboundTurn;
 use Kanvas\Communication\Messages\Exceptions\InboundNotAnsweredException;
 use Kanvas\Exceptions\ValidationException;
@@ -40,10 +41,37 @@ final class RespondToInboundMessageAction
     }
 
     /**
+     * The turn the inbound pipeline runs. A message our side wrote, or one on a connection no agent
+     * owns, is not a turn and is left as filed; a turn that was skipped leaves its reason on the
+     * message as a tag, where the conversation shows it, like one the route would not answer.
+     *
+     * @return array<string, mixed>|null null when the message is not a turn at all
+     */
+    public function executeIfOwned(bool $waitForPerson = true): ?array
+    {
+        if (($this->message->message['from_me'] ?? false)
+            || Connection::forFiledMessage($this->message)?->agent() === null
+        ) {
+            return null;
+        }
+
+        $result = $this->execute($waitForPerson);
+
+        if (isset($result['reason'])) {
+            $this->message->addTag('communication-' . $result['reason']);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param bool $waitForPerson false for a turn that already waited for a person (a support-mode
+     *                            turn handed to the number's new owner): it is answered now
+     *
      * @return array<string, mixed> without a `response`, `message` says why nothing was sent, and
      *                              `reason` is its short code when the turn was skipped for good
      */
-    public function execute(): array
+    public function execute(bool $waitForPerson = true): array
     {
         try {
             $turn = InboundTurn::of($this->message);
@@ -52,7 +80,7 @@ final class RespondToInboundMessageAction
             return $this->skipped($skipped);
         }
 
-        $lead = $this->message->entity(Lead::class);
+        $lead = $waitForPerson ? $this->message->entity(Lead::class) : null;
 
         if ($lead instanceof Lead) {
             $delayedResponse = $this->handleSupportModeDelayedResponse(

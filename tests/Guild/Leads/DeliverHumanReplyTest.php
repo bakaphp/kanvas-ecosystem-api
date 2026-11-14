@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Leads;
 
-use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Communication\Messages\DataTransferObject\TransportResult;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Guild\Leads\Actions\DeliverConversationMessageAction;
-use Kanvas\Guild\Leads\Listeners\DeliverHumanReplyListener;
+use Kanvas\Guild\Leads\Activities\DeliverHumanReplyActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
-use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Fixtures\FakeTransport;
 use Tests\TestCase;
 
 /**
- * A person's reply in a lead conversation reaches the customer with no workflow rule: the
- * conversation says who, the message's kind says how.
+ * A person's reply in a lead conversation reaches the customer through the app default rule's
+ * activity: the conversation says who, the message's kind says how.
  */
 final class DeliverHumanReplyTest extends TestCase
 {
@@ -42,39 +42,82 @@ final class DeliverHumanReplyTest extends TestCase
         $this->transport = $this->useFakeProvider();
     }
 
-    public function testAPersonsReplyInAConversationIsQueuedForTheCustomer(): void
+    public function testOnlyAPersonsReplyInAConversationIsDeliveredAndNeverRetried(): void
     {
         $lead = $this->leadOf($this->personWithCellphone('+18095550701'));
         $channel = $this->conversationChannel($lead);
         Queue::fake();
 
-        $note = $this->fileInConversation($channel, $lead, 'sms', ['content' => 'Seen it', 'from_me' => true]);
-        $this->assertEmpty(Queue::listenersPushed(DeliverHumanReplyListener::class));
+        $note = $this->fileInConversation(
+            $channel,
+            $lead,
+            'sms',
+            ['content' => 'Seen it', 'from_me' => true]
+        );
+        [$activity, $result] = $this->runActivity($channel, $note);
 
-        $reply = $this->fileInConversation($channel, $lead, 'sms', ['content' => 'On my way', 'from_me' => true, 'from_human' => true]);
-        $queued = Queue::listenersPushed(DeliverHumanReplyListener::class);
-
-        $this->assertNotEmpty($queued);
-        $queued->each(function (CallQueuedListener $job) use ($reply, $note): void {
-            /** @var ChannelMessageAttachedEvent $event */
-            $event = $job->data[0];
-
-            $this->assertTrue($event->message->is($reply));
-            $this->assertFalse($event->message->is($note));
-            $this->assertSame(1, $job->tries, 'a retry after the send would message the customer twice');
-        });
+        $this->assertSame(1, $activity->tries, 'a retry after the send would message the customer twice');
+        $this->assertTrue($result['skipped']);
+        $this->assertSame(StatusEnum::SKIPPED, $activity->workflowStatus());
+        $this->assertSame([], $this->transport->sent);
     }
 
     public function testWhatIsWrittenOnAnInternalChannelStaysThere(): void
     {
+        $this->defaultSmsConnection(number: '+18095550708');
         $lead = $this->leadOf($this->personWithCellphone('+18095550702'));
         $channel = $this->conversationChannel($lead);
         $channel->forceFill(['name' => ChannelNameEnum::NOTES->value])->saveOrFail();
         Queue::fake();
 
-        $this->fileInConversation($channel, $lead, 'sms', ['content' => 'Call him Monday', 'from_me' => true, 'from_human' => true]);
+        $reply = $this->fileInConversation(
+            $channel,
+            $lead,
+            'sms',
+            ['content' => 'Call him Monday', 'from_me' => true, 'from_human' => true]
+        );
+        [$activity, $result] = $this->runActivity($channel, $reply);
 
-        $this->assertEmpty(Queue::listenersPushed(DeliverHumanReplyListener::class));
+        $this->assertTrue($result['skipped']);
+        $this->assertSame(StatusEnum::SKIPPED, $activity->workflowStatus());
+        $this->assertSame([], $this->transport->sent);
+
+        $channel->forceFill(['name' => ChannelNameEnum::DEFAULT->value])->saveOrFail();
+        [$activity] = $this->runActivity($channel, $reply);
+
+        $this->assertSame(StatusEnum::SKIPPED, $activity->workflowStatus(), 'nor on the default channel');
+        $this->assertSame([], $this->transport->sent);
+    }
+
+    public function testTheActivitySendsAPersonsReply(): void
+    {
+        $this->defaultSmsConnection(number: '+18095550709');
+        $lead = $this->leadOf($this->personWithCellphone('+18095550710'));
+        $channel = $this->conversationChannel($lead);
+        $reply = $this->written($channel, $lead, 'On my way');
+
+        [$activity, $result] = $this->runActivity($channel, $reply);
+
+        $this->assertNull($activity->workflowStatus());
+        $this->assertTrue($result['delivered']);
+        $this->assertSame('+18095550710', $this->transport->sent[0]['to']);
+    }
+
+    /**
+     * The reply did not leave: the action already noted it on the lead, and the run is a failure.
+     */
+    public function testAnUndeliveredReplyFailsTheRun(): void
+    {
+        $lead = $this->leadOf($this->personWithCellphone('+18095550711'));
+        $channel = $this->conversationChannel($lead);
+        $reply = $this->written($channel, $lead, 'On my way');
+
+        [$activity, $result] = $this->runActivity($channel, $reply);
+
+        $this->assertSame(StatusEnum::FAILED, $activity->workflowStatus());
+        $this->assertTrue($result['failed']);
+        $this->assertFalse($result['delivered']);
+        $this->assertCount(1, $this->notDeliveredNotes($lead));
     }
 
     public function testTheReplyLeavesOnTheCompanysConnectionAndIsLinkedToTheMessage(): void
@@ -101,7 +144,12 @@ final class DeliverHumanReplyTest extends TestCase
         $this->defaultSmsConnection(number: '+18095550706');
         $lead = $this->leadOf($this->personWithCellphone('+18095550707'));
         $channel = $this->conversationChannel($lead);
-        $inbound = $this->fileInConversation($channel, $lead, 'sms', ['content' => 'Is it still available?']);
+        $inbound = $this->fileInConversation(
+            $channel,
+            $lead,
+            'sms',
+            ['content' => 'Is it still available?']
+        );
         $reply = $this->written($channel, $lead, 'Yes, come by');
         $this->transport->sendResult = TransportResult::failed('30003', 'Unreachable destination handset');
 
@@ -132,7 +180,22 @@ final class DeliverHumanReplyTest extends TestCase
     }
 
     /**
-     * @return array{message: string, result: array<string, mixed>|null, delivered: bool}
+     * @return array{0: DeliverHumanReplyActivity, 1: array<string, mixed>}
+     */
+    private function runActivity(Channel $channel, Message $message): array
+    {
+        $activity = new DeliverHumanReplyActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        );
+
+        return [$activity, $activity->execute($channel, $channel->app, ['message' => $message])];
+    }
+
+    /**
+     * @return array{message: string, result: array<string, mixed>|null, delivered: bool, failed: bool}
      */
     private function deliver(Channel $channel, Message $reply): array
     {
@@ -155,6 +218,11 @@ final class DeliverHumanReplyTest extends TestCase
     {
         Queue::fake();
 
-        return $this->fileInConversation($channel, $lead, 'sms', ['content' => $text, 'from_me' => true, 'from_human' => true]);
+        return $this->fileInConversation(
+            $channel,
+            $lead,
+            'sms',
+            ['content' => $text, 'from_me' => true, 'from_human' => true]
+        );
     }
 }

@@ -72,7 +72,7 @@ tenant that sets a key.
   (`MessageTypeEnum::getMessageType()`); it is downloaded through `SafeUrlFetcher` and its type read
   from the bytes.
 - `conversation.closed` still raises the human-takeover AI trigger
-  (`LeadAiTriggeredEvent::announce()`).
+  (`$lead->announceAiTrigger()`).
 
 ## Sending
 

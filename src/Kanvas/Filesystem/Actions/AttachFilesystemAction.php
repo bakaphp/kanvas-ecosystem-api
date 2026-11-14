@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Filesystem\Events\FileAttachedToEntityEvent;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
@@ -130,7 +129,6 @@ class AttachFilesystemAction
             // EloquentModel, and hasWorkflow() comes from KanvasModelTrait — a model without it
             // (FiscalPeriod) reaches here and fatals, so probe it the way clearLightHouseCache is.
             if (method_exists($this->entity, 'hasWorkflow') && $this->entity->hasWorkflow()) {
-                FileAttachedToEntityEvent::dispatch($this->entity, $this->filesystem);
                 $this->entity->fireWorkflow(
                     WorkflowEnum::ATTACH_FILE->value,
                     true,

@@ -7,33 +7,21 @@ namespace App\Providers;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
-use Kanvas\Connectors\SalesAssist\Listeners\RecordAgentReachOutListener;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
-use Kanvas\Filesystem\Events\FileAttachedToEntityEvent;
-use Kanvas\Filesystem\Events\FileDeletedEvent;
 use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
-use Kanvas\Guild\Leads\Events\LeadCreatedEvent;
-use Kanvas\Guild\Leads\Listeners\DeliverHumanReplyListener;
 use Kanvas\Guild\Leads\Listeners\QueueVariantInterestReindexListener;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
-use Kanvas\Intelligence\Agents\Events\AgentReachedOutToLeadEvent;
-use Kanvas\Intelligence\Agents\Listeners\ReachOutToNewLeadListener;
-use Kanvas\Intelligence\Agents\Listeners\RespondOnAiAssistChannelListener;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueKnowledgeIndexListener;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
-use Kanvas\Intelligence\Knowledge\Listeners\IndexAgentDocumentsListener;
-use Kanvas\Intelligence\Knowledge\Listeners\PruneKnowledgeDocumentListener;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
-use Kanvas\Intelligence\Triggers\Listeners\ApplyLeadAiModeListener;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
 use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
@@ -116,8 +104,6 @@ class EventServiceProvider extends ServiceProvider
         ],
         ChannelMessageAttachedEvent::class => [
             WakePlanAgentOnChannelCommentListener::class,
-            RespondOnAiAssistChannelListener::class,
-            DeliverHumanReplyListener::class,
         ],
         KnowledgeIndexRequested::class => [
             QueueKnowledgeIndexListener::class,
@@ -128,21 +114,6 @@ class EventServiceProvider extends ServiceProvider
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,
             NotifyMentionedUsersListener::class,
-        ],
-        LeadCreatedEvent::class => [
-            ReachOutToNewLeadListener::class,
-        ],
-        LeadAiTriggeredEvent::class => [
-            ApplyLeadAiModeListener::class,
-        ],
-        FileAttachedToEntityEvent::class => [
-            IndexAgentDocumentsListener::class,
-        ],
-        FileDeletedEvent::class => [
-            PruneKnowledgeDocumentListener::class,
-        ],
-        AgentReachedOutToLeadEvent::class => [
-            RecordAgentReachOutListener::class,
         ],
     ];
 

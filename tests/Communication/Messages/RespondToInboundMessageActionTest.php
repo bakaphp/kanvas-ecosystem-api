@@ -6,17 +6,16 @@ namespace Tests\Communication\Messages;
 
 use ErrorException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Queue;
 use Kanvas\Communication\Channels\Email\EmailComposer;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Actions\AgentChannelResponderAction;
 use Kanvas\Communication\Messages\Actions\DeliverAgentReplyAction;
 use Kanvas\Communication\Messages\Actions\RespondToInboundMessageAction;
+use Kanvas\Communication\Messages\Activities\RespondToInboundMessageActivity;
 use Kanvas\Communication\Messages\DataTransferObject\TransportResult;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Exceptions\InboundNotAnsweredException;
-use Kanvas\Communication\Messages\Jobs\RespondToInboundMessageJob;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
@@ -32,6 +31,8 @@ use Kanvas\Social\Messages\Approvals\AgentMessageApprovalHandler;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
@@ -123,16 +124,64 @@ final class RespondToInboundMessageActionTest extends TestCase
     }
 
     /**
-     * Why nothing answered is left on the message, where the conversation shows it.
+     * The app default rule's activity: a message on a connection nobody owns is not a turn and is
+     * left as filed; a turn that is refused leaves its reason on the message, where the conversation
+     * shows it, and is recorded as skipped.
      */
     public function testATurnNobodyAnswersLeavesItsReasonOnTheMessage(): void
     {
         $connection = $this->defaultSmsConnection(number: '+18095550622');
         [$channel, $inbound] = $this->inboundOn($connection, '+18095550623');
 
-        new RespondToInboundMessageJob($channel, $inbound)->handle();
+        [$activity, $result] = $this->runActivity($channel, $inbound);
 
-        $this->assertTrue($inbound->hasTag(['communication-no_owner']));
+        $this->assertTrue($result['skipped']);
+        $this->assertSame('not_owned', $result['message']);
+        $this->assertSame(StatusEnum::SKIPPED, $activity->workflowStatus());
+        $this->assertFalse($inbound->hasTag(['communication-no_owner']), 'a message nobody owns is left as filed');
+
+        $this->own($connection, $this->agent(SalesNeuronAgentStub::class));
+        $connection->forceFill(['enabled' => false])->saveOrFail();
+
+        [$activity, $result] = $this->runActivity($channel, $inbound);
+
+        $this->assertTrue($result['skipped']);
+        $this->assertSame('connection_disabled', $result['message']);
+        $this->assertSame(StatusEnum::SKIPPED, $activity->workflowStatus());
+        $this->assertTrue($inbound->hasTag(['communication-connection_disabled']));
+        $this->assertSame([], $this->transport->sent);
+    }
+
+    public function testTheActivityAnswersAsTheOwnerAndIsNeverRetried(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550630');
+        [$channel, $inbound] = $this->inboundOn($connection, '+18095550631');
+        $this->own($connection, $this->agent(SalesNeuronAgentStub::class));
+
+        [$activity, $result] = $this->runActivity($channel, $inbound);
+
+        $this->assertSame(1, $activity->tries, 'a retry after the send would message the customer twice');
+        $this->assertNull($activity->workflowStatus());
+        $this->assertArrayNotHasKey('skipped', $result);
+        $this->assertCount(1, $this->transport->sent);
+        $this->assertSame('+18095550631', $this->transport->sent[0]['to']);
+    }
+
+    /**
+     * Our own side of the conversation fires the event for the rules that listen; it is never answered.
+     */
+    public function testTheActivityNeverAnswersOurOwnSide(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550632');
+        [$channel, $inbound] = $this->inboundOn($connection, '+18095550633');
+        $this->own($connection, $this->agent(SalesNeuronAgentStub::class));
+        $inbound->message = [...$inbound->message, 'from_me' => true];
+        $inbound->saveOrFail();
+
+        [$activity, $result] = $this->runActivity($channel, $inbound);
+
+        $this->assertTrue($result['skipped']);
+        $this->assertSame(StatusEnum::SKIPPED, $activity->workflowStatus());
         $this->assertSame([], $this->transport->sent);
     }
 
@@ -302,21 +351,11 @@ final class RespondToInboundMessageActionTest extends TestCase
 
         $connection->forceFill(['enabled' => true])->saveOrFail();
         $this->own($connection, $this->agent(SalesNeuronAgentStub::class));
-        Queue::fake();
 
         $this->delayedTurn($channel, $inbound, $agent)->handle();
 
-        $this->assertSame([], $this->transport->sent, 'the agent it was handed away from says nothing');
-        Queue::assertPushed(
-            RespondToInboundMessageJob::class,
-            fn (RespondToInboundMessageJob $job): bool => $job->message->is($inbound)
-        );
-
-        $this->own($connection, $agent);
-
-        $this->delayedTurn($channel, $inbound, $agent)->handle();
-
-        $this->assertCount(1, $this->transport->sent);
+        // The wait for a person is over, so the new owner answers at once instead of waiting again.
+        $this->assertCount(1, $this->transport->sent, 'handed to the new owner, answered once');
         $this->assertSame('+18095550629', $this->transport->sent[0]['to']);
     }
 
@@ -591,6 +630,21 @@ final class RespondToInboundMessageActionTest extends TestCase
             $this->currentApp(),
             actionClass: AgentChannelResponderAction::class
         );
+    }
+
+    /**
+     * @return array{0: RespondToInboundMessageActivity, 1: array<string, mixed>}
+     */
+    private function runActivity(Channel $channel, Message $inbound): array
+    {
+        $activity = new RespondToInboundMessageActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        );
+
+        return [$activity, $activity->execute($channel, $this->currentApp(), ['message' => $inbound])];
     }
 
     private function respond(Channel $channel, Message $inbound, string $handler = SalesNeuronAgentStub::class): array

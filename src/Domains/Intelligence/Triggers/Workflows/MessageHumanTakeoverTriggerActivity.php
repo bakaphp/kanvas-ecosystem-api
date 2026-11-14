@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -58,7 +57,7 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                     ];
                 }
 
-                LeadAiTriggeredEvent::announce($lead, TriggersEnum::HUMAN_TAKEOVER->value);
+                $lead->announceAiTrigger(TriggersEnum::HUMAN_TAKEOVER->value);
 
                 return [
                     'message' => 'Human takeover trigger fired successfully',

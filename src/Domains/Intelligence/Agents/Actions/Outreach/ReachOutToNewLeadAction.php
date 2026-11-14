@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Events\AgentReachedOutToLeadEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
@@ -15,8 +14,9 @@ use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Throwable;
 
 /**
- * A new lead's first message from the agent that has reach-out switched on. Runs with no rule: the
- * agent's own configuration is the switch, and its lead sources are the only limit.
+ * A new lead's first message from the agent that has reach-out switched on. The rule that runs it
+ * (ReachOutToNewLeadActivity) is only a trigger: the agent's own configuration is the switch, and its
+ * lead sources are the only limit.
  */
 final class ReachOutToNewLeadAction
 {
@@ -48,9 +48,7 @@ final class ReachOutToNewLeadAction
             agent: $this->agent,
         )->execute();
 
-        if (AgentReachOutAction::reachedTheLead($result)) {
-            AgentReachedOutToLeadEvent::announce($this->lead, $this->agent, $result);
-        }
+        AgentReachOutAction::announceReachOut($this->lead, $this->agent, $result);
 
         return $result;
     }

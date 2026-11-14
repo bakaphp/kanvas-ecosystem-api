@@ -11,6 +11,7 @@ use Kanvas\Guild\Customers\Services\ConsentKeywordService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 /**
@@ -44,6 +45,34 @@ class AgentReachOutAction
     public static function reachedTheLead(array $result): bool
     {
         return ($result['channels_sent'] ?? []) !== [] || ($result['channels_scheduled'] ?? []) !== [];
+    }
+
+    /**
+     * The one way to say an agent reached out: `agent-reached-out` on the lead, for what an outside
+     * system needs to hear (a CRM timing the dealer's answer, SalesAssist's legacy channels), each a
+     * rule its integration declares. The reach-out names no vendor. A result that reached nobody is
+     * not announced.
+     *
+     * @param array<string, mixed> $result what this action returned
+     */
+    public static function announceReachOut(Lead $lead, Agent $agent, array $result): void
+    {
+        if (! self::reachedTheLead($result)) {
+            return;
+        }
+
+        $lead->fireWorkflow(
+            WorkflowEnum::AGENT_REACHED_OUT->value,
+            true,
+            [
+                'app' => $lead->app,
+                'company' => $lead->company,
+                'agent_id' => $agent->getId(),
+                'message_id' => (int) ($result['message_ids_sent'][0] ?? 0),
+                'message_ids_sent' => array_map('intval', $result['message_ids_sent'] ?? []),
+                'message_ids_scheduled' => array_map('intval', $result['message_ids_scheduled'] ?? []),
+            ]
+        );
     }
 
     /**

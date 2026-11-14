@@ -19,6 +19,7 @@ use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Jobs\ReconcileDeliveriesJob;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Rules\Actions\EnsureAppDefaultRulesAction;
 use Throwable;
 
 /**
@@ -83,6 +84,8 @@ class CommunicationSetupCommand extends Command
 
     private function sweep(Apps $app): void
     {
+        new EnsureAppDefaultRulesAction($app)->execute();
+
         foreach ($this->integrations($app) as $integrationCompany) {
             try {
                 $this->importLegacySelection($integrationCompany);

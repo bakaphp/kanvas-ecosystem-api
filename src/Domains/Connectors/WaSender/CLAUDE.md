@@ -10,7 +10,7 @@ and is named in `config/communication.php`, with `WhatsAppTransport`, `WaSenderI
 |---|---|
 | The door: every session posts to the company's **communication receiver** (`ProcessCommunicationWebhookJob`), which has `WaSenderInbound::authenticate()` check the signature before anything is stored | Filing: every event is handled by `ProcessWaSenderEventAction` through `HandlesProviderEvents`, so the shared one-to-one pipeline (`ReceiveMessageAction`) is never given a WaSender message |
 | The connection: the company's one WaSender number, owned by an agent (`accounts()`) | The three conversation shapes below, groups, lids, albums, the newsroom flow |
-| The answer to a **lead**: `RespondToInboundMessageJob`, as the agent that owns the number, through `Communication::reply()` | The answer to an **assistant chat** or a **group**: the burst handler, inline |
+| The answer to a **lead**: `RespondToInboundMessageActivity` (an app default rule), as the agent that owns the number, through `Communication::reply()` | The answer to an **assistant chat** or a **group**: the burst handler, inline |
 | Outbound to a person: `Communication::for(...)->send(..., channels: ['whatsapp'])` → `WhatsAppTransport`, on the delivery ledger | The reply into a group (a group is not a person, so it is not a ledger delivery) |
 
 Why the shared pipeline is not used: it files a person and a lead from a phone number. A group has
@@ -75,14 +75,15 @@ object or as a list; `entries()` reads both.
 
 | Shape | Entity | Creates a Lead? | Who replies |
 |---|---|---|---|
-| Lead DM (default) | `Lead` | yes | the agent that owns the number (`RespondToInboundMessageJob`) |
+| Lead DM (default) | `Lead` | yes | the agent that owns the number (`RespondToInboundMessageActivity`) |
 | Assistant DM | `Channel` | no | the burst job, **inline**, as the number's owner |
 | Group | `Channel` | no | the burst job, **inline**, as `group_agent_id`, else the receiver's `agent_id` (`GroupConfigEnum::agentId()`) |
 
-**A lead DM is answered by the number's owner, with no rule.** `CreateLeadMessageAction` stamps the
-message with the connection (`message.communication`) and queues `RespondToInboundMessageJob` when an
-agent owns it. A number nobody owns, or not yet a connection, files the message and stays silent.
-`after-adding-message-to-channel` still fires for a rule a tenant wrote. Assistant and group
+**A lead DM is answered by the number's owner, with no rule of the company's own.**
+`CreateLeadMessageAction` stamps the message with the connection (`message.communication`) and fires
+`after-adding-message-to-channel`; the app default rule's `RespondToInboundMessageActivity` answers when
+an agent owns the connection. A number nobody owns, or not yet a connection, files the message and
+stays silent (a skipped run). A rule a tenant wrote on the event hears it too. Assistant and group
 conversations reply from the burst flush instead (`FlushMessageBurstJob` → `WaSenderBurstHandler`).
 
 **The lead path has no burst.** Every text is its own turn. The only grouping is the album

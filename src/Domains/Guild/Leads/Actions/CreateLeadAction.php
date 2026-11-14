@@ -15,7 +15,6 @@ use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
-use Kanvas\Guild\Leads\Events\LeadCreatedEvent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -25,7 +24,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -118,8 +117,11 @@ class CreateLeadAction
             // A lead brought in by an import is not announced: nothing reaches out to it and the AI
             // is not told it is new. Its contacts are still saved, so its channels open.
             if ($this->leadData->runWorkflow) {
-                LeadCreatedEvent::dispatch($newLead);
-                $newLead->fireWorkflow(WorkflowEnum::CREATED->value);
+                $newLead->fireWorkflow(
+                    WorkflowEnum::CREATED->value,
+                    true,
+                    ['app' => $newLead->app, 'company' => $newLead->company]
+                );
             }
 
             //@todo improve this for create social channels
@@ -135,7 +137,7 @@ class CreateLeadAction
             });
 
             if ($this->leadData->runWorkflow) {
-                LeadAiTriggeredEvent::announceNewLead($newLead);
+                $newLead->announceAiTrigger(TriggersEnum::NEW_LEAD->value, reachOutAppliesMode: true);
             }
 
             try {

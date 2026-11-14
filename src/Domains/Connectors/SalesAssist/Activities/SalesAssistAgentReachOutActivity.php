@@ -10,13 +10,12 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\AgentReachOutAction;
 use Kanvas\Intelligence\Agents\Actions\Outreach\ReachOutToNewLeadAction;
 use Kanvas\Intelligence\Agents\Activities\AgentReachOutActivity;
-use Kanvas\Intelligence\Agents\Events\AgentReachedOutToLeadEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 
 /**
  * For a rule a tenant wrote around the reach-out (its own conditions, its own agent). A company's
- * plain reach-out needs no rule: the agent with reach-out switched on does it (ReachOutToNewLeadListener).
+ * plain reach-out needs no rule of its own: the app default rule runs ReachOutToNewLeadActivity.
  */
 #[WorkflowAction(
     name: 'Sales Assist Agent Reach Out To Lead',
@@ -42,7 +41,7 @@ final class SalesAssistAgentReachOutActivity extends AgentReachOutActivity
     protected function afterReachOut(Lead $lead, Apps $app, array $params, array $result): void
     {
         if (AgentReachOutAction::reachedTheLead($result)) {
-            AgentReachedOutToLeadEvent::announce(
+            AgentReachOutAction::announceReachOut(
                 $lead,
                 Agent::getById((int) $result['agent_id'], $app),
                 $result

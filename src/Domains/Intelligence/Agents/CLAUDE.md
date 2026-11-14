@@ -125,7 +125,9 @@ Customer ─── inbound ──▶ Communication webhook (ProcessCommunication
                          │ the provider's InboundSource authenticates and parses;
                          │ ReceiveMessageAction files the person, lead, consent and conversation
                          ▼
-                         RespondToInboundMessageJob — queued when the connection has an owning agent
+                         AnnounceInboundTurnAction fires after-adding-message-to-channel; the app default
+                         rule runs RespondToInboundMessageActivity, which answers only when the
+                         connection has an owning agent (a skipped run otherwise)
                          ▼
                          Communication\...\AgentChannelResponderAction extends BaseAgentChannelReplyAction
                          │ guards (AI-mode, is_un_response), extracts inbound text
@@ -832,17 +834,20 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - **A `privateUserTurn` is not broadcast by the kernel.** Nobody typed it, so whatever drove the turn
   delivers the reply (see `ContinueAgentTurnJob`, `RunScheduledAgentActionJob`). A new private-turn caller
   that expects the kernel to push the reply to the live chat will show nothing.
-- **What an agent does on its own is a listener switched on the agent, not a workflow rule.** The new-lead
+- **What an agent does on its own is an app default rule, switched on the agent.** The new-lead
   reach-out (`reach_out_config.new_leads`, `Agent::forNewLeads()`), the AI Assist answer, a lead's AI mode and
-  indexing an agent's documents each listen to a domain event (`LeadCreatedEvent`, `LeadAiTriggeredEvent`, ...), not to the workflow engine. Don't add a company
-  setting or a seeded rule to turn one on; table and rules in
+  indexing an agent's documents are each a rule `EnsureAppDefaultRulesAction` installs for every company of
+  the app from `workflows.app_default_rules` (`ReachOutToNewLeadActivity`, `RespondOnAiAssistChannelActivity`,
+  `ApplyLeadAiModeActivity`, `IndexAgentDocumentsActivity`), so every run is in the integration history. The
+  rule is only a trigger: the activity reads the agent's switch and returns `skipWorkflow()` when nothing
+  applies. Don't add a company setting to turn one on; table and rules in
   [`Communication/CLAUDE.md`](../../Communication/CLAUDE.md) → "What an agent does on its own".
 - **A new lead's AI mode is applied once.** The reach-out gives the lead its mode itself, right before
-  reading it, so a creator that also dispatches `LeadCreatedEvent` raises the trigger with
-  `LeadAiTriggeredEvent::announceNewLead($lead)`: it skips the event when an agent reaches out to the
-  company's new leads and still fires `trigger-ai`. An import that dispatches no `LeadCreatedEvent`
-  keeps `announce($lead, NEW_LEAD)`, or its leads never get a mode. A queued reach-out that finds its
-  switch off when it runs hands the mode back by dispatching the event.
+  reading it, so a creator that also fires `created` raises the trigger with
+  `$lead->announceAiTrigger(TriggersEnum::NEW_LEAD->value, reachOutAppliesMode: true)`: the mode rule then
+  skips when an agent reaches out to the company's new leads. Both rules ask when they run, so a switch
+  turned off while they wait leaves the mode to the mode rule. An import that fires no `created` calls
+  `announceAiTrigger($trigger)` alone, or its leads never get a mode.
 - **Never let a tool send to an LLM-chosen destination.** A new outbound tool must resolve its recipient from the entity or verify it against a closed set (company membership / on-file contacts) before sending — see "Destination safety" above. A free-text external recipient is an exfiltration hole, not a feature.
 
 ## Pointers to deeper context

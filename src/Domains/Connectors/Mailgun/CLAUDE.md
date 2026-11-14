@@ -104,7 +104,7 @@ Mailgun. The webhook check and every "is Mailgun configured" check read it from 
 ## Replies
 
 There is no Mailgun responder. `MailgunInbound` parses the mail, the shared pipeline files it, and
-the agent that owns the connection answers through the domain (`RespondToInboundMessageJob` →
-`DeliverAgentReplyAction`). What is specific to email lives there, not here: the approval hold, no
+the agent that owns the connection answers through the domain (the app default rule's
+`RespondToInboundMessageActivity` → `DeliverAgentReplyAction`). What is specific to email lives there, not here: the approval hold, no
 fallback copy on a failed turn, the file markers in the prompt, and the lead's thread subject
 (`Lead::emailThreadSubject()`). See `src/Domains/Communication/CLAUDE.md`.

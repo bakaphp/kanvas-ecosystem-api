@@ -110,6 +110,8 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use EmitsLedgerEventsForEntity;
     use TracksClosedAt;
 
+    public const string REACH_OUT_APPLIES_MODE = 'reach_out_applies_mode';
+
     protected $observables = [
         'softDeleting',
         'softDeleted',
@@ -1091,6 +1093,31 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function canRunAiAgent(): bool
     {
         return ! $this->isAiMuted();
+    }
+
+    /**
+     * Something happened that can change how the AI works this lead (`TriggersEnum` says what): the
+     * `trigger-ai` workflow event, whose app default rule applies the lead's AI mode.
+     *
+     * `$reachOutAppliesMode` is for a lead that was also announced with the `created` event: when an
+     * agent reaches out to the company's new leads, that reach-out gives the lead its mode right before
+     * reading it, so the rule leaves it alone. An import that announces only the trigger keeps the default.
+     *
+     * Fired even on a lead whose writes were switched off: an import that says its lead is new still
+     * means it.
+     */
+    public function announceAiTrigger(int $triggerType, bool $reachOutAppliesMode = false): void
+    {
+        $this->withWorkflows(fn () => $this->fireWorkflow(
+            WorkflowEnum::TRIGGER_AI->value,
+            true,
+            [
+                'app' => $this->app,
+                'company' => $this->company,
+                'trigger_type' => $triggerType,
+                ...($reachOutAppliesMode ? [self::REACH_OUT_APPLIES_MODE => true] : []),
+            ]
+        ));
     }
 
     public function isServiceLead(): bool

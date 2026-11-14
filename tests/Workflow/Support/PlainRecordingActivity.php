@@ -30,6 +30,10 @@ class PlainRecordingActivity extends KanvasActivity implements WorkflowActivityI
             return $this->failWorkflow(['message' => 'soft fail']);
         }
 
+        if (! empty($params['skip'])) {
+            return $this->skipWorkflow('nothing to do');
+        }
+
         return [
             'activity' => static::class,
             'entity_id' => $entity->getId(),

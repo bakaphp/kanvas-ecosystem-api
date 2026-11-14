@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\WaSender\Actions;
 
 use Kanvas\Communication\Messages\Actions\AnnounceInboundTurnAction;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
-use Kanvas\Communication\Messages\Jobs\RespondToInboundMessageJob;
 use Kanvas\Connectors\WaSender\Actions\Concerns\DownloadsMessageMedia;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
@@ -23,7 +22,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -37,7 +35,7 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 /**
  * The lead 1:1 ingest: every counterparty is (or becomes) a Lead and stakeholders are notified. The
  * message is stamped with the number's connection, and the agent that owns that number answers
- * (RespondToInboundMessageJob). `after-adding-message-to-channel` still fires for a rule a tenant wrote.
+ * (RespondToInboundMessageActivity, the app default rule on `after-adding-message-to-channel`).
  */
 class CreateLeadMessageAction
 {
@@ -276,7 +274,7 @@ class CreateLeadMessageAction
         $status = (int) ($this->messageData['status'] ?? 0);
 
         if ($status === 2) {
-            LeadAiTriggeredEvent::announce($lead, TriggersEnum::HUMAN_TAKEOVER->value);
+            $lead->announceAiTrigger(TriggersEnum::HUMAN_TAKEOVER->value);
         }
 
         return [$lead, $status === 1];

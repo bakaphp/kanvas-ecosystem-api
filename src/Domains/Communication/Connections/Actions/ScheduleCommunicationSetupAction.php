@@ -10,6 +10,7 @@ use Kanvas\Communication\Connections\Jobs\EnsureCommunicationSetupJob;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Support\ProviderRollout;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Rules\Actions\EnsureAppDefaultRulesAction;
 
 /**
  * Brings an integration's connection rows in line with its accounts now, and queues the vendor
@@ -34,6 +35,8 @@ final class ScheduleCommunicationSetupAction
         }
 
         new EnsureCommunicationSetupAction($this->app, $this->integrationCompany)->reconcile($provider);
+        // A company that connects its first channel answers through the app's rules.
+        new EnsureAppDefaultRulesAction($this->app)->execute();
 
         // Live from the install for every provider, not once the setup job gets to it: a vendor
         // that checks the callback as soon as it is registered (Meta) fails on a missing receiver.

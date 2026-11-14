@@ -72,8 +72,8 @@ e-CF providers:
   the company settings it waits for. The activities are named here because some belong to a
   connector. Two are left, each for a stated reason: the Google Calendar event (triggers an
   external system, so it stays a rule) and privatizing messages (not an agent's behaviour; it
-  follows the message-audience work). Do not add an agent behaviour here — see "What an agent
-  does on its own".
+  follows the message-audience work). Do not add an agent behaviour here: it is an app default rule,
+  see "What an agent does on its own".
 - `retention` — how long a provider can keep reporting on a message.
 
 Editing that file needs `php artisan config:cache` wherever config is cached.
@@ -148,18 +148,23 @@ agent's mailbox access — never a check on the provider's name in this domain.
 
 ## Who answers: the agent that owns the number or mailbox
 
-There is no auto-reply rule, no responder activity and no company setting. A connection carries the
-agent that owns it (`config.agent_id`, read by `Connection::agent()`), which the provider's
-`accounts()` supplies: Twilio returns the company's sending number plus every agent's
-`sms_config.phone_number`, each with its agent. Once a message (or the burst it closes) is filed,
-`RespondToInboundMessageJob` is queued when the connection it arrived on has an agent, and
-`RespondToInboundMessageAction` answers as that agent through `Communication::reply()`.
+No company setting and no rule a tenant writes decide it. A connection carries the agent that owns
+it (`config.agent_id`, read by `Connection::agent()`), which the provider's `accounts()` supplies:
+Twilio returns the company's sending number plus every agent's `sms_config.phone_number`, each with
+its agent. Once a message (or the burst it closes) is filed, `AnnounceInboundTurnAction` fires
+`AFTER_ADDING_MESSAGE_TO_CHANNEL` on the conversation (a closed burst's prompt rides as `burst_text`),
+and the app default rule "Communication: answer inbound messages" runs
+`Messages/Activities/RespondToInboundMessageActivity`: `RespondToInboundMessageAction::executeIfOwned()`
+answers as the owning agent through `Communication::reply()`.
 
 - Two agents with two numbers each answer their own. A connection nobody owns is received and
-  filed, never answered — do not add a company-wide default agent.
-- The workflow event (`AFTER_ADDING_MESSAGE_TO_CHANNEL`) still fires, for rules a tenant wrote. The
-  reply never depends on one. First-party behaviour consumes the event or the pipeline directly; an
-  activity is for triggering an external system.
+  filed, never answered — do not add a company-wide default agent. That run, and our own side of a
+  conversation, is recorded as skipped and leaves the message as filed.
+- A turn that is refused (switched off, stale, no counterpart) is tagged `communication-<reason>` on
+  the message and recorded as skipped with that reason. `$tries = 1`: a retry after a send would
+  message the customer twice.
+- Every other channel that fires the event (Microsoft email) has no connection on its messages, so
+  the activity skips it. A rule a tenant wrote on the event still hears every turn.
 - Ownership is read from the agent (`sms_config.phone_number`, `whatsapp_config.phone_number`) by the
   provider's `accounts()`. After an agent's number changes, `RefreshAgentConnectionsAction`
   reconciles the company's connections; nothing else may point the vendor's webhook anywhere once
@@ -168,8 +173,9 @@ agent that owns it (`config.agent_id`, read by `Connection::agent()`), which the
   served the account before (its old receiver, its responder rule) and carry the answering agent
   over. The domain only calls it; what "legacy" means is the connector's knowledge, passed by class
   name to the shared `RetireLegacyInboundAction`, which does the switching off for every provider.
-- The job checks ownership again when it runs: a connection can be switched off or handed to
-  another agent while the turn is queued.
+- Ownership is read when the run starts, never when the event fires: a connection can be switched
+  off or handed to another agent while the turn is queued. A support-mode delayed turn that finds
+  the number handed over runs the new owner's turn inline (`SendUnrespondedAgentMessageJob`).
 
 ## An email answer
 
@@ -193,40 +199,60 @@ the company's email (`EmailComposer::REPLY_TEMPLATE`). The same question decides
 lead or people email (`Communication::speaksFromOwnAddress()`). Which addresses are personal is the
 provider's knowledge (`config.personal`, set by its `accounts()`).
 
-## What an agent does on its own: listeners, switched on the agent
+## What an agent does on its own: app default rules, switched on the agent
 
-First-party behaviour needs no rule row and is not tied to the workflow engine. Each one is a queued
-listener (`ShouldQueue`, on the `workflow` queue) for a domain event (`EventServiceProvider`): its
-`shouldQueue()` reads the switch, so nothing is queued when it is off, and its `handle()` does the
-work on the worker. There is no job class beside it. The switch is always on the agent, never a
-company setting:
+Every behaviour a company has without writing anything is a workflow rule the platform installs, so
+each run is in the integration history. `config('workflows.app_default_rules')` lists them, and
+`EnsureAppDefaultRulesAction` installs one rule per app per entry with `companies_id = 0` (every
+company of the app), `params.app_default = true`, async. It is idempotent and brings back a rule or
+step someone deleted. It runs from `kanvas:workflow-ensure-app-default-rules` (both deploys, after
+`kanvas:workflow-sync-actions`, which creates the catalog rows it needs), every `communication:setup`
+sweep per app, and `ScheduleCommunicationSetupAction`.
 
-| Behaviour | Event | Switch |
+The rule is only a trigger. Whether anything happens is decided in the activity, and the switch is
+always on the agent (or the knowledge base), never a company setting. A run with nothing to do
+returns `skipWorkflow($reason)`: recorded as status `skipped` (gray, never reported, kept 7 days),
+apart from `failWorkflow()` (FAILED, a real but expected failure). True faults throw. A condition on
+the rule is only a cheap filter on plain values the event carries, so an event that concerns nobody
+starts no run at all; all of an entry's conditions must hold.
+
+| Rule (activity) | Event on | Switch |
 |---|---|---|
-| First message to a new lead (`ReachOutToNewLeadListener`) | `Guild\Leads\Events\LeadCreatedEvent` | the agent's `reach_out_config` column: `new_leads`, with `lead_source_allowlist` beside it (`Agent::forNewLeads()`) |
-| Answer on a lead's AI Assist channel (`RespondOnAiAssistChannelListener`) | `Social\Channels\Events\ChannelMessageAttachedEvent`, a person's message | the agent the channel's session was opened with |
-| A lead's AI mode (`ApplyLeadAiModeListener`) | `Intelligence\Triggers\Events\LeadAiTriggeredEvent` | an active agent serves the company |
-| Index a file attached to an agent (`IndexAgentDocumentsListener`) | `Filesystem\Events\FileAttachedToEntityEvent` | the agent the file is on |
-| Prune a deleted file from the knowledge base (`PruneKnowledgeDocumentListener`) | `Filesystem\Events\FileDeletedEvent` | none: every deleted file |
+| Communication: answer inbound messages (`Communication\Messages\Activities\RespondToInboundMessageActivity`) | `after-adding-message-to-channel` on the Channel | the agent that owns the connection |
+| Leads: deliver a person's reply (`Guild\Leads\Activities\DeliverHumanReplyActivity`) | `updated` on the Channel, condition `from_human == true` | none: a person's message on a conversation channel (never the default or an internal one) |
+| Agents: answer on the AI Assist channel (`Intelligence\Agents\Activities\RespondOnAiAssistChannelActivity`) | `updated` on the Channel, conditions `from_human == true` and `name == 'AI Assist'` | the agent the channel's session was opened with |
+| Agents: reach out to new leads (`Intelligence\Agents\Activities\ReachOutToNewLeadActivity`) | `created` on the Lead | the agent's `reach_out_config` column: `new_leads`, with `lead_source_allowlist` beside it (`Agent::forNewLeads()`) |
+| Agents: apply a lead's AI mode (`Intelligence\Triggers\Activities\ApplyLeadAiModeActivity`) | `trigger-ai` on the Lead | an active agent serves the company |
+| Knowledge: index an agent's documents (`Intelligence\Knowledge\Activities\IndexAgentDocumentsActivity`) | `attach-file` on the Agent | the app has a knowledge base |
+| Knowledge: prune a deleted file (`Intelligence\Knowledge\Activities\PruneDeletedFileKnowledgeActivity`) | `deleted` on the Filesystem | the app has a knowledge base |
 
-- Raise an AI trigger with `LeadAiTriggeredEvent::announce($lead, $triggerType)`, never a bare
-  `fireWorkflow(TRIGGER_AI)`: it dispatches the event and still fires `trigger-ai` for a rule a
-  tenant wrote. A creator that also dispatches `LeadCreatedEvent` uses `announceNewLead($lead)`
-  instead: when an agent reaches out, the reach-out applies the lead's mode itself, and the event
-  would apply it a second time. An import that raises the trigger alone keeps `announce()`.
-- Say an agent reached out with `AgentReachedOutToLeadEvent::announce($lead, $agent, $result)`: it
-  dispatches the event for what Kanvas does about it, and fires `agent-reached-out` on the lead for
-  what an outside system needs to hear. A CRM that reacts declares an activity on that event in its
-  integration's `defaultRules()` (eLead: `StopResponseClockActivity`), so only a company with that
-  integration gets it. Never call a connector from the listener.
-- A new way to create a lead dispatches `LeadCreatedEvent` once the lead is ready to be worked
-  (`CreateLeadAction` does); an import that wants no follow-on work does not.
+- **Company precedence**: a company that writes its own rule running the same activity gets only its
+  own (`RuleRepository::getRulesByModelAndType()` drops the app default), or the activity would run
+  twice for one event.
+- `Channel::addMessage()` fires `updated` with `from_human` beside `message`, which is what the two
+  Channel conditions read.
+- Raise an AI trigger with `$lead->announceAiTrigger($triggerType)`, never a bare
+  `fireWorkflow(TRIGGER_AI)`. It fires even on a lead whose own writes are switched off (an import
+  that still says its lead is new). A creator that also fires `created` passes
+  `reachOutAppliesMode: true` (`CreateLeadAction` does): when an agent reaches out to the company's
+  new leads, the reach-out applies the lead's mode right before reading it, and the mode rule skips.
+  Both decide when they run, so the mode is applied once whoever wins. An import that raises the
+  trigger alone keeps the default.
+- A new way to create a lead fires `created` on it once the lead is ready to be worked
+  (`CreateLeadAction` does, unless the import asked for no follow-on work; the eLead download command does).
+- Say an agent reached out with `AgentReachOutAction::announceReachOut($lead, $agent, $result)`: it
+  fires `agent-reached-out` on the lead with `agent_id`, `message_id`, `message_ids_sent` and
+  `message_ids_scheduled`, and nothing when the result reached nobody. What a CRM does about it is an
+  activity its integration declares in `defaultRules()`, so only a company with that integration gets
+  it: eLead's `StopResponseClockActivity`, and SalesAssist's `RecordAgentReachOutActivity` (the
+  legacy per-protocol channels) for every dealer CRM through `DeclaresSalesAssistPullRules`. The
+  reach-out names no vendor.
 - A company where no agent has reach-out on does not reach out. Setup switches it on for the
   first-message agent only when no agent of the company has a say yet; `false` is someone's choice.
-- What a connector adds after a reach-out (SalesAssist's legacy channels, the eLead clock) listens
-  to `AgentReachedOutToLeadEvent`. The reach-out names no vendor.
-- The activities that remain (`SalesAssistAgentReachOutActivity`, `TriggerIntelligenceActivity`)
-  are for a rule a tenant wrote with its own conditions; they call the same actions.
+- The older activities (`SalesAssistAgentReachOutActivity`, `TriggerIntelligenceActivity`) remain
+  for a rule a tenant wrote with its own conditions; they call the same actions. The deploy's rule
+  migrations soft-delete the rules and catalog rows that ran the old names, so an app default never
+  reuses one.
 
 ## Migration state
 

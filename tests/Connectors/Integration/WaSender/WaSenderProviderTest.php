@@ -15,11 +15,11 @@ use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\CleanupTask;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
+use Kanvas\Communication\Messages\Actions\RespondToInboundMessageAction;
 use Kanvas\Communication\Messages\DataTransferObject\Attachment;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
-use Kanvas\Communication\Messages\Jobs\RespondToInboundMessageJob;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
@@ -45,14 +45,17 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Kanvas\Workflow\Rules\Models\Rule;
 use Mockery;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Concerns\BuildsLegacyInboundFixtures;
 use Tests\TestCase;
+use Tests\Workflow\Support\WatchesWorkflowEvents;
 
 /**
  * WaSender as a Communication provider: the number is a connection its agent owns, the one webhook
@@ -64,8 +67,11 @@ final class WaSenderProviderTest extends TestCase
     use BuildsCommunicationFixtures;
     use BuildsLegacyInboundFixtures;
     use DatabaseTransactions;
+    use WatchesWorkflowEvents;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
+
+    private Rule $turns;
 
     private const string OUR_NUMBER = '+18095550100';
     private const string CUSTOMER = '18095557788';
@@ -74,6 +80,7 @@ final class WaSenderProviderTest extends TestCase
     {
         parent::setUp();
 
+        $this->turns = $this->watchWorkflowEvent(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value, Channel::class);
         Queue::fake();
         Notification::fake();
         config([
@@ -162,10 +169,9 @@ final class WaSenderProviderTest extends TestCase
             ],
             $message->message['communication']
         );
-        Queue::assertPushed(
-            RespondToInboundMessageJob::class,
-            fn (RespondToInboundMessageJob $job): bool => $job->message->is($message) && $job->burstText === null
-        );
+        $turn = $this->firedWith($this->turns)->sole();
+        $this->assertTrue($turn['message']->is($message));
+        $this->assertArrayNotHasKey('burst_text', $turn);
     }
 
     public function testANumberNobodyOwnsIsFiledAndLeftAlone(): void
@@ -175,7 +181,7 @@ final class WaSenderProviderTest extends TestCase
         $result = $this->deliver($this->directText('WAMSG-UNOWNED'));
 
         $this->assertNotEmpty($result['result']['messages']);
-        Queue::assertNotPushed(RespondToInboundMessageJob::class);
+        $this->assertNoTurnIsAnswered();
     }
 
     public function testOurOwnMessageIsNeverAnswered(): void
@@ -184,7 +190,7 @@ final class WaSenderProviderTest extends TestCase
 
         $this->deliver($this->directText('WAMSG-OURS', fromMe: true));
 
-        Queue::assertNotPushed(RespondToInboundMessageJob::class);
+        $this->assertNoTurnIsAnswered();
     }
 
     public function testBeforeTheNumberIsAConnectionAMessageIsFiledWithoutARoute(): void
@@ -193,7 +199,7 @@ final class WaSenderProviderTest extends TestCase
         $message = Message::getById($result['result']['messages'][0]['message_id'], $this->currentApp());
 
         $this->assertArrayNotHasKey('communication', $message->message);
-        Queue::assertNotPushed(RespondToInboundMessageJob::class);
+        $this->assertNoTurnIsAnswered();
     }
 
     public function testASendPutsFilesFirstThenTheTextAndIsAcceptedUnderWaSendersId(): void
@@ -624,6 +630,19 @@ final class WaSenderProviderTest extends TestCase
      *
      * @return array<string, mixed>
      */
+    /**
+     * Every turn this test announced is one the app default rule's activity leaves alone.
+     */
+    private function assertNoTurnIsAnswered(): void
+    {
+        foreach ($this->firedWith($this->turns) as $turn) {
+            $this->assertNull(
+                new RespondToInboundMessageAction($turn['message']->channels()->firstOrFail(), $turn['message'])->executeIfOwned(),
+                'nobody may answer this message'
+            );
+        }
+    }
+
     private function deliver(
         array $data,
         WebhookEventEnum $event = WebhookEventEnum::MESSAGES_UPSERT,

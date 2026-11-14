@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\RespondIO\Actions;
 use Kanvas\Connectors\RespondIO\BaseRespondIOAction;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Override;
 
 class ProcessConversationClosedAction extends BaseRespondIOAction
@@ -29,7 +28,7 @@ class ProcessConversationClosedAction extends BaseRespondIOAction
             $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
             $lead->set(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value, 'conversation_closed');
 
-            LeadAiTriggeredEvent::announce($lead, TriggersEnum::HUMAN_TAKEOVER->value);
+            $lead->announceAiTrigger(TriggersEnum::HUMAN_TAKEOVER->value);
         }
 
         return [

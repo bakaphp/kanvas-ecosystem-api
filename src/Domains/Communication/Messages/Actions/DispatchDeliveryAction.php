@@ -124,7 +124,7 @@ final class DispatchDeliveryAction
         // The message is out. Failing to file it is a history problem to report, never a reason to
         // tell the caller a sent message was not sent.
         try {
-            new FileDeliveryMessageAction($this->delivery, $content)->execute();
+            new RecordSentMessageAction($this->delivery, $content)->execute();
         } catch (Throwable $exception) {
             report($exception);
         }

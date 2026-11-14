@@ -15,8 +15,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Actions\RespondToInboundMessageAction;
 use Kanvas\Communication\Messages\Exceptions\InboundNotAnsweredException;
-use Kanvas\Communication\Messages\Jobs\RespondToInboundMessageJob;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -27,11 +27,11 @@ use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
+use Throwable;
 
 class SendUnrespondedAgentMessageJob implements ShouldQueue
 {
@@ -133,9 +133,15 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             // reply runs.
             $this->updateIntegrationHistoryResult(['message' => $skipped->getMessage(), 'entity' => null]);
 
-            // Handed to another agent while it waited: the message is the new owner's to answer.
+            // Handed to another agent while it waited: the message is the new owner's to answer, now,
+            // since the wait for a person is already over. That is a turn of its own, so a fault in it
+            // is reported and never re-runs this one.
             if ($skipped instanceof InboundNotAnsweredException && $skipped->reason === 'owner_changed') {
-                RespondToInboundMessageJob::dispatchIfOwned($this->channel, $this->message);
+                try {
+                    new RespondToInboundMessageAction($this->channel, $this->message)->executeIfOwned(waitForPerson: false);
+                } catch (Throwable $handOffFault) {
+                    report($handOffFault);
+                }
             }
 
             return;
@@ -143,7 +149,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
 
         try {
             $this->updateIntegrationHistoryResult($actionResult);
-            LeadAiTriggeredEvent::announce($lead, TriggersEnum::AI_TAKEOVER->value);
+            $lead->announceAiTrigger(TriggersEnum::AI_TAKEOVER->value);
 
             DailyReportService::track(
                 $lead->app,

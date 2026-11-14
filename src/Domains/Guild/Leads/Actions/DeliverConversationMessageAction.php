@@ -14,7 +14,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
@@ -26,7 +25,8 @@ use Throwable;
  * runs outside Kanvas) goes to the customer on the medium the conversation is in. Needs no rule.
  *
  * A person writing takes the lead over (the AI steps back); another AI does not. A message that
- * did not leave is noted on the lead and never counts as an answer.
+ * did not leave is noted on the lead (`failed`) and never counts as an answer; one with nothing to
+ * send, or to a recipient who opted out, is neither delivered nor failed.
  */
 final class DeliverConversationMessageAction
 {
@@ -42,7 +42,7 @@ final class DeliverConversationMessageAction
     /**
      * @param string|null $from a number to text from, used when the company has it as a connection
      *
-     * @return array{message: string, result: array<string, mixed>|null, delivered: bool}
+     * @return array{message: string, result: array<string, mixed>|null, delivered: bool, failed: bool}
      */
     public function execute(?string $from = null, ?string $title = null): array
     {
@@ -78,7 +78,7 @@ final class DeliverConversationMessageAction
         }
 
         if ($this->writtenByPerson) {
-            LeadAiTriggeredEvent::announce($lead, TriggersEnum::HUMAN_TAKEOVER->value);
+            $lead->announceAiTrigger(TriggersEnum::HUMAN_TAKEOVER->value);
             $lead->set(ConfigurationEnum::CONTACTED->value, LeadGroupStatusEnum::CONTACTED->value);
             $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
         }
@@ -138,6 +138,7 @@ final class DeliverConversationMessageAction
             'message' => 'Message sent to lead via ' . $medium,
             'result' => $result,
             'delivered' => true,
+            'failed' => false,
         ];
     }
 
@@ -154,7 +155,7 @@ final class DeliverConversationMessageAction
     /**
      * @param array<string, mixed>|null $result
      *
-     * @return array{message: string, result: array<string, mixed>|null, delivered: bool}
+     * @return array{message: string, result: array<string, mixed>|null, delivered: bool, failed: bool}
      */
     private function notDelivered(
         Lead $lead,
@@ -170,7 +171,7 @@ final class DeliverConversationMessageAction
             $reason
         );
 
-        return $this->skipped($reason, $result);
+        return ['failed' => true] + $this->skipped($reason, $result);
     }
 
     private function recordNotDeliveredNote(
@@ -188,10 +189,10 @@ final class DeliverConversationMessageAction
     /**
      * @param array<string, mixed>|null $result
      *
-     * @return array{message: string, result: array<string, mixed>|null, delivered: bool}
+     * @return array{message: string, result: array<string, mixed>|null, delivered: bool, failed: bool}
      */
     private function skipped(string $reason, ?array $result = null): array
     {
-        return ['message' => $reason, 'result' => $result, 'delivered' => false];
+        return ['message' => $reason, 'result' => $result, 'delivered' => false, 'failed' => false];
     }
 }

@@ -16,7 +16,6 @@ use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Events\LeadAiTriggeredEvent;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -86,7 +85,7 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
             new ApplyLeadClosingStatusAction($lead)->execute();
 
             if ($lead->get('ai_mode') === null) {
-                LeadAiTriggeredEvent::announce($lead, TriggersEnum::NEW_LEAD->value);
+                $lead->announceAiTrigger(TriggersEnum::NEW_LEAD->value);
             }
         } catch (Throwable $e) {
             report($e);
