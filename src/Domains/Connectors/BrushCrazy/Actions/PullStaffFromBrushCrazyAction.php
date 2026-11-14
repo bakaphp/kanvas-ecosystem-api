@@ -193,7 +193,11 @@ class PullStaffFromBrushCrazyAction
                 CustomFieldEnum::BRUSHCRAZY_USER_ID
             )));
         } else {
-            $userIds = fn (Builder $query) => $query->distinct()->pluck('user_id')->filter()->map(fn ($userId) => (int) $userId)->all();
+            $userIds = fn (Builder $query) => $query->distinct()
+                ->pluck('user_id')
+                ->filter()
+                ->map(fn ($userId) => (int) $userId)
+                ->all();
 
             $movedAway = $userIds(
                 $client->table('studio_employees')

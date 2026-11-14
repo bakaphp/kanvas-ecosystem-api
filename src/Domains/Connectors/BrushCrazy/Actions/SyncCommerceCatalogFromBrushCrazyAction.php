@@ -106,7 +106,10 @@ class SyncCommerceCatalogFromBrushCrazyAction
     public function fromPointer(string $morph, int $entityId): string
     {
         if ($morph === self::PRODUCT_SETTING_MORPH) {
-            $setting = $this->client()->table('product_settings')->where('id', $entityId)->first(['product_id', 'studio_id']);
+            $setting = $this->client()
+                ->table('product_settings')
+                ->where('id', $entityId)
+                ->first(['product_id', 'studio_id']);
 
             if ($setting === null || $setting->product_id === null) {
                 return SyncSaleFromBrushCrazyAction::MISSING;
@@ -255,7 +258,12 @@ class SyncCommerceCatalogFromBrushCrazyAction
             $product->set(CustomFieldEnum::BRUSHCRAZY_LOOKUP_KEY->value, $key);
         }
 
-        return $this->upsertVariant($key, $product, $mapped['variant'], 0.0);
+        return $this->upsertVariant(
+            $key,
+            $product,
+            $mapped['variant'],
+            0.0
+        );
     }
 
     /**

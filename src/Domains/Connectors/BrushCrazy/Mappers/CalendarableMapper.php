@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\BrushCrazy\Mappers;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Support\CalendarableName;
 use Kanvas\Connectors\BrushCrazy\Support\EventInstant;
@@ -77,7 +77,7 @@ class CalendarableMapper
                 // (apps_id, companies_id, slug, event_id, version) is deterministic with no lookup.
                 'version' => $bcId,
                 'version_number' => 1,
-                'name' => trim((string) ($rawName ?? '')) !== '' ? trim((string) $rawName) : $displayName,
+                'name' => Str::trimToNull((string) $rawName) ?? $displayName,
                 'description' => $row->description ?? null,
                 'classification' => self::classification($row),
                 'start_at' => $instant?->startAt,
@@ -120,7 +120,7 @@ class CalendarableMapper
 
         return $paintingId !== null
             ? "{$morph->value}:s{$studioId}:p" . (int) $paintingId
-            : "{$morph->value}:s{$studioId}:n" . substr(md5(mb_strtolower($displayName)), 0, 10);
+            : "{$morph->value}:s{$studioId}:n" . self::nameHash($displayName);
     }
 
     private static function eventSlug(
@@ -141,9 +141,13 @@ class CalendarableMapper
         }
 
         $nameSlug = mb_substr(Str::slug($displayName), 0, self::MAX_NAME_SLUG_LENGTH);
-        $hash = substr(md5(mb_strtolower($displayName)), 0, 10);
 
-        return "bc-{$morph->value}-s{$studioId}-{$nameSlug}-{$hash}";
+        return "bc-{$morph->value}-s{$studioId}-{$nameSlug}-" . self::nameHash($displayName);
+    }
+
+    private static function nameHash(string $displayName): string
+    {
+        return substr(md5(mb_strtolower($displayName)), 0, 10);
     }
 
     /**
@@ -177,9 +181,7 @@ class CalendarableMapper
 
     private static function classification(object $row): ?string
     {
-        $type = trim((string) ($row->type ?? ''));
-
-        return $type !== '' ? $type : null;
+        return Str::trimToNull((string) ($row->type ?? null));
     }
 
     /**

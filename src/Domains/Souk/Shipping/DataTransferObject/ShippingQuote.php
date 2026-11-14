@@ -19,6 +19,7 @@ class ShippingQuote extends Data
         public readonly ?int $transitMinDays = null,
         public readonly ?int $transitMaxDays = null,
         public readonly array $meta = [],
+        public readonly array $bookingMeta = [],
     ) {
     }
 

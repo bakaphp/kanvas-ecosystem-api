@@ -190,7 +190,9 @@ class RegistrationMapper
             }
 
             if (($registration->sale_created_at ?? null) !== null) {
-                $saleDates[] = Carbon::parse((string) $registration->sale_created_at, 'UTC')->setTimezone($timezone)->format('Y-m-d');
+                $saleDates[] = Carbon::parse((string) $registration->sale_created_at, 'UTC')
+                    ->setTimezone($timezone)
+                    ->format('Y-m-d');
             }
 
             if (($registration->created_at ?? null) !== null) {

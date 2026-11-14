@@ -99,6 +99,7 @@ class VoiceAgentReadinessTest extends TestCase
 
     public function testMissingVoiceGreetingAndTestCallOnlyWarn(): void
     {
+        config(['kanvas.voice_runtime.default_voice_id' => '']);
         $agent = $this->agent(voice: ['voice_id' => null, 'greeting' => null, 'last_test_call' => null]);
 
         $readiness = $this->readiness($agent, $this->wiredAccount());
@@ -107,6 +108,15 @@ class VoiceAgentReadinessTest extends TestCase
         $this->assertSame(['warning', 'edit_voice'], $this->statusAndAction($readiness, 'voice'));
         $this->assertSame(['warning', 'edit_voice'], $this->statusAndAction($readiness, 'greeting'));
         $this->assertSame(['warning', 'test_call'], $this->statusAndAction($readiness, 'test_call'));
+    }
+
+    public function testTheDefaultVoiceCountsAsAVoice(): void
+    {
+        config(['kanvas.voice_runtime.default_voice_id' => 'uYXf8XasLslADfZ2MB4u']);
+
+        $readiness = $this->readiness($this->agent(voice: ['voice_id' => null]), $this->wiredAccount());
+
+        $this->assertSame(['ok', 'edit_voice'], $this->statusAndAction($readiness, 'voice'));
     }
 
     public function testARemovedCallModelFallsBackWithAWarning(): void

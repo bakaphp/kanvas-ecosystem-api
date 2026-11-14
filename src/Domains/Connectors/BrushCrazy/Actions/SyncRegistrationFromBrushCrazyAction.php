@@ -139,7 +139,10 @@ class SyncRegistrationFromBrushCrazyAction
             'registration' => $registrations->where('id', $entityId)->get(),
             'registration-attendee' => $registrations->whereIn(
                 'id',
-                $client->table('registration_attendees')->where('id', $entityId)->whereNotNull('registration_id')->select('registration_id')
+                $client->table('registration_attendees')
+                    ->where('id', $entityId)
+                    ->whereNotNull('registration_id')
+                    ->select('registration_id')
             )->get(),
             'sale' => $registrations->where('sale_id', $entityId)->get()->merge(
                 $client->table('sale_items')
@@ -426,7 +429,7 @@ class SyncRegistrationFromBrushCrazyAction
      */
     protected function readUsers(Client $client, array $bcUserIds): array
     {
-        return $client->table('users')->whereIn('id', $bcUserIds)->get()->keyBy('id')->all();
+        return $this->saleSource($client)->users($bcUserIds)->keyBy('id')->all();
     }
 
     /**
@@ -774,7 +777,9 @@ class SyncRegistrationFromBrushCrazyAction
 
         return Participant::withoutEvents(function () use ($participantId, $peopleId, $field, $externalId, $peopleName) {
             $participant = $participantId !== null
-                ? ($this->participants[$participantId] ?? $this->tenantParticipants()->where('id', $participantId)->first())
+                ? ($this->participants[$participantId] ?? $this->tenantParticipants()
+                    ->where('id', $participantId)
+                    ->first())
                 : null;
 
             if ($participant === null) {

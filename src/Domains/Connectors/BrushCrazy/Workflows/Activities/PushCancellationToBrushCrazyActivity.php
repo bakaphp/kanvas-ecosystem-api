@@ -50,7 +50,7 @@ class PushCancellationToBrushCrazyActivity extends BrushCrazyPushActivity
                     ->first();
                 $metadata = is_array($evp?->metadata) ? $evp->metadata : [];
 
-                if (($metadata['schema'] ?? null) !== SiteBooking::RESERVATION_SCHEMA || ($metadata['state'] ?? null) !== SiteBooking::STATE_CONFIRMED) {
+                if (! SiteBooking::isConfirmedReservation($metadata)) {
                     return $this->skip('Released participant was a hold, not a confirmed booking.');
                 }
 

@@ -95,7 +95,18 @@ class VerifyBrushCrazyImportCommand extends Command
                 ];
             }
 
-            $this->table(['Entity', 'Source', 'Mapped', 'Missing', 'Not in source', 'Moved, live here', 'Missing sample'], $rows);
+            $this->table(
+                [
+                    'Entity',
+                    'Source',
+                    'Mapped',
+                    'Missing',
+                    'Not in source',
+                    'Moved, live here',
+                    'Missing sample',
+                ],
+                $rows
+            );
         }
 
         if ($movedTotal > 0) {
@@ -194,12 +205,16 @@ class VerifyBrushCrazyImportCommand extends Command
             'paintings' => [
                 Theme::class,
                 CustomFieldEnum::BRUSHCRAZY_PAINTING_ID,
-                PullPaintingsFromBrushCrazyAction::paintingsOfStudio($client, $bcStudioId)->pluck('paintings.id')->all(),
+                PullPaintingsFromBrushCrazyAction::paintingsOfStudio($client, $bcStudioId)
+                    ->pluck('paintings.id')
+                    ->all(),
             ],
             'customers' => [
                 People::class,
                 CustomFieldEnum::BRUSHCRAZY_USER_ID,
-                PullCustomersFromBrushCrazyAction::customersOfStudio($client, $bcStudioId)->pluck('users.id')->all(),
+                PullCustomersFromBrushCrazyAction::customersOfStudio($client, $bcStudioId)
+                    ->pluck('users.id')
+                    ->all(),
             ],
             'staff' => [
                 Facilitator::class,

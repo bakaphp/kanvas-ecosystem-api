@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\BrushCrazy\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -66,13 +67,12 @@ class PushUserToBrushCrazyActivity extends BrushCrazyPushActivity
 
                 $studioId = ($paramCompany instanceof Companies ? SiteBooking::studioId($paramCompany) : null)
                     ?? ($people->first() !== null ? SiteBooking::studioId($people->first()->company) : null);
-                $phone = trim((string) ($user->cell_phone_number ?: $user->phone_number));
 
                 $body = [
                     'email' => $email,
                     'first_name' => trim((string) $user->firstname),
                     'last_name' => trim((string) $user->lastname),
-                    'phone' => $phone !== '' ? $phone : null,
+                    'phone' => Str::trimToNull((string) ($user->cell_phone_number ?: $user->phone_number)),
                     'studio_id' => $studioId,
                 ];
 
