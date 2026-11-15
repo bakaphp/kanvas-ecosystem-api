@@ -44,10 +44,7 @@ final class ApplyCreditToOrderActionTest extends TestCase
         $this->assertSame($credit->getId(), (int) $order->voucher_id);
         $this->assertFalse($credit->canBeUsed());
 
-        $remainder = Discount::where('companies_id', $company->getId())
-            ->where('id', '!=', $credit->getId())
-            ->latest('id')
-            ->firstOrFail();
+        $remainder = $this->remainderOf($credit);
 
         $this->assertSame(50.0, $remainder->value);
         $this->assertTrue($remainder->isAutoAppliedCredit());
@@ -96,8 +93,7 @@ final class ApplyCreditToOrderActionTest extends TestCase
         $this->assertSame('PROMO 30', $order->discount_name);
         $this->assertSame($promo->getId(), (int) $order->voucher_id);
 
-        $remainder = Discount::where('companies_id', $company->getId())->latest('id')->firstOrFail();
-        $this->assertSame(430.0, $remainder->value);
+        $this->assertSame(430.0, $this->remainderOf($credit)->value);
     }
 
     public function testASpentCreditCannotBeAppliedAgain(): void
@@ -152,5 +148,22 @@ final class ApplyCreditToOrderActionTest extends TestCase
         $this->expectExceptionMessage('not an auto applied credit');
 
         new ApplyCreditToOrderAction($order, $promo)->execute();
+    }
+
+    /**
+     * Not `latest('id')`: parallel processes commit discounts into the same company, so the newest row
+     * is not necessarily ours.
+     */
+    private function remainderOf(Discount $credit): Discount
+    {
+        $remainder = Discount::getByCustomFieldTransactionSafe(
+            CustomFieldEnum::PARENT_DISCOUNT_ID->value,
+            $credit->getId(),
+            $credit->company
+        );
+
+        $this->assertInstanceOf(Discount::class, $remainder);
+
+        return $remainder;
     }
 }
