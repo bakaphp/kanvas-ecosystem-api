@@ -197,7 +197,10 @@ final class FollowUpLeadAction
 
         $missingLinks = implode(', ', $this->missingLinks($template));
         if ($missingLinks !== '') {
-            return $this->skipWithNote(FollowUpFailureReasonEnum::LINK_MISSING->value . ': ' . $missingLinks, 'Follow-up not sent: this step needs a link the lead does not have (' . $missingLinks . ').');
+            return $this->skipWithNote(
+                FollowUpFailureReasonEnum::LINK_MISSING->value . ': ' . $missingLinks,
+                'Follow-up not sent: this step needs a link the lead does not have (' . $missingLinks . ').'
+            );
         }
 
         // Every free gate has passed; this is the last stop before money is spent (a CRM call,
@@ -728,12 +731,10 @@ final class FollowUpLeadAction
         $message->addTag('followup');
 
         try {
-            new LeadChannelService()->attachMessageToLeadChannel(
+            new LeadChannelService()->recordOnLeadAndPerson(
                 $message,
                 $this->lead,
-                $this->app,
-                $this->company,
-                $this->company->getAiAgentUserOrFail(),
+                $this->company->getAiAgentUserOrFail()
             );
         } catch (Throwable $e) {
             report($e);

@@ -546,12 +546,14 @@ trait HasKanvasAgentBehavior
     }
 
     /**
-     * The rolling lead summary, when this turn reads a lead's rollup and the app has it on. Off the
+     * The rolling lead summary, when this turn reads a rollup about a lead and the app has it on. The
+     * lead is the session's own record, or the one an inbound turn carries: that session is keyed to
+     * the person, and the summary reads only the lead's messages out of the person's window. Off the
      * lead path it costs nothing: no load, no query.
      */
     private function prepareLeadTurnMemory(KanvasChatHistory $history, int $historyBudget): ?LeadTurnMemory
     {
-        $lead = $this->entity;
+        $lead = $this->entity instanceof Lead ? $this->entity : $this->currentLead;
 
         if (
             ! $lead instanceof Lead

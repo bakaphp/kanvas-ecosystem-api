@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
@@ -136,6 +137,9 @@ final class DeliverConversationMessageAction
                 );
         }
 
+        // Written on whichever channel the rep had open: once it left, it is part of the lead's
+        // history and the person's whole conversation as well.
+        new LeadChannelService()->recordOnLeadAndPerson($this->message, $lead, $this->message->user);
         new MarkLeadMessagesAsRespondedAction($lead, $this->message)->execute();
         new NotifyLeadStakeholdersService($lead)->onAgentReply($this->message, isHuman: $this->writtenByPerson);
 

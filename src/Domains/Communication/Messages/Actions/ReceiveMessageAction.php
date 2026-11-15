@@ -6,8 +6,11 @@ namespace Kanvas\Communication\Messages\Actions;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\InboundSource;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
@@ -28,11 +31,13 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Customers\Services\ConsentKeywordService;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Actions\Communication\OpenLeadFromConversationAction;
 use Kanvas\Guild\Leads\Actions\Communication\SendOptOutConfirmationAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
@@ -58,6 +63,9 @@ final class ReceiveMessageAction
 {
     use ChainsInboundBursts;
     use KanvasJobsTrait;
+
+    private const int FILING_LOCK_SECONDS = 30;
+    private const int FILING_LOCK_WAIT_SECONDS = 15;
 
     private Companies $company;
 
@@ -103,24 +111,66 @@ final class ReceiveMessageAction
         $this->user = $this->company->user;
         $this->actForCompany();
 
-        // A vendor that resends a message it already delivered must not move the person, the
-        // consent or the conversation a second time, and must never start a second answer.
-        $redelivered = $this->filed();
-        $filedIn = $redelivered?->channels()->first();
+        $filing = $this->holdFilingLock();
 
-        if ($redelivered !== null && $filedIn !== null) {
-            return ['redelivery' => true] + $this->summary($redelivered, $filedIn, suppressed: true);
+        try {
+            // A vendor that resends a message it already delivered must not move the person, the
+            // consent or the conversation a second time, and must never start a second answer.
+            $redelivered = $this->filed();
+            $filedIn = $redelivered?->channels()->first();
+
+            if ($redelivered !== null && $filedIn !== null) {
+                return ['redelivery' => true] + $this->summary($redelivered, $filedIn, suppressed: true);
+            }
+
+            if (! $this->resolveSender()) {
+                return $this->unfiled('unknown_sender');
+            }
+
+            $channel = $this->conversation($this->people ?? $this->teammate);
+            $message = $this->fileIn($channel, $route);
+        } finally {
+            $filing?->release();
         }
 
-        if (! $this->resolveSender()) {
-            return $this->unfiled('unknown_sender');
-        }
-
-        $channel = $this->conversation($this->people ?? $this->teammate);
-        $message = $this->fileIn($channel, $route);
         $halted = ! $this->afterFiling($route, $channel, $message);
 
         return $this->summary($message, $channel, suppressed: $halted);
+    }
+
+    public static function filingLockKey(int $appId, int $companyId, string $messageSlug): string
+    {
+        return 'communication-inbound:' . $appId . ':' . $companyId . ':' . $messageSlug;
+    }
+
+    /**
+     * Held from the redelivery check until the message is in its conversation: a vendor can hand the
+     * same message over twice at once, and the check and the filing are several writes apart. The
+     * second delivery waits and then reads as a redelivery. A wait that runs out files anyway: a
+     * lost message is worse than one filed twice.
+     */
+    private function holdFilingLock(): ?Lock
+    {
+        if ($this->inbound->messageSlug === null) {
+            return null;
+        }
+
+        $lock = Cache::lock(
+            self::filingLockKey(
+                (int) $this->receiver->apps_id,
+                $this->company->getId(),
+                $this->inbound->messageSlug
+            ),
+            self::FILING_LOCK_SECONDS
+        );
+
+        try {
+            $lock->block(self::FILING_LOCK_WAIT_SECONDS);
+        } catch (LockTimeoutException) {
+            return null;
+        }
+
+        return $lock;
     }
 
     /**
@@ -400,6 +450,8 @@ final class ReceiveMessageAction
 
         $channel->addMessage($message);
 
+        $this->recordInHistories($message);
+
         // Tagged on any recognised keyword, whatever the consent action then makes of it: a bare
         // "YES" matches the START set and is still a prospect answering "yes, book me in".
         $keyword = $this->inbound->consentSignal ?? ConsentKeywordService::detect($this->inbound->text);
@@ -410,6 +462,24 @@ final class ReceiveMessageAction
         }
 
         return $message;
+    }
+
+    /**
+     * A customer's message also lands on the lead's history and the person's whole conversation,
+     * the same two channels the agent's answer is written to. Never a reason to lose the message:
+     * it is already filed in its conversation.
+     */
+    private function recordInHistories(Message $message): void
+    {
+        try {
+            if ($this->lead !== null) {
+                new LeadChannelService()->recordOnLeadAndPerson($message, $this->lead, $this->user);
+            } elseif ($this->people !== null) {
+                new PeopleChannelService()->recordOnPerson($message, $this->people, $this->user);
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**

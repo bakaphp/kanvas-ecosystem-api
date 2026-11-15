@@ -14,7 +14,9 @@ use Kanvas\Guild\Campaigns\Jobs\ProcessLeadCampaignJob;
 use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
@@ -284,18 +286,31 @@ class ProcessLeadCampaignJobTest extends TestCase
 
         new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
 
-        $this->assertCampaignEmailOnChannel(Lead::class, $lead->getId(), $leadEmail);
-        $this->assertCampaignEmailOnChannel(People::class, $person->getId(), $peopleEmail);
+        // A lead's email is the person's conversation: it is filed on the address, kept on the
+        // lead's history and on the person's whole conversation.
+        $leadMessage = $this->assertCampaignEmailOnConversation($lead->people, $leadEmail);
+        $this->assertSame(
+            [$leadMessage->getId()],
+            Channel::query()
+                ->where('slug', new LeadChannelService()->slugFor($lead))
+                ->sole()
+                ->messages()
+                ->pluck('messages.id')
+                ->all(),
+            'the lead keeps what was sent during it'
+        );
+
+        $this->assertCampaignEmailOnConversation($person, $peopleEmail);
     }
 
-    private function assertCampaignEmailOnChannel(string $entityNamespace, int $entityId, string $email): void
+    private function assertCampaignEmailOnConversation(People $person, string $email): Message
     {
         $channel = Channel::query()
-            ->where('entity_namespace', $entityNamespace)
-            ->where('entity_id', $entityId)
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $person->getId())
             ->where('slug', SessionChannelService::createChannelSlug('email', $email))
             ->first();
-        $this->assertNotNull($channel, "Expected an email channel on {$entityNamespace} #{$entityId}");
+        $this->assertNotNull($channel, "Expected the email conversation of person #{$person->getId()}");
 
         /** @var Message|null $message */
         $message = $channel->messages()->latest('messages.id')->first();
@@ -303,6 +318,17 @@ class ProcessLeadCampaignJobTest extends TestCase
         $this->assertStringContainsString('Batch body', $message->contentText());
         $this->assertSame('Spring offer', $message->get('title'));
         $this->assertFalse((bool) $message->message['from_ia'], 'A campaign is sent by the manager, not the AI');
+        $this->assertTrue(
+            Channel::query()
+                ->where('slug', new PeopleChannelService()->slugFor($person))
+                ->sole()
+                ->messages()
+                ->where('messages.id', $message->getId())
+                ->exists(),
+            'the person keeps their whole conversation'
+        );
+
+        return $message;
     }
 
     public function testPeopleRecipientGetsItsOwnAttachmentsAndVariablesOnTopOfTheCampaignOnes(): void

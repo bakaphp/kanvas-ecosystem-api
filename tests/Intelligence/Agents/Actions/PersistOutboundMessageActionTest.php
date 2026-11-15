@@ -9,10 +9,12 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Models\MessageAttempt;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -52,6 +54,14 @@ class PersistOutboundMessageActionTest extends TestCase
             company: $this->company,
             conditions: [["message.hasTag(['agent-tool-delivery'])", '==', 'true']],
         );
+    }
+
+    private function onChannel(Message $message, string $slug): bool
+    {
+        return Channel::query()
+            ->where('slug', $slug)
+            ->whereHas('messages', fn ($messages) => $messages->whereKey($message->getId()))
+            ->exists();
     }
 
     private function makeLead(): Lead
@@ -95,6 +105,44 @@ class PersistOutboundMessageActionTest extends TestCase
         )->execute(['messages' => [['sid' => $sid, 'status' => 'queued']]]);
 
         $this->assertSame([$message->getId()], RecordingActivity::entityIds());
+    }
+
+    /**
+     * The customer's conversation belongs to the person. A text a tool sent to their lead is filed
+     * in that same channel, found by its slug alone, and no lead-owned twin of it is made.
+     */
+    public function testASendThatNamesItsConversationIsFiledOnThePersonsChannelForALeadToo(): void
+    {
+        $lead = $this->makeLead();
+        $slug = 'twilio-' . uniqid();
+        $conversation = Channel::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => '+14047907131',
+            'description' => 'Conversation with +14047907131',
+            'slug' => $slug,
+            'entity_namespace' => People::class,
+            'entity_id' => $lead->people->getId(),
+        ]);
+
+        ['channel' => $channel, 'message' => $message] = new PersistOutboundMessageAction(
+            entity: $lead,
+            user: $this->user,
+            channelType: LeadCommunicationChannelEnum::SMS->value,
+            recipient: '+14047907131',
+            content: 'Your car is ready',
+        )->execute(['messages' => [['sid' => 'SM' . uniqid()]], 'channel_slug' => $slug]);
+
+        $this->assertTrue($channel->is($conversation));
+        $this->assertSame(People::class, $channel->entity_namespace, 'the conversation stays the person\'s');
+        $this->assertSame(1, Channel::query()->where('slug', $slug)->count(), 'no second channel for the lead');
+        $this->assertNotNull($message->entity(Lead::class), 'the lead still has the message');
+        $this->assertTrue($this->onChannel($message, 'lead-channel-' . $lead->getId()), 'on the lead\'s history');
+        $this->assertTrue(
+            $this->onChannel($message, 'people-channel-' . $lead->people->getId()),
+            'on the person\'s whole conversation'
+        );
     }
 
     public function testAWhatsAppSendIsNotFiledAsAFailedText(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Communication\Messages;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Communication\Messages\Actions\FlushInboundBurstAction;
@@ -22,6 +23,7 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
+use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -94,6 +96,24 @@ final class ReceiveMessageActionTest extends TestCase
         $this->assertSame('fake-whatsapp', $message->messageType->verb);
         $this->assertInstanceOf(Lead::class, $lead);
         $this->assertSame('whatsapp', $lead->get(LeadConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value));
+        $this->assertTrue(
+            Channel::query()
+                ->where('slug', 'lead-channel-' . $lead->getId())
+                ->sole()
+                ->messages()
+                ->whereKey($message->getId())
+                ->exists(),
+            'on the lead\'s history'
+        );
+        $this->assertTrue(
+            Channel::query()
+                ->where('slug', 'people-channel-' . $person->getId())
+                ->sole()
+                ->messages()
+                ->whereKey($message->getId())
+                ->exists(),
+            'on the person\'s whole conversation'
+        );
 
         Queue::assertPushed(
             FlushMessageBurstJob::class,
@@ -175,6 +195,61 @@ final class ReceiveMessageActionTest extends TestCase
         $this->assertTrue($second['redelivery']);
         $this->assertSame($messagesBefore, $channel->messages()->count());
         Queue::assertNothingPushed();
+    }
+
+    /**
+     * A delivery that stopped after linking the message and before it reached the conversation is
+     * retried from the top. The agent's history and the lead summary read those links, so a second
+     * one would read as a second message.
+     */
+    public function testARetryOfAHalfFiledMessageLinksItOnce(): void
+    {
+        $first = $this->receive($this->inbound('+18095550712', 'wamid.12', 'Hola'));
+        $message = Message::query()->findOrFail($first['message_id']);
+        $message->channels()->detach();
+
+        $second = $this->receive($this->inbound('+18095550712', 'wamid.12', 'Hola'));
+
+        $this->assertSame($first['message_id'], $second['message_id']);
+        $this->assertArrayNotHasKey('redelivery', $second, 'filed again, not skipped');
+
+        foreach ([People::class, Lead::class] as $record) {
+            $this->assertSame(
+                1,
+                AppModuleMessage::query()
+                    ->where('message_id', $message->getId())
+                    ->where('system_modules', $record)
+                    ->count(),
+                'one link to its ' . class_basename($record)
+            );
+        }
+    }
+
+    /**
+     * A vendor can hand the same message over twice at once, and the redelivery check and the
+     * filing are several writes apart: the second delivery waits for the first.
+     */
+    public function testAMessageIsFiledUnderALockOnItsVendorId(): void
+    {
+        $inbound = $this->inbound('+18095550713', 'wamid.13', 'Hola');
+        $key = ReceiveMessageAction::filingLockKey(
+            $this->currentApp()->getId(),
+            $this->currentCompany()->getId(),
+            (string) $inbound->messageSlug
+        );
+        $heldWhileFiling = null;
+        Message::created(function (Message $message) use ($inbound, $key, &$heldWhileFiling): void {
+            if ($message->slug === $inbound->messageSlug) {
+                $heldWhileFiling = ! Cache::lock($key, 5)->get();
+            }
+        });
+
+        $this->receive($inbound);
+
+        $this->assertTrue($heldWhileFiling, 'another delivery of this message could not start filing');
+        $free = Cache::lock($key, 5);
+        $this->assertTrue($free->get(), 'released once the message is in its conversation');
+        $free->release();
     }
 
     public function testAStopIsFiledButNeverAnswered(): void

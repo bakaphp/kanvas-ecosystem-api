@@ -14,6 +14,7 @@ use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Connectors\WaSender\WhatsAppTransport;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Scribe\Delivery\DataTransferObject\DeliveryTarget;
 use Kanvas\Scribe\Delivery\DataTransferObject\DocumentDelivery;
@@ -77,10 +78,13 @@ final class DocumentLinkWhatsAppTest extends TestCase
             $sent
         );
 
-        $this->assertSame(
-            new WhatsAppTransport()->conversation($connection, self::CUSTOMER)->channelSlug,
-            $message->channels()->sole()->slug,
-            'filed on the channel the customer\'s answer arrives on'
+        $this->assertEqualsCanonicalizing(
+            [
+                new WhatsAppTransport()->conversation($connection, self::CUSTOMER)->channelSlug,
+                new PeopleChannelService()->slugFor($person),
+            ],
+            $message->channels()->pluck('slug')->all(),
+            'filed on the channel the customer\'s answer arrives on, and on the person\'s whole conversation'
         );
 
         $delivery = Delivery::query()->where('message_id', $message->getId())->sole();

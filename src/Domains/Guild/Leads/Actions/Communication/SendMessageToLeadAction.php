@@ -361,6 +361,7 @@ class SendMessageToLeadAction
             'provider' => $this->attemptedProvider,
             'provider_message_id' => $delivery->external_id,
             'operation_id' => $delivery->request_id,
+            'channel_slug' => $delivery->conversation()->channelSlug,
         ];
     }
 
@@ -560,6 +561,7 @@ class SendMessageToLeadAction
             'provider' => $this->attemptedProvider,
             'provider_message_id' => $accepted[0]->external_id,
             'operation_id' => $accepted[0]->request_id,
+            'channel_slug' => $accepted[0]->conversation()->channelSlug,
         ];
     }
 
@@ -749,6 +751,7 @@ class SendMessageToLeadAction
             'provider' => $this->attemptedProvider,
             'provider_message_id' => $delivery->external_id,
             'attempt_uuid' => $delivery->uuid,
+            'channel_slug' => $delivery->conversation()->channelSlug,
             'operation_id' => $delivery->request_id,
         ];
     }

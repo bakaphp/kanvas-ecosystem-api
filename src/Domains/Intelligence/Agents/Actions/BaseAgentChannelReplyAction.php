@@ -12,7 +12,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Actions\Communication\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
@@ -213,30 +212,12 @@ class BaseAgentChannelReplyAction
             new MarkLeadMessagesAsRespondedAction($lead, $newMessage, $message)->execute();
             new NotifyLeadStakeholdersService($lead)->onAgentReply($newMessage, isHuman: false);
 
-            // Non-ADK agents (Neuron / Laravel / Runtime) get the master Lead + People
-            // channel dual-write so the CRM deal view and People profile show the actual
-            // delivery message (verb='twilio-sms', 'mailgun-email', etc.). ADK is left
-            // alone — its remote memory and existing legacy behavior depend on the
-            // per-protocol channel only. Internal channels (the rep talking to the agent
-            // about the lead) opt out via $mirrorsReplyToLeadChannels: that chatter is not a
-            // delivery and must not land in the customer-facing lead conversation.
+            // ADK is left alone: its remote memory depends on the per-protocol channel only.
+            // Internal channels (the rep talking to the agent about the lead) opt out through
+            // $mirrorsReplyToLeadChannels: that chatter is not a delivery and must not land in
+            // the customer-facing lead conversation.
             if ($this->mirrorsReplyToLeadChannels && ! $this->agent->isAdk()) {
-                new LeadChannelService()->attachMessageToLeadChannel(
-                    $newMessage,
-                    $lead,
-                    $message->app,
-                    $message->company,
-                    $user,
-                );
-                if ($lead->people !== null) {
-                    new PeopleChannelService()->attachMessageToPeopleChannel(
-                        $newMessage,
-                        $lead->people,
-                        $message->app,
-                        $message->company,
-                        $user,
-                    );
-                }
+                new LeadChannelService()->recordOnLeadAndPerson($newMessage, $lead, $user);
             }
         }
 

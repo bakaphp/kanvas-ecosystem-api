@@ -136,6 +136,17 @@ final class DeliverHumanReplyTest extends TestCase
         $this->assertSame($reply->getId(), (int) $delivery->message_id);
         $this->assertTrue($result['delivered']);
         $this->assertTrue((bool) $reply->fresh()->is_un_response, 'a delivered reply answers the conversation');
+        foreach (['lead-channel-' . $lead->getId(), 'people-channel-' . $lead->people->getId()] as $history) {
+            $this->assertTrue(
+                Channel::query()
+                    ->where('slug', $history)
+                    ->sole()
+                    ->messages()
+                    ->whereKey($reply->getId())
+                    ->exists(),
+                'a delivered reply is on ' . $history
+            );
+        }
         $this->assertCount(0, $this->notDeliveredNotes($lead));
     }
 

@@ -8,7 +8,7 @@ use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\ConversationRef;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Models\Delivery;
-use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
@@ -79,6 +79,11 @@ final class RecordSentMessageAction
 
         $this->channelFor($conversation, $user)->addMessage($message);
 
+        // The person's whole conversation, beside the channel it went out on.
+        if ($request->people !== null) {
+            new PeopleChannelService()->recordOnPerson($message, $request->people, $user);
+        }
+
         $this->delivery->forceFill(['message_id' => $message->getId()])->saveOrFail();
 
         return $message;
@@ -118,24 +123,12 @@ final class RecordSentMessageAction
         ];
     }
 
-    /**
-     * An existing channel is used as found — including its entity — because the slug is the
-     * conversation's identity and re-pointing it would move history that is not this delivery's.
-     */
     private function channelFor(ConversationRef $conversation, Users $user): Channel
     {
-        $request = $this->delivery->request;
-
         return new FindOrCreateConversationChannelAction(
             $this->delivery->app,
             $this->delivery->company,
             $conversation->channelSlug
-        )->execute(array_filter([
-            'users_id' => $user->getId(),
-            'name' => $conversation->thread,
-            'description' => 'Conversation with ' . $conversation->thread,
-            'entity_namespace' => $request->people_id !== null ? People::class : null,
-            'entity_id' => $request->people_id,
-        ]));
+        )->forOutbound($conversation->thread, $user, $this->delivery->request->people_id);
     }
 }

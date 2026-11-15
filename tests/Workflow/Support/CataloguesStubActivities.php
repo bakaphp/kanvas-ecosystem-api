@@ -10,11 +10,9 @@ use Tests\Intelligence\Agents\Tools\Support\RecordingWorkflowActivity;
 use Tests\Stubs\Workflow\RecordingActivity;
 
 /**
- * The test activities' rows in the `actions` catalog, committed before the test's transactions
- * open. The catalog is global and `model_name` is unique, so a stub inserted inside two tests'
- * open transactions makes one wait on the other's uncommitted row and deadlocks them under
- * paratest (the CI Workflow job, 2026-11-14). Committed once, every test finds the row and none
- * inserts it. A new stub activity that gets a rule goes in STUB_ACTIVITIES.
+ * Commit stub activities before opening test transactions: the global catalog's unique
+ * `model_name` otherwise makes parallel tests wait on each other's uncommitted inserts.
+ * Add new stub activities to STUB_ACTIVITIES.
  */
 trait CataloguesStubActivities
 {

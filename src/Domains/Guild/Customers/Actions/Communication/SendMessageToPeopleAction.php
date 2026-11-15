@@ -89,7 +89,7 @@ final class SendMessageToPeopleAction
      * @return array{
      *     channel: string, to: string, from: string|null, people_id: int, provider: string,
      *     provider_message_id: string|null, operation_id: int, warnings: list<string>,
-     *     channel_slug: string|null
+     *     channel_slug: string
      * }
      */
     public function send(
@@ -130,11 +130,9 @@ final class SendMessageToPeopleAction
             // What the provider left out of a message it accepted (`attachments_dropped`): the
             // caller decides whether the message still did its job.
             'warnings' => $delivery->warnings ?? [],
-            // Where a caller files a text or WhatsApp so the customer's answer lands beside it:
-            // every vendor names its conversations its own way.
-            'channel_slug' => $channel === ChannelTypeEnum::EMAIL
-                ? null
-                : $delivery->conversation()->channelSlug,
+            // Where a caller files the message so the customer's answer lands beside it: every
+            // vendor names its conversations its own way.
+            'channel_slug' => $delivery->conversation()->channelSlug,
         ];
     }
 

@@ -95,9 +95,7 @@ final class ApplyDoNotContactAction
             $this->stamp($this->people);
         }
 
-        $contactsOptedOut = $this->people->contacts()
-            ->where('is_opt_out', 0)
-            ->update(['is_opt_out' => 1]);
+        $contactsOptedOut = $this->people->optOutContactsOfTypes();
 
         $leadsFlagged = 0;
 

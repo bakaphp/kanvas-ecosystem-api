@@ -36,6 +36,15 @@ Communication::for($app, $company)->isReady(ChannelTypeEnum::SMS);
   did not leave and return what names the delivery, so the caller can file the message and link it.
   The lead action adds the lead's rules and sends through the person action's `deliver()`: that
   method is the one place a person is written to through the facade. Do not add another.
+- **A message of a lead's conversation lives on three channels**, one row attached three times: the
+  conversation (the vendor's slug, found by slug alone with `FindOrCreateConversationChannelAction`,
+  where a send's `channel_slug` points), the lead's history (`lead-channel-{id}`) and the person's
+  (`people-channel-{id}`). The two histories go through `LeadChannelService::recordOnLeadAndPerson()`
+  (`PeopleChannelService::recordOnPerson()` with no lead): it attaches without firing the channel's
+  `updated` rule, so nothing is delivered twice. A new path that files a customer message calls it.
+  Three channels is still one message to an agent: its history and the lead summary read the
+  message's record links, and `Message::addEntity()` keeps one link per record however many paths
+  file it (`ConversationHistoryHasEachMessageOnceTest`).
 - `send()` returns an `Operation`: the request, and one delivery per channel with its status. A
   channel with no connection, a switched-off connection and a recipient who asked not to be
   contacted are **failed or skipped deliveries on the operation, not exceptions**.
@@ -144,6 +153,8 @@ provisioner point the vendor at the company's communication receiver, whose job 
 `ProcessCommunicationWebhookJob` for every provider. The job reads the provider from the receiver
 (never from the request), has that provider's `InboundSource` authenticate and parse, and
 `ReceiveMessageAction` files the person, lead, consent and conversation the same way for all of them.
+It files under a cache lock on the vendor's message id (`filingLockKey()`), so a message handed over
+twice at once is filed once and the second delivery reads as a redelivery.
 
 ## Who may write in: the sender policy
 
