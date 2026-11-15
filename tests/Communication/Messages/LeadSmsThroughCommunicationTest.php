@@ -170,6 +170,22 @@ final class LeadSmsThroughCommunicationTest extends TestCase
         $this->assertSame(Communication::OPT_OUT_CONFIRMATION, $delivery->request->tag);
     }
 
+    public function testAMissingPersonIsAValidationFailureOnEveryChannel(): void
+    {
+        $lead = $this->lead();
+        $lead->setRelation('people', null);
+
+        foreach (['sms', 'whatsapp', 'email'] as $channel) {
+            $result = $this->action($lead)->execute($channel, 'Hello');
+
+            $this->assertFalse($result['success']);
+            $this->assertSame('validation_failed', $result['classification']);
+            $this->assertFalse($result['retryable']);
+        }
+
+        $this->assertSame([], $this->transport->sent);
+    }
+
     private function lead(): Lead
     {
         return $this->leadOf($this->personWithCellphone(self::CUSTOMER));

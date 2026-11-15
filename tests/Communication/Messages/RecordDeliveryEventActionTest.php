@@ -127,6 +127,24 @@ final class RecordDeliveryEventActionTest extends TestCase
         $this->assertSame(2, $delivery->events()->count());
     }
 
+    /**
+     * A callback is matched to its delivery by the attempt's id. When a retry lands between that
+     * match and the write, the row holds a new attempt, and the old one's failure is not its own.
+     */
+    public function testAnEventForTheAttemptBeforeARetryDoesNotTouchTheRetry(): void
+    {
+        $delivery = $this->acceptedDelivery();
+        $matchedBeforeTheRetry = $delivery->fresh();
+        $delivery->forceFill(['external_id' => 'FAKE-second-attempt'])->saveOrFail();
+
+        $recorded = new RecordDeliveryEventAction($matchedBeforeTheRetry, DeliveryStatusEnum::FAILED, 'failed')
+            ->execute();
+
+        $this->assertFalse($recorded);
+        $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->fresh()->status);
+        $this->assertSame(0, $delivery->events()->count());
+    }
+
     private function acceptedDelivery(): Delivery
     {
         $this->useFakeProvider();

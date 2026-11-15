@@ -28,6 +28,7 @@ use Kanvas\Exceptions\ModelNotFoundException as TemplateNotFoundException;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
+use Kanvas\Guild\Customers\Actions\Communication\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Actions\Communication\SendMessageToPeopleAction;
 use Kanvas\Guild\Customers\Services\ConsentGuard;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
@@ -37,7 +38,6 @@ use Kanvas\Guild\Leads\Exceptions\LeadOptedOutException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
-use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 use Ramsey\Uuid\Uuid;
@@ -45,15 +45,6 @@ use Throwable;
 
 class SendMessageToLeadAction
 {
-    /**
-     * Default media items per Twilio MMS API call. Override per-app via
-     * `twilio-mms-batch-size` setting. Twilio's documented hard cap is 10 but
-     * 21623 fires on some account/carrier combos before that; 8 is the safe
-     * default measured against the active production account.
-     */
-    private const int DEFAULT_MMS_BATCH_SIZE = 8;
-    private const int MAX_MMS_BATCH_SIZE = 10;
-
     /**
      * Hard upper bound on total media attached to one outbound SMS, regardless of batching.
      * Guards against runaway "entire camera roll" sends. Override per-app via
@@ -73,6 +64,7 @@ class SendMessageToLeadAction
     protected string $emailTemplate = EmailComposer::DEFAULT_TEMPLATE;
     protected ?Agent $speakingAgent = null;
     protected ?Connection $conversationConnection = null;
+    private ?SendMessageToPeopleAction $person = null;
 
     /**
      * For a text or WhatsApp written inside a conversation: it leaves on the number the customer
@@ -106,9 +98,8 @@ class SendMessageToLeadAction
         return $this;
     }
 
-    public function __construct(
-        protected Lead $lead,
-    ) {
+    public function __construct(protected Lead $lead)
+    {
         $this->attemptUuid = Uuid::uuid4()->toString();
     }
 
@@ -321,10 +312,8 @@ class SendMessageToLeadAction
      */
     protected function sendWhatsAppMessage(string $message, ?string $to = null): array
     {
-        $cellphone = Str::toE164($this->hijackPhoneNumber(
-            $this->cellphoneFor($to, LeadCommunicationChannelEnum::WHATSAPP),
-            '@s.whatsapp.net'
-        ));
+        $cellphone = $this->cellphoneFor($to, LeadCommunicationChannelEnum::WHATSAPP);
+        $cellphone = $this->person()->phoneNumber($cellphone, ChannelTypeEnum::WHATSAPP);
         $this->attemptedTo = $cellphone;
 
         // A company on Respond.io that also has a WhatsApp number of its own must never answer a
@@ -381,20 +370,22 @@ class SendMessageToLeadAction
     }
 
     /**
-     * The number the caller named, else the lead's first cellphone. The per-address opt-out is
-     * checked here so no phone channel can skip it.
+     * The number the caller named, else the one the person send picks for the lead's person. The
+     * per-address opt-out is checked here so no phone channel can skip it.
      */
     private function cellphoneFor(?string $to, LeadCommunicationChannelEnum $channel): string
     {
-        $cellphone = Str::trimToNull($to) ?? $this->lead->people?->getCellPhones()->first()?->value;
+        $cellphone = $this->lead->people !== null
+            ? $this->person()->addressFor(ChannelTypeEnum::from($channel->value), $to)
+            : null;
 
-        if ($this->lead->people === null || Str::trimToNull($cellphone) === null) {
+        if ($cellphone === null) {
             throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
 
-        $this->guardDestinationOptOut((string) $cellphone, $channel->value);
+        $this->guardDestinationOptOut($cellphone, $channel->value);
 
-        return (string) $cellphone;
+        return $cellphone;
     }
 
     /**
@@ -419,10 +410,8 @@ class SendMessageToLeadAction
      */
     protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
     {
-        $cellphone = Str::toE164($this->hijackPhoneNumber(
-            $this->cellphoneFor($to, LeadCommunicationChannelEnum::SMS),
-            'twilio-'
-        ));
+        $cellphone = $this->cellphoneFor($to, LeadCommunicationChannelEnum::SMS);
+        $cellphone = $this->person()->phoneNumber($cellphone, ChannelTypeEnum::SMS);
         $this->attemptedFrom = $from !== '' ? Str::toE164($from) : null;
         $this->attemptedTo = $cellphone;
 
@@ -431,6 +420,15 @@ class SendMessageToLeadAction
             $this->withEngagementLinks($message),
             $this->getMediaUrlsForSms()
         );
+    }
+
+    /**
+     * What is about the person and not the lead (their address, an address they stopped, the test
+     * number, how many files a text carries) is the person send's to say.
+     */
+    private function person(): SendMessageToPeopleAction
+    {
+        return $this->person ??= new SendMessageToPeopleAction($this->lead->people);
     }
 
     /**
@@ -443,7 +441,7 @@ class SendMessageToLeadAction
         Content|string $content,
         ?string $fromAccount = null
     ): ?Delivery {
-        $send = new SendMessageToPeopleAction($this->lead->people);
+        $send = $this->person();
 
         return $this->isOptOutConfirmation
             ? $send->deliverOptOutConfirmation(
@@ -516,26 +514,25 @@ class SendMessageToLeadAction
                 : $this->failedSms($delivery, $cellphone, $fullMessage);
         }
 
-        $batchSize = $mediaUrls === [] ? 0 : $this->mmsBatchSize();
-        $batches = $mediaUrls === [] ? [[]] : array_chunk($mediaUrls, $batchSize);
-        $accepted = [];
+        $batches = $this->person()->mediaBatches($mediaUrls);
+        $deliveries = $this->person()->deliverText(
+            $cellphone,
+            $fullMessage,
+            $batches,
+            $sender,
+            $connection->account_key
+        );
+        $last = $deliveries[array_key_last($deliveries)];
 
-        foreach ($batches as $index => $batch) {
-            $delivery = $this->deliver(
-                ChannelTypeEnum::SMS,
-                $cellphone,
-                Content::text($index === 0 ? $fullMessage : '')->withAttachments($batch, required: true),
-                $connection->account_key
-            );
-
-            if ($delivery?->wasAccepted() !== true) {
-                return $this->failedSms($delivery, $cellphone, $fullMessage);
-            }
-
-            $accepted[] = $delivery;
+        if ($last?->wasAccepted() !== true) {
+            return $this->failedSms($last, $cellphone, $fullMessage);
         }
 
-        return $this->acceptedSms($accepted, $batches, $batchSize);
+        return $this->acceptedSms(
+            $deliveries,
+            $batches,
+            $mediaUrls === [] ? 0 : $this->person()->mediaBatchSize()
+        );
     }
 
     /**
@@ -609,13 +606,6 @@ class SendMessageToLeadAction
         ];
     }
 
-    protected function mmsBatchSize(): int
-    {
-        $batchSize = (int) ($this->lead->app->get(ConfigurationEnum::SMS_MEDIA_BATCH_SIZE->value) ?: self::DEFAULT_MMS_BATCH_SIZE);
-
-        return max(1, min(self::MAX_MMS_BATCH_SIZE, $batchSize));
-    }
-
     protected function recordOptOutNote(string $cellphone, string $body): void
     {
         new RecordRecipientOptedOutNoteAction($this->lead)->execute($cellphone, $body);
@@ -647,13 +637,7 @@ class SendMessageToLeadAction
             return;
         }
 
-        $isOptedOut = ConsentGuard::isDestinationOptedOut(
-            $this->lead->people,
-            $destination,
-            $channel === LeadCommunicationChannelEnum::EMAIL->value
-        );
-
-        if ($isOptedOut) {
+        if ($this->person()->hasOptedOut($destination, ChannelTypeEnum::from($channel))) {
             throw new LeadOptedOutException(
                 sprintf('Destination has opted out of %s communications', $channel),
             );
@@ -715,9 +699,9 @@ class SendMessageToLeadAction
 
         $ccList = array_values(array_filter($cc ?? []));
         $subject = $title ?? 'Message from ' . $this->lead->company->name;
-        $leadEmail = ($to !== null && $to !== '')
-            ? $to
-            : $this->lead->people->getEmails()->first()?->value;
+        $leadEmail = $this->lead->people !== null
+            ? $this->person()->addressFor(ChannelTypeEnum::EMAIL, $to)
+            : null;
 
         if (! $leadEmail) {
             throw new LeadMissingContactException('Lead does not have an email address');
@@ -725,29 +709,22 @@ class SendMessageToLeadAction
 
         $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
 
-        $ownerSignature = UserEmailSignature::forSender($this->signatureOwner, $this->lead->company, $this->speakingAgent);
-        $signature = $signature && $ownerSignature === null;
-
-        $communication = Communication::for($this->lead->app, $this->lead->company);
-        $writesAsItself = $communication->speaksFromOwnAddress(ChannelTypeEnum::EMAIL, $this->speakingAgent);
-
-        // An agent's own mailbox writes the text as it is; any other address sends the company's
-        // templated email.
-        $template = $writesAsItself ? null : $this->resolveEmailTemplate();
-
-        $content = Content::text($message)
-            ->withSubject($subject)
-            ->withAttachments($attachments)
-            ->withEmail(new EmailOptions(
+        $content = new SendEmailToPeopleAction($this->lead->people)->compose(
+            message: $message,
+            subject: $subject,
+            attachments: $attachments,
+            template: $this->resolveEmailTemplate(),
+            options: new EmailOptions(
                 cc: $ccList,
-                template: $template,
-                templateData: ['noHi' => true],
-                companySignature: $template !== null && $signature,
-                signatureUserId: $ownerSignature !== null ? $this->signatureOwner?->getId() : null,
+                companySignature: $signature,
                 leadId: $this->lead->getId(),
                 campaignRecipientId: $this->campaignRecipient?->getId(),
                 trackOpens: true
-            ));
+            ),
+            fromAgent: $this->speakingAgent,
+            signatureOwner: $this->signatureOwner
+        );
+        $template = $content->email->template;
 
         $delivery = $this->deliver(ChannelTypeEnum::EMAIL, $leadEmail, $content);
 
@@ -765,8 +742,9 @@ class SendMessageToLeadAction
             attachments: $attachments,
             engagementUrls: $this->engagementLinks(),
             template: $template ?? 'agent-mailbox',
-            signature: $template !== null && $signature,
-            from: $writesAsItself ? $this->attemptedFrom : null,
+            signature: $content->email->companySignature,
+            // No template means the mail left from the agent's own mailbox.
+            from: $template === null ? $this->attemptedFrom : null,
         ) + [
             'provider' => $this->attemptedProvider,
             'provider_message_id' => $delivery->external_id,
@@ -887,25 +865,5 @@ class SendMessageToLeadAction
         $callResult = TriggerVoiceCallAction::fromLead($this->lead)->execute();
 
         return array_merge($sessionResult, $callResult);
-    }
-
-    protected function hijackPhoneNumber(string $cellphone, string $replace): string
-    {
-        if ($this->lead->company->get('allow_session_hijack', false)
-          && $this->lead->company->get('overwrite_phone_number') !== null
-        ) {
-            $overwriteConfig = $this->lead->company->get('overwrite_phone_number');
-
-            $phone = array_filter($overwriteConfig, function ($value) use ($cellphone) {
-                return Str::normalizePhoneNumber($cellphone);
-            });
-            if (! $phone) {
-                throw new Exception('No hijack number found for this phone number');
-            }
-            $cellphone = array_keys($phone)[0];
-            $cellphone = str_replace($replace, '', $cellphone);
-        }
-
-        return $cellphone;
     }
 }

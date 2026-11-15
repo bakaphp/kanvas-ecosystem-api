@@ -12,9 +12,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Actions\RecordDeliveryOnMessageAction;
+use Kanvas\Communication\Messages\DataTransferObject\ConversationRef;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Models\BaseModel;
+use Kanvas\Communication\Support\TransportManager;
 
 /**
  * One channel's attempt at a request. `status` is the outcome callers see; `events_closed_at` is a
@@ -94,6 +96,20 @@ class Delivery extends BaseModel
         return $query
             ->whereIn('provider', (array) $providers)
             ->whereIn('external_id', (array) $externalIds);
+    }
+
+    /**
+     * The conversation this delivery belongs to, as its provider names it: the channel its message
+     * is filed on, which is the one the answer to it arrives on.
+     */
+    public function conversation(): ConversationRef
+    {
+        // Not `$this->connection`: inside a model that is Eloquent's own database connection name.
+        $connection = $this->getRelationValue('connection');
+
+        return new TransportManager()
+            ->for($connection->provider, $this->channel)
+            ->conversation($connection, (string) $this->to_address);
     }
 
     /**

@@ -51,8 +51,15 @@ final class RunConnectionCleanupAction
 
         $provisioner = new ProviderRegistry()->provisioner($this->connection->provider);
 
+        $reconnected = $this->wasConnectedAgain();
+
         foreach ($this->dueTasks() as $task) {
-            $this->run($task, fn (CleanupTask $task) => $provisioner->cleanup($task));
+            $this->run(
+                $task,
+                fn (CleanupTask $task) => $reconnected
+                    ? CleanupTaskStatusEnum::SUPERSEDED
+                    : $provisioner->cleanup($task)
+            );
         }
 
         $tasks = $this->connection->cleanupTasks()->get();
@@ -75,6 +82,23 @@ final class RunConnectionCleanupAction
         }
 
         return $this->connection;
+    }
+
+    /**
+     * A live connection on the same account means it was connected again while this cleanup was
+     * still owed. A provisioner tells a new owner by the value registered at the vendor, which is
+     * the same when the workspace that left is the one that came back, so it would clear a
+     * registration that is in use.
+     */
+    private function wasConnectedAgain(): bool
+    {
+        return Connection::query()
+            ->fromApp((int) $this->connection->apps_id)
+            ->live()
+            ->where('provider', $this->connection->provider)
+            ->where('account_key', $this->connection->account_key)
+            ->whereKeyNot($this->connection->getKey())
+            ->exists();
     }
 
     /**

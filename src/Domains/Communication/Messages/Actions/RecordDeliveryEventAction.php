@@ -34,7 +34,8 @@ final class RecordDeliveryEventAction
     }
 
     /**
-     * @return bool false when this exact event was already recorded
+     * @return bool false when this exact event was already recorded, or is about an attempt the
+     *              delivery has since been retried past
      */
     public function execute(): bool
     {
@@ -57,6 +58,12 @@ final class RecordDeliveryEventAction
     private function record(): bool
     {
         $delivery = Delivery::query()->lockForUpdate()->findOrFail($this->delivery->getKey());
+
+        // The caller found the delivery by an attempt's id. A retry that got in before this lock
+        // gave the row a new one, and what is being reported is the attempt before it.
+        if ($delivery->external_id !== $this->delivery->external_id) {
+            return false;
+        }
 
         $event = DeliveryEvent::firstOrCreate(
             ['event_key' => $this->eventKey($delivery)],

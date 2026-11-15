@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Actions\Communication;
 use Baka\Support\Str;
 use Kanvas\Communication\Channels\Email\EmailComposer;
 use Kanvas\Communication\Communication;
+use Kanvas\Communication\Messages\DataTransferObject\Attachment;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\EmailOptions;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
@@ -27,9 +28,8 @@ use Kanvas\Users\Models\Users;
  */
 class SendEmailToPeopleAction
 {
-    public function __construct(
-        protected readonly People $people,
-    ) {
+    public function __construct(protected readonly People $people)
+    {
     }
 
     /**
@@ -53,29 +53,21 @@ class SendEmailToPeopleAction
         array $variables = [],
         bool $trackOpens = true,
     ): array {
-        $subject ??= 'Message from ' . $this->people->company->name;
-        $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
-        $writesAsItself = Communication::for($this->people->app, $this->people->company)
-            ->speaksFromOwnAddress(ChannelTypeEnum::EMAIL, $fromAgent);
-
-        // An agent's own mailbox writes the text as it is; any other address sends the company's
-        // templated email.
-        $template = $writesAsItself
-            ? null
-            : (Str::trimToNull($templateName) ?? EmailComposer::DEFAULT_TEMPLATE);
-
-        $content = Content::text($message)
-            ->withSubject($subject)
-            ->withAttachments($attachmentUrls)
-            ->withEmail(new EmailOptions(
+        $content = $this->compose(
+            message: $message,
+            subject: $subject ?? 'Message from ' . $this->people->company->name,
+            attachments: $attachmentUrls,
+            template: Str::trimToNull($templateName) ?? EmailComposer::DEFAULT_TEMPLATE,
+            options: new EmailOptions(
                 cc: $cc,
-                template: $template,
-                templateData: [...$variables, 'noHi' => true],
-                signatureUserId: $ownerSignature !== null ? $signatureOwner?->getId() : null,
+                templateData: $variables,
                 campaignRecipientId: $campaignRecipient?->getId(),
                 trackOpens: $trackOpens,
                 important: $important
-            ));
+            ),
+            fromAgent: $fromAgent,
+            signatureOwner: $signatureOwner
+        );
 
         $sent = new SendMessageToPeopleAction($this->people)->send(
             ChannelTypeEnum::EMAIL,
@@ -84,6 +76,47 @@ class SendEmailToPeopleAction
             Sender::speaking($fromAgent, $signatureOwner)
         );
 
-        return ['template' => $template ?? 'agent-mailbox'] + $sent;
+        return ['template' => $content->email->template ?? 'agent-mailbox'] + $sent;
+    }
+
+    /**
+     * The email as it leaves, for every email to a person, a lead's included. From an agent's own
+     * mailbox the text goes out as written; from any other address it is placed in the company's
+     * template. The owner's signature closes it when the speaker may sign with it; otherwise the
+     * company's own sign-off does, when the caller asks for one (`$options->companySignature`).
+     *
+     * @param iterable<Attachment|string> $attachments
+     * @param EmailOptions $options what the caller knows: copies, template variables, the lead or
+     *                              campaign recipient it is about, tracking. The template and the
+     *                              signature are decided here.
+     */
+    public function compose(
+        string $message,
+        string $subject,
+        iterable $attachments,
+        string $template,
+        EmailOptions $options,
+        ?Agent $fromAgent = null,
+        ?Users $signatureOwner = null
+    ): Content {
+        $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
+        $writesAsItself = Communication::for($this->people->app, $this->people->company)
+            ->speaksFromOwnAddress(ChannelTypeEnum::EMAIL, $fromAgent);
+        $template = $writesAsItself ? null : $template;
+
+        return Content::text($message)
+            ->withSubject($subject)
+            ->withAttachments($attachments)
+            ->withEmail(new EmailOptions(
+                cc: $options->cc,
+                template: $template,
+                templateData: [...$options->templateData, 'noHi' => true],
+                companySignature: $template !== null && $options->companySignature && $ownerSignature === null,
+                signatureUserId: $ownerSignature !== null ? $signatureOwner?->getId() : null,
+                leadId: $options->leadId,
+                campaignRecipientId: $options->campaignRecipientId,
+                trackOpens: $options->trackOpens,
+                important: $options->important
+            ));
     }
 }

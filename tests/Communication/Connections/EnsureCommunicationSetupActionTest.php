@@ -515,6 +515,33 @@ final class EnsureCommunicationSetupActionTest extends TestCase
         $this->assertSame(CleanupTaskStatusEnum::SUPERSEDED, $old->fresh()->cleanupTasks()->first()->status);
     }
 
+    /**
+     * The same workspace takes its number back while the old cleanup is still owed. It registers
+     * the same receiver, so the value at the vendor is exactly what the old cleanup expects to
+     * remove; only the new connection says the registration is in use.
+     */
+    public function testAReconnectedNumbersOldCleanupLeavesTheRegistrationItNowUses(): void
+    {
+        $integration = $this->integrateMessaging(['+18095550175']);
+        $this->runSetup($integration);
+        $old = $this->connectionFor($integration, '+18095550175');
+
+        $this->resaveIntegration($integration, []);
+        $this->runSetup($integration);
+        $old->fresh()->cleanupTasks()->update(['attempts' => 6, 'next_attempt_at' => now()->addHour()]);
+        new RunConnectionCleanupAction($old->fresh())->execute();
+
+        $this->resaveIntegration($integration, ['+18095550175']);
+        $this->runSetup($integration);
+        $registered = $this->vendor->vendor['+18095550175'];
+
+        $old->fresh()->cleanupTasks()->update(['next_attempt_at' => now()]);
+        new RunConnectionCleanupAction($old->fresh())->execute();
+
+        $this->assertSame($registered, $this->vendor->vendor['+18095550175'] ?? null);
+        $this->assertSame(CleanupTaskStatusEnum::SUPERSEDED, $old->fresh()->cleanupTasks()->first()->status);
+    }
+
     public function testWorkerKilledDuringRetirementIsRecoveredBySweep(): void
     {
         $integration = $this->integrateMessaging(['+18095550180']);

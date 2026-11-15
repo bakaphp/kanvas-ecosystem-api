@@ -8,7 +8,6 @@ use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\ConversationRef;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Models\Delivery;
-use Kanvas\Communication\Support\TransportManager;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -30,11 +29,8 @@ final class RecordSentMessageAction
 
     public function execute(): Message
     {
-        $connection = $this->delivery->connection;
         $request = $this->delivery->request;
-        $conversation = new TransportManager()
-            ->for($connection->provider, $this->delivery->channel)
-            ->conversation($connection, (string) $this->delivery->to_address);
+        $conversation = $this->delivery->conversation();
 
         // Filed by the caller, or by an earlier attempt of this delivery: the message is there
         // already, and a second one would show the same text twice in the conversation.

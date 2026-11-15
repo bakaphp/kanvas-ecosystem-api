@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
+use Baka\Support\Str;
 use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -57,7 +58,7 @@ class PersistOutboundMessageAction
     public function execute(array $providerResponse): array
     {
         $people = $this->entity instanceof Lead ? $this->entity->people : $this->entity;
-        $channel = $this->resolveProtocolChannel();
+        $channel = $this->resolveProtocolChannel(Str::trimToNull($providerResponse['channel_slug'] ?? null));
         $messageType = MessageTypeService::getOrCreate(
             $this->entity->app,
             match ($this->channelType) {
@@ -111,7 +112,12 @@ class PersistOutboundMessageAction
         return ['message' => $message, 'channel' => $channel];
     }
 
-    private function resolveProtocolChannel(): Channel
+    /**
+     * @param string|null $conversationSlug the channel the send itself named, when it did: a vendor
+     *                                      that keeps its conversations under its own slug gets the
+     *                                      message where the customer's answer will arrive
+     */
+    private function resolveProtocolChannel(?string $conversationSlug): Channel
     {
         $name = $this->entity instanceof Lead
             ? ucfirst($this->channelType) . ' ' . $this->entity->getId()
@@ -124,7 +130,8 @@ class PersistOutboundMessageAction
             'entity_id' => $this->entity->getId(),
             'entity_namespace' => $this->entity::class,
             'name' => $name,
-            'slug' => SessionChannelService::createChannelSlug($this->channelType, $this->recipient),
+            'slug' => $conversationSlug
+                ?? SessionChannelService::createChannelSlug($this->channelType, $this->recipient),
         ]))->execute();
     }
 }

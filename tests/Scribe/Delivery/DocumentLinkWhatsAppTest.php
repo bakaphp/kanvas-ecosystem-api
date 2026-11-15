@@ -6,6 +6,7 @@ namespace Tests\Scribe\Delivery;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
@@ -14,8 +15,11 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Connectors\WaSender\WhatsAppTransport;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
+use Kanvas\Scribe\Delivery\DataTransferObject\DeliveryTarget;
+use Kanvas\Scribe\Delivery\DataTransferObject\DocumentDelivery;
 use Kanvas\Scribe\Delivery\Exceptions\DocumentDeliveryException;
 use Kanvas\Scribe\Delivery\Services\DocumentLinkSenderService;
+use Kanvas\Social\Messages\Models\Message;
 use Mockery;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
@@ -73,11 +77,37 @@ final class DocumentLinkWhatsAppTest extends TestCase
             $sent
         );
 
+        $this->assertSame(
+            new WhatsAppTransport()->conversation($connection, self::CUSTOMER)->channelSlug,
+            $message->channels()->sole()->slug,
+            'filed on the channel the customer\'s answer arrives on'
+        );
+
         $delivery = Delivery::query()->where('message_id', $message->getId())->sole();
         $this->assertSame($connection->getId(), (int) $delivery->connection_id);
         $this->assertSame(ChannelTypeEnum::WHATSAPP, $delivery->channel);
         $this->assertSame('WA-TEXT', $delivery->external_id);
         $this->assertSame($person->getId(), (int) $delivery->request->people_id);
+    }
+
+    /**
+     * A vendor that cannot carry a file sends the link alone. The agent that sent the document is
+     * told, so it does not tell the customer a PDF is attached.
+     */
+    public function testTheAgentIsToldWhenTheChannelCouldNotCarryThePdf(): void
+    {
+        $delivery = fn (array $warnings): DocumentDelivery => new DocumentDelivery(
+            engagement: new Engagement()->forceFill(['uuid' => 'engagement-uuid']),
+            link: 'https://docs.kanvas.test/i/1',
+            target: new DeliveryTarget(LeadCommunicationChannelEnum::WHATSAPP, self::CUSTOMER),
+            message: new Message()->forceFill(['message' => ['raw_data' => ['warnings' => $warnings]]]),
+        );
+
+        $withoutThePdf = $delivery(['attachments_dropped'])->toToolResult();
+
+        $this->assertFalse($withoutThePdf['pdf_attached']);
+        $this->assertStringContainsString('could not carry the PDF', $withoutThePdf['note']);
+        $this->assertArrayNotHasKey('pdf_attached', $delivery([])->toToolResult());
     }
 
     public function testACompanyWithNoWhatsAppConnectionIsToldSoBeforeAnythingIsSent(): void
