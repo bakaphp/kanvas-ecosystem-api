@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Communication\Channels\Email\Smtp\SmtpCarrier;
+use Kanvas\Communication\Channels\Email\Mail\MailCarrier;
 use Kanvas\Communication\Messages\Actions\RecordDeliveryEventAction;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
@@ -26,7 +26,7 @@ final class RecordEmailEventOnDeliveryAction
 
     /**
      * Within the receiver's app only; the tenant comes from the delivery, since one sending domain can
-     * serve several companies. Mail the company's SMTP relayed through Mailgun is reported on too.
+     * serve several companies. Mail the Kanvas mailer relayed through Mailgun is reported on too.
      */
     public static function findDelivery(AppInterface $app, MailgunEngagementPayloadService $payload): ?Delivery
     {
@@ -34,7 +34,7 @@ final class RecordEmailEventOnDeliveryAction
 
         return $messageId === '' ? null : Delivery::query()
             ->fromApp($app)
-            ->reportedBy([IntegrationsEnum::MAILGUN->value, SmtpCarrier::slug()], $messageId)
+            ->reportedBy([IntegrationsEnum::MAILGUN->value, MailCarrier::slug()], $messageId)
             ->first();
     }
 

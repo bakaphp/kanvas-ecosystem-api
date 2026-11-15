@@ -67,6 +67,7 @@ final class StopResponseClockActivityTest extends TestCase
         );
 
         $this->assertSame('Not a lead Elead is timing; nothing to stop', $result['message']);
+        $this->assertTrue($result['skipped'], 'recorded as skipped, like every run with nothing to do');
     }
 
     public function testAReachOutIsAnnouncedToTheIntegrationsRulesWithWhatWasSent(): void

@@ -10,7 +10,7 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementD
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Workflow\Attributes\WorkflowAction;

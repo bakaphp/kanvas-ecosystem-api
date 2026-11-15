@@ -33,11 +33,8 @@ class RespondToInboundMessageActivity extends KanvasActivity
             return $this->skipWorkflow('not_a_message');
         }
 
-        $result = new RespondToInboundMessageAction(
-            $entity,
-            $message,
-            array_filter(['burst_text' => $params['burst_text'] ?? null])
-        )->executeIfOwned();
+        $burst = array_filter(['burst_text' => $params['burst_text'] ?? null]);
+        $result = new RespondToInboundMessageAction($entity, $message, $burst)->executeIfOwned();
 
         if ($result === null) {
             return $this->skipWorkflow('not_owned');

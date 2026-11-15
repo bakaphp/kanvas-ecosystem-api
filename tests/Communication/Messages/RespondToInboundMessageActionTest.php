@@ -360,6 +360,32 @@ final class RespondToInboundMessageActionTest extends TestCase
     }
 
     /**
+     * A turn queued before a deploy names the responder class of that release. When the class is
+     * gone the wait is still over: the agent that owns the connection answers, and the job does not
+     * die on a class that no longer exists.
+     */
+    public function testADelayedTurnQueuedWithAResponderThatNoLongerExistsIsAnsweredByTheOwner(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550640');
+        [$channel, $inbound, $lead] = $this->inboundOn($connection, '+18095550641');
+        $agent = $this->agent(SalesNeuronAgentStub::class);
+        $this->own($connection, $agent);
+        $lead->set(IntelligenceConfigurationEnum::AI_MODE->value, IntelligenceModeEnum::SUPPORT->value);
+        $lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
+
+        new SendUnrespondedAgentMessageJob(
+            $channel,
+            $inbound,
+            $agent,
+            $this->currentApp(),
+            actionClass: 'Kanvas\Connectors\Twilio\Actions\TwilioAgentChannelResponderAction'
+        )->handle();
+
+        $this->assertCount(1, $this->transport->sent);
+        $this->assertSame('+18095550641', $this->transport->sent[0]['to']);
+    }
+
+    /**
      * The recipient unsubscribed with the provider directly. Expected, so it is a note on the lead
      * and not a fault the job retries into the provider again.
      */

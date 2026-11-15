@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Leads\Actions;
+namespace Kanvas\Guild\Leads\Actions\Communication;
 
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver as LeadReceiverData;
 use Kanvas\Guild\Leads\Models\Lead;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Workflows;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Leads\Actions\DeliverConversationMessageAction;
+use Kanvas\Guild\Leads\Actions\Communication\DeliverConversationMessageAction;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;

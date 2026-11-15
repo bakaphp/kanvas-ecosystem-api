@@ -7,7 +7,7 @@ namespace Tests\Intelligence\Workflows;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Leads\Actions\DeliverConversationMessageAction;
+use Kanvas\Guild\Leads\Actions\Communication\DeliverConversationMessageAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Workflows\ExternalAgentChannelResponseActivity;

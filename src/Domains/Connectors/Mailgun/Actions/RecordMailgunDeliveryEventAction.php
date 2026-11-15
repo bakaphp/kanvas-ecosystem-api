@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\MailgunEngagementPayloadService;
-use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
+use Kanvas\Guild\Customers\Actions\Communication\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;

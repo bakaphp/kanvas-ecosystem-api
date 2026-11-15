@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Leads\Actions;
+namespace Kanvas\Guild\Leads\Actions\Communication;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;

@@ -6,7 +6,7 @@ namespace Kanvas\Guild\Leads\Activities;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Leads\Actions\DeliverConversationMessageAction;
+use Kanvas\Guild\Leads\Actions\Communication\DeliverConversationMessageAction;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -39,11 +39,7 @@ class DeliverHumanReplyActivity extends KanvasActivity
             return $this->skipWorkflow('Written on a channel that never reaches the customer');
         }
 
-        $delivery = new DeliverConversationMessageAction(
-            $entity,
-            $message,
-            writtenByPerson: true
-        )->execute();
+        $delivery = new DeliverConversationMessageAction($entity, $message, writtenByPerson: true)->execute();
 
         if ($delivery['failed']) {
             return $this->failWorkflow($delivery);

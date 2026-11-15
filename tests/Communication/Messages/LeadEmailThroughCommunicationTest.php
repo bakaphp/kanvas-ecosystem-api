@@ -10,7 +10,7 @@ use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Channels\Email\EmailComposer;
-use Kanvas\Communication\Channels\Email\Smtp\SmtpCarrier;
+use Kanvas\Communication\Channels\Email\Mail\MailCarrier;
 use Kanvas\Communication\Communication;
 use Kanvas\Communication\Connections\Actions\SetConnectionEnabledAction;
 use Kanvas\Communication\Connections\Models\Connection;
@@ -20,7 +20,7 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\UserEmailSignature;
@@ -29,7 +29,7 @@ use Mockery;
 use Tests\TestCase;
 
 /**
- * A company that connected no email provider still sends: its own SMTP is a connection made on the
+ * A company that connected no email provider still sends: the Kanvas mailer is a connection made on the
  * first email, and the email is on the ledger like every other message.
  */
 final class LeadEmailThroughCommunicationTest extends TestCase
@@ -58,7 +58,7 @@ final class LeadEmailThroughCommunicationTest extends TestCase
         parent::tearDown();
     }
 
-    public function testAnEmailLeavesOnTheCompanysSmtpAndIsOnTheLedger(): void
+    public function testAnEmailLeavesOnTheKanvasMailerAndIsOnTheLedger(): void
     {
         $lead = $this->lead();
 
@@ -69,14 +69,14 @@ final class LeadEmailThroughCommunicationTest extends TestCase
             cc: ['manager@example.com'],
         );
 
-        $connection = $this->smtpConnection();
+        $connection = $this->mailConnection();
         $delivery = $this->deliveriesOn($connection)->sole();
 
         $this->assertTrue($connection->isBuiltIn());
         $this->assertNull($connection->unavailableReason());
         $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->status);
         $this->assertSame(self::CUSTOMER, $delivery->to_address);
-        $this->assertSame(SmtpCarrier::slug(), $result['provider']);
+        $this->assertSame(MailCarrier::slug(), $result['provider']);
         $this->assertSame($delivery->external_id, $result['provider_message_id']);
         $this->assertSame($delivery->request_id, $result['operation_id']);
         $this->assertSame(EmailComposer::DEFAULT_TEMPLATE, $result['template']);
@@ -106,7 +106,7 @@ final class LeadEmailThroughCommunicationTest extends TestCase
         new SendMessageToLeadAction($lead)->execute(channel: 'email', message: 'First');
         new SendMessageToLeadAction($lead)->execute(channel: 'email', message: 'Second');
 
-        $this->assertSame(2, $this->deliveriesOn($this->smtpConnection())->count());
+        $this->assertSame(2, $this->deliveriesOn($this->mailConnection())->count());
     }
 
     public function testASwitchedOffConnectionSendsNothing(): void
@@ -220,12 +220,12 @@ final class LeadEmailThroughCommunicationTest extends TestCase
             ->where('to_address', self::CUSTOMER);
     }
 
-    private function smtpConnection(): Connection
+    private function mailConnection(): Connection
     {
         return Connection::query()
             ->fromApp(app(Apps::class))
             ->fromCompany(auth()->user()->getCurrentCompany())
-            ->where('provider', SmtpCarrier::slug())
+            ->where('provider', MailCarrier::slug())
             ->sole();
     }
 

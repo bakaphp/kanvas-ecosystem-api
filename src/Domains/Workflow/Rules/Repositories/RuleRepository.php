@@ -72,9 +72,12 @@ class RuleRepository
      */
     private static function withoutReplacedAppDefaults(Collection $rules, int $companyId): Collection
     {
-        $appDefaults = $rules->filter(fn (Rule $rule): bool => $rule->isAppDefault());
+        $companyRules = $rules->filter(fn (Rule $rule): bool => (int) $rule->companies_id === $companyId);
+        $hasAppDefault = $rules->contains(fn (Rule $rule): bool => $rule->isAppDefault());
 
-        if ($appDefaults->isEmpty() || $companyId === 0) {
+        // Nearly every event: the company wrote no rule of its own here, so nothing can be replaced
+        // and the steps are not worth loading.
+        if ($companyId === 0 || ! $hasAppDefault || $companyRules->isEmpty()) {
             return $rules;
         }
 
@@ -84,13 +87,13 @@ class RuleRepository
             ->map(fn ($step): int => (int) $step->activity?->actions_id)
             ->all();
 
-        $companyActions = $rules
-            ->filter(fn (Rule $rule): bool => (int) $rule->companies_id === $companyId)
-            ->flatMap($actionsOf)
-            ->all();
+        $companyActions = $companyRules->flatMap($actionsOf)->all();
 
         return $rules
-            ->reject(fn (Rule $rule): bool => $rule->isAppDefault() && array_intersect($actionsOf($rule), $companyActions) !== [])
+            ->reject(
+                fn (Rule $rule): bool => $rule->isAppDefault()
+                    && array_intersect($actionsOf($rule), $companyActions) !== []
+            )
             ->values();
     }
 }

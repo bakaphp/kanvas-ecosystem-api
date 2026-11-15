@@ -106,22 +106,13 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         return false;
     }
 
-    private function respond(): void
+    /**
+     * @return array<string, mixed>|null null when nothing that follows a reply should run
+     */
+    private function answerAsQueued(): ?array
     {
-        $this->message->refresh();
-
-        if ($this->message->is_un_response) {
-            return;
-        }
-
-        $lead = $this->message->entity(Lead::class);
-
-        if (! $lead instanceof Lead || ! $lead->isAiSupport()) {
-            return;
-        }
-
         try {
-            $actionResult = new $this->actionClass(
+            return new $this->actionClass(
                 $this->channel,
                 $this->message,
                 $this->agent,
@@ -138,12 +129,58 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             // is reported and never re-runs this one.
             if ($skipped instanceof InboundNotAnsweredException && $skipped->reason === 'owner_changed') {
                 try {
-                    new RespondToInboundMessageAction($this->channel, $this->message)->executeIfOwned(waitForPerson: false);
+                    new RespondToInboundMessageAction($this->channel, $this->message)
+                        ->executeIfOwned(waitForPerson: false);
                 } catch (Throwable $handOffFault) {
                     report($handOffFault);
                 }
             }
 
+            return null;
+        }
+    }
+
+    /**
+     * For a turn queued before a deploy that removed its responder class. The wait is over, so the
+     * message is answered the way every inbound is, by the agent that owns the connection it
+     * arrived on; with no connection yet it stays as filed.
+     *
+     * @return array<string, mixed>|null null when nobody answered
+     */
+    private function answerAsOwner(): ?array
+    {
+        $result = new RespondToInboundMessageAction($this->channel, $this->message)
+            ->executeIfOwned(waitForPerson: false);
+
+        if (isset($result['response'])) {
+            return $result;
+        }
+
+        $this->updateIntegrationHistoryResult($result ?? [
+            'message' => 'The responder this turn was queued with no longer exists and no agent owns the connection',
+            'entity' => null,
+        ]);
+
+        return null;
+    }
+
+    private function respond(): void
+    {
+        $this->message->refresh();
+
+        if ($this->message->is_un_response) {
+            return;
+        }
+
+        $lead = $this->message->entity(Lead::class);
+
+        if (! $lead instanceof Lead || ! $lead->isAiSupport()) {
+            return;
+        }
+
+        $actionResult = class_exists($this->actionClass) ? $this->answerAsQueued() : $this->answerAsOwner();
+
+        if ($actionResult === null) {
             return;
         }
 

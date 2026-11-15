@@ -27,7 +27,7 @@ use Kanvas\Connectors\RespondIO\RespondIOInbound;
 use Kanvas\Connectors\RespondIO\RespondIOProvisioner;
 use Kanvas\Connectors\RespondIO\WhatsAppTransport;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;

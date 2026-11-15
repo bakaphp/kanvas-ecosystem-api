@@ -1,6 +1,6 @@
 <?php
 
-use Kanvas\Communication\Channels\Email\Smtp\SmtpCarrier;
+use Kanvas\Communication\Channels\Email\Mail\MailCarrier;
 use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Connectors\Google\Activities\CreateGoogleCalendarEventActivity;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum as GoogleConfigurationEnum;
@@ -22,8 +22,9 @@ return [
         MetaWhatsAppHandler::class,
         RespondIOHandler::class,
         WaSenderHandler::class,
-        // Built in: every company's own SMTP, used for email until it connects an email provider.
-        SmtpCarrier::class,
+        // Built in: the Kanvas mailer (the company's mail server, else the app's, else the default),
+        // used for email until the company connects an email provider.
+        MailCarrier::class,
     ],
 
     /*
@@ -44,7 +45,7 @@ return [
         'meta' => (int) env('COMMUNICATION_RETENTION_META_HOURS', 168),
         'respondio' => (int) env('COMMUNICATION_RETENTION_RESPONDIO_HOURS', 168),
         'wasender' => (int) env('COMMUNICATION_RETENTION_WASENDER_HOURS', 72),
-        'smtp' => (int) env('COMMUNICATION_RETENTION_SMTP_HOURS', 168),
+        'mail' => (int) env('COMMUNICATION_RETENTION_MAIL_HOURS', 168),
     ],
 
     /*

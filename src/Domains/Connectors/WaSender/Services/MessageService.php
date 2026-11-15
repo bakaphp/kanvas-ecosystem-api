@@ -41,17 +41,32 @@ class MessageService
 
     public function sendImageMessage(string $to, string $imageUrl, ?string $caption = null): array
     {
-        return $this->sendMedia($to, 'imageUrl', $imageUrl, $caption);
+        return $this->sendMedia(
+            $to,
+            'imageUrl',
+            $imageUrl,
+            $caption
+        );
     }
 
     public function sendVideoMessage(string $to, string $videoUrl, ?string $caption = null): array
     {
-        return $this->sendMedia($to, 'videoUrl', $videoUrl, $caption);
+        return $this->sendMedia(
+            $to,
+            'videoUrl',
+            $videoUrl,
+            $caption
+        );
     }
 
     public function sendDocumentMessage(string $to, string $documentUrl, ?string $caption = null): array
     {
-        return $this->sendMedia($to, 'documentUrl', $documentUrl, $caption);
+        return $this->sendMedia(
+            $to,
+            'documentUrl',
+            $documentUrl,
+            $caption
+        );
     }
 
     public function sendAudioMessage(string $to, string $audioUrl): array

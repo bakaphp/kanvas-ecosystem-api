@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Actions;
+namespace Kanvas\Guild\Customers\Actions\Communication;
 
 use Baka\Support\Str;
 use Kanvas\Communication\Channels\Email\EmailComposer;
@@ -11,7 +11,6 @@ use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\EmailOptions;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -23,7 +22,8 @@ use Kanvas\Users\Models\Users;
  * email does: from the agent's own mailbox when that is a connection (the text as written), else
  * on the company's email connection, in the template the caller names or the default one.
  *
- * A send that is refused or skipped throws, which every caller treats as "not sent".
+ * A send that is refused or skipped throws, which every caller treats as "not sent". The send
+ * itself is SendMessageToPeopleAction's, the one place a person is written to on any channel.
  */
 class SendEmailToPeopleAction
 {
@@ -53,14 +53,10 @@ class SendEmailToPeopleAction
         array $variables = [],
         bool $trackOpens = true,
     ): array {
-        if (trim($to) === '') {
-            throw new ValidationException('People has no email address to send to');
-        }
-
         $subject ??= 'Message from ' . $this->people->company->name;
         $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
-        $communication = Communication::for($this->people->app, $this->people->company);
-        $writesAsItself = $communication->speaksFromOwnAddress(ChannelTypeEnum::EMAIL, $fromAgent);
+        $writesAsItself = Communication::for($this->people->app, $this->people->company)
+            ->speaksFromOwnAddress(ChannelTypeEnum::EMAIL, $fromAgent);
 
         // An agent's own mailbox writes the text as it is; any other address sends the company's
         // templated email.
@@ -68,44 +64,26 @@ class SendEmailToPeopleAction
             ? null
             : (Str::trimToNull($templateName) ?? EmailComposer::DEFAULT_TEMPLATE);
 
-        $delivery = $communication
-            ->send(
-                $this->people,
-                Content::text($message)
-                    ->withSubject($subject)
-                    ->withAttachments($attachmentUrls)
-                    ->withEmail(new EmailOptions(
-                        cc: $cc,
-                        template: $template,
-                        templateData: [...$variables, 'noHi' => true],
-                        signatureUserId: $ownerSignature !== null ? $signatureOwner?->getId() : null,
-                        campaignRecipientId: $campaignRecipient?->getId(),
-                        trackOpens: $trackOpens,
-                        important: $important
-                    )),
-                channels: [ChannelTypeEnum::EMAIL->value],
-                from: Sender::speaking($fromAgent, $signatureOwner),
-                sync: true,
-                toAddress: $to,
-                file: false
-            )
-            ->delivery(ChannelTypeEnum::EMAIL);
+        $content = Content::text($message)
+            ->withSubject($subject)
+            ->withAttachments($attachmentUrls)
+            ->withEmail(new EmailOptions(
+                cc: $cc,
+                template: $template,
+                templateData: [...$variables, 'noHi' => true],
+                signatureUserId: $ownerSignature !== null ? $signatureOwner?->getId() : null,
+                campaignRecipientId: $campaignRecipient?->getId(),
+                trackOpens: $trackOpens,
+                important: $important
+            ));
 
-        if ($delivery?->wasAccepted() !== true) {
-            throw new ValidationException(
-                'The email was not sent: ' . ($delivery?->error ?? $delivery?->error_code ?? 'the company has no email address to send from')
-            );
-        }
+        $sent = new SendMessageToPeopleAction($this->people)->send(
+            ChannelTypeEnum::EMAIL,
+            $to,
+            $content,
+            Sender::speaking($fromAgent, $signatureOwner)
+        );
 
-        return [
-            'channel' => 'email',
-            'to' => $to,
-            'template' => $template ?? 'agent-mailbox',
-            'from' => $delivery->connection?->account_key,
-            'people_id' => $this->people->getId(),
-            'provider' => $delivery->provider,
-            'provider_message_id' => $delivery->external_id,
-            'operation_id' => $delivery->request_id,
-        ];
+        return ['template' => $template ?? 'agent-mailbox'] + $sent;
     }
 }

@@ -25,11 +25,11 @@ opting out at one dealer does not opt out at another.
 | Concern | Class |
 |---|---|
 | Is this message a consent signal? | `Services/ConsentKeywordService` |
-| Apply a stop request | `Actions/ApplyDoNotContactAction` |
-| Apply a START / re-subscribe | `Actions/RevokeDoNotContactAction` |
-| Detect + dispatch, for an inbound webhook | `Actions/ProcessInboundConsentAction` |
+| Apply a stop request | `Actions/Communication/ApplyDoNotContactAction` |
+| Apply a START / re-subscribe | `Actions/Communication/RevokeDoNotContactAction` |
+| Detect + dispatch, for an inbound webhook | `Actions/Communication/ProcessInboundConsentAction` |
 | May this person / this address be contacted? (`SendMessageToLeadAction` and the Communication domain both read it) | `Services/ConsentGuard` |
-| The one permitted acknowledgement | `Guild\Leads\Actions\SendOptOutConfirmationAction` |
+| The one permitted acknowledgement | `Guild\Leads\Actions\Communication\SendOptOutConfirmationAction` |
 | Natural-language stop requests | `Intelligence\...\Tools\CRM\StopContactTool` |
 | Inbound mail's subject pass | `Connectors\Mailgun\MailgunInbound::parse()` (sets `consentSignal`) |
 

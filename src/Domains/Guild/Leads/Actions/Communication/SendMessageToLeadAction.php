@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Leads\Actions;
+namespace Kanvas\Guild\Leads\Actions\Communication;
 
 use Baka\Support\Str;
 use Exception;
@@ -28,6 +28,7 @@ use Kanvas\Exceptions\ModelNotFoundException as TemplateNotFoundException;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
+use Kanvas\Guild\Customers\Actions\Communication\SendMessageToPeopleAction;
 use Kanvas\Guild\Customers\Services\ConsentGuard;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -71,6 +72,18 @@ class SendMessageToLeadAction
     protected ?CampaignRecipient $campaignRecipient = null;
     protected string $emailTemplate = EmailComposer::DEFAULT_TEMPLATE;
     protected ?Agent $speakingAgent = null;
+    protected ?Connection $conversationConnection = null;
+
+    /**
+     * For a text or WhatsApp written inside a conversation: it leaves on the number the customer
+     * is already talking to, which wins over the company's default and the number a caller named.
+     */
+    public function inConversationOn(?Connection $connection): self
+    {
+        $this->conversationConnection = $connection;
+
+        return $this;
+    }
 
     public function withSignatureOwner(?Users $user): self
     {
@@ -328,31 +341,15 @@ class SendMessageToLeadAction
             $attachments[] = new Attachment($file['url'], $file['name'] ?? null);
         }
 
-        $communication = Communication::for($this->lead->app, $this->lead->company);
-        $content = Content::text($this->withEngagementLinks($message))->withAttachments($attachments);
-        $fromAccount = $viaRespondIo
-            ? RespondIOHandler::accountKey($this->lead->app, $this->lead->company)
-            : null;
+        $fromAccount = $this->conversationConnection?->account_key
+            ?? ($viaRespondIo ? RespondIOHandler::accountKey($this->lead->app, $this->lead->company) : null);
 
-        $operation = $this->isOptOutConfirmation
-            ? $communication->confirmOptOut(
-                $this->lead->people,
-                $content,
-                ChannelTypeEnum::WHATSAPP,
-                $cellphone,
-                $fromAccount
-            )
-            : $communication->send(
-                $this->lead->people,
-                $content,
-                channels: [ChannelTypeEnum::WHATSAPP->value],
-                from: Sender::speaking($this->speakingAgent, $this->signatureOwner),
-                sync: true,
-                toAddress: $cellphone,
-                fromAccount: $fromAccount,
-                file: false
-            );
-        $delivery = $operation->delivery(ChannelTypeEnum::WHATSAPP);
+        $delivery = $this->deliver(
+            ChannelTypeEnum::WHATSAPP,
+            $cellphone,
+            Content::text($this->withEngagementLinks($message))->withAttachments($attachments),
+            $fromAccount
+        );
 
         $this->attemptedProvider = $delivery?->provider;
         $this->attemptedFrom = $delivery?->connection?->account_key;
@@ -437,12 +434,44 @@ class SendMessageToLeadAction
     }
 
     /**
-     * The number the caller named when the company has it as a connection; otherwise the one the
-     * speaking agent owns, else the company's default. A stale number in a rule's params must not
-     * stop the company from texting.
+     * Every channel leaves through the one send a person is written to with. The acknowledgement of
+     * a stop request is the only message that passes the consent check, and it speaks for nobody.
+     */
+    private function deliver(
+        ChannelTypeEnum $channel,
+        string $to,
+        Content|string $content,
+        ?string $fromAccount = null
+    ): ?Delivery {
+        $send = new SendMessageToPeopleAction($this->lead->people);
+
+        return $this->isOptOutConfirmation
+            ? $send->deliverOptOutConfirmation(
+                $channel,
+                $to,
+                $content,
+                $fromAccount
+            )
+            : $send->deliver(
+                $channel,
+                $to,
+                $content,
+                Sender::speaking($this->speakingAgent, $this->signatureOwner),
+                $fromAccount
+            );
+    }
+
+    /**
+     * The conversation's own number first; then the number the caller named when the company has
+     * it as a connection; otherwise the one the speaking agent owns, else the company's default. A
+     * stale number in a rule's params must not stop the company from texting.
      */
     protected function smsConnection(Communication $communication, ?Sender $sender): ?Connection
     {
+        if ($this->conversationConnection !== null) {
+            return $this->conversationConnection;
+        }
+
         $named = $this->attemptedFrom !== null
             ? $communication->connectionFor(ChannelTypeEnum::SMS, fromAccount: $this->attemptedFrom)
             : null;
@@ -475,15 +504,12 @@ class SendMessageToLeadAction
         $this->attemptedProvider = $connection->provider;
 
         if ($this->isOptOutConfirmation) {
-            $delivery = $communication
-                ->confirmOptOut(
-                    $this->lead->people,
-                    $fullMessage,
-                    ChannelTypeEnum::SMS,
-                    $cellphone,
-                    $connection->account_key
-                )
-                ->delivery(ChannelTypeEnum::SMS);
+            $delivery = $this->deliver(
+                ChannelTypeEnum::SMS,
+                $cellphone,
+                $fullMessage,
+                $connection->account_key
+            );
 
             return $delivery?->wasAccepted() === true
                 ? $this->acceptedSms([$delivery], [[]], 0)
@@ -495,18 +521,12 @@ class SendMessageToLeadAction
         $accepted = [];
 
         foreach ($batches as $index => $batch) {
-            $delivery = $communication
-                ->send(
-                    $this->lead->people,
-                    Content::text($index === 0 ? $fullMessage : '')->withAttachments($batch, required: true),
-                    channels: [ChannelTypeEnum::SMS->value],
-                    from: $sender,
-                    sync: true,
-                    toAddress: $cellphone,
-                    fromAccount: $connection->account_key,
-                    file: false
-                )
-                ->delivery(ChannelTypeEnum::SMS);
+            $delivery = $this->deliver(
+                ChannelTypeEnum::SMS,
+                $cellphone,
+                Content::text($index === 0 ? $fullMessage : '')->withAttachments($batch, required: true),
+                $connection->account_key
+            );
 
             if ($delivery?->wasAccepted() !== true) {
                 return $this->failedSms($delivery, $cellphone, $fullMessage);
@@ -729,24 +749,7 @@ class SendMessageToLeadAction
                 trackOpens: true
             ));
 
-        // The acknowledgement of an unsubscribe is the one email a person who opted out still gets.
-        $operation = $this->isOptOutConfirmation
-            ? $communication->confirmOptOut(
-                $this->lead->people,
-                $content,
-                ChannelTypeEnum::EMAIL,
-                $leadEmail
-            )
-            : $communication->send(
-                $this->lead->people,
-                $content,
-                channels: [ChannelTypeEnum::EMAIL->value],
-                from: Sender::speaking($this->speakingAgent, $this->signatureOwner),
-                sync: true,
-                toAddress: $leadEmail,
-                file: false
-            );
-        $delivery = $operation->delivery(ChannelTypeEnum::EMAIL);
+        $delivery = $this->deliver(ChannelTypeEnum::EMAIL, $leadEmail, $content);
 
         $this->attemptedProvider = $delivery?->provider;
         $this->attemptedFrom = $delivery?->connection?->account_key;

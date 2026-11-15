@@ -2,20 +2,40 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Communication\Messages\Activities\RespondToInboundMessageActivity;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Leads\Activities\DeliverHumanReplyActivity;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Activities\ReachOutToNewLeadActivity;
+use Kanvas\Intelligence\Agents\Activities\RespondOnAiAssistChannelActivity;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Knowledge\Activities\IndexAgentDocumentsActivity;
+use Kanvas\Intelligence\Knowledge\Activities\PruneDeletedFileKnowledgeActivity;
+use Kanvas\Intelligence\Triggers\Activities\ApplyLeadAiModeActivity;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
+use Kanvas\Workflow\Models\StoredWorkflowException;
+use Kanvas\Workflow\Models\StoredWorkflowLog;
+use Kanvas\Workflow\Models\StoredWorkflowSignal;
+use Kanvas\Workflow\Models\StoredWorkflowTimer;
+
 return [
     'workflows_folder' => 'Workflows',
 
-    'base_model' => Illuminate\Database\Eloquent\Model::class,
+    'base_model' => Model::class,
 
-    'stored_workflow_model' => Kanvas\Workflow\Models\StoredWorkflow::class,
+    'stored_workflow_model' => StoredWorkflow::class,
 
-    'stored_workflow_exception_model' => Kanvas\Workflow\Models\StoredWorkflowException::class,
+    'stored_workflow_exception_model' => StoredWorkflowException::class,
 
-    'stored_workflow_log_model' => Kanvas\Workflow\Models\StoredWorkflowLog::class,
+    'stored_workflow_log_model' => StoredWorkflowLog::class,
 
-    'stored_workflow_signal_model' => Kanvas\Workflow\Models\StoredWorkflowSignal::class,
+    'stored_workflow_signal_model' => StoredWorkflowSignal::class,
 
-    'stored_workflow_timer_model' => Kanvas\Workflow\Models\StoredWorkflowTimer::class,
+    'stored_workflow_timer_model' => StoredWorkflowTimer::class,
 
     'workflow_relationships_table' => 'workflow_relationships',
 
@@ -38,56 +58,56 @@ return [
      */
     'app_default_rules' => [
         [
-            'trigger' => Kanvas\Workflow\Enums\WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-            'model' => Kanvas\Social\Channels\Models\Channel::class,
-            'activity' => Kanvas\Communication\Messages\Activities\RespondToInboundMessageActivity::class,
+            'trigger' => WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+            'model' => Channel::class,
+            'activity' => RespondToInboundMessageActivity::class,
             'name' => 'Communication: answer inbound messages',
         ],
         [
-            'trigger' => Kanvas\Workflow\Enums\WorkflowEnum::UPDATED->value,
-            'model' => Kanvas\Social\Channels\Models\Channel::class,
-            'activity' => Kanvas\Guild\Leads\Activities\DeliverHumanReplyActivity::class,
+            'trigger' => WorkflowEnum::UPDATED->value,
+            'model' => Channel::class,
+            'activity' => DeliverHumanReplyActivity::class,
             'name' => 'Leads: deliver a person\'s reply to the customer',
             'conditions' => [
                 ['attribute_name' => 'from_human', 'operator' => '==', 'value' => 'true'],
             ],
         ],
         [
-            'trigger' => Kanvas\Workflow\Enums\WorkflowEnum::UPDATED->value,
-            'model' => Kanvas\Social\Channels\Models\Channel::class,
-            'activity' => Kanvas\Intelligence\Agents\Activities\RespondOnAiAssistChannelActivity::class,
+            'trigger' => WorkflowEnum::UPDATED->value,
+            'model' => Channel::class,
+            'activity' => RespondOnAiAssistChannelActivity::class,
             'name' => 'Agents: answer on the AI Assist channel',
             'conditions' => [
                 ['attribute_name' => 'from_human', 'operator' => '==', 'value' => 'true'],
                 [
                     'attribute_name' => 'name',
                     'operator' => '==',
-                    'value' => Kanvas\Social\Channels\Enums\ChannelNameEnum::AI_ASSIST->value,
+                    'value' => ChannelNameEnum::AI_ASSIST->value,
                 ],
             ],
         ],
         [
-            'trigger' => Kanvas\Workflow\Enums\WorkflowEnum::CREATED->value,
-            'model' => Kanvas\Guild\Leads\Models\Lead::class,
-            'activity' => Kanvas\Intelligence\Agents\Activities\ReachOutToNewLeadActivity::class,
+            'trigger' => WorkflowEnum::CREATED->value,
+            'model' => Lead::class,
+            'activity' => ReachOutToNewLeadActivity::class,
             'name' => 'Agents: reach out to new leads',
         ],
         [
-            'trigger' => Kanvas\Workflow\Enums\WorkflowEnum::TRIGGER_AI->value,
-            'model' => Kanvas\Guild\Leads\Models\Lead::class,
-            'activity' => Kanvas\Intelligence\Triggers\Activities\ApplyLeadAiModeActivity::class,
+            'trigger' => WorkflowEnum::TRIGGER_AI->value,
+            'model' => Lead::class,
+            'activity' => ApplyLeadAiModeActivity::class,
             'name' => 'Agents: apply a lead\'s AI mode',
         ],
         [
-            'trigger' => Kanvas\Workflow\Enums\WorkflowEnum::ATTACH_FILE->value,
-            'model' => Kanvas\Intelligence\Agents\Models\Agent::class,
-            'activity' => Kanvas\Intelligence\Knowledge\Activities\IndexAgentDocumentsActivity::class,
+            'trigger' => WorkflowEnum::ATTACH_FILE->value,
+            'model' => Agent::class,
+            'activity' => IndexAgentDocumentsActivity::class,
             'name' => 'Knowledge: index an agent\'s documents',
         ],
         [
-            'trigger' => Kanvas\Workflow\Enums\WorkflowEnum::DELETED->value,
-            'model' => Kanvas\Filesystem\Models\Filesystem::class,
-            'activity' => Kanvas\Intelligence\Knowledge\Activities\PruneDeletedFileKnowledgeActivity::class,
+            'trigger' => WorkflowEnum::DELETED->value,
+            'model' => Filesystem::class,
+            'activity' => PruneDeletedFileKnowledgeActivity::class,
             'name' => 'Knowledge: prune a deleted file',
         ],
     ],

@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Leads\Actions;
+namespace Kanvas\Guild\Leads\Actions\Communication;
 
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 

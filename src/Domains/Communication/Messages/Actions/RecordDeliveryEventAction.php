@@ -59,7 +59,7 @@ final class RecordDeliveryEventAction
         $delivery = Delivery::query()->lockForUpdate()->findOrFail($this->delivery->getKey());
 
         $event = DeliveryEvent::firstOrCreate(
-            ['event_key' => $this->eventKey()],
+            ['event_key' => $this->eventKey($delivery)],
             [
                 'apps_id' => $delivery->apps_id,
                 'companies_id' => $delivery->companies_id,
@@ -113,10 +113,16 @@ final class RecordDeliveryEventAction
         return in_array($this->providerStatus, $provider::eventRetention()->terminalEvents, true);
     }
 
-    private function eventKey(): string
+    /**
+     * The provider's id is part of the key because a retried delivery is the same row with a new
+     * one: without it the second attempt's `failed` reads as the first one's, repeated, and the
+     * delivery stays accepted. Twilio and WaSender send no event time to tell them apart.
+     */
+    private function eventKey(Delivery $delivery): string
     {
         return hash('sha256', implode('|', [
-            $this->delivery->getKey(),
+            $delivery->getKey(),
+            $delivery->external_id ?? '',
             $this->providerStatus,
             $this->occurredAt?->getTimestamp() ?? '',
         ]));

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Actions;
+namespace Kanvas\Guild\Customers\Actions\Communication;
 
 use Kanvas\Guild\Customers\DataTransferObject\ConsentOutcome;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;

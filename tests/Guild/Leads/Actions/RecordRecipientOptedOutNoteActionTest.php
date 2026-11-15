@@ -6,7 +6,7 @@ namespace Tests\Guild\Leads\Actions;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Leads\Actions\RecordRecipientOptedOutNoteAction;
+use Kanvas\Guild\Leads\Actions\Communication\RecordRecipientOptedOutNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
 

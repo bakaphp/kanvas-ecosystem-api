@@ -21,7 +21,9 @@ use Kanvas\Workflow\KanvasActivity;
  */
 #[WorkflowAction(
     name: 'Elead Stop Response Clock',
-    description: 'Logs the agent\'s first message to a lead on its Elead opportunity as a completed phone call, which stops Elead\'s response-time clock (runs on agent-reached-out, param message_id)',
+    description: 'Logs the agent\'s first message to a lead on its Elead opportunity as a completed phone call, '
+        . 'which stops Elead\'s response-time clock. A lead that did not come from Elead is skipped '
+        . '(runs on agent-reached-out, param message_id)',
     integration: IntegrationsEnum::ELEAD,
 )]
 class StopResponseClockActivity extends KanvasActivity
@@ -33,7 +35,7 @@ class StopResponseClockActivity extends KanvasActivity
         $messageId = (int) ($params['message_id'] ?? 0);
 
         if (! $entity instanceof Lead || $messageId === 0 || ! $entity->get('downloaded_from_eleads')) {
-            return ['message' => 'Not a lead Elead is timing; nothing to stop', 'entity' => null];
+            return $this->skipWorkflow('Not a lead Elead is timing; nothing to stop');
         }
 
         if (empty($entity->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {

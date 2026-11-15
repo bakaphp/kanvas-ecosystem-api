@@ -6,8 +6,8 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Actions\Communication\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;

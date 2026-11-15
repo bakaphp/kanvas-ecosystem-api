@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Communication\Connections\Enums\CleanupTaskStatusEnum;
-use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\CleanupTask;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
@@ -39,7 +38,7 @@ use Kanvas\Connectors\WaSender\WhatsAppTransport;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -718,17 +717,7 @@ final class WaSenderProviderTest extends TestCase
 
     private function defaultWhatsAppConnection(): Connection
     {
-        $connection = $this->connection('wasender', self::OUR_NUMBER);
-        ChannelDefault::query()->updateOrCreate(
-            [
-                'apps_id' => $this->currentApp()->getId(),
-                'companies_id' => $this->currentCompany()->getId(),
-                'channel' => ChannelTypeEnum::WHATSAPP->value,
-            ],
-            ['connection_id' => $connection->getId()]
-        );
-
-        return $connection;
+        return $this->defaultConnection(ChannelTypeEnum::WHATSAPP, 'wasender', self::OUR_NUMBER);
     }
 
     private function send(WhatsAppTransport $transport, Content $content): Delivery

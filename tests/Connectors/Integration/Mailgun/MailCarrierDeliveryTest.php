@@ -13,7 +13,7 @@ use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -23,11 +23,11 @@ use Kanvas\Templates\Repositories\TemplatesRepository;
 use Tests\TestCase;
 
 /**
- * Email on the company SMTP identity (agents without a mailbox, lead sends) is filed in the ledger under
- * a Message-ID we fix ourselves, so Mailgun's events for it find it the way they find a mailbox send.
- * A lead send goes through the Communication SMTP carrier, whoever hosts the server.
+ * Email on the Kanvas mailer (agents without a mailbox, lead sends) is filed in the ledger under a
+ * Message-ID we fix ourselves, so Mailgun's events for it find it the way they find a mailbox send.
+ * A lead send goes through the Communication mail carrier, whoever hosts the server.
  */
-final class SmtpEmailDeliveryTest extends TestCase
+final class MailCarrierDeliveryTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -67,7 +67,7 @@ final class SmtpEmailDeliveryTest extends TestCase
             to: 'prospect@example.com',
         );
 
-        $this->assertSame('smtp', $result['provider']);
+        $this->assertSame('mail', $result['provider']);
         $delivery = Delivery::query()->where('uuid', $result['attempt_uuid'])->firstOrFail();
 
         $this->assertSame($result['provider_message_id'], $delivery->external_id);
@@ -99,7 +99,7 @@ final class SmtpEmailDeliveryTest extends TestCase
 
         $delivery = Delivery::query()->where('external_id', $this->sentMessageId())->sole();
 
-        $this->assertSame('smtp', $delivery->provider);
+        $this->assertSame('mail', $delivery->provider);
         $this->assertSame('accepted', $delivery->status->value);
         $this->assertSame($delivery->external_id, $result['provider_message_id']);
     }

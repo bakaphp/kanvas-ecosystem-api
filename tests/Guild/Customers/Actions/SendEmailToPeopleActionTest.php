@@ -14,7 +14,7 @@ use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
+use Kanvas\Guild\Customers\Actions\Communication\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
 use Kanvas\Notifications\Support\UserEmailSignature;

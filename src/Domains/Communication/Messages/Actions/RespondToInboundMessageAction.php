@@ -84,16 +84,16 @@ final class RespondToInboundMessageAction
 
         if ($lead instanceof Lead) {
             $delayedResponse = $this->handleSupportModeDelayedResponse(
-                $lead,
-                $this->channel,
-                $this->message,
-                $this->message->app,
-                $turn->agent->getId(),
-                [],
-                null,
-                $this->params,
-                AgentChannelResponderAction::class,
-                $session
+                lead: $lead,
+                channel: $this->channel,
+                message: $this->message,
+                app: $this->message->app,
+                defaultAgentId: $turn->agent->getId(),
+                channelAgentMapping: [],
+                chatJid: null,
+                params: $this->params,
+                actionClass: AgentChannelResponderAction::class,
+                session: $session
             );
 
             if ($delayedResponse !== null) {

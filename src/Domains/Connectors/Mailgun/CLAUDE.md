@@ -60,9 +60,9 @@ connection hangs off, with its first mailbox. For mailboxes that existed before 
   the domain's `EmailComposer`. The delivery is on the ledger with `provider = 'mailgun'` and its
   Message-Id (without angle brackets — `FileEmailDeliveryAction::normalizeMessageId()`), which is
   what events carry back.
-- **Company SMTP** (`provider = 'smtp'`): the domain's built-in carrier. Mailgun events still find
-  it when the SMTP host is Mailgun's, because `RecordEmailEventOnDeliveryAction::findDelivery()`
-  matches both providers.
+- **The Kanvas mailer** (`provider = 'mail'`): the domain's built-in carrier, on the company's mail
+  server, else the app's, else the default in `.env`. Mailgun events still find it when that server
+  is Mailgun's, because `RecordEmailEventOnDeliveryAction::findDelivery()` matches both providers.
 - **`SendAsAgentMailboxAction`** is the one send left outside a connection: the email an agent sends
   a **teammate** (`send_email_to_user`). A teammate is a user, never a People row, and the facade
   sends to people. It takes the agent, the recipient, a subject and the text, writes the body with

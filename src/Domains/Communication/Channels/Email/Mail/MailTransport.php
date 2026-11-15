@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Communication\Channels\Email\Smtp;
+namespace Kanvas\Communication\Channels\Email\Mail;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
@@ -20,10 +20,10 @@ use Override;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 /**
- * Hands the composed email to the company's SMTP server, in this process: the delivery is already a
+ * Hands the composed email to the company's mail server, in this process: the delivery is already a
  * queued job, and its outcome has to be the server's answer, not "queued again".
  */
-class SmtpTransport implements Transport
+class MailTransport implements Transport
 {
     public const string MESSAGE_VERB = 'email';
 
@@ -58,7 +58,7 @@ class SmtpTransport implements Transport
     {
         return new ConversationRef(
             channel: ChannelTypeEnum::EMAIL,
-            provider: SmtpCarrier::slug(),
+            provider: MailCarrier::slug(),
             accountKey: $connection->account_key,
             thread: strtolower($address),
             channelSlug: SessionChannelService::createChannelSlug('email', strtolower($address)),

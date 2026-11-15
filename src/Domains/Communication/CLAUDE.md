@@ -29,6 +29,13 @@ Communication::for($app, $company)->isReady(ChannelTypeEnum::SMS);
 ```
 
 - The recipient is a `People`; the address comes from their contacts. A `Lead` sends to `$lead->people`.
+- A domain that writes to a customer and needs "sent or not" as its answer does not call the facade
+  itself: a person with no lead goes through `Guild\Customers\Actions\Communication\SendMessageToPeopleAction` (any
+  channel; an email is composed by `SendEmailToPeopleAction`, which sends through it), a lead through
+  `Guild\Leads\Actions\Communication\SendMessageToLeadAction`. Both throw or report when the message
+  did not leave and return what names the delivery, so the caller can file the message and link it.
+  The lead action adds the lead's rules and sends through the person action's `deliver()`: that
+  method is the one place a person is written to through the facade. Do not add another.
 - `send()` returns an `Operation`: the request, and one delivery per channel with its status. A
   channel with no connection, a switched-off connection and a recipient who asked not to be
   contacted are **failed or skipped deliveries on the operation, not exceptions**.
@@ -78,17 +85,19 @@ e-CF providers:
 
 Editing that file needs `php artisan config:cache` wherever config is cached.
 
-## Email without an integration: the built-in SMTP carrier
+## Email without an integration: the built-in mail carrier
 
-Every company can email before it connects anything. `Channels/Email/Smtp/SmtpCarrier` is a
-`BuiltInCarrier`: no integration, no webhook, no provisioner. Its connection (provider `smtp`,
+Every company can email before it connects anything. `Channels/Email/Mail/MailCarrier` is a
+`BuiltInCarrier`: no integration, no webhook, no provisioner. It is the same Kanvas mailer every
+notification uses (`SmtpRuntimeConfiguration`: the company's mail server, else the app's, else the
+default in `.env`), put on the ledger. Its connection (provider `mail`,
 `integrations_company_id = 0`, account = the company's from address) is made by
 `EnsureBuiltInConnectionAction` the first time an email needs it, and the router only reaches it
 when the company has no default connection for email — a connected provider always wins.
 
 - `EmailComposer` turns a delivery into the email (subject, template, signature, copies) for every
   email transport. A transport only decides how it leaves; never compose in one.
-- `SmtpTransport` sends in the delivery's own process (`notifyNow`), so the outcome on the ledger is
+- `MailTransport` sends in the delivery's own process (`notifyNow`), so the outcome on the ledger is
   the server's answer. It fixes the Message-ID itself: that is what a host's later events carry.
 - `'all'` channels reads chosen defaults only, so it never starts emailing through the built-in.
 - `CommunicationCarrier` is what both kinds share (slug, transports, retention);
@@ -114,7 +123,7 @@ The pieces every provider would otherwise write again:
 |---|---|
 | debounce windows from company settings (`{prefix}_burst_{idle,max,jitter}_seconds`) | `BurstPolicy::fromCompanySettings()` |
 | the integration row for a company served by app-level credentials | `Connections\Actions\EnsureProviderIntegrationAction` |
-| a lead for a conversation with none (type, source, receiver, pipeline) | `Guild\Leads\Actions\OpenLeadFromConversationAction` |
+| a lead for a conversation with none (type, source, receiver, pipeline) | `Guild\Leads\Actions\Communication\OpenLeadFromConversationAction` |
 | retiring the receivers and the responder rule from before the cutover | `RetireLegacyInboundAction`, then `Connection::candidateOwner()` / `handTo()` |
 
 Nothing under `src/Domains/Communication` changes. If it has to, the contract is missing something:
@@ -231,6 +240,10 @@ starts no run at all; all of an entry's conditions must hold.
   twice for one event.
 - `Channel::addMessage()` fires `updated` with `from_human` beside `message`, which is what the two
   Channel conditions read.
+- A person's text or WhatsApp reply leaves on the conversation's own number (the connection stamped
+  on its last message, `SendMessageToLeadAction::inConversationOn()`), not the company's default. The
+  default is used when the conversation has none or its number can no longer send. Email is left out:
+  a person does not write from the mailbox an agent was written to on.
 - Raise an AI trigger with `$lead->announceAiTrigger($triggerType)`, never a bare
   `fireWorkflow(TRIGGER_AI)`. It fires even on a lead whose own writes are switched off (an import
   that still says its lead is new). A creator that also fires `created` passes

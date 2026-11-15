@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Leads\Actions;
+namespace Kanvas\Guild\Leads\Actions\Communication;
 
 use Kanvas\Communication\Communication;
+use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -16,13 +18,12 @@ use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
-use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
 /**
  * A message someone on our side filed in a lead's conversation (a person on the team, an AI that
- * runs outside Kanvas) goes to the customer on the medium the conversation is in. Needs no rule.
+ * runs outside Kanvas) goes to the customer on the medium the conversation is in.
  *
  * A person writing takes the lead over (the AI steps back); another AI does not. A message that
  * did not leave is noted on the lead (`failed`) and never counts as an answer; one with nothing to
@@ -61,8 +62,12 @@ final class DeliverConversationMessageAction
         }
 
         $medium = $this->medium();
+        // A number the caller named is its choice; otherwise the conversation's own number.
+        $connection = $from === null ? $this->conversationConnection($medium) : null;
 
-        if (! Communication::for($lead->app, $lead->company)->isReady(ChannelTypeEnum::from($medium))) {
+        if ($connection === null
+            && ! Communication::for($lead->app, $lead->company)->isReady(ChannelTypeEnum::from($medium))
+        ) {
             return $this->notDelivered(
                 $lead,
                 $medium,
@@ -97,7 +102,7 @@ final class DeliverConversationMessageAction
             : $content;
 
         try {
-            $result = new SendMessageToLeadAction($lead)->execute(
+            $result = new SendMessageToLeadAction($lead)->inConversationOn($connection)->execute(
                 channel: $medium,
                 message: $body,
                 from: $from,
@@ -140,6 +145,31 @@ final class DeliverConversationMessageAction
             'delivered' => true,
             'failed' => false,
         ];
+    }
+
+    /**
+     * The number this conversation is already on: the one the customer last wrote to, or we last
+     * wrote from. Answering from the company's default would reach them from a number they do not
+     * know. Only while it can still send, and never for email, where the address a person writes
+     * from is not the mailbox an agent was written to on.
+     */
+    private function conversationConnection(string $medium): ?Connection
+    {
+        if ($medium === LeadCommunicationChannelEnum::EMAIL->value) {
+            return null;
+        }
+
+        $last = $this->channel->messages()
+            ->where('messages.id', '!=', $this->message->getId())
+            ->where('messages.is_deleted', 0)
+            ->whereNotNull('messages.message->communication->connection_id')
+            ->where('messages.message->communication->channel', $medium)
+            ->orderByDesc('messages.id')
+            ->first();
+
+        $connection = $last !== null ? Connection::forFiledMessage($last) : null;
+
+        return $connection?->unavailableReason() === null ? $connection : null;
     }
 
     private function medium(): string

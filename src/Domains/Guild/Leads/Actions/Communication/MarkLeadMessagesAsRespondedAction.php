@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Actions;
+namespace Kanvas\Guild\Leads\Actions\Communication;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Leads\Models\Lead;

@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Actions\PruneIntegrationHistoryAction;
@@ -15,6 +19,7 @@ use Kanvas\Workflow\Rules\Actions\EnsureAppDefaultRulesAction;
 use Kanvas\Workflow\Rules\Actions\WireRuleAction;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
+use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Repositories\RuleRepository;
 use Tests\TestCase;
@@ -94,44 +99,98 @@ final class AppDefaultRulesTest extends TestCase
         $this->assertFalse($rules->contains(fn (Rule $rule): bool => $rule->is($appDefault)), 'the activity would run twice');
     }
 
+    public function testACompanyWithNoRuleOfItsOwnGetsTheAppDefaultWithoutLoadingAnyStep(): void
+    {
+        $app = app(Apps::class);
+        [$appDefault] = new EnsureAppDefaultRulesAction($app)->execute();
+        $company = Companies::factory()->create();
+        $workflow = DB::connection('workflow');
+
+        $workflow->enableQueryLog();
+        $rules = $this->rulesFor($app, $company);
+        $queries = implode("\n", array_column($workflow->getQueryLog(), 'query'));
+        $workflow->disableQueryLog();
+
+        $this->assertTrue($rules->contains(fn (Rule $rule): bool => $rule->is($appDefault)));
+        $this->assertStringNotContainsString(new RuleAction()->getTable(), $queries);
+    }
+
+    public function testTheCommandInstallsTheRulesOfOneAppAndRefusesAnAppItCannotFind(): void
+    {
+        $app = app(Apps::class);
+
+        $this->artisan('kanvas:workflow-ensure-app-default-rules', ['app_id' => $app->getId()])
+            ->assertSuccessful();
+        $this->assertSame(1, $this->rulesNamed($app));
+
+        $this->expectException(ModelNotFoundException::class);
+        $this->artisan('kanvas:workflow-ensure-app-default-rules', ['app_id' => PHP_INT_MAX]);
+    }
+
     public function testHistoryOlderThanTheCutoffGoesAndTheRestStays(): void
     {
-        // A copy of the table: the real one is shared by every test and swept by age.
+        [$deleted, $kept] = $this->pruneBefore('2026-02-01', ['2026-01-01', '2026-01-02', '2026-03-01', '2026-03-02']);
+
+        $this->assertSame(2, $deleted);
+        $this->assertSame(['2026-03-01', '2026-03-02'], $kept);
+    }
+
+    public function testARowWrittenAfterTheCutoffIsKeptEvenWhenOlderRowsCameAfterIt(): void
+    {
+        [$deleted, $kept] = $this->pruneBefore(
+            '2026-02-01',
+            ['2026-01-01', '2026-03-05', '2026-01-02', '2026-01-03', '2026-03-01']
+        );
+
+        $this->assertSame(3, $deleted);
+        $this->assertSame(['2026-03-05', '2026-03-01'], $kept, 'a row is deleted on its date, never on its position');
+    }
+
+    /**
+     * On a copy of the table: the real one is shared by every test and swept by age.
+     *
+     * @param list<string> $days one row per day, in id order
+     *
+     * @return array{0: int, 1: list<string>} rows deleted, and the days left in id order
+     */
+    private function pruneBefore(string $cutoff, array $days): array
+    {
         $workflow = DB::connection('workflow');
         $workflow->statement('CREATE TEMPORARY TABLE eih_prune_test LIKE ' . PruneIntegrationHistoryAction::TABLE);
-        $rows = fn (string $createdAt, int $statusId): array => [
-            'entity_namespace' => Lead::class,
-            'entity_id' => '1',
-            'apps_id' => 1,
-            'status_id' => $statusId,
-            'created_at' => $createdAt,
-            'updated_at' => $createdAt,
-        ];
         $statusId = (int) $workflow->table('status')->where('apps_id', 0)->value('id');
 
         try {
-            foreach (['2026-01-01', '2026-01-02', '2026-03-01', '2026-03-02'] as $day) {
-                $workflow->table('eih_prune_test')->insert($rows($day, $statusId));
+            foreach ($days as $day) {
+                $workflow->table('eih_prune_test')->insert([
+                    'entity_namespace' => Lead::class,
+                    'entity_id' => '1',
+                    'apps_id' => 1,
+                    'status_id' => $statusId,
+                    'created_at' => $day,
+                    'updated_at' => $day,
+                ]);
             }
 
             $deleted = new PruneIntegrationHistoryAction(
-                cutoff: Carbon::parse('2026-02-01'),
+                cutoff: Carbon::parse($cutoff),
                 deadline: now()->addMinute(),
                 batch: 1,
                 table: 'eih_prune_test',
             )->execute();
 
-            $this->assertSame(2, $deleted);
-            $this->assertSame(
-                ['2026-03-01', '2026-03-02'],
-                $workflow->table('eih_prune_test')->orderBy('id')->pluck('created_at')->map(fn ($at): string => substr((string) $at, 0, 10))->all()
-            );
+            $kept = $workflow->table('eih_prune_test')
+                ->orderBy('id')
+                ->pluck('created_at')
+                ->map(fn ($at): string => substr((string) $at, 0, 10))
+                ->all();
+
+            return [$deleted, $kept];
         } finally {
             $workflow->statement('DROP TEMPORARY TABLE IF EXISTS eih_prune_test');
         }
     }
 
-    private function rulesFor(Apps $app, $company)
+    private function rulesFor(Apps $app, CompanyInterface $company): Collection
     {
         return RuleRepository::getRulesByModelAndType(
             $app,

@@ -25,7 +25,7 @@ class EnsureAppDefaultRulesCommand extends Command
     public function handle(): int
     {
         $apps = $this->argument('app_id') !== null
-            ? Apps::query()->whereKey((int) $this->argument('app_id'))->get()
+            ? [Apps::getById((int) $this->argument('app_id'))]
             : Apps::query()->where('is_deleted', 0)->get();
 
         foreach ($apps as $app) {

@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Communication\Messages\DataTransferObject\TransportResult;
 use Kanvas\Communication\Messages\Models\Delivery;
-use Kanvas\Guild\Leads\Actions\DeliverConversationMessageAction;
+use Kanvas\Guild\Leads\Actions\Communication\DeliverConversationMessageAction;
 use Kanvas\Guild\Leads\Activities\DeliverHumanReplyActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -137,6 +137,49 @@ final class DeliverHumanReplyTest extends TestCase
         $this->assertTrue($result['delivered']);
         $this->assertTrue((bool) $reply->fresh()->is_un_response, 'a delivered reply answers the conversation');
         $this->assertCount(0, $this->notDeliveredNotes($lead));
+    }
+
+    /**
+     * The customer wrote to an agent's own number. A person answering in that conversation leaves
+     * from the same number, not from the company's default, and needs no default to do it.
+     */
+    public function testAReplyLeavesFromTheNumberTheCustomerWroteToNotTheCompanysDefault(): void
+    {
+        $default = $this->defaultSmsConnection(number: '+18095550710');
+        $conversationNumber = $this->connection('fake', '+18095550711');
+        $lead = $this->leadOf($this->personWithCellphone('+18095550712'));
+        $channel = $this->conversationChannel($lead);
+        $this->fileInConversation(
+            $channel,
+            $lead,
+            'sms',
+            [
+                'content' => 'Is it still available?',
+                'from_me' => false,
+                'communication' => ['connection_id' => $conversationNumber->getId(), 'channel' => 'sms'],
+            ]
+        );
+        $reply = $this->written($channel, $lead, 'Yes, it is');
+
+        $result = $this->deliver($channel, $reply);
+
+        $this->assertTrue($result['delivered']);
+        $this->assertSame(
+            $conversationNumber->getId(),
+            (int) Delivery::query()->where('message_id', $reply->getId())->sole()->connection_id
+        );
+        $this->assertSame(0, Delivery::query()->where('connection_id', $default->getId())->count());
+
+        $conversationNumber->forceFill(['enabled' => false])->saveOrFail();
+        $second = $this->written($channel, $lead, 'Come by today');
+
+        $this->deliver($channel, $second);
+
+        $this->assertSame(
+            $default->getId(),
+            (int) Delivery::query()->where('message_id', $second->getId())->sole()->connection_id,
+            'a number that can no longer send falls back to the default'
+        );
     }
 
     public function testAReplyTheProviderRefusedIsNotedOnTheLeadAndAnswersNothing(): void

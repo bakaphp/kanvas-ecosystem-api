@@ -13,7 +13,7 @@ use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Leads\Actions\RecordRecipientOptedOutNoteAction;
+use Kanvas\Guild\Leads\Actions\Communication\RecordRecipientOptedOutNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;

@@ -9,10 +9,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Deletes integration history written before a cutoff. The table has no index on `created_at` and
- * holds tens of millions of rows, so the cutoff is turned into an id by halving on the primary key
- * (ids grow with time) and rows go in small batches by primary key. It stops at `$deadline`: a
- * backlog is cleared over several runs instead of one that holds the table for hours.
+ * Deletes integration history written before a cutoff. The table holds tens of millions of rows, so
+ * the cutoff is turned into an id by halving on the primary key (ids grow with time) and rows are
+ * read in small batches below that id, each batch starting where the last one ended: every
+ * statement is a primary-key range (or `status_id` + id), never a plan the optimizer picks per batch
+ * from a date filter. Only the rows of a batch that really are older than the cutoff are deleted.
+ * It stops at `$deadline`: a backlog is cleared over several runs instead of one that holds the
+ * table for hours.
  */
 final class PruneIntegrationHistoryAction
 {
@@ -39,16 +42,30 @@ final class PruneIntegrationHistoryAction
         }
 
         $deleted = 0;
+        $after = 0;
 
         do {
-            $removed = $this->query()
+            $rows = $this->query()
+                ->where('id', '>', $after)
                 ->where('id', '<', $cutoffId)
                 ->when($this->onlyStatusId !== null, fn (Builder $query) => $query->where('status_id', $this->onlyStatusId))
                 ->orderBy('id')
                 ->limit($this->batch)
-                ->delete();
-            $deleted += $removed;
-        } while ($removed === $this->batch && now()->lt($this->deadline));
+                ->get(['id', 'created_at']);
+
+            // The id is only where to look. A row below it written later than the cutoff (ids and
+            // dates out of step) is read and kept, never deleted on its position.
+            $expired = $rows
+                ->filter(fn (object $row): bool => Carbon::parse($row->created_at)->lt($this->cutoff))
+                ->pluck('id')
+                ->all();
+
+            if ($expired !== []) {
+                $deleted += $this->query()->whereIn('id', $expired)->delete();
+            }
+
+            $after = (int) ($rows->last()->id ?? $after);
+        } while ($rows->count() === $this->batch && now()->lt($this->deadline));
 
         return $deleted;
     }

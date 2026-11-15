@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Actions;
+namespace Kanvas\Guild\Customers\Actions\Communication;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Guild\Customers\DataTransferObject\ConsentOutcome;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;

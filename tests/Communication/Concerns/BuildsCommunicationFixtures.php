@@ -17,6 +17,7 @@ use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\InboundClaim;
 use Kanvas\Communication\Connections\Services\SharedRegistry;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Support\ProviderRegistry;
@@ -136,13 +137,30 @@ trait BuildsCommunicationFixtures
         string $number = '+18095550100',
         array $attributes = []
     ): Connection {
+        return $this->defaultConnection(
+            ChannelTypeEnum::SMS,
+            $provider,
+            $number,
+            $attributes
+        );
+    }
+
+    /**
+     * A ready, switched-on connection that is the company's default for the channel.
+     */
+    protected function defaultConnection(
+        ChannelTypeEnum $channel,
+        string $provider,
+        string $number,
+        array $attributes = []
+    ): Connection {
         $connection = $this->connection($provider, $number, $attributes);
 
         ChannelDefault::updateOrCreate(
             [
                 'apps_id' => $connection->apps_id,
                 'companies_id' => $connection->companies_id,
-                'channel' => 'sms',
+                'channel' => $channel->value,
             ],
             ['connection_id' => $connection->getId()]
         );

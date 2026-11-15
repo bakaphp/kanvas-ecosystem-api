@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Communication\Channels\Email\Smtp;
+namespace Kanvas\Communication\Channels\Email\Mail;
 
 use Baka\Support\Str;
 use Carbon\CarbonInterval;
@@ -16,32 +16,32 @@ use Kanvas\Companies\Models\Companies;
 use Override;
 
 /**
- * Email on the SMTP server the company (or its app) is configured with, whoever hosts it. What every
- * company sends through until it connects an email provider of its own.
+ * Email through the Kanvas mailer: the company's own mail server when it set one, else its app's,
+ * else the Kanvas default. What every company sends through until it connects an email provider.
  */
-final class SmtpCarrier implements BuiltInCarrier
+final class MailCarrier implements BuiltInCarrier
 {
     #[Override]
     public static function slug(): string
     {
-        return 'smtp';
+        return 'mail';
     }
 
     #[Override]
     public static function transports(): array
     {
-        return [ChannelTypeEnum::EMAIL->value => SmtpTransport::class];
+        return [ChannelTypeEnum::EMAIL->value => MailTransport::class];
     }
 
     /**
-     * An SMTP server reports nothing itself. The window is for the host that does report on what it
+     * A mail server reports nothing itself. The window is for the host that does report on what it
      * relayed (Mailgun's events find the delivery by its Message-ID).
      */
     #[Override]
     public static function eventRetention(): Retention
     {
         return new Retention(
-            window: CarbonInterval::hours((int) config('communication.retention.smtp', 168)),
+            window: CarbonInterval::hours((int) config('communication.retention.mail', 168)),
             terminalEvents: ['failed']
         );
     }
@@ -49,7 +49,8 @@ final class SmtpCarrier implements BuiltInCarrier
     #[Override]
     public static function account(Apps $app, Companies $company): ?AccountSelection
     {
-        $address = Str::trimToNull((string) (new SmtpRuntimeConfiguration($app, $company)->getFromEmail()['address'] ?? ''));
+        $from = new SmtpRuntimeConfiguration($app, $company)->getFromEmail();
+        $address = Str::trimToNull((string) ($from['address'] ?? ''));
 
         if ($address === null) {
             return null;

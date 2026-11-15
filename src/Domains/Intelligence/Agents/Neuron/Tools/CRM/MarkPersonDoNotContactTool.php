@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Baka\Support\Str;
-use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
+use Kanvas\Guild\Customers\Actions\Communication\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
