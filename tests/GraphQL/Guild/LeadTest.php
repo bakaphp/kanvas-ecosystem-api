@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Locations\Models\Cities;
@@ -621,6 +622,68 @@ class LeadTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testUpdateLeadWithReceiverUuid(): void
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $app = app(Apps::class);
+
+        $response = $this->createLeadAndGetResponse([
+            'branch_id' => $branch->getId(),
+            'title' => fake()->title(),
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+            ],
+            'custom_fields' => [],
+            'files' => [],
+        ]);
+        $leadId = $response['data']['createLead']['id'];
+
+        $receiver = LeadReceiver::create([
+            'name' => 'Test Receiver ' . fake()->uuid(),
+            'users_id' => $user->getId(),
+            'agents_id' => $user->getId(),
+            'companies_id' => $branch->companies_id,
+            'companies_branches_id' => $branch->getId(),
+            'apps_id' => $app->getId(),
+            'leads_sources_id' => 0,
+            'lead_types_id' => 0,
+            'source_name' => 'test-source',
+            'is_default' => false,
+        ]);
+
+        $this->graphQL('
+            mutation($id: ID!, $input: LeadUpdateInput!) {
+                updateLead(id: $id, input: $input) {
+                    id
+                }
+            }
+        ', [
+            'id' => $leadId,
+            'input' => [
+                'people_id' => $response['data']['createLead']['people']['id'],
+                'receiver_id' => $receiver->uuid,
+            ],
+        ])->assertJson([
+            'data' => [
+                'updateLead' => [
+                    'id' => $leadId,
+                ],
+            ],
+        ]);
+
+        $this->assertSame($receiver->getId(), Lead::getById($leadId)->leads_receivers_id);
     }
 
     public function testUpdateLeadWithoutTitle()
