@@ -58,6 +58,26 @@ final class CrmLeadSourceSynchronizerTest extends TestCase
         }
     }
 
+    public function testEleadLeadWithOnlyTheOpportunityIdIsSyncable(): void
+    {
+        $lead = $this->lead(
+            companyConfig: [EleadCustomFieldEnum::COMPANY->value => 'dealer-1'],
+            leadFields: [EleadCustomFieldEnum::OPPORTUNITY_ID->value => '086806b9-c5de-f111-ae00-000000000000'],
+        );
+
+        $this->assertTrue(new CrmLeadSourceSynchronizer()->canSync($lead));
+    }
+
+    public function testOpportunityIdDoesNotMakeANonEleadLeadSyncable(): void
+    {
+        $lead = $this->lead(
+            companyConfig: [VinSolutionCustomFieldEnum::COMPANY->value => 'dealer-1'],
+            leadFields: [EleadCustomFieldEnum::OPPORTUNITY_ID->value => '086806b9-c5de-f111-ae00-000000000000'],
+        );
+
+        $this->assertFalse(new CrmLeadSourceSynchronizer()->canSync($lead));
+    }
+
     /**
      * @param array<string, mixed> $companyConfig
      * @param array<string, mixed> $leadFields

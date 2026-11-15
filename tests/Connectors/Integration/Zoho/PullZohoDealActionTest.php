@@ -18,7 +18,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
+use Tests\Connectors\Integration\Zoho\Support\StubbedPushDealToZohoAction;
 use Tests\TestCase;
+use Webleit\ZohoCrmApi\Models\Record;
 
 final class PullZohoDealActionTest extends TestCase
 {
@@ -54,6 +56,31 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Acme funding', $deal->get(CustomFieldEnum::ZOHO_DEAL_RAW->value)['Deal_Name']);
         $this->assertSame('Acme LLC', $deal->get('business_legal_name'));
         $this->assertSame(50000, $deal->get('funding_amount_requested'));
+    }
+
+    public function testAPulledDealIsInSyncSoOnlyALaterKanvasChangeIsPushed(): void
+    {
+        $company = $this->makeZohoCompany();
+        $deal = $this->action($company, 'zd-11', [
+            'id' => 'zd-11',
+            'Deal_Name' => 'Pulled funding',
+            'Description' => 'From Zoho',
+        ])->execute();
+
+        $module = $this->module();
+        $module->method('get')->willReturn(new Record(['id' => 'zd-11'], $module));
+        $module->expects($this->once())
+            ->method('update')
+            ->with('zd-11', ['Description' => 'Edited in Kanvas'])
+            ->willReturn(new Record(['id' => 'zd-11'], $module));
+
+        $unchanged = new StubbedPushDealToZohoAction($deal, $module)->execute();
+        $this->assertSame([], $unchanged['zohoRequest']);
+
+        $deal->description = 'Edited in Kanvas';
+        $deal->saveOrFail();
+
+        new StubbedPushDealToZohoAction($deal, $module)->execute();
     }
 
     public function testAHandedInLeadIsLinkedWhenTheDealNamesNoLead(): void
