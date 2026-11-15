@@ -92,6 +92,36 @@ class Str extends IlluminateStr
     }
 
     /**
+     * Typesense matches whole tokens by prefix, so `18095551234` is never found by `8095551234`:
+     * an 11-digit NANP number is indexed in its national form too.
+     *
+     * @return list<string>
+     */
+    public static function phoneSearchTerms(?string $phone): array
+    {
+        $digits = self::digitsOnly($phone);
+
+        if ($digits === '') {
+            return [];
+        }
+
+        $national = strlen($digits) === 11 && str_starts_with($digits, '1') ? substr($digits, 1) : $digits;
+
+        return array_values(array_unique([$digits, $national]));
+    }
+
+    /**
+     * Typesense splits `809-555-1234` into three tokens that never match the digits-only phones in
+     * the index, so a query shaped like a phone number is searched as its digits.
+     */
+    public static function phoneSearchQuery(string $query): string
+    {
+        $digits = self::digitsOnly($query);
+
+        return preg_match('/^[\d\s().+-]+$/', trim($query)) === 1 && strlen($digits) >= 7 ? $digits : $query;
+    }
+
+    /**
      * Ensure a phone number has the international '+' prefix (E.164 format) for API calls.
      */
     public static function ensurePhonePrefix(string $phone): string

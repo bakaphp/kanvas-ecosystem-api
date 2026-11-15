@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Observers;
 
 use Kanvas\Guild\Customers\Actions\CreatePeopleSocialChannelsAction;
+use Kanvas\Guild\Customers\Jobs\ReindexPeopleSearchJob;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -24,6 +25,7 @@ class ContactObserver
     {
         $this->runWorkflow($contact);
         $this->createSocialChannels($contact);
+        $this->reindexPeople($contact);
     }
 
     public function updated(Contact $contact): void
@@ -33,6 +35,15 @@ class ContactObserver
         if ($contact->wasChanged(['value', 'contacts_types_id'])) {
             $this->createSocialChannels($contact);
         }
+
+        if ($contact->wasChanged(['value', 'contacts_types_id', 'is_deleted'])) {
+            $this->reindexPeople($contact);
+        }
+    }
+
+    public function deleted(Contact $contact): void
+    {
+        $this->reindexPeople($contact);
     }
 
     private function cleanPhoneNumber(Contact $contact): void
@@ -71,5 +82,16 @@ class ContactObserver
         }
 
         new CreatePeopleSocialChannelsAction($contact->people)->execute();
+    }
+
+    private function reindexPeople(Contact $contact): void
+    {
+        $typeId = (int) $contact->contacts_types_id;
+
+        if ($contact->people === null || (! Contact::isPhoneType($typeId) && ! Contact::isEmailType($typeId))) {
+            return;
+        }
+
+        ReindexPeopleSearchJob::dispatch($contact->people)->afterCommit();
     }
 }

@@ -68,4 +68,22 @@ final class StrPhoneTest extends TestCaseUnit
         // `+` plus 10 digits — `digitsOnly` strips the +, then the 10-digit branch adds +1.
         $this->assertSame('+14047907130', Str::toE164('+4047907130'));
     }
+
+    public function testPhoneSearchTermsIndexesNanpNumberInBothForms(): void
+    {
+        $this->assertSame(['18095551234', '8095551234'], Str::phoneSearchTerms('+1 (809) 555-1234'));
+        $this->assertSame(['8095551234'], Str::phoneSearchTerms('809-555-1234'));
+        $this->assertSame(['442012345678'], Str::phoneSearchTerms('+44 20 1234 5678'));
+        $this->assertSame([], Str::phoneSearchTerms(null));
+        $this->assertSame([], Str::phoneSearchTerms('n/a'));
+    }
+
+    public function testPhoneSearchQueryCollapsesPhoneShapedQueriesToDigits(): void
+    {
+        $this->assertSame('8095551234', Str::phoneSearchQuery('809-555-1234'));
+        $this->assertSame('18095551234', Str::phoneSearchQuery(' +1 (809) 555 1234 '));
+        $this->assertSame('John 809-555-1234', Str::phoneSearchQuery('John 809-555-1234'));
+        $this->assertSame('2024', Str::phoneSearchQuery('2024'));
+        $this->assertSame('acme', Str::phoneSearchQuery('acme'));
+    }
 }
