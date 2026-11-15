@@ -22,13 +22,17 @@ use Kanvas\Workflow\Rules\Enums\ActionKindEnum;
 use Kanvas\Workflow\Rules\Models\Action;
 use Mockery;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Connectors\Integration\Zoho\Concerns\StubsZohoLeadModule;
 use Tests\TestCase;
 use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\Modules\Module;
+use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 #[Group('serial')]
 final class SyncZohoLeadPersonDataTest extends TestCase
 {
+    use StubsZohoLeadModule;
+
     private const array FIELDS_MAP = [
         'street' => ['name' => 'Street', 'type' => 'string'],
         'city' => ['name' => 'City', 'type' => 'string'],
@@ -54,6 +58,19 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame('742 Evergreen Terrace', $lead->get('street'));
         $this->assertEquals('62704', $lead->get('zip'));
         $this->assertSame('1985-04-12', $lead->get('Date_of_Birth'));
+    }
+
+    public function testAPulledLeadIsInSyncSoPushingItBackSendsNothing(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '1 Infinite Loop'));
+
+        $module = $this->createMock(ZohoRecordsModule::class);
+        $module->method('get')->willReturn(new Record(['id' => $zohoLeadId], $module));
+        $module->expects($this->never())->method('update');
+
+        $this->assertSame([], $this->action($lead, $module)->execute());
     }
 
     /**

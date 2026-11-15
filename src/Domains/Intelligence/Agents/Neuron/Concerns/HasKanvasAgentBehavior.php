@@ -22,6 +22,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\PendingInboundHistoryMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
 use Kanvas\Intelligence\Agents\Neuron\Observability\TurnSetupStage;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
@@ -132,6 +133,9 @@ trait HasKanvasAgentBehavior
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
     protected ?int $inboundMessageId = null;
+
+    /** @var list<int> */
+    protected array $inboundMessageIds = [];
 
     /** Set by resources() when the turn runs on a lead with the rolling summary on; read by the recall. */
     protected ?LeadTurnMemory $leadTurnMemory = null;
@@ -309,9 +313,13 @@ trait HasKanvasAgentBehavior
         $this->turnMedia = array_values($media);
     }
 
-    public function setInboundMessageId(?int $messageId): void
+    public function setInboundMessageId(?int $messageId, array $burstMessageIds = []): void
     {
         $this->inboundMessageId = $messageId;
+        $this->inboundMessageIds = array_values(array_unique(array_map('intval', array_filter([
+            $messageId,
+            ...$burstMessageIds,
+        ]))));
     }
 
     public function setPrivateUserTurn(bool $private): void
@@ -525,6 +533,7 @@ trait HasKanvasAgentBehavior
             $contextWindow,
             KanvasHistoryTrimmer::make(),
         );
+        $history->setPendingSocialMessages($this->inboundMessageIds);
         $this->leadTurnMemory = $this->prepareLeadTurnMemory($history, $contextWindow);
         $this->markSetupStage('lead-memory-ready');
 
@@ -662,7 +671,13 @@ trait HasKanvasAgentBehavior
     #[Override]
     protected function globalMiddleware(): array
     {
-        return $this->toolSearchPool === [] ? [] : [new KanvasToolSearchMiddleware($this->toolSearchPool)];
+        $middleware = $this->inboundMessageIds === [] ? [] : [new PendingInboundHistoryMiddleware()];
+
+        if ($this->toolSearchPool !== []) {
+            $middleware[] = new KanvasToolSearchMiddleware($this->toolSearchPool);
+        }
+
+        return $middleware;
     }
 
     /**

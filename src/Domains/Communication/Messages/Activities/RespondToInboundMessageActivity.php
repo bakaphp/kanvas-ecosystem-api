@@ -33,7 +33,12 @@ class RespondToInboundMessageActivity extends KanvasActivity
             return $this->skipWorkflow('not_a_message');
         }
 
-        $burst = array_filter(['burst_text' => $params['burst_text'] ?? null]);
+        // The ids travel with the text: the agent leaves those rows out of its loaded history, or a
+        // burst reaches the model twice (once filed, once as the prompt).
+        $burst = array_filter([
+            'burst_text' => $params['burst_text'] ?? null,
+            'burst_message_ids' => $params['burst_message_ids'] ?? null,
+        ]);
         $result = new RespondToInboundMessageAction($entity, $message, $burst)->executeIfOwned();
 
         if ($result === null) {

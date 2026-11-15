@@ -33,10 +33,14 @@ use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use NeuronAI\Chat\Messages\Message as NeuronMessage;
 use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Fixtures\FakeTransport;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
+use Tests\Stubs\Intelligence\LeadSummaryCustomerAgentStub;
+use Tests\Stubs\Intelligence\LeadSummaryStubProviders;
 use Tests\Stubs\Intelligence\PartlessNeuronAgentStub;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
@@ -165,6 +169,51 @@ final class RespondToInboundMessageActionTest extends TestCase
         $this->assertArrayNotHasKey('skipped', $result);
         $this->assertCount(1, $this->transport->sent);
         $this->assertSame('+18095550631', $this->transport->sent[0]['to']);
+    }
+
+    /**
+     * A closed burst is filed message by message before the agent runs, and it reaches the agent again
+     * as one prompt. The activity hands the agent the burst's ids so it leaves those rows out of the
+     * history it loads: every line reaches the model once.
+     */
+    public function testEachLineOfABurstReachesTheModelOnce(): void
+    {
+        LeadSummaryStubProviders::reset();
+        LeadSummaryStubProviders::$window = 50_000;
+        $connection = $this->defaultSmsConnection(number: '+18095550640');
+        [$channel, $head, $lead] = $this->inboundOn($connection, '+18095550641');
+        $burst = [
+            $head,
+            $this->fileInConversation(
+                $channel,
+                $lead,
+                'fake-sms',
+                [...$head->message, 'content' => 'Can I see it on Saturday?']
+            ),
+            $this->fileInConversation(
+                $channel,
+                $lead,
+                'fake-sms',
+                [...$head->message, 'content' => 'Around ten in the morning.']
+            ),
+        ];
+        foreach ($burst as $line) {
+            $line->addEntity($lead->people);
+        }
+        $this->own($connection, $this->agent(LeadSummaryCustomerAgentStub::class));
+
+        $this->runActivity($channel, $head, [
+            'burst_text' => implode("\n", array_map(fn (Message $line): string => $line->contentText(), $burst)),
+            'burst_message_ids' => array_map(fn (Message $line): int => $line->getId(), $burst),
+        ]);
+
+        $sent = implode("\n", array_map(
+            fn (NeuronMessage $turn): string => (string) $turn->getContent(),
+            FakeNeuronProvider::$lastMessages
+        ));
+        foreach ($burst as $line) {
+            $this->assertSame(1, substr_count($sent, $line->contentText()), $line->contentText());
+        }
     }
 
     /**
@@ -661,7 +710,10 @@ final class RespondToInboundMessageActionTest extends TestCase
     /**
      * @return array{0: RespondToInboundMessageActivity, 1: array<string, mixed>}
      */
-    private function runActivity(Channel $channel, Message $inbound): array
+    /**
+     * @param array<string, mixed> $params what the closed burst adds to the event
+     */
+    private function runActivity(Channel $channel, Message $inbound, array $params = []): array
     {
         $activity = new RespondToInboundMessageActivity(
             0,
@@ -670,7 +722,7 @@ final class RespondToInboundMessageActionTest extends TestCase
             []
         );
 
-        return [$activity, $activity->execute($channel, $this->currentApp(), ['message' => $inbound])];
+        return [$activity, $activity->execute($channel, $this->currentApp(), ['message' => $inbound] + $params)];
     }
 
     private function respond(Channel $channel, Message $inbound, string $handler = SalesNeuronAgentStub::class): array

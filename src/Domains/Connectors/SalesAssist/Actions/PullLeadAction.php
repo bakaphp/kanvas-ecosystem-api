@@ -12,6 +12,7 @@ use Kanvas\Connectors\Elead\Actions\PullLeadAction as EleadPullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum as EleadCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as VinSolutionPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as VinSolutionCustomFieldEnum;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class PullLeadAction
@@ -58,17 +59,27 @@ class PullLeadAction
     /**
      * The eLead pull only syncs the given lead (status, owner, appointments) on its `entity_id`
      * branch; with an empty request it falls into a customer search with no terms and touches nothing.
+     * Leads imported from eLead carry only the opportunity id, so those sync on it directly.
      */
     private function executeElead(): array
     {
-        return new EleadPullLeadAction(
+        $pull = new EleadPullLeadAction(
             $this->lead->app,
             $this->lead->company,
             $this->lead->user
-        )->execute(
-            ['entity_id' => $this->lead->get(EleadCustomFieldEnum::LEAD_ID->value)],
-            $this->lead
         );
+        $eleadLeadId = $this->lead->get(EleadCustomFieldEnum::LEAD_ID->value);
+        $opportunityId = $this->lead->get(EleadCustomFieldEnum::OPPORTUNITY_ID->value);
+
+        if (blank($eleadLeadId) && filled($opportunityId)) {
+            $pull->pullKnownLead($this->lead, (string) $opportunityId);
+
+            return [
+                new LeadCandidate($this->lead)->toArray(),
+            ];
+        }
+
+        return $pull->execute(['entity_id' => $eleadLeadId], $this->lead);
     }
 
     private function executeVinSolution(): array

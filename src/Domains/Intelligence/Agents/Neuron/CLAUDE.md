@@ -150,6 +150,15 @@ contextWindow() → model ceiling, capped by AGENT_MAX_HISTORY_TOKENS (or the ap
 plus the inbound turn and adds to the history afterwards, so an add-only trim runs after the first
 request of every turn (KANVAS-ECOSYSTEM-6HP, a 1,962-email rollup sent whole).
 
+An inbound Social message is already filed before the agent runs. The kernel passes its id, plus
+the exact `burstMessageIds` when the prompt combines a burst. `KanvasChatHistory` leaves those rows
+out of the loaded history before folding: Neuron sends them as the pending prompt. They still count
+as retained for lead-summary coverage and are never archived by that exclusion. Never match by text
+or infer a burst from all current children: repeated questions and later arrivals are separate turns.
+On a durable resume starting after the prompt was consumed, `PendingInboundHistoryMiddleware` restores
+its Social rows before the first tool/inference node. Later tool rounds keep the live prompt already
+in history; they must not restore a second copy.
+
 The window is a **history** budget and the trimmer measures the history by its content
 (`KanvasHistoryTrimmer::getCheckpoints()` returns none). The stock trimmer reads the provider's prompt
 count off the last assistant turn, which includes instructions and every tool schema: an agent with 35K

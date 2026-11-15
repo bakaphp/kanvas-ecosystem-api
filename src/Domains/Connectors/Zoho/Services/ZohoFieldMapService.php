@@ -201,6 +201,13 @@ final class ZohoFieldMapService
         );
     }
 
+    public static function leadMapFor(CompanyInterface $company): array
+    {
+        $map = $company->get(CustomFieldEnum::FIELDS_MAP->value);
+
+        return is_array($map) ? $map : [];
+    }
+
     /**
      * The company's ZOHO_DEAL_FIELDS_MAP or the default. Same shape as the lead map, Kanvas-first:
      * `kanvasKey => zohoKey` or `kanvasKey => ['name' => zohoKey, 'type' => phpType]`.

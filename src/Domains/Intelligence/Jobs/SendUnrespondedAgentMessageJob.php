@@ -129,7 +129,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             // is reported and never re-runs this one.
             if ($skipped instanceof InboundNotAnsweredException && $skipped->reason === 'owner_changed') {
                 try {
-                    new RespondToInboundMessageAction($this->channel, $this->message)
+                    new RespondToInboundMessageAction($this->channel, $this->message, $this->params)
                         ->executeIfOwned(waitForPerson: false);
                 } catch (Throwable $handOffFault) {
                     report($handOffFault);
@@ -149,7 +149,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
      */
     private function answerAsOwner(): ?array
     {
-        $result = new RespondToInboundMessageAction($this->channel, $this->message)
+        $result = new RespondToInboundMessageAction($this->channel, $this->message, $this->params)
             ->executeIfOwned(waitForPerson: false);
 
         if (isset($result['response'])) {

@@ -650,12 +650,15 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function toSearchableArray(): array
     {
         $variantInterests = app(LeadVariantInterestProjectionService::class)->build($this);
+        $people = $this->people?->toSearchableArray();
         $lead = [
             'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
             'id' => (string) $this->id,
             'uuid' => (string) $this->uuid,
-            'email' => (string) $this->email ?? $this->people?->email,
-            'phone' => (string) $this->phone ?? $this->people?->getAllPhones()->first()?->phone,
+            'email' => Str::trimToNull($this->email) ?? (string) ($people['email'] ?? ''),
+            'phone' => Str::trimToNull($this->phone) ?? (string) ($people['phone'] ?? ''),
+            'emails' => array_values(array_unique(array_filter([Str::lowerTrim($this->email), ...($people['emails'] ?? [])]))),
+            'phones' => array_values(array_unique([...Str::phoneSearchTerms($this->phone), ...($people['phones'] ?? [])])),
             'title' => (string) $this->title,
             'firstname' => (string) $this->firstname,
             'lastname' => (string) $this->lastname,
@@ -678,7 +681,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
             'status' => $this->status,
             'created_at' => $this->created_at ? $this->created_at->timestamp : null,
             'updated_at' => $this->updated_at ? $this->updated_at->timestamp : null,
-            'people' => $this->people ? $this->people->toSearchableArray() : null,
+            'people' => $people,
             'variant_interests' => $variantInterests['items'],
             'variant_search_text' => $variantInterests['search_text'],
         ];
@@ -802,6 +805,16 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
                     'type' => 'string',
                 ],
                 [
+                    'name' => 'emails',
+                    'type' => 'string[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phones',
+                    'type' => 'string[]',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'description',
                     'type' => 'string',
                     'optional' => true,
@@ -901,7 +914,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
 
     public function searchQueryBy(): string
     {
-        return 'title,firstname,lastname,email,description';
+        return $this->queryByLiveFields('title,firstname,lastname,email,phones,emails,description');
     }
 
     protected function makeAllSearchableUsing(Builder $query): Builder
@@ -928,7 +941,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
             ]
         );
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $query = self::traitSearch(Str::phoneSearchQuery((string) $query), $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
         /*  if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {

@@ -172,7 +172,9 @@ No company setting and no rule a tenant writes decide it. A connection carries t
 it (`config.agent_id`, read by `Connection::agent()`), which the provider's `accounts()` supplies:
 Twilio returns the company's sending number plus every agent's `sms_config.phone_number`, each with
 its agent. Once a message (or the burst it closes) is filed, `AnnounceInboundTurnAction` fires
-`AFTER_ADDING_MESSAGE_TO_CHANNEL` on the conversation (a closed burst's prompt rides as `burst_text`),
+`AFTER_ADDING_MESSAGE_TO_CHANNEL` on the conversation (a closed burst's prompt rides as `burst_text`,
+its messages as `burst_message_ids`; every hop to the agent carries both, because the agent leaves
+those rows out of the history it loads and a dropped id puts that line in front of the model twice),
 and the app default rule "Communication: answer inbound messages" runs
 `Messages/Activities/RespondToInboundMessageActivity`: `RespondToInboundMessageAction::executeIfOwned()`
 answers as the owning agent through `Communication::reply()`.
