@@ -18,6 +18,7 @@ use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Exceptions\InboundNotAnsweredException;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -33,7 +34,10 @@ use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\Message as NeuronMessage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
@@ -56,6 +60,8 @@ final class RespondToInboundMessageActionTest extends TestCase
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
+
+    private const string ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
     private FakeTransport $transport;
 
@@ -214,6 +220,56 @@ final class RespondToInboundMessageActionTest extends TestCase
         foreach ($burst as $line) {
             $this->assertSame(1, substr_count($sent, $line->contentText()), $line->contentText());
         }
+    }
+
+    /**
+     * The burst's rows are left out of the history the agent loads, so a photo sent after the words
+     * reaches it only if the turn carries it. With no words at all the burst has no joined text, and
+     * the photos still go.
+     */
+    #[DataProvider('photoBursts')]
+    public function testAPhotoSentInABurstReachesTheModel(bool $withWords): void
+    {
+        LeadSummaryStubProviders::reset();
+        LeadSummaryStubProviders::$window = 50_000;
+        $connection = $this->defaultSmsConnection(number: '+18095550642');
+        [$channel, $head, $lead] = $this->inboundOn($connection, '+18095550643');
+        if (! $withWords) {
+            $head->message = [...$head->message, 'content' => ''];
+            $head->saveOrFail();
+            $this->attachPhoto($head, 'first-photo.png');
+        }
+        $photo = $this->fileInConversation(
+            $channel,
+            $lead,
+            'fake-sms',
+            [...$head->message, 'content' => '']
+        );
+        $this->attachPhoto($photo, 'second-photo.png');
+        foreach ([$head, $photo] as $part) {
+            $part->addEntity($lead->people);
+        }
+        $this->own($connection, $this->agent(LeadSummaryCustomerAgentStub::class));
+
+        $this->runActivity($channel, $head, array_filter([
+            'burst_text' => $withWords ? $head->contentText() : null,
+            'burst_message_ids' => [$head->getId(), $photo->getId()],
+        ]));
+
+        $this->assertCount(1, FakeNeuronProvider::$lastMessages, 'the burst is not replayed from history');
+        $attachments = array_merge(...array_map(
+            fn (NeuronMessage $turn): array => array_filter(
+                $turn->getContentBlocks(),
+                fn (ContentBlockInterface $block): bool => $block instanceof ImageContent
+            ),
+            FakeNeuronProvider::$lastMessages
+        ));
+        $this->assertCount($withWords ? 1 : 2, $attachments, 'every photo of the burst is in the turn');
+    }
+
+    public static function photoBursts(): array
+    {
+        return ['words then a photo' => [true], 'photos alone' => [false]];
     }
 
     /**
@@ -432,6 +488,50 @@ final class RespondToInboundMessageActionTest extends TestCase
 
         $this->assertCount(1, $this->transport->sent);
         $this->assertSame('+18095550641', $this->transport->sent[0]['to']);
+    }
+
+    /**
+     * The wait does not shorten the turn: handed to the owner afterwards, it is still the whole burst.
+     */
+    public function testADelayedBurstHandedToTheOwnerIsAnsweredWhole(): void
+    {
+        LeadSummaryStubProviders::reset();
+        LeadSummaryStubProviders::$window = 50_000;
+        FakeNeuronProvider::$lastMessages = [];
+        $connection = $this->defaultSmsConnection(number: '+18095550644');
+        [$channel, $head, $lead] = $this->inboundOn($connection, '+18095550645');
+        $second = $this->fileInConversation(
+            $channel,
+            $lead,
+            'fake-sms',
+            [...$head->message, 'content' => 'Can I see it on Saturday?']
+        );
+        foreach ([$head, $second] as $part) {
+            $part->addEntity($lead->people);
+        }
+        $agent = $this->agent(LeadSummaryCustomerAgentStub::class);
+        $this->own($connection, $agent);
+        $lead->set(IntelligenceConfigurationEnum::AI_MODE->value, IntelligenceModeEnum::SUPPORT->value);
+        $lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
+
+        new SendUnrespondedAgentMessageJob(
+            $channel,
+            $head,
+            $agent,
+            $this->currentApp(),
+            params: [
+                'burst_text' => $head->contentText() . "\n\n" . $second->contentText(),
+                'burst_message_ids' => [$head->getId(), $second->getId()],
+            ],
+            actionClass: 'Kanvas\Connectors\Twilio\Actions\TwilioAgentChannelResponderAction'
+        )->handle();
+
+        $this->assertCount(1, $this->transport->sent);
+        $this->assertCount(1, FakeNeuronProvider::$lastMessages, 'one turn, nothing replayed from history');
+        $sent = (string) FakeNeuronProvider::$lastMessages[0]->getContent();
+        foreach ([$head, $second] as $part) {
+            $this->assertSame(1, substr_count($sent, $part->contentText()), $part->contentText());
+        }
     }
 
     /**
@@ -708,10 +808,8 @@ final class RespondToInboundMessageActionTest extends TestCase
     }
 
     /**
-     * @return array{0: RespondToInboundMessageActivity, 1: array<string, mixed>}
-     */
-    /**
      * @param array<string, mixed> $params what the closed burst adds to the event
+     * @return array{0: RespondToInboundMessageActivity, 1: array<string, mixed>}
      */
     private function runActivity(Channel $channel, Message $inbound, array $params = []): array
     {
@@ -734,6 +832,23 @@ final class RespondToInboundMessageActionTest extends TestCase
         }
 
         return new RespondToInboundMessageAction($channel, $inbound)->execute();
+    }
+
+    private function attachPhoto(Message $message, string $name): void
+    {
+        $file = new Filesystem();
+        $file->forceFill([
+            'apps_id' => $message->apps_id,
+            'companies_id' => $message->companies_id,
+            'users_id' => auth()->user()->getId(),
+            'name' => $name,
+            'path' => $name,
+            'url' => 'data:image/png;name=' . $name . ';base64,' . self::ONE_PIXEL_PNG,
+            'size' => strlen(base64_decode(self::ONE_PIXEL_PNG)),
+            'file_type' => 'image/png',
+        ])->saveOrFail();
+
+        $message->addFile($file, $name);
     }
 
     private function own(Connection $connection, Agent $agent): void

@@ -76,12 +76,11 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
     {
         $lead = $this->message->entity(Lead::class);
 
-        // A closed burst is one turn: every text in it reaches the agent as a single prompt. A picture
-        // sent without words is still a turn: the attachment goes in natively, named in the prompt.
-        $burstText = Str::trimToNull($params['burst_text'] ?? null);
-        ['text' => $prompt, 'images' => $images, 'documents' => $documents] = $this->inboundContent(
-            $burstText ?? $this->message->message['content'] ?? null
-        );
+        // A closed burst is one turn: every text in it reaches the agent as a single prompt, and
+        // every picture in it as an attachment. A picture sent without words is still a turn.
+        $inboundText = Str::trimToNull($params['burst_text'] ?? null) ?? $this->message->message['content'] ?? null;
+        $burstMessageIds = $params['burst_message_ids'] ?? [];
+        ['text' => $prompt, 'images' => $images, 'documents' => $documents] = $this->inboundContent($inboundText, $burstMessageIds);
 
         if ($this->isEmail()) {
             // On top of the native blocks: the markers let an internal agent open a file with its tools.
@@ -103,7 +102,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             // in (a vendor got it, KANVAS-ECOSYSTEM-6GW). A failed email turn sends nothing and
             // fails the job instead.
             fallbackOnFailure: ! $this->isEmail(),
-            burstMessageIds: $burstText !== null ? ($params['burst_message_ids'] ?? []) : [],
+            burstMessageIds: $burstMessageIds,
         )->execute();
 
         // Before the reply is filed, so a reply held for approval stores the body it will ship.
