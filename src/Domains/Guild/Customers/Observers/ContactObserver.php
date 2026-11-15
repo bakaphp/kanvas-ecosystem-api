@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Observers;
 
 use Kanvas\Guild\Customers\Actions\CreatePeopleSocialChannelsAction;
-use Kanvas\Guild\Customers\Jobs\ReindexPeopleSearchJob;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -84,6 +83,10 @@ class ContactObserver
         new CreatePeopleSocialChannelsAction($contact->people)->execute();
     }
 
+    /**
+     * Phones and emails are indexed on the person and on each of their leads, and a contact row
+     * saving on its own touches neither document.
+     */
     private function reindexPeople(Contact $contact): void
     {
         $typeId = (int) $contact->contacts_types_id;
@@ -92,6 +95,7 @@ class ContactObserver
             return;
         }
 
-        ReindexPeopleSearchJob::dispatch($contact->people)->afterCommit();
+        $contact->people->searchable();
+        $contact->people->leads()->get()->searchable();
     }
 }

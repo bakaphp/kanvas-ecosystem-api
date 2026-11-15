@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Leads;
 
+use Baka\Search\Jobs\TenantAwareMakeSearchable;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Jobs\ReindexPeopleSearchJob;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -105,29 +105,30 @@ final class LeadSearchablePhonesTest extends TestCase
         $this->assertContains('title', $queryBy);
     }
 
-    public function testSavingAPhoneContactReindexesThePerson(): void
+    public function testSavingAPhoneContactReindexesThePersonAndTheirLeads(): void
     {
         Queue::fake();
         $people = $this->people();
+        $lead = $this->lead($people, ['phone' => null]);
+        Queue::fake();
 
         $contact = $this->addContact($people, ContactTypeEnum::CELLPHONE, '8095551234');
 
-        Queue::assertPushed(
-            ReindexPeopleSearchJob::class,
-            fn (ReindexPeopleSearchJob $job) => $job->people->getId() === $people->getId()
-        );
+        $this->assertReindexed(People::class, $people->getId());
+        $this->assertReindexed(Lead::class, $lead->getId());
 
         Queue::fake();
         $contact->value = '8095559999';
         $contact->saveOrFail();
 
-        Queue::assertPushed(ReindexPeopleSearchJob::class);
+        $this->assertReindexed(People::class, $people->getId());
     }
 
     public function testSavingANonPhoneContactDoesNotReindex(): void
     {
         Queue::fake();
         $people = $this->people();
+        Queue::fake();
 
         $people->contacts()->create([
             'contacts_types_id' => self::LINKEDIN_CONTACT_TYPE_ID,
@@ -135,7 +136,17 @@ final class LeadSearchablePhonesTest extends TestCase
             'weight' => 1,
         ]);
 
-        Queue::assertNotPushed(ReindexPeopleSearchJob::class);
+        Queue::assertNotPushed(TenantAwareMakeSearchable::class);
+    }
+
+    private function assertReindexed(string $class, int $id): void
+    {
+        Queue::assertPushed(
+            TenantAwareMakeSearchable::class,
+            fn (TenantAwareMakeSearchable $job) => $job->models->contains(
+                fn ($model) => $model instanceof $class && $model->getId() === $id
+            )
+        );
     }
 
     protected function tearDown(): void
