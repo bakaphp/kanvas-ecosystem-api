@@ -114,6 +114,46 @@ class KanvasChatHistoryTest extends TestCase
         $this->assertSame(1, $store->cleared);
     }
 
+    public function testPendingSocialRowsStayCoveredWithoutBeingLoadedOrArchived(): void
+    {
+        $store = $this->store([
+            new UserMessage('Earlier question')->setId('social:1'),
+            new AssistantMessage('Earlier answer')->setId('social:2'),
+            new UserMessage(str_repeat('pending first part ', 100))->setId('social:3'),
+            new UserMessage(str_repeat('pending second part ', 100))->setId('social:4'),
+        ]);
+        $history = $this->history($store, contextWindow: 260);
+        $history->setPendingSocialMessages([3, 4, 9999]);
+
+        $this->assertSame(
+            ['social:1', 'social:2'],
+            array_map(fn (Message $turn): string => $turn->getId(), $history->getMessages()),
+        );
+        $this->assertSame([
+            'loaded' => ['social:1', 'social:2', 'social:3', 'social:4'],
+            'retained' => ['social:1', 'social:2', 'social:3', 'social:4'],
+        ], $history->window(), 'Only this history\'s rows count as covered by the pending prompt');
+        $this->assertSame([], $store->archived);
+    }
+
+    public function testConsumedPromptIsRestoredWithoutDroppingTheCoveredWindow(): void
+    {
+        $store = $this->store([
+            new UserMessage('Earlier question')->setId('social:1'),
+            new AssistantMessage('Earlier answer')->setId('social:2'),
+            new UserMessage(str_repeat('Current question ', 100))->setId('social:3'),
+        ]);
+        $history = $this->history($store, contextWindow: 260);
+        $history->setPendingSocialMessages([3]);
+        $window = $history->window();
+
+        $history->restoreConsumedSocialMessages();
+
+        $this->assertSame($window, $history->window());
+        $this->assertSame(['social:1', 'social:2', 'social:3'], array_map(fn (Message $turn): string => $turn->getId(), $history->getMessages()));
+        $this->assertSame([], $store->archived);
+    }
+
     /**
      * @param list<Message> $loaded
      */
