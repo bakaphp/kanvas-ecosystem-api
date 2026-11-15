@@ -177,16 +177,14 @@ class ResourceScheduleValidator
             return true;
         }
 
-        $currentMinutes = (int) $datetime->format('H') * 60 + (int) $datetime->format('i');
+        $currentMinutes = $this->minutesOfDay($datetime);
 
         foreach ($periods as $period) {
-            $closesNextDay = $period['close'] !== null && $period['close'] <= $period['open'];
-
             if ($currentMinutes < $period['open']) {
                 continue;
             }
 
-            if ($closesNextDay || $currentMinutes < ($period['close'] ?? self::MINUTES_PER_DAY)) {
+            if ($this->closesNextDay($period) || $currentMinutes < ($period['close'] ?? self::MINUTES_PER_DAY)) {
                 return true;
             }
         }
@@ -203,15 +201,25 @@ class ResourceScheduleValidator
             return false;
         }
 
-        $currentMinutes = (int) $datetime->format('H') * 60 + (int) $datetime->format('i');
+        $currentMinutes = $this->minutesOfDay($datetime);
 
         foreach ($periods as $period) {
-            if ($period['close'] !== null && $period['close'] <= $period['open'] && $currentMinutes < $period['close']) {
+            if ($this->closesNextDay($period) && $currentMinutes < $period['close']) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function closesNextDay(array $period): bool
+    {
+        return $period['close'] !== null && $period['close'] <= $period['open'];
+    }
+
+    private function minutesOfDay(Carbon $time): int
+    {
+        return (int) $time->format('H') * 60 + (int) $time->format('i');
     }
 
     private function resolveOperatingPeriods(ScheduleRules $rule): ?array
@@ -243,7 +251,7 @@ class ResourceScheduleValidator
         if (preg_match('/DTSTART:(\d{8}T\d{6})/', $dayRrule, $matches)) {
             $startTime = Carbon::createFromFormat('Ymd\THis', $matches[1]);
 
-            return [['open' => (int) $startTime->format('H') * 60 + (int) $startTime->format('i'), 'close' => null]];
+            return [['open' => $this->minutesOfDay($startTime), 'close' => null]];
         }
 
         return null;
@@ -251,9 +259,7 @@ class ResourceScheduleValidator
 
     private function clockToMinutes(string $clock): int
     {
-        $time = Carbon::parse('today ' . $clock);
-
-        return (int) $time->format('H') * 60 + (int) $time->format('i');
+        return $this->minutesOfDay(Carbon::parse('today ' . $clock));
     }
 
     private function formatMinutes(int $minutes): string

@@ -157,11 +157,10 @@ class CreateEventAction
             }
 
             $bookingOrderType = $this->resolveBookingOrderType($event);
-            $shouldCreateOrder = (isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1')
-                || $bookingOrderType !== null;
+            $orderRequested = ($this->metadata['create_order'] ?? null) == '1';
+            $shouldCreateOrder = $orderRequested || $bookingOrderType !== null;
             $orderCreated = (bool) $event->resources_id && ! $event->orders->count() && $shouldCreateOrder;
 
-            // Store additional resources in pivot table
             if (count($this->event->resources)) {
                 $this->storeEventResources($event, $this->event->resources);
             }
@@ -321,7 +320,9 @@ class CreateEventAction
                 $total += $orderItem->getTotal();
             }
         } else {
-            $price = $this->freeBooking ? 0 : ($eventVersion->metadata['price'] ?? $eventVersion->event->resource->price);
+            $price = $this->freeBooking
+                ? 0
+                : ($eventVersion->metadata['price'] ?? $eventVersion->event->resource->price);
 
             $orderItem = new OrderItem(
                 app: $eventVersion->event->app,

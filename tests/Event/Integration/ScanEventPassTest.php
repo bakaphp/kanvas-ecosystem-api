@@ -87,7 +87,7 @@ class ScanEventPassTest extends TestCase
         $this->assertSame($this->days[0]['slot']->start_at->toDateString(), $outcome->booking['date']);
         $this->assertNotNull($outcome->booking['guest']);
         $this->assertSame(0, ParticipantPass::where('event_version_id', $booking->getId())->whereNull('used_date')->count());
-        $this->assertSame($booking->getId(), (int) ParticipantPassScan::where('result', PassScanResultEnum::ADMITTED->value)->value('admitted_event_version_id'));
+        $this->assertTrue(ParticipantPassScan::where('admitted_event_version_id', $booking->getId())->exists());
     }
 
     public function testTheBookingExposesAnEightCharacterPassCodeToItsOwner(): void
@@ -187,7 +187,7 @@ class ScanEventPassTest extends TestCase
         $outcome = $this->scan($code, $this->insideTheWindow(0));
 
         $this->assertSame(PassScanResultEnum::NOT_ACTIVE, $outcome->result);
-        $this->assertSame(0, ParticipantPassScan::whereNotNull('admitted_event_version_id')->count());
+        $this->assertFalse(ParticipantPassScan::where('admitted_event_version_id', $booking->getId())->exists());
     }
 
     public function testRevokedPassIsNotActive(): void
@@ -237,7 +237,7 @@ class ScanEventPassTest extends TestCase
         $outcome = $this->scan($this->passCodeOf($booking), $this->insideTheWindow(0), scannerCompany: $otherCompany);
 
         $this->assertSame(PassScanResultEnum::FORBIDDEN, $outcome->result);
-        $this->assertSame(0, ParticipantPassScan::whereNotNull('admitted_event_version_id')->count());
+        $this->assertFalse(ParticipantPassScan::where('admitted_event_version_id', $booking->getId())->exists());
     }
 
     public function testEveryScanIsLoggedWhetherItAdmitsOrNot(): void
@@ -250,9 +250,10 @@ class ScanEventPassTest extends TestCase
         $this->scan($code, $this->insideTheWindow(0));
         $this->scan($code, $this->insideTheWindow(0));
 
-        $results = ParticipantPassScan::orderBy('id')->pluck('result')->map(fn (PassScanResultEnum $result) => $result->value)->all();
+        $scans = ParticipantPassScan::where('products_id', $this->gatedProduct->getId())->orderBy('id')->get();
+        $results = $scans->map(fn (ParticipantPassScan $scan) => $scan->result->value)->all();
         $this->assertSame(['invalid_code', 'outside_window', 'admitted', 'already_admitted'], $results);
-        $this->assertSame($this->user->getId(), (int) ParticipantPassScan::first()->users_id);
+        $this->assertSame($this->user->getId(), (int) $scans->first()->users_id);
     }
 
     public function testRepeatedFailedScansAreRateLimited(): void

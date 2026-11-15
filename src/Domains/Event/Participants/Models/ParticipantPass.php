@@ -7,7 +7,6 @@ namespace Kanvas\Event\Participants\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
-use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Models\BaseModel;
@@ -47,15 +46,7 @@ class ParticipantPass extends BaseModel
                 'eventVersion',
                 fn (Builder $version) => $version->where('is_deleted', 0)->where('start_at', '<', now())
             )
-            // Nobody was expected to show up for a cancelled booking. Compared on slug *or* name
-            // because seeded statuses carry a null slug while the ones written at runtime have one.
-            ->whereDoesntHave(
-                'event.eventStatus',
-                fn (Builder $status) => $status->whereRaw(
-                    'LOWER(COALESCE(NULLIF(slug, ""), name)) = ?',
-                    [strtolower(EventStatusEnum::CANCELLED->value)]
-                )
-            );
+            ->whereDoesntHave('event.eventStatus', fn (Builder $status) => $status->cancelled());
     }
 
     private function redemptionHolderIsActive(): bool
@@ -64,11 +55,7 @@ class ParticipantPass extends BaseModel
             return false;
         }
 
-        return EventVersion::query()
-            ->whereKey($this->redeemed_event_version_id)
-            ->where('is_deleted', 0)
-            ->notCancelled()
-            ->exists();
+        return EventVersion::query()->whereKey($this->redeemed_event_version_id)->live()->exists();
     }
 
     public function markAsUsed(): bool
@@ -88,13 +75,14 @@ class ParticipantPass extends BaseModel
         return $claimed;
     }
 
+    public function isValid(): bool
+    {
+        return $this->revoked_at === null && ! now()->gt(Carbon::parse($this->expiration_date)->endOfDay());
+    }
+
     public function isRedeemable(): bool
     {
-        if ($this->revoked_at !== null || now()->gt(Carbon::parse($this->expiration_date)->endOfDay())) {
-            return false;
-        }
-
-        return $this->redeemed_at === null || ! $this->redemptionHolderIsActive();
+        return $this->isValid() && ($this->redeemed_at === null || ! $this->redemptionHolderIsActive());
     }
 
     public function isRedeemedBy(EventVersion $booking): bool

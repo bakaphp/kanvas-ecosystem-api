@@ -140,17 +140,8 @@ class ScanEventPassAction
 
     private function isActive(ParticipantPass $pass, EventVersion $booking): bool
     {
-        if ($pass->revoked_at !== null || now()->gt(Carbon::parse($pass->expiration_date)->endOfDay())) {
-            return false;
-        }
-
-        $bookingIsLive = EventVersion::query()
-            ->whereKey($booking->getId())
-            ->where('is_deleted', 0)
-            ->notCancelled()
-            ->exists();
-
-        return $bookingIsLive
+        return $pass->isValid()
+            && EventVersion::query()->whereKey($booking->getId())->live()->exists()
             && ! $booking->event->orders()->whereIn('status', OrderStatusEnum::closedValues())->exists();
     }
 

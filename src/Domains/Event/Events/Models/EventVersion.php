@@ -21,18 +21,19 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantType;
+use Kanvas\Exceptions\ModelNotFoundException as KanvasModelNotFoundException;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Spatie\LaravelData\DataCollection;
@@ -65,13 +66,12 @@ class EventVersion extends BaseModel implements ReadableAtLocation
 
     public function scopeNotCancelled(Builder $query): Builder
     {
-        return $query->whereDoesntHave(
-            'event.eventStatus',
-            fn (Builder $status) => $status->whereRaw(
-                'LOWER(COALESCE(NULLIF(slug, ""), name)) = ?',
-                [strtolower(EventStatusEnum::CANCELLED->value)]
-            )
-        );
+        return $query->whereDoesntHave('event.eventStatus', fn (Builder $status) => $status->cancelled());
+    }
+
+    public function scopeLive(Builder $query): Builder
+    {
+        return $query->notDeleted()->notCancelled();
     }
 
     public function timeSlot(): BelongsTo
@@ -245,11 +245,30 @@ class EventVersion extends BaseModel implements ReadableAtLocation
         return isset($metadata['max_capacity']) ? (int) $metadata['max_capacity'] : null;
     }
 
+    public function isManagedBy(UserInterface $user): bool
+    {
+        if ($this->users_id === $user->getId()) {
+            return true;
+        }
+
+        if (! $user->isAdmin()) {
+            return false;
+        }
+
+        try {
+            UsersRepository::belongsToCompany($user, $this->company);
+
+            return true;
+        } catch (KanvasModelNotFoundException) {
+            return false;
+        }
+    }
+
     public function getPassCode(): ?string
     {
         $user = auth()->user();
 
-        if ($user === null || ($this->users_id !== $user->getId() && ! $user->isAdmin())) {
+        if ($user === null || ! $this->isManagedBy($user)) {
             return null;
         }
 

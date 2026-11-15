@@ -16,6 +16,7 @@ use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Passes\Services\PassAttemptLimiter;
 use Kanvas\Event\Support\Setup;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -272,7 +273,7 @@ class InviteOnlyBookingTest extends TestCase
     public function testUngatedSlotsKeepTheirBookingBehaviour(): void
     {
         $plainProduct = $this->graphQLData($this->createProduct(), 'createProduct');
-        $plainVariant = \Kanvas\Inventory\Products\Models\Products::find($plainProduct['id'])->variants()->first();
+        $plainVariant = Products::find($plainProduct['id'])->variants()->first();
         $plainSlot = $this->makeDaySlot($plainVariant, now()->addDays(3), 2);
 
         $response = $this->graphQL('

@@ -105,10 +105,7 @@ class TimeSlots extends BaseModel implements ReadableAtLocation
      */
     public function getBookedSlotsCount(): int
     {
-        return (int) $this->eventVersions()
-            ->where('is_deleted', 0)
-            ->notCancelled()
-            ->sum('total_attendees');
+        return (int) $this->eventVersions()->live()->sum('total_attendees');
     }
 
     /**

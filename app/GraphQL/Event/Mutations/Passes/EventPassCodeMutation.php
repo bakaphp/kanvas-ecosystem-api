@@ -167,12 +167,10 @@ class EventPassCodeMutation
         // Validate and retrieve the pass (works for both PIN and QR formats)
         $pass = new ScanPassAction($app, $company, $code, $format)->execute();
 
-        // Mark the pass as used
         if (! $pass->markAsUsed()) {
             throw new ValidationException('PIN code has already been used.');
         }
 
-        // Load relationships
         $pass->load(['event', 'eventVersion', 'participant', 'motive']);
 
         // Determine if this is an event-level or participant-level check-in

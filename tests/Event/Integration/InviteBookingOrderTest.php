@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\ActivateEventBookingOrderAction;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
@@ -23,7 +24,9 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use Kanvas\Users\Models\Users;
 use RuntimeException;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -193,6 +196,21 @@ class InviteBookingOrderTest extends TestCase
         $this->assertSame('cancelled', $order->orderStatus->slug);
         $this->assertSame('canceled', $order->status);
         $this->assertNull($this->redeemedBy($booking));
+    }
+
+    public function testOnlyTheGuestAndAdminsOfTheBookingCompanyManageIt(): void
+    {
+        $booking = $this->bookDay(0);
+        $stranger = Users::factory()->create(['email' => 'stranger-' . uniqid() . '@example.test']);
+        $outsideAdmin = Users::factory()->create(['email' => 'outside-admin-' . uniqid() . '@example.test']);
+        Bouncer::scope()->to(RolesEnums::getScope($this->apps, global: true));
+        Bouncer::assign(RolesEnums::ADMIN->value)->to($outsideAdmin);
+        Bouncer::refreshFor($outsideAdmin);
+
+        $this->assertTrue($booking->isManagedBy($this->user));
+        $this->assertFalse($booking->isManagedBy($stranger));
+        $this->assertTrue($outsideAdmin->isAdmin());
+        $this->assertFalse($booking->isManagedBy($outsideAdmin));
     }
 
     public function testALateFailureCancelsTheOrderItCreated(): void

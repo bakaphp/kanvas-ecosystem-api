@@ -31,7 +31,10 @@ class ResolveEventBookingOrderTypeAction
         return OrderTypes::query()
             ->fromApp($this->app)
             ->notDeleted()
-            ->orderByRaw('CASE WHEN companies_id = ? THEN 0 WHEN companies_id = 0 THEN 1 ELSE 2 END', [$this->company->getId()])
+            ->orderByRaw(
+                'CASE WHEN companies_id = ? THEN 0 WHEN companies_id = 0 THEN 1 ELSE 2 END',
+                [$this->company->getId()]
+            )
             ->get()
             ->first(fn (OrderTypes $orderType): bool => $orderType->isEventBookingFor($productTypeSlug));
     }

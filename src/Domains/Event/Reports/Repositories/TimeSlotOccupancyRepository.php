@@ -7,9 +7,9 @@ namespace Kanvas\Event\Reports\Repositories;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Carbon\Carbon;
-use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Event\Events\Enums\EventStatusEnum;
+use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Reports\DataTransferObject\TimeSlotOccupancyBucket;
 
 class TimeSlotOccupancyRepository
@@ -102,7 +102,14 @@ class TimeSlotOccupancyRepository
             'byDay' => $dayBuckets,
             'peak' => self::pick($hourBuckets, highest: true),
             'lowest' => self::pick($hourBuckets, highest: false),
-            'byArrivalHour' => self::arrivalsByHour($app, $company, $start, $end, $resourcesId, $resourcesType),
+            'byArrivalHour' => self::arrivalsByHour(
+                $app,
+                $company,
+                $start,
+                $end,
+                $resourcesId,
+                $resourcesType
+            ),
         ];
     }
 
@@ -142,13 +149,11 @@ class TimeSlotOccupancyRepository
             ->all();
     }
 
-    private static function cancelledEventIds(): Closure
+    private static function cancelledEventIds(): Builder
     {
-        return fn ($query) => $query
-            ->select('cancelled_events.id')
-            ->from('events as cancelled_events')
-            ->join('event_statuses as cancelled_status', 'cancelled_status.id', '=', 'cancelled_events.event_status_id')
-            ->whereRaw('LOWER(COALESCE(NULLIF(cancelled_status.slug, ""), cancelled_status.name)) = ?', [strtolower(EventStatusEnum::CANCELLED->value)]);
+        return Event::query()
+            ->whereHas('eventStatus', fn (Builder $status) => $status->cancelled())
+            ->select('events.id');
     }
 
     /**

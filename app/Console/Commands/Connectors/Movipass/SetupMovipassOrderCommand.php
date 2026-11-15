@@ -49,7 +49,6 @@ class SetupMovipassOrderCommand extends Command
             ],
         ])->execute();
 
-        // Mark order type as expirable for slot availability tracking
         $orderType = $result['order_type'];
         if (! $orderType->isExpirable()) {
             $orderType->config = [...($orderType->config ?? []), 'expirable' => true];

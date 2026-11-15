@@ -71,8 +71,7 @@ class EventTimeSlotValidator
             $bookingsCount = EventVersion::query()
                 ->where('time_slot_id', $timeSlotId)
                 ->where('event_id', '!=', $excludeEventId)
-                ->where('is_deleted', 0)
-                ->notCancelled()
+                ->live()
                 ->count();
 
             if ($bookingsCount >= $timeSlot->initial_capacity) {
