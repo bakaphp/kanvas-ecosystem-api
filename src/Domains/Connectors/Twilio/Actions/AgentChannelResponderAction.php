@@ -41,8 +41,9 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         // The burst that closed is already one turn — FlushSmsBurstAction hands over every text in
         // it as a single prompt, so the agent answers the flurry rather than its first line.
+        $burstText = Str::trimToNull($params['burst_text'] ?? null);
         ['text' => $messageConversation, 'images' => $images, 'documents' => $documents] = $this->inboundContent(
-            Str::trimToNull($params['burst_text'] ?? null) ?? $this->message->message['content'] ?? null
+            $burstText ?? $this->message->message['content'] ?? null
         );
 
         $responseContent = new AgentChatKernel(
@@ -56,6 +57,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,
+            burstMessageIds: $burstText !== null ? ($params['burst_message_ids'] ?? []) : [],
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
