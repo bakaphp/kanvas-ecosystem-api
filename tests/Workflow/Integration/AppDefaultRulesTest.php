@@ -17,12 +17,12 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Actions\PruneIntegrationHistoryAction;
 use Kanvas\Workflow\Rules\Actions\EnsureAppDefaultRulesAction;
 use Kanvas\Workflow\Rules\Actions\WireRuleAction;
-use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Repositories\RuleRepository;
 use Tests\TestCase;
+use Tests\Workflow\Support\CataloguesStubActivities;
 use Tests\Workflow\Support\PlainRecordingActivity;
 
 /**
@@ -31,6 +31,7 @@ use Tests\Workflow\Support\PlainRecordingActivity;
  */
 final class AppDefaultRulesTest extends TestCase
 {
+    use CataloguesStubActivities;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm'];
@@ -41,7 +42,6 @@ final class AppDefaultRulesTest extends TestCase
     {
         parent::setUp();
 
-        Action::query()->firstOrCreate(['model_name' => PlainRecordingActivity::class], ['name' => 'Test Plain Recording']);
         config(['workflows.app_default_rules' => [[
             'trigger' => WorkflowEnum::PULL->value,
             'model' => Lead::class,
