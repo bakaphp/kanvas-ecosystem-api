@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Dhl\Actions\BuildDhlRatesPayloadAction;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Dhl\Enums\CustomsAttributeEnum;
 use Kanvas\Souk\Shipping\Contracts\ShippingRateProviderInterface;
 use Kanvas\Souk\Shipping\DataTransferObject\Parcel;
 use Kanvas\Souk\Shipping\DataTransferObject\ShipmentRequest;
@@ -48,7 +49,8 @@ class DhlShippingProvider implements ShippingRateProviderInterface
             return false;
         }
 
-        if (strcasecmp((string) ($origin['country_code'] ?? ''), $request->destinationCountry->code) !== 0) {
+        if (BuildDhlRatesPayloadAction::crossesBorder($this->company, $request->destinationCountry->code)
+            && CustomsAttributeEnum::missingByProduct($request->variants) !== []) {
             return false;
         }
 

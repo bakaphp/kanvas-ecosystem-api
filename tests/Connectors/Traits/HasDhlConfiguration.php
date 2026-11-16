@@ -7,6 +7,11 @@ namespace Tests\Connectors\Traits;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Dhl\Enums\CustomsAttributeEnum;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Mockery;
 
 trait HasDhlConfiguration
 {
@@ -23,6 +28,38 @@ trait HasDhlConfiguration
         $company->set(ConfigurationEnum::LABEL_TEMPLATE->value, ConfigurationEnum::DEFAULT_LABEL_TEMPLATE);
         $company->set(ConfigurationEnum::REQUEST_PICKUP->value, 1);
         $company->set(ConfigurationEnum::ORIGIN->value, $this->dhlOrigin());
+    }
+
+    protected function customsVariant(string $productName, array $attributes, float $weight = 0.3): Variants
+    {
+        $product = Mockery::mock(Products::class)->makePartial();
+        $product->name = $productName;
+
+        foreach (CustomsAttributeEnum::cases() as $case) {
+            $attribute = null;
+
+            if (isset($attributes[$case->value])) {
+                $attribute = Mockery::mock(ProductsAttributes::class)->makePartial();
+                $attribute->shouldReceive('getAttribute')->with('value')->andReturn($attributes[$case->value]);
+            }
+
+            $product->shouldReceive('getAttributeBySlug')->with($case->value)->andReturn($attribute);
+        }
+
+        $variant = new Variants();
+        $variant->weight = $weight;
+        $variant->setRelation('product', $product);
+
+        return $variant;
+    }
+
+    protected function completeCustomsData(): array
+    {
+        return [
+            CustomsAttributeEnum::DESCRIPTION->value => 'Hand rolled cigars',
+            CustomsAttributeEnum::MANUFACTURER_COUNTRY->value => 'do',
+            CustomsAttributeEnum::HS_CODE->value => '240210',
+        ];
     }
 
     protected function dhlOrigin(): array

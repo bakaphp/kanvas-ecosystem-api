@@ -18,6 +18,7 @@ enum ConfigurationEnum: string
     case REQUEST_PICKUP = 'dhl_request_pickup';
     case PICKUP_CLOSE_TIME = 'dhl_pickup_close_time';
     case CONTENT_DESCRIPTION = 'dhl_content_description';
+    case INCOTERM = 'dhl_incoterm';
 
     public const string DEFAULT_BASE_URL = 'https://express.api.dhl.com/mydhlapi';
     public const string TEST_BASE_URL = 'https://express.api.dhl.com/mydhlapi/test';
@@ -25,6 +26,8 @@ enum ConfigurationEnum: string
     public const string DEFAULT_LABEL_TEMPLATE = 'ECOM26_84_A4_001';
     public const string DEFAULT_PICKUP_CLOSE_TIME = '18:00';
     public const string DEFAULT_CONTENT_DESCRIPTION = 'Merchandise';
+    public const string DEFAULT_INCOTERM = 'DAP';
+    public const string COMMERCIAL_INVOICE_TEMPLATE = 'COMMERCIAL_INVOICE_P_10';
     public const string API_VERSION = '3.4.1';
 
     public function default(): ?string
@@ -35,6 +38,7 @@ enum ConfigurationEnum: string
             self::LABEL_TEMPLATE => self::DEFAULT_LABEL_TEMPLATE,
             self::PICKUP_CLOSE_TIME => self::DEFAULT_PICKUP_CLOSE_TIME,
             self::CONTENT_DESCRIPTION => self::DEFAULT_CONTENT_DESCRIPTION,
+            self::INCOTERM => self::DEFAULT_INCOTERM,
             default => null,
         };
     }

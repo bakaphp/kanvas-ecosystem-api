@@ -7,9 +7,12 @@ namespace Kanvas\Connectors\Dhl\Actions;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Dhl\DataTransferObject\Consignee;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Dhl\Enums\CustomsAttributeEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Shipping\Actions\BuildShipmentRequestAction;
 use Kanvas\Souk\Shipping\Enums\ConfigurationEnum as ShippingConfigurationEnum;
+use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 
 class BuildDhlShipmentPayloadAction
 {
@@ -26,6 +29,7 @@ class BuildDhlShipmentPayloadAction
         $company = $this->order->company;
         $origin = (array) $company->get(ConfigurationEnum::ORIGIN->value);
         $pickupRequested = (bool) $company->get(ConfigurationEnum::REQUEST_PICKUP->value);
+        $international = BuildDhlRatesPayloadAction::crossesBorder($company, $this->consignee->countryCode);
 
         return array_filter([
             'plannedShippingDateAndTime' => $this->plannedShippingDate()->format(BuildDhlRatesPayloadAction::PLANNED_TIME_FORMAT),
@@ -42,21 +46,67 @@ class BuildDhlShipmentPayloadAction
             ],
             'content' => [
                 'packages' => [$this->packagePayload()],
-                'isCustomsDeclarable' => false,
+                'isCustomsDeclarable' => $international,
                 'description' => ConfigurationEnum::CONTENT_DESCRIPTION->valueFor($company),
                 'unitOfMeasurement' => 'metric',
+                ...($international ? $this->customsPayload() : []),
             ],
             'valueAddedServices' => [['serviceCode' => $this->quoteMeta['signature_code']]],
             'customerReferences' => [['typeCode' => 'CU', 'value' => (string) $this->order->order_number]],
             'outputImageProperties' => [
                 'printerDPI' => 300,
                 'encodingFormat' => 'pdf',
-                'imageOptions' => [[
-                    'typeCode' => 'label',
-                    'templateName' => ConfigurationEnum::LABEL_TEMPLATE->valueFor($company),
-                ]],
+                'imageOptions' => array_values(array_filter([
+                    [
+                        'typeCode' => 'label',
+                        'templateName' => ConfigurationEnum::LABEL_TEMPLATE->valueFor($company),
+                    ],
+                    $international ? [
+                        'typeCode' => 'invoice',
+                        'templateName' => ConfigurationEnum::COMMERCIAL_INVOICE_TEMPLATE,
+                        'isRequested' => true,
+                    ] : null,
+                ])),
             ],
         ]);
+    }
+
+    private function customsPayload(): array
+    {
+        $lines = $this->order->items->values()->map(
+            fn (OrderItem $item, int $index): array => $this->exportLine($item, $index + 1)
+        );
+        $currency = (string) ($this->order->metadata['shipping'][ShippingConditionEnum::CURRENCY->value] ?? '');
+
+        return [
+            'declaredValue' => round($lines->sum(fn (array $line): float => $line['price'] * $line['quantity']['value']), 2),
+            'declaredValueCurrency' => strtoupper(trim($currency)),
+            'incoterm' => ConfigurationEnum::INCOTERM->valueFor($this->order->company),
+            'exportDeclaration' => [
+                'lineItems' => $lines->all(),
+                'invoice' => [
+                    'number' => (string) $this->order->order_number,
+                    'date' => BuildDhlRatesPayloadAction::localNow($this->order->company)->toDateString(),
+                ],
+            ],
+        ];
+    }
+
+    private function exportLine(OrderItem $item, int $number): array
+    {
+        $variant = $item->variant;
+        $weight = round((float) $variant->weight * (float) $item->quantity, 3);
+        $hsCode = CustomsAttributeEnum::HS_CODE->valueFor($variant);
+
+        return array_filter([
+            'number' => $number,
+            'description' => CustomsAttributeEnum::DESCRIPTION->valueFor($variant),
+            'price' => round($item->getPrice(), 2),
+            'quantity' => ['value' => (int) $item->quantity, 'unitOfMeasurement' => 'PCS'],
+            'commodityCodes' => $hsCode === null ? null : [['typeCode' => 'outbound', 'value' => $hsCode]],
+            'manufacturerCountry' => strtoupper((string) CustomsAttributeEnum::MANUFACTURER_COUNTRY->valueFor($variant)),
+            'weight' => ['netValue' => $weight, 'grossValue' => $weight],
+        ], fn (mixed $value): bool => $value !== null);
     }
 
     private function plannedShippingDate(): Carbon
