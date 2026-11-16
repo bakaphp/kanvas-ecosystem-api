@@ -221,6 +221,24 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
         );
     }
 
+    /**
+     * A worker records its result as a sync, which is how a factory run finishes: Tetsuo's backend check
+     * came back done and nobody told Kaneda, because the wake skipped every sync.
+     */
+    public function testAWorkerFinishingTheLastTaskAsASyncStillWakesWhoeverAskedForIt(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+
+        new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE, fromSync: true)->execute();
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reportsOn?->getId() === $plan->getId()
+        );
+    }
+
     public function testATaskThatLeavesWorkOnThePlanWakesNobody(): void
     {
         Bus::fake();

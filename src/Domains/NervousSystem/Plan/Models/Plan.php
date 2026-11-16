@@ -159,11 +159,7 @@ class Plan extends BaseModel implements HandlesAgentMention
             ->whereColumn('agent_id', '!=', 'created_by_agent_id')
             ->where('status', PlanStatusEnum::ACTIVE->value)
             ->where('is_deleted', 0)
-            ->whereHas(
-                'tasks',
-                fn (Builder $tasks): Builder => $tasks->where('status', TaskStatusEnum::IN_PROGRESS->value)
-                    ->where('started_at', '>=', now()->subHours(3))
-            );
+            ->whereHas('tasks', fn (Builder $tasks): Builder => $tasks->workingNow());
     }
 
     public function everyTaskFinished(): bool

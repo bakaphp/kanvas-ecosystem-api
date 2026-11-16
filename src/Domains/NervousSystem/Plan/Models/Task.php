@@ -306,6 +306,29 @@ class Task extends BaseModel
             );
     }
 
+    /**
+     * In progress, and started within the last three hours: past that it has stopped, and the stalled
+     * sweep owns it. A factory run is created in progress and never stamps started_at.
+     */
+    public function scopeRunningRecently(Builder $query): Builder
+    {
+        return $query->where('status', TaskStatusEnum::IN_PROGRESS->value)
+            ->whereRaw('COALESCE(started_at, created_at) >= ?', [now()->subHours(3)]);
+    }
+
+    /** Running, or handed to the factory and waiting on a run that is: its run lives on a plan of its own. */
+    public function scopeWorkingNow(Builder $query): Builder
+    {
+        return $query->where(
+            fn (Builder $working): Builder => $working->runningRecently()
+                ->orWhere(
+                    fn (Builder $waiting): Builder => $waiting
+                        ->where('status', TaskStatusEnum::WAITING->value)
+                        ->whereHas('children', fn (Builder $run): Builder => $run->runningRecently())
+                )
+        );
+    }
+
     public function scopeStalled(Builder $query, int $minutes): Builder
     {
         return $query

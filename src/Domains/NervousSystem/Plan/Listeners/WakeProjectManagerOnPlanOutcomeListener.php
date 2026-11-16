@@ -29,13 +29,12 @@ class WakeProjectManagerOnPlanOutcomeListener
 
     public function handle(PlanBroadcast $event): void
     {
-        if ($event->fromSync) {
-            return;
-        }
-
+        // A worker records its own result as a sync (RunTaskWorkerJob), so that is how most delegated
+        // tasks finish. The wake goes to the creator, never the agent that wrote the change, so a sync
+        // cannot loop it back on itself here.
         $finishedEveryTask = $this->finishedEveryTask($event);
 
-        if (! $finishedEveryTask && ! $this->isPlanOutcome($event)) {
+        if (! $finishedEveryTask && ($event->fromSync || ! $this->isPlanOutcome($event))) {
             return;
         }
 

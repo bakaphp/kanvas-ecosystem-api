@@ -324,6 +324,9 @@ class RunTaskWorkerJob implements ShouldQueue
             'Finish the task end to end: commit your work with Conventional Commit messages, and once the '
             . 'checks pass, push the branch and open a draft pull request into the app\'s base branch, unless '
             . 'the task says otherwise.',
+            'A task that asks you to check, verify, audit, review or report is answered in your reply, and '
+            . 'that reply is the whole deliverable: change nothing, commit nothing, open no pull request. A '
+            . 'report is never a file in the repository.',
             'When you finish, reply with what you did and where it is: branch, commits, pull request link, '
             . 'reports. IF YOU COULD NOT DO IT, START YOUR REPLY WITH THE WORD BLOCKED, then say exactly '
             . 'what stopped you and what someone has to do.',

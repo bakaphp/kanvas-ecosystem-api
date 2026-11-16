@@ -812,6 +812,25 @@ class CodingChatTest extends TestCase
         );
     }
 
+    /**
+     * A backend check came back as a 305-line markdown file force-added past .gitignore, a draft pull
+     * request on the API and half an hour of re-running CI: the brief said "open a draft pull request
+     * unless the task says otherwise", and an audit said nothing.
+     */
+    public function testACheckIsAnsweredInTheReplyNotAPullRequest(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Verify backend support for the records organizer');
+
+        new RunTaskWorkerJob($task)->handle();
+
+        Queue::assertPushed(
+            LaunchCodingChatJob::class,
+            fn (LaunchCodingChatJob $job): bool => str_contains($job->instruction, 'open no pull request')
+                && str_contains($job->instruction, 'A report is never a file in the repository')
+        );
+    }
+
     public function testATaskNamingAnIntegrationBranchIsBlockedBeforeAnythingOpens(): void
     {
         Queue::fake();

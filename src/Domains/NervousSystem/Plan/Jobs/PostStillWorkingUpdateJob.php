@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Jobs;
 
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -97,17 +98,23 @@ class PostStillWorkingUpdateJob implements ShouldQueue
     private function update(Collection $plans): string
     {
         $lines = $plans->map(function (Plan $plan): string {
-            $task = $this->runningTask($plan);
-            $agent = $task?->agent?->name ?? $plan->agent?->name ?? 'An agent';
-            $minutes = $task?->started_at !== null
-                ? max(1, intdiv(now()->getTimestamp() - $task->started_at->getTimestamp(), 60))
+            $task = $this->workingTask($plan);
+            $run = $task?->status === TaskStatusEnum::WAITING->value
+                ? $task->children()->runningRecently()->latest('id')->first()
+                : $task;
+            $agent = $run?->agent?->name ?? $task?->agent?->name ?? $plan->agent?->name ?? 'An agent';
+            $since = $run?->started_at ?? $run?->created_at;
+            $minutes = $since !== null
+                ? max(1, intdiv(now()->getTimestamp() - $since->getTimestamp(), 60))
                 : null;
 
+            $step = Str::trimToNull((string) $task?->title);
+
             return sprintf(
-                '• %s: %s is on "%s"%s',
+                '• %s: %s %s%s',
                 (string) $plan->title,
                 $agent,
-                (string) $task?->title,
+                $step !== null ? 'is on "' . $step . '"' : 'is working on it',
                 $minutes !== null ? ' · ' . $minutes . ' min so far' : '',
             );
         });
@@ -115,15 +122,15 @@ class PostStillWorkingUpdateJob implements ShouldQueue
         return "⏳ Still working on it. I'll tell you here when it's done.\n" . $lines->implode("\n");
     }
 
-    /** The step itself, not the factory run under it, unless the run is all there is. */
-    private function runningTask(Plan $plan): ?Task
+    /** The step on this plan itself, never a sub-step under it. */
+    private function workingTask(Plan $plan): ?Task
     {
-        $running = $plan->tasks()
-            ->where('status', TaskStatusEnum::IN_PROGRESS->value)
+        $working = $plan->tasks()
+            ->workingNow()
             ->orderByRaw('parent_task_id IS NOT NULL')
-            ->orderBy('started_at')
+            ->orderBy('id')
             ->first();
 
-        return $running instanceof Task ? $running : null;
+        return $working instanceof Task ? $working : null;
     }
 }

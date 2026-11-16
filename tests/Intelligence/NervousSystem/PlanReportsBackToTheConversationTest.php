@@ -438,31 +438,82 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         );
     }
 
+    /** A factory run is created in progress and never stamps started_at; it is still running. */
+    public function testAFactoryRunWithNoStartTimeStillCounts(): void
+    {
+        Bus::fake();
+
+        [$plan, , $session] = $this->plannedInAConversation();
+        $run = $this->makeTask($plan, TaskStatusEnum::IN_PROGRESS);
+        $run->agent_id = $plan->agent_id;
+        $run->saveOrFail();
+
+        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+
+        Bus::assertDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
+    }
+
+    /**
+     * The real shape of factory work: the step on the person's plan waits, and its run is a sub-task on a
+     * plan of its own. The update names the step and times the run.
+     */
+    public function testAStepWaitingOnItsFactoryRunIsStillWorking(): void
+    {
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        $step = $this->makeTask($plan, TaskStatusEnum::WAITING);
+        $step->agent_id = $plan->agent_id;
+        $step->title = 'Audit the template';
+        $step->saveOrFail();
+
+        $run = $this->makeTask($this->makePlan(['title' => 'Factory run'], $plan->agent), TaskStatusEnum::IN_PROGRESS);
+        $run->parent_task_id = $step->getId();
+        $run->agent_id = $plan->agent_id;
+        $run->created_at = now()->subMinutes(7);
+        $run->saveOrFail();
+
+        $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
+
+        new PostStillWorkingUpdateJob(app(Apps::class), $session)->handle();
+
+        $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
+        $this->assertStringContainsString('"Audit the template"', $content);
+        $this->assertStringContainsString('7 min so far', $content);
+    }
+
     /** A coding chat is the agent's own plan, and that chat reports its own progress minute by minute. */
     public function testAnAgentWorkingItsOwnPlanIsNotSwept(): void
     {
         Bus::fake();
 
-        [$plan] = $this->plannedInAConversation();
+        [$plan, , $session] = $this->plannedInAConversation();
         $plan->agent_id = $plan->created_by_agent_id;
         $plan->saveQuietly();
         $this->runningTask($plan, startedMinutesAgo: 6);
 
         $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
 
-        Bus::assertNotDispatched(PostStillWorkingUpdateJob::class);
+        Bus::assertNotDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
     }
 
     public function testAStepRunningForHoursIsStuckNotStillWorking(): void
     {
         Bus::fake();
 
-        [$plan] = $this->plannedInAConversation();
+        [$plan, , $session] = $this->plannedInAConversation();
         $this->runningTask($plan, startedMinutesAgo: 240);
 
         $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
 
-        Bus::assertNotDispatched(PostStillWorkingUpdateJob::class);
+        Bus::assertNotDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
     }
 
     /** A conversation keyed the way ConversationMessageStore keys one: the session id lives in `title`. */
