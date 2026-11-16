@@ -41,22 +41,22 @@ class AzulPaymentRequest extends Data
     public function toArray(): array
     {
         $data = [
-            'Channel'              => $this->channel,
-            'Store'                => $this->store,
-            'PosInputMode'         => $this->posInputMode,
-            'TrxType'              => $this->trxType->value,
-            'Amount'               => $this->amount,
-            'Itbis'                => $this->itbis,
-            'CurrencyPosCode'      => $this->currencyPosCode,
-            'Payments'             => $this->payments,
-            'Plan'                 => $this->plan,
-            'AcquirerRefData'      => $this->acquirerRefData,
+            'Channel' => $this->channel,
+            'Store' => $this->store,
+            'PosInputMode' => $this->posInputMode,
+            'TrxType' => $this->trxType->value,
+            'Amount' => $this->amount,
+            'Itbis' => $this->itbis,
+            'CurrencyPosCode' => $this->currencyPosCode,
+            'Payments' => $this->payments,
+            'Plan' => $this->plan,
+            'AcquirerRefData' => $this->acquirerRefData,
             'CustomerServicePhone' => $this->customerServicePhone,
-            'OrderNumber'          => $this->orderNumber,
-            'ECommerceUrl'         => $this->eCommerceUrl,
-            'CustomOrderId'        => $this->customOrderId,
-            'ForceNo3DS'           => $this->forceNo3DS,
-            'SaveToDataVault'      => $this->saveToDataVault,
+            'OrderNumber' => $this->orderNumber,
+            'ECommerceUrl' => $this->eCommerceUrl,
+            'CustomOrderId' => $this->customOrderId,
+            'ForceNo3DS' => $this->forceNo3DS,
+            'SaveToDataVault' => $this->saveToDataVault,
         ];
 
         if ($this->expiration !== null) {
@@ -65,7 +65,7 @@ class AzulPaymentRequest extends Data
 
         if ($this->cardNumber !== null) {
             $data['CardNumber'] = $this->cardNumber;
-            $data['CVC']        = $this->cvc;
+            $data['CVC'] = $this->cvc;
         }
 
         if ($this->dataVaultToken !== null) {

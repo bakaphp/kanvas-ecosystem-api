@@ -52,11 +52,11 @@ class NetSuiteSyncBarcodeCommand extends Command
         $productWithSkus = collect($missingBarcodes)->map(
             fn ($barcode) => [
                 ...$productList[$barcode],
-                "sku" => $productWithSkus[$barcode]
+                'sku' => $productWithSkus[$barcode],
             ]
         )->toArray();
 
-        ["missing_skus" => $missingSkus, "changed_barcodes" => $changedBarcodes] = VariantService::updateVariantBySku($app, $company, $productWithSkus);
+        ['missing_skus' => $missingSkus, 'changed_barcodes' => $changedBarcodes] = VariantService::updateVariantBySku($app, $company, $productWithSkus);
 
         $this->info('Missing variants by barcode ' . $company->name . ': ' . json_encode($missingSkus));
         echo PHP_EOL;
@@ -80,11 +80,11 @@ class NetSuiteSyncBarcodeCommand extends Command
             }
 
             $barcode = $record['Copic Item No/ UPC'];
-            $sku = $record["Macpherson  Item #"];
+            $sku = $record['Macpherson  Item #'];
             $productList[$barcode] = [
-                "sku" => $sku,
-                "name" => $record["Description"],
-                "barcode" => $barcode
+                'sku' => $sku,
+                'name' => $record['Description'],
+                'barcode' => $barcode,
             ];
         }
 

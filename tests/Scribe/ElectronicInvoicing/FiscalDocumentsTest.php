@@ -26,6 +26,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalEventTypeEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalRangeStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalSubmissionStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ImmutableFiscalRecordException;
+use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ProviderRejectedException;
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\PollEcfResultJob;
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\SubmitEcfJob;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
@@ -90,7 +91,8 @@ class FiscalDocumentsTest extends EcfCompletionTestCase
 
         $fiscal->refresh();
         $this->assertSame(FiscalDocumentStatusEnum::ACCEPTED, $fiscal->status);
-        $this->assertSame($fiscal->latestSubmission->uuid, FakeEcfProvider::$fetched[0]->systemRef, 'A status query asks about the attempt that went out.');
+        $this->assertSame($fiscal->latestSubmission->system_ref, FakeEcfProvider::$fetched[0]->systemRef, 'A status query asks about the attempt that went out.');
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{16}$/', FakeEcfProvider::$fetched[0]->systemRef, 'WebPOS forwards the systemRef as DGII\'s 20-character NumeroFacturaInterna.');
         $this->assertSame('E310000000004', $fiscal->number);
         $this->assertSame(1, FiscalDocument::query()->forEntity($invoice)->count());
     }
@@ -189,7 +191,7 @@ class FiscalDocumentsTest extends EcfCompletionTestCase
         $this->assertSame('E310000000004', FakeEcfProvider::$submitted[1]->encf);
         $this->assertSame(1, FiscalDocument::query()->forEntity($invoice)->count());
 
-        $attempts = $fiscal->submissions()->orderBy('attempt')->pluck('uuid')->all();
+        $attempts = $fiscal->submissions()->orderBy('attempt')->pluck('system_ref')->all();
         $this->assertSame($attempts, [FakeEcfProvider::$submitted[0]->systemRef, FakeEcfProvider::$submitted[1]->systemRef]);
         $this->assertNotSame($attempts[0], $attempts[1], 'WebPOS answers a repeated systemRef with the old rejection, so a resend needs its own.');
     }
@@ -372,6 +374,20 @@ class FiscalDocumentsTest extends EcfCompletionTestCase
         $this->assertCount(0, FakeEcfProvider::$submitted);
     }
 
+    public function test_a_provider_refusal_keeps_what_the_provider_answered_as_the_response_artifact(): void
+    {
+        $raw = ['received' => false, 'accepted' => false, 'status' => 1, 'msg' => ''];
+        FakeEcfProvider::$submitException = new ProviderRejectedException('WebPOS did not accept the document: no message', $raw);
+        $fiscal = EcfCompliance::current($this->issued());
+
+        $attempt = new RecordFiscalSubmissionAction($fiscal, artifacts: new FiscalArtifactService())->execute();
+
+        $this->assertSame(FiscalSubmissionStatusEnum::PROVIDER_REJECTED, $attempt->status);
+        $this->assertSame(hash('sha256', (string) json_encode($raw)), $attempt->response_sha256, 'A refusal with no message is otherwise untraceable.');
+        $this->assertNotNull($attempt->response_file_id);
+        $this->assertSame(FiscalDocumentStatusEnum::DRAFT, $fiscal->refresh()->status);
+    }
+
     public function test_the_request_artifact_is_the_providers_wire_payload_and_nothing_is_sent_without_it(): void
     {
         $invoice = $this->issued();
@@ -396,10 +412,10 @@ class FiscalDocumentsTest extends EcfCompletionTestCase
 
         $attempt = new RecordFiscalSubmissionAction($fiscal->refresh(), artifacts: new FiscalArtifactService())->execute();
 
-        $wire = (string) json_encode(['fake' => true, 'systemRef' => $attempt->uuid, 'encf' => $fiscal->number]);
+        $wire = (string) json_encode(['fake' => true, 'systemRef' => $attempt->system_ref, 'encf' => $fiscal->number]);
         $this->assertSame(hash('sha256', $wire), $attempt->request_sha256);
         $this->assertNotNull($attempt->request_file_id);
-        $this->assertSame(hash('sha256', (string) json_encode(['fake_status' => 'accepted', 'systemRef' => $attempt->uuid])), $attempt->response_sha256);
+        $this->assertSame(hash('sha256', (string) json_encode(['fake_status' => 'accepted', 'systemRef' => $attempt->system_ref])), $attempt->response_sha256);
         $this->assertNotNull($attempt->response_file_id);
     }
 

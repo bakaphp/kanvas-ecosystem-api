@@ -54,12 +54,17 @@ trait CreatesFiscalDocuments
         )->execute();
     }
 
-    protected function submissionFor(FiscalDocument $fiscal, ?string $providerRef, int $attempt = 1): FiscalDocumentSubmission
-    {
+    protected function submissionFor(
+        FiscalDocument $fiscal,
+        ?string $providerRef,
+        int $attempt = 1,
+        bool $withSystemRef = true
+    ): FiscalDocumentSubmission {
         return FiscalDocumentSubmission::create([
             'apps_id' => $fiscal->apps_id,
             'companies_id' => $fiscal->companies_id,
             'fiscal_document_id' => $fiscal->getKey(),
+            'system_ref' => $withSystemRef ? FiscalDocumentSubmission::newSystemRef() : null,
             'attempt' => $attempt,
             'status' => FiscalSubmissionStatusEnum::DELIVERED,
             'provider' => $fiscal->provider,

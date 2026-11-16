@@ -17,7 +17,6 @@ class Invite
 {
     /**
      * insertInvite.
-     *
      */
     public function insertInvite($rootValue, array $request): UsersInvite
     {
@@ -35,12 +34,12 @@ class Invite
             ),
             auth()->user()
         );
+
         return $invite->execute();
     }
 
     /**
      * deleteInvite.
-     *
      */
     public function deleteInvite($rootValue, array $request): bool
     {
@@ -50,12 +49,12 @@ class Invite
         );
 
         $invite->softDelete();
+
         return true;
     }
 
     /**
      * processInvite.
-     *
      */
     public function get($rootValue, array $request): UsersInvite
     {
@@ -65,13 +64,13 @@ class Invite
 
     /**
      * Process User invite.
-     *
      */
     public function process($rootValue, array $request): Users
     {
         $action = new ProcessInviteAction(
             CompleteInviteInput::from($request['input'])
         );
+
         return $action->execute();
     }
 }

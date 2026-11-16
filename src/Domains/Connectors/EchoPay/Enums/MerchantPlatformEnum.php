@@ -6,6 +6,6 @@ namespace Kanvas\Connectors\EchoPay\Enums;
 
 enum MerchantPlatformEnum: string
 {
-    case WEB = "WEB";
-    case MOBILE = "MOBILE";
+    case WEB = 'WEB';
+    case MOBILE = 'MOBILE';
 }

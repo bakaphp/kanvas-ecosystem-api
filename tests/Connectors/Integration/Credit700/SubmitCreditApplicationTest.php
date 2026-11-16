@@ -163,6 +163,131 @@ final class SubmitCreditApplicationTest extends TestCase
         ];
     }
 
+    #[DataProvider('housingProvider')]
+    public function testFromFormMapsResidenceTypeToTheHousingEnum(?string $residenceType, ?string $expected): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $formData = $this->formData();
+        $formData['housing']['residence_type'] = $residenceType;
+
+        $this->assertSame($expected, CreditApplication::from($formData, $people)->housingType);
+    }
+
+    public static function housingProvider(): array
+    {
+        return [
+            'rent' => ['Rent', 'Rent'],
+            'mortgage is owned' => ['Mortgage', 'Own'],
+            'own' => ['own', 'Own'],
+            'own free and clear' => ['Own Free and Clear', 'OwnFreeAndClear'],
+            'with relatives is not a spec value' => ['With Relatives', 'Other'],
+            'unknown label' => ['Houseboat', 'Other'],
+            'missing' => [null, null],
+        ];
+    }
+
+    #[DataProvider('employmentStatusProvider')]
+    public function testFromFormMapsEmploymentStatusToTheSpecEnum(?string $status, ?string $expected): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $formData = $this->formData();
+        $formData['financial']['employment_status'] = $status;
+
+        $this->assertSame($expected, CreditApplication::from($formData, $people)->employmentStatus);
+    }
+
+    public static function employmentStatusProvider(): array
+    {
+        return [
+            'employed' => ['Employed', 'Employed'],
+            'full time' => ['Full Time', 'Employed'],
+            'self-employed with a hyphen' => ['Self-Employed', 'SelfEmployed'],
+            'self employed with a space' => ['self employed', 'SelfEmployed'],
+            'unemployed' => ['Unemployed', 'Unemployed'],
+            'retired' => ['Retired', 'Retired'],
+            'unknown label' => ['Student', 'Other'],
+            'missing' => [null, null],
+        ];
+    }
+
+    /**
+     * Shape of a real SalesAssist credit app: a "With Relatives" applicant who is
+     * "Self-Employed" and typed a curly apostrophe into the other-income source.
+     */
+    public function testSubmitToRouteOneSendsSpecValuesAndCarriesDroppedFieldsInComments(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $app->set(ConfigurationEnum::ACCOUNT->value, 'test_account');
+        $app->set(ConfigurationEnum::PASSWORD->value, 'test_password');
+        $app->set(ConfigurationEnum::CLIENT_ID->value, 'test_client_id');
+        $app->set(ConfigurationEnum::CLIENT_SECRET->value, 'test_client_secret');
+
+        $capturedPayload = null;
+
+        $mockClient = Mockery::mock('overload:' . Client::class);
+        $mockClient->shouldReceive('post')
+            ->with('/Request', Mockery::type('array'))
+            ->andReturnUsing(function (string $path, array $data) use (&$capturedPayload): array {
+                $capturedPayload = $data;
+
+                return [
+                    'XML_Version' => 'Iframe 2.0',
+                    'XML_Report' => [
+                        'Transid' => '700DSO-198906135',
+                        'Token' => '700DSO-04f4c5c0-1858-4c9a-b4f6-3ac7ababb5cc',
+                    ],
+                ];
+            });
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $formData = $this->formData();
+        $formData['housing']['residence_type'] = 'With Relatives';
+        $formData['housing']['rent'] = '0';
+        $formData['financial']['employment_status'] = 'Self-Employed';
+        $formData['financial']['other_income'] = null;
+        $formData['financial']['other_income_source'] = 'Smith’s Florist (also own with wife)';
+
+        new CreditApplicationService($app)->submitToRouteOne(CreditApplication::from($formData, $people));
+
+        $this->assertSame('Other', $capturedPayload['HOUSING']);
+        $this->assertSame('0', $capturedPayload['HOUSINGPAY']);
+        $this->assertSame('SelfEmployed', $capturedPayload['EMPLOYMENTSTATUS']);
+        $this->assertSame('Smiths Florist also own with wife', $capturedPayload['OTHERINCOMEEXPLN']);
+        $this->assertArrayNotHasKey('OTHERINCOME', $capturedPayload);
+        $this->assertSame(
+            'Housing: With Relatives. Housing Payment: $0 per month. Employment Status: SelfEmployed',
+            $capturedPayload['COMMENTS']
+        );
+    }
+
+    public function testFromFormOmitsCommentsWhenNothingToCarry(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $formData = $this->formData();
+        unset(
+            $formData['housing']['residence_type'],
+            $formData['housing']['rent'],
+            $formData['financial']['employment_status'],
+        );
+
+        $this->assertNull(CreditApplication::from($formData, $people)->comments);
+    }
+
     public function testFromFormOmitsPreviousAddressWhenNotProvided(): void
     {
         $app = app(Apps::class);
@@ -251,6 +376,12 @@ final class SubmitCreditApplicationTest extends TestCase
         $this->assertSame('123-45-6789', $capturedPayload['SSN']);
         $this->assertSame('6500', $capturedPayload['MINCOME']);
         $this->assertSame('1851', $capturedPayload['HOUSINGPAY']);
+        $this->assertSame('Rent', $capturedPayload['HOUSING']);
+        $this->assertSame('Employed', $capturedPayload['EMPLOYMENTSTATUS']);
+        $this->assertSame(
+            'Housing: Rent. Housing Payment: $1851 per month. Employment Status: Employed',
+            $capturedPayload['COMMENTS']
+        );
         $this->assertSame('1', $capturedPayload['CURRENTADDRESSPERIOD']);
         $this->assertSame('4605 riverbend Ct.', $capturedPayload['PREVADDRESS']);
         $this->assertSame('Tifton', $capturedPayload['PREVCITY']);

@@ -13,6 +13,8 @@ use Kanvas\Communication\Workflows\AgentChannelResponderActivity as Conversation
 use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity as WaSenderResponderActivity;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
+use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Kanvas\Workflow\Services\WorkflowActionCatalog;
@@ -140,7 +142,11 @@ final class AutoReplyTest extends TestCase
         string $pattern = '/^fake-/',
         ?string $legacyResponder = self::LEGACY_RESPONDER
     ): ?Rule {
-        return new EnsureAutoReplyRuleAction($agent, $pattern, $legacyResponder)->execute();
+        return new EnsureAutoReplyRuleAction(
+            $agent,
+            new RuleConditionData('slug', RuleConditionOperatorEnum::MATCHES, $pattern),
+            $legacyResponder
+        )->execute();
     }
 
     private function inbound(array $communication): Message

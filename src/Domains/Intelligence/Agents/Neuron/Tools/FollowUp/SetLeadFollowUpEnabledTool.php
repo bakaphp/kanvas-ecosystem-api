@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -93,6 +94,7 @@ class SetLeadFollowUpEnabledTool extends Tool implements RequiresSystemAgent
             IntelligenceModeEnum::AI_FOLLOW_UP->value,
             $enabled ? FollowUpTypeEnum::LEAD_FOLLOW_UP->value : FollowUpTypeEnum::NO_FOLLOW_UP->value,
         );
+        new LeadConfigurationService()->setManualFollowUp($lead, $enabled);
         $lead->emitLedgerEvent('lead.follow_up.toggled', payload: [
             'stage_id' => $lead->pipeline_stage_id,
             'enabled' => $enabled,

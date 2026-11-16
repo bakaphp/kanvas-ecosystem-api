@@ -19,13 +19,13 @@ class SourceSocialSeeder extends Seeder
                 'title' => 'twitter',
                 'url' => 'twitter.com',
                 'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ],
             [
                 'title' => 'twitter-oauth-2',
                 'url' => 'twitter.com',
                 'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ]
         );
     }

@@ -106,12 +106,15 @@ final class AgentTurnTimingServiceTest extends TestCase
     public function testThreadWaitIsKeptOutOfTheTurnTotal(): void
     {
         $timing = new AgentTurnTimingService(fn (): float => $this->now);
-        $this->now += 40.0;
+        $this->emit($timing, new WorkflowStart([]), after: 32.0);
+        $this->now += 8.0;
 
         $summary = $timing->summary(threadWaitMs: 30_000);
 
         $this->assertSame(10_000, $summary['total_ms']);
         $this->assertSame(30_000, $summary['thread_wait_ms']);
+        $this->assertSame(2_000, $summary['setup_ms'], 'The wait precedes the first run, so it is not setup time.');
+        $this->assertSame(8_000, $summary['other_ms']);
     }
 
     public function testASlowTurnIsLoggedWithItsBreakdown(): void

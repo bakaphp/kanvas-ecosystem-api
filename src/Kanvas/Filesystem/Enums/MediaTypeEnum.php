@@ -81,7 +81,7 @@ enum MediaTypeEnum: string
      */
     public static function extensionForMime(string $mimeType): string
     {
-        $mimeType = strtolower(trim(explode(';', $mimeType)[0]));
+        $mimeType = self::canonicalMime($mimeType);
 
         $exact = [
             'image/png' => 'png',
@@ -96,6 +96,9 @@ enum MediaTypeEnum: string
             'video/mpeg' => 'mpg',
             'audio/mpeg' => 'mp3',
             'audio/mp4' => 'm4a',
+            'audio/amr' => 'amr',
+            'audio/aac' => 'aac',
+            'audio/wav' => 'wav',
             'application/pdf' => 'pdf',
         ];
 
@@ -104,6 +107,24 @@ enum MediaTypeEnum: string
             'video' => 'mp4',
             'audio' => 'ogg',
             default => 'bin',
+        };
+    }
+
+    /**
+     * Lowercased, parameters dropped (`audio/ogg; codecs=opus` is a WhatsApp voice note), and one
+     * name for a type that goes by several. An `.opus` file is an Ogg container, and Gemini takes
+     * `audio/ogg` but not `audio/opus`, so it is named as what it is.
+     */
+    public static function canonicalMime(string $mimeType): string
+    {
+        $mimeType = strtolower(trim(explode(';', $mimeType)[0]));
+
+        return match ($mimeType) {
+            'audio/opus' => 'audio/ogg',
+            'audio/x-m4a', 'audio/m4a' => 'audio/mp4',
+            'audio/x-wav', 'audio/wave' => 'audio/wav',
+            'audio/mp3' => 'audio/mpeg',
+            default => $mimeType,
         };
     }
 

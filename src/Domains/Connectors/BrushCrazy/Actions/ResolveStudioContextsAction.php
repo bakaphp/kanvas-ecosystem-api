@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\BrushCrazy\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
@@ -14,6 +16,7 @@ use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\StudioModeEnum;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Exceptions\ValidationException;
 use stdClass;
@@ -30,10 +33,25 @@ use stdClass;
  */
 class ResolveStudioContextsAction
 {
+    /** @var array<int, int> requested studio ids the source has no row for */
+    public array $unknownStudioIds = [];
+
+    /** @var array<int, int> studios left untouched because their mirror is paused */
+    public array $pausedStudioIds = [];
+
+    /**
+     * Resolving writes (it creates companies, rewrites settings and renames theme areas), so a run
+     * scoped by $onlyStudioIds must never touch the others, and a scheduled run passes
+     * $skipPausedStudios so a studio an operator paused keeps whatever was edited in Kanvas.
+     *
+     * @param  array<int, int>|null  $onlyStudioIds  null resolves every studio
+     */
     public function __construct(
         protected AppInterface $app,
         protected UserInterface $user,
         protected ?Companies $fallbackCompany = null,
+        protected ?array $onlyStudioIds = null,
+        protected bool $skipPausedStudios = false,
     ) {
     }
 
@@ -55,12 +73,58 @@ class ResolveStudioContextsAction
 
         $defaultTimezone = (string) ($this->app->get(ConfigurationEnum::BRUSHCRAZY_DEFAULT_TIMEZONE->value) ?? 'America/Denver');
         $contexts = [];
+        $this->unknownStudioIds = [];
+        $this->pausedStudioIds = [];
 
-        foreach (new Client($this->app)->table('studios')->orderBy('id')->get() as $studio) {
-            $contexts[(int) $studio->id] = $this->resolveStudio($studio, $defaultTimezone);
+        $studios = $this->studioRows();
+
+        foreach ($studios as $studio) {
+            $bcStudioId = (int) $studio->id;
+
+            if ($this->skipPausedStudios && self::isPaused(self::companyForStudio($this->app, $bcStudioId))) {
+                $this->pausedStudioIds[] = $bcStudioId;
+
+                continue;
+            }
+
+            $contexts[$bcStudioId] = $this->resolveStudio($studio, $defaultTimezone);
+        }
+
+        if ($this->onlyStudioIds !== null) {
+            $found = $studios->map(fn (stdClass $studio) => (int) $studio->id)->all();
+            $this->unknownStudioIds = array_values(array_diff(array_map('intval', $this->onlyStudioIds), $found));
         }
 
         return $contexts;
+    }
+
+    /**
+     * @return Collection<int, stdClass>
+     */
+    protected function studioRows(): Collection
+    {
+        return new Client($this->app)->table('studios')
+            ->when(
+                $this->onlyStudioIds !== null,
+                fn (Builder $query) => $query->whereIn('id', $this->onlyStudioIds)
+            )
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Only an explicit "off" counts: a studio whose company has no flag yet has not been
+     * provisioned, and the import is what provisions it.
+     */
+    public static function isPaused(?Companies $company): bool
+    {
+        if ($company === null) {
+            return false;
+        }
+
+        $key = ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value;
+
+        return $company->get($key) !== null && ! $company->getBool($key);
     }
 
     protected function resolveStudio(stdClass $studio, string $defaultTimezone): StudioContext
@@ -69,18 +133,33 @@ class ResolveStudioContextsAction
         $name = $this->studioName($studio);
         $timezone = ! empty($studio->timezone) ? (string) $studio->timezone : $defaultTimezone;
 
-        $company = $this->findCompany($bcStudioId) ?? $this->createCompany($studio, $name, $timezone);
+        $company = self::companyForStudio($this->app, $bcStudioId) ?? $this->createCompany($studio, $name, $timezone);
+
+        // Only a name this action made up is replaced; one an operator chose in Kanvas is kept.
+        if ($company->name === self::fallbackName($bcStudioId) && $company->name !== $name) {
+            $company->name = $name;
+            $company->saveOrFail();
+        }
+
         $company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, $bcStudioId);
         $company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_TIMEZONE->value, $timezone);
 
-        $themeArea = ThemeArea::firstOrCreate(
-            [
-                'name' => $name,
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $company->getId(),
-            ],
-            ['users_id' => $this->user->getId()],
-        );
+        // By studio id first: a studio whose name changed (studio 0 went from "Studio 0" to
+        // "Corporate") would otherwise get a second area carrying the same studio id.
+        $themeArea = self::themeAreaForStudio($this->app, $company, $bcStudioId)
+            ?? ThemeArea::firstOrCreate(
+                [
+                    'name' => $name,
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $company->getId(),
+                ],
+                ['users_id' => $this->user->getId()],
+            );
+
+        if ($themeArea->name !== $name) {
+            $themeArea->name = $name;
+            $themeArea->saveOrFail();
+        }
 
         $themeArea->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, $bcStudioId);
 
@@ -93,9 +172,38 @@ class ResolveStudioContextsAction
         );
     }
 
-    protected function findCompany(int $bcStudioId): ?Companies
+    /**
+     * Company settings carry no app, so the studio id alone would hand one app's company to another
+     * app importing the same BrushCrazy database. Scoped through the company's app membership.
+     */
+    public static function companyForStudio(AppInterface $app, int $bcStudioId): ?Companies
     {
-        return Companies::getByCustomField(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, $bcStudioId);
+        return Companies::getByCustomFieldBuilder(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, $bcStudioId)
+            ->whereIn(
+                'companies.id',
+                fn (Builder $members) => $members->select('companies_id')
+                    ->from('user_company_apps')
+                    ->where('apps_id', $app->getId())
+                    ->where('is_deleted', StateEnums::NO->getValue())
+            )
+            ->orderBy('companies.id')
+            ->first();
+    }
+
+    /**
+     * Shared with the webhook. Not "the company's theme area": the lookup seed gives every studio
+     * company an Unassigned area too.
+     */
+    public static function themeAreaForStudio(AppInterface $app, Companies $company, int $bcStudioId): ?ThemeArea
+    {
+        return ThemeArea::getByCustomFieldBuilderTransactionSafe(
+            CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value,
+            $bcStudioId,
+            $company
+        )
+            ->where('apps_id', $app->getId())
+            ->orderBy('id')
+            ->first();
     }
 
     protected function createCompany(stdClass $studio, string $name, string $timezone): Companies
@@ -114,8 +222,9 @@ class ResolveStudioContextsAction
     }
 
     /**
-     * `community` and `locality` are both nullable and the Corporate row has neither, so the id is
-     * the last resort — a company still needs a name.
+     * The Corporate row (studio 0) has no `community` or `locality`; BrushCrazy keeps the word
+     * "Corporate" in `administrative_area_level_1`, the state column of a real studio. The id is the
+     * last resort — a company still needs a name.
      */
     protected function studioName(stdClass $studio): string
     {
@@ -124,7 +233,18 @@ class ResolveStudioContextsAction
             $studio->locality ?? null,
         ]);
 
-        return $parts !== [] ? implode(' — ', $parts) : 'Studio ' . (int) $studio->id;
+        if ($parts !== []) {
+            return implode(' — ', $parts);
+        }
+
+        return ! empty($studio->administrative_area_level_1)
+            ? (string) $studio->administrative_area_level_1
+            : self::fallbackName((int) $studio->id);
+    }
+
+    protected static function fallbackName(int $bcStudioId): string
+    {
+        return 'Studio ' . $bcStudioId;
     }
 
     protected function flattenAddress(stdClass $studio): ?string

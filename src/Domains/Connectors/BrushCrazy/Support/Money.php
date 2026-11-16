@@ -52,7 +52,7 @@ final readonly class Money
      * `sale_items.discount` is not a plain Money — it wraps one:
      * `{"name":null,"type":"fixed","amount":{"amount":"0","currency":"USD"},"reason":null}`.
      * Recursing on an array `amount` reads both shapes; casting it directly would yield 1 cent,
-     * because `(int) []` is 1.
+     * because a non-empty array casts to 1 (only `(int) []` is 0).
      */
     private static function fromDecoded(array $decoded): self
     {
@@ -68,7 +68,13 @@ final readonly class Money
     /** Kanvas stores ticket prices as float dollars (`event_versions.price_per_ticket`). */
     public function dollars(): float
     {
-        return $this->cents / 100;
+        return self::toDollars($this->cents);
+    }
+
+    /** For sums already in cents — totals the source never stores as a Money column. */
+    public static function toDollars(int $cents): float
+    {
+        return $cents / 100;
     }
 
     /** Stable component for a dedupe slug — cents avoid the float formatting drift dollars have. */

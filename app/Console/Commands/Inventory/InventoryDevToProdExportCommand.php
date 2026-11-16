@@ -35,7 +35,6 @@ class InventoryDevToProdExportCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -77,7 +76,7 @@ class InventoryDevToProdExportCommand extends Command
 
         $headers = [
             'X-Kanvas-App' => $appUuid,
-            'X-Kanvas-Key' => $appKey
+            'X-Kanvas-Key' => $appKey,
             // 'X-Kanvas-Location' => $companyInfo['branch'],
         ];
 
@@ -146,7 +145,7 @@ GQL;
     public function mapStatus(?Status $status): array
     {
         return [
-            'id' => $this->statusId
+            'id' => $this->statusId,
         ];
     }
 
@@ -186,7 +185,7 @@ GQL;
                 'price' => (float) $channel->price,
                 'discounted_price' => (float) $channel->discounted_price,
                 'is_published' => (bool) $channel->is_published,
-                'warehouses_id' => $this->warehouseId
+                'warehouses_id' => $this->warehouseId,
             ];
         }
 
@@ -202,6 +201,7 @@ GQL;
                 'weight' => 1,
             ];
         }
+
         return [];
     }
 
@@ -217,7 +217,7 @@ GQL;
                 'source_id' => $category->source_id,
                 'companies_id' => $category->companies_id,
                 'is_published' => (bool) $category->is_published,
-                'weight' => $category->weight
+                'weight' => $category->weight,
             ];
         }
 
@@ -233,6 +233,7 @@ GQL;
                 'name' => $file->name,
             ];
         }
+
         return $fileSystem;
     }
 }

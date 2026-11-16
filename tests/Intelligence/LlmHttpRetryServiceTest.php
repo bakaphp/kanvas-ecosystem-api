@@ -129,22 +129,24 @@ final class LlmHttpRetryServiceTest extends TestCase
     public function testATimedOutAttemptIsLogged(): void
     {
         Log::spy();
+        $url = 'https://provider.test/generateContent?key=secret';
         $mock = new MockHandler([
             new ConnectException(
-                'cURL error 28: Operation timed out',
-                new Request('POST', 'https://provider.test/generateContent')
+                'cURL error 28: Operation timed out for ' . $url,
+                new Request('POST', $url)
             ),
         ]);
 
         try {
-            $this->clientFor($mock)->post('https://provider.test/generateContent');
+            $this->clientFor($mock)->post($url);
             $this->fail('The timeout still reaches the caller');
         } catch (ConnectException) {
         }
 
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message, array $context): bool => $message === 'LLM provider call failed'
-                && $context['exception'] === ConnectException::class)
+                && $context['exception'] === ConnectException::class
+                && ! str_contains(json_encode($context), 'secret'))
             ->once();
     }
 

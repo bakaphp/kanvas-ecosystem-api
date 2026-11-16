@@ -121,16 +121,18 @@ final class AgentTurnTimingService
         usort($gaps, static fn (array $a, array $b): int => $b['ms'] <=> $a['ms']);
         $toolMs = $this->toolMs;
         arsort($toolMs);
+        // A busy thread refuses the run before it starts, so the wait sits ahead of the first WorkflowStart.
+        $stageMs = [...$this->stageMs, 'setup' => max(0, $this->stageMs['setup'] - $threadWaitMs)];
 
         return [
             'total_ms' => $totalMs,
             'thread_wait_ms' => $threadWaitMs,
-            'setup_ms' => $this->stageMs['setup'],
-            'model_ms' => $this->stageMs['model'],
+            'setup_ms' => $stageMs['setup'],
+            'model_ms' => $stageMs['model'],
             'model_calls' => $this->modelCalls,
-            'retrieval_ms' => $this->stageMs['retrieval'],
-            'tools_ms' => $this->stageMs['tools'],
-            'other_ms' => max(0, $totalMs - array_sum($this->stageMs)),
+            'retrieval_ms' => $stageMs['retrieval'],
+            'tools_ms' => $stageMs['tools'],
+            'other_ms' => max(0, $totalMs - array_sum($stageMs)),
             'runs' => $this->runs,
             'slowest_tools' => array_slice($toolMs, 0, self::SLOWEST_GAPS, true),
             'slowest_steps' => array_slice($gaps, 0, self::SLOWEST_GAPS),

@@ -62,10 +62,10 @@ return new class () extends Migration {
         Schema::dropIfExists('time_slots');
         Schema::dropIfExists('event_version_slots');
         Schema::table('events', function (Blueprint $table) {
-            $table->dropColumn("resources_id");
-            $table->dropColumn("resources_type");
-            $table->dropColumn("start_at");
-            $table->dropColumn("end_at");
+            $table->dropColumn('resources_id');
+            $table->dropColumn('resources_type');
+            $table->dropColumn('start_at');
+            $table->dropColumn('end_at');
         });
     }
 };

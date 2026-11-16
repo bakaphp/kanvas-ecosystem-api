@@ -96,7 +96,6 @@ class MessagesCommentsTest extends TestCase
 
         $messageId = $response->json('data.createMessage.id');
 
-
         $comment = fake()->text();
         $response = $this->graphQL(
             '
@@ -165,7 +164,6 @@ class MessagesCommentsTest extends TestCase
         );
 
         $messageId = $response->json('data.createMessage.id');
-
 
         $comment = fake()->text();
         $response = $this->graphQL(

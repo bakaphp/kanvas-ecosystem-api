@@ -134,11 +134,11 @@ class TimeSlotBookingMutation
                     'date' => $newTimeSlot->start_at->toDateString(),
                     'start_time' => $newTimeSlot->start_at->format('H:i'),
                     'end_time' => $newTimeSlot->end_at->format('H:i'),
-                ]
+                ],
             ],
             'start_at' => $newTimeSlot->start_at->toDateTimeString(),
             'end_at' => $newTimeSlot->end_at->toDateTimeString(),
-            'time_slot_id' => $newTimeSlot->id
+            'time_slot_id' => $newTimeSlot->id,
         ];
 
         if (isset($input['event_name'])) {

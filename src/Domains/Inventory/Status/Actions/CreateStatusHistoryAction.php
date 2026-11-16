@@ -23,7 +23,6 @@ class CreateStatusHistoryAction
 
     /**
      * execute.
-     *
      */
     public function execute(): VariantWarehouseStatusHistory
     {

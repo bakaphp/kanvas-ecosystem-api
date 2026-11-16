@@ -57,6 +57,7 @@ class SetupCommand extends Command
         $this->info('Credentials stored.');
 
         $this->line('Validating connection...');
+
         try {
             $valid = Client::validateCredentials($apiKey, $baseUrl);
 
@@ -75,6 +76,7 @@ class SetupCommand extends Command
 
         $this->newLine();
         $this->line('Listing recent sessions...');
+
         try {
             $client = Client::getInstance($app);
             $sessions = $client->getSessions(['company_id' => $companyId, 'limit' => 5]);
@@ -164,6 +166,7 @@ class SetupCommand extends Command
         $client = Client::getInstance($app);
 
         $this->line('Checking for existing session...');
+
         try {
             $client->deleteSession($userId, $sessionId);
             $this->line('  Existing session deleted.');
@@ -215,6 +218,7 @@ class SetupCommand extends Command
         }
 
         $this->line('Triggering call...');
+
         try {
             $result = $client->triggerCall(
                 userId: $userId,
@@ -223,9 +227,9 @@ class SetupCommand extends Command
                 companyId: $voiceBridgeCompanyId,
             );
 
-            $this->info("Call triggered. SID: " . ($result['call_sid'] ?? 'N/A'));
-            $this->line("  Status  : " . ($result['status'] ?? 'N/A'));
-            $this->line("  Company : " . ($result['company_id'] ?? 'N/A'));
+            $this->info('Call triggered. SID: ' . ($result['call_sid'] ?? 'N/A'));
+            $this->line('  Status  : ' . ($result['status'] ?? 'N/A'));
+            $this->line('  Company : ' . ($result['company_id'] ?? 'N/A'));
         } catch (Throwable $e) {
             $this->error('Call trigger failed: ' . $e->getMessage());
         }

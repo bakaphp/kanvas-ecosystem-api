@@ -41,6 +41,7 @@ class IndexProductJob implements ShouldQueue
             ->get();
         foreach ($products as $product) {
             logger()->info('Processing product: ' . $product->id);
+
             try {
                 $action = new ScrapperAction(
                     $this->app,

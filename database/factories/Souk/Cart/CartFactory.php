@@ -39,7 +39,7 @@ class CartFactory extends Factory
                 ['source' => 'web', 'utm_campaign' => 'summer_sale'],
                 ['source' => 'mobile', 'app_version' => '2.1.0'],
                 ['source' => 'b2b', 'account_manager' => 'John Doe'],
-                null
+                null,
             ]),
         ];
     }

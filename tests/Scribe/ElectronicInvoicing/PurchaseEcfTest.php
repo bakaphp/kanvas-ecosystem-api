@@ -91,7 +91,7 @@ class PurchaseEcfTest extends EcfCompletionTestCase
             vendorTaxId: 'GB123456789',
             lines: [[500.0, 0.0]],
             regionalCompliance: ['do_ecf' => ['foreign_payment' => [
-                'account_type' => '1',
+                'account_type' => 'ct',
                 'account_number' => '000123456',
                 'bank' => 'Banco Popular',
                 'currency' => 'usd',
@@ -105,6 +105,7 @@ class PurchaseEcfTest extends EcfCompletionTestCase
         $sent = FakeEcfProvider::$submitted[0];
         $this->assertTrue($sent->buyer->isForeign);
         $this->assertSame('GB123456789', $sent->buyer->taxId);
+        $this->assertSame('CT', $sent->foreignPayment->accountType, 'DGII takes the catalogue code in upper case only.');
         $this->assertSame('000123456', $sent->foreignPayment->accountNumber);
         $this->assertSame('USD', $sent->foreignPayment->foreignCurrency);
         $this->assertSame(500.0, $sent->foreignPayment->foreignAmount);

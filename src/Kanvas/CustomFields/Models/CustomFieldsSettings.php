@@ -30,7 +30,6 @@ class CustomFieldsSettings extends BaseModel
 
     /**
      * Belongs to app.
-     *
      */
     public function app(): BelongsTo
     {

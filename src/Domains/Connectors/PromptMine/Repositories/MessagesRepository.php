@@ -20,6 +20,7 @@ class MessagesRepository
             ->where('message_types_id', $messageType->getId())
             ->whereRaw('MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())')
             ->first();
+
         return $messageCountOnCurrentMonth->count;
     }
 }

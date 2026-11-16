@@ -9,6 +9,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteSowException;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Sow\DataTransferObject\StatementOfWork;
+use Kanvas\Scribe\Quotes\Sow\Services\CompanySowTemplateService;
 use Kanvas\Scribe\Quotes\Sow\Services\SowConsistencyService;
 use Kanvas\Scribe\Quotes\Sow\Services\SowMessageTypeService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -52,7 +53,7 @@ class RecordQuoteSowAction
 
         $app = $this->quote->app;
         $type = SowMessageTypeService::ensure($app);
-        $payload = $this->sow->toPayload($this->quote->getId());
+        $payload = [...$this->sow->toPayload($this->quote->getId()), 'template' => $this->template()];
 
         $draft = new Message();
         $draft->message = $payload;
@@ -78,5 +79,28 @@ class RecordQuoteSowAction
         $this->quote->saveOrFail();
 
         return $message;
+    }
+
+    /**
+     * The layout is fixed when the SOW is written, so switching the company default later never changes a SOW
+     * already sent or signed; a SOW written through GraphQL takes the default the same way an agent's does.
+     */
+    private function template(): ?string
+    {
+        $templates = new CompanySowTemplateService($this->quote->app, $this->quote->company);
+
+        if ($this->sow->template === null) {
+            return $templates->defaultVersion();
+        }
+
+        $version = CompanySowTemplateService::normalizeVersion($this->sow->template);
+
+        try {
+            $templates->requireVersion($version);
+        } catch (ValidationException $e) {
+            throw new InvalidQuoteSowException([$e->getMessage()]);
+        }
+
+        return $version;
     }
 }

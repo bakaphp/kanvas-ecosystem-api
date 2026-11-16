@@ -12,9 +12,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Microsoft\Client;
 use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Microsoft\OneDrive\Enums\OneDriveDriveEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Enums\OneDriveErrorReasonEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Exceptions\OneDriveException;
 use Kanvas\Connectors\Microsoft\OneDrive\Support\DriveItem;
+use Kanvas\Connectors\Microsoft\Support\MicrosoftTokenStore;
 use Throwable;
 
 class OneDriveClient
@@ -27,41 +29,76 @@ class OneDriveClient
     private const int SEARCH_MAX_PAGES = 5;
 
     /**
-     * The folder the company confined OneDrive to, as an absolute drive path, or null for the whole
-     * drive. Callers see it as "/": every path in and out is relative to it, and an id is resolved
+     * The folder this drive's connection is confined to, as an absolute drive path, or null for the
+     * whole drive. Callers see it as "/": every path in and out is relative to it, and an id is resolved
      * before use so it cannot name an item outside.
      */
     private readonly ?string $rootFolder;
 
     public function __construct(
         private readonly string $accessToken,
-        ?string $rootFolder = null
+        ?string $rootFolder = null,
+        private readonly OneDriveDriveEnum $drive = OneDriveDriveEnum::APP
     ) {
-        $this->rootFolder = self::isRootPath($rootFolder) ? null : self::normalizePath($rootFolder);
+        $this->rootFolder = self::rootFolderFrom($rootFolder);
     }
 
-    public static function forCompany(AppInterface $app, CompanyInterface $company): self
+    /**
+     * The stored form of a root folder setting: "/a/b", or null for the whole drive.
+     */
+    public static function rootFolderFrom(?string $folder): ?string
     {
-        try {
-            $accessToken = Client::getValidAccessToken($app, $company);
-        } catch (Throwable) {
-            throw new OneDriveException(
-                OneDriveErrorReasonEnum::NOT_CONNECTED,
-                'Microsoft is not connected for this company. An admin must connect Microsoft (OneDrive) first.'
-            );
-        }
+        return self::isRootPath($folder) ? null : self::normalizePath($folder);
+    }
 
-        $suffix = '-' . $app->getId() . '-' . $company->getId();
+    /**
+     * The drive a company works on: the one asked for, otherwise the company's own when it connected
+     * one (it is the more specific) and the app's shared drive when it did not.
+     */
+    public static function resolve(AppInterface $app, CompanyInterface $company, ?OneDriveDriveEnum $drive = null): self
+    {
+        $companyStore = MicrosoftTokenStore::forCompanyMail($app, $company);
+        $store = match ($drive) {
+            OneDriveDriveEnum::COMPANY => $companyStore,
+            OneDriveDriveEnum::APP => MicrosoftTokenStore::forAppOneDrive($app),
+            null => $companyStore->hasFiles() ? $companyStore : MicrosoftTokenStore::forAppOneDrive($app),
+        };
+
+        try {
+            if (! $store->hasFiles()) {
+                throw new OneDriveException(OneDriveErrorReasonEnum::NOT_CONNECTED, 'No file access granted');
+            }
+
+            $accessToken = Client::validAccessToken($store);
+        } catch (Throwable) {
+            throw new OneDriveException(OneDriveErrorReasonEnum::NOT_CONNECTED, self::notConnectedMessage($drive));
+        }
 
         return new self(
             $accessToken,
-            rootFolder: (string) $company->get(ConfigurationEnum::ONEDRIVE_ROOT_FOLDER->value . $suffix)
+            rootFolder: $store->get(ConfigurationEnum::ONEDRIVE_ROOT_FOLDER),
+            drive: $store->drive()
         );
+    }
+
+    public function drive(): OneDriveDriveEnum
+    {
+        return $this->drive;
     }
 
     public function isConfined(): bool
     {
         return $this->rootFolder !== null;
+    }
+
+    private static function notConnectedMessage(?OneDriveDriveEnum $drive): string
+    {
+        return match ($drive) {
+            OneDriveDriveEnum::COMPANY => 'This company has not connected its own OneDrive. A company admin connects '
+                . 'Microsoft (Outlook and OneDrive) for the company.',
+            OneDriveDriveEnum::APP => 'The app\'s shared OneDrive is not connected. The app owner must connect it first.',
+            null => 'No OneDrive is connected: neither this company nor the app has connected one.',
+        };
     }
 
     public static function isRootPath(?string $pathOrId): bool
@@ -231,7 +268,7 @@ class OneDriveClient
         if (! $this->isInsideRoot($item)) {
             throw new OneDriveException(
                 OneDriveErrorReasonEnum::OUTSIDE_ALLOWED_FOLDER,
-                'That item is outside the OneDrive folder this company allows. Only items under "/" can be used.'
+                'That item is outside the OneDrive folder this app allows. Only items under "/" can be used.'
             );
         }
 

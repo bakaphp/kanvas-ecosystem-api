@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDirectionEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentSubmission;
@@ -17,8 +18,8 @@ use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentSubmission;
 final class EcfDocumentLookup
 {
     /**
-     * A systemRef is the attempt's uuid; a row sent before attempts carried their own was sent under the fiscal
-     * row's uuid, so that still resolves.
+     * A systemRef is the attempt's `system_ref`, or the uuid of an attempt sent before that column existed; a
+     * row sent before attempts carried their own was sent under the fiscal row's uuid, so that still resolves.
      */
     public static function bySystemRef(AppInterface $app, CompanyInterface $company, string $systemRef): ?FiscalDocument
     {
@@ -48,7 +49,7 @@ final class EcfDocumentLookup
         $attempt = FiscalDocumentSubmission::query()
             ->fromApp($app)
             ->fromCompany($company)
-            ->where('uuid', $systemRef)
+            ->where(fn (Builder $query) => $query->where('system_ref', $systemRef)->orWhere('uuid', $systemRef))
             ->first();
 
         return $attempt;

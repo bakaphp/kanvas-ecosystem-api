@@ -112,7 +112,6 @@ class CountriesGraphqlTest extends TestCase
         $app = app(Apps::class);
         $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
-
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
                 $id: ID!

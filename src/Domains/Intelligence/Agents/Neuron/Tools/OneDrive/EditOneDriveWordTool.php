@@ -53,6 +53,7 @@ class EditOneDriveWordTool extends Tool
                 description: 'JSON list of paragraphs to add at the end, e.g. \'["Primer parrafo", "Segundo parrafo"]\'.',
                 required: false,
             ),
+            $this->driveProperty(),
         ];
     }
 
@@ -62,14 +63,15 @@ class EditOneDriveWordTool extends Tool
     public function __invoke(
         string $path_or_id,
         ?string $replacements = null,
-        ?string $append_paragraphs = null
+        ?string $append_paragraphs = null,
+        ?string $drive = null
     ): array {
-        return $this->attempt(function () use ($path_or_id, $replacements, $append_paragraphs) {
+        return $this->attempt(function () use ($path_or_id, $replacements, $append_paragraphs, $drive) {
             $replacementMap = $this->decodeStringMap($replacements, 'replacements');
             $paragraphs = $this->decodeStringList($append_paragraphs, 'append_paragraphs');
 
             return new EditWordDocumentAction(
-                $this->oneDrive(),
+                $this->oneDrive($drive),
                 $path_or_id,
                 $replacementMap,
                 $paragraphs,

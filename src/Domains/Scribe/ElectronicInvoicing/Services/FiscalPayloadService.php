@@ -13,7 +13,7 @@ class FiscalPayloadService
     /**
      * Exactly the row's number and type, by the row's own regime, never the entity's current row, which may be
      * another one. The systemRef defaults to the row's latest attempt (what a status query must ask about); a new
-     * send passes its own attempt's uuid. A row never sent falls back to its own uuid.
+     * send passes its own attempt's. A row never sent falls back to its own uuid.
      */
     public static function forFiscal(FiscalDocument $fiscal, ?string $systemRef = null): FiscalPayloadInterface
     {
@@ -29,7 +29,7 @@ class FiscalPayloadService
             $type,
             (string) $fiscal->number,
             (string) ($fiscal->regimeValue('expires_at') ?? ''),
-            $systemRef ?? $fiscal->latestSubmission?->uuid ?? $fiscal->uuid,
+            $systemRef ?? $fiscal->latestSubmission?->systemRef() ?? $fiscal->uuid,
         );
     }
 }

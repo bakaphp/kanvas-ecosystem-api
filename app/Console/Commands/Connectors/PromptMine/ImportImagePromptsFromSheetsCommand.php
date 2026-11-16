@@ -82,7 +82,7 @@ class ImportImagePromptsFromSheetsCommand extends Command
                     $promptsCollection[] = $promptArray;
                 }
             } else {
-                echo "No data found.";
+                echo 'No data found.';
             }
 
             if (! empty($promptsCollection)) {
@@ -90,7 +90,6 @@ class ImportImagePromptsFromSheetsCommand extends Command
             }
         }
     }
-
 
     public function insertImagePrompts(array $promptsCollection, int $appId, int $messageType, int $companyId)
     {
@@ -112,7 +111,6 @@ class ImportImagePromptsFromSheetsCommand extends Command
 
                 continue;
             }
-
 
             // Fetch the user from the database using username and user_id, we need to make sure the user exists
             $userFromAssocApp = UsersAssociatedApps::where('displayname', 'kaioken8432')

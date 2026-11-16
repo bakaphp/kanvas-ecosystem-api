@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\Actions\UpdateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadUpdateInput;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 
 class LeadManagementMutation
@@ -90,6 +91,12 @@ class LeadManagementMutation
 
         if (empty($req['input']['branch_id'])) {
             $req['input']['branch_id'] = $lead->companies_branches_id;
+        }
+
+        // Public forms only know a receiver by its uuid, and `receiver_id: ID` lets it through.
+        $receiverId = $req['input']['receiver_id'] ?? null;
+        if (is_string($receiverId) && ! is_numeric($receiverId)) {
+            $req['input']['receiver_id'] = LeadReceiver::getByUuidFromCompanyApp($receiverId, $lead->company, $app)->getId();
         }
 
         $leadInputData = LeadUpdateInput::from($req['input']);

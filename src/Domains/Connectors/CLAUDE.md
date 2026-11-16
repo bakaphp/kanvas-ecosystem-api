@@ -20,6 +20,7 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
   rule, or the Message → Lead row-order bug), how to wire the comment rule without double notes, and the lookup query.
 - [`Zoho/CLAUDE.md`](Zoho/CLAUDE.md) — client setup recipe for a Zoho-scheduled campaign sent by a Kanvas agent: the campaign/step/template key mapping, pipeline and stage config, the receiver, the Deluge function, cut-over order and every stop reason.
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
+- [`Dhl/CLAUDE.md`](Dhl/CLAUDE.md) — DHL Express (MyDHL) order fulfillment: status path and hooks, reserve-then-call booking, quote replay, hourly tracking poll, late proof of delivery.
 
 ## Known duplication — flagged, not yet resolved
 
@@ -156,6 +157,17 @@ If you genuinely need to cache something heavy, key on a credential fingerprint 
 ### Activities go in `Activities/`, flat — NOT `Workflows/Activities/`
 
 New connectors put workflow activities in `src/Domains/Connectors/{ConnectorName}/Activities/`. The older nested `Workflows/Activities/` shape is deprecated.
+
+### The CRM lead sync lives in SalesAssist; a new CRM is a driver, not a new activity
+
+`SalesAssist/Activities/SyncCrmLeadActivity` (called through `runWorkflowFromEntity` with `activity_class`) owns the
+lead sync for every dealer CRM. The request's `identity.type` picks the strategy: a `SalesAssist/Enums/CrmTypeEnum`
+case whose `driver()` builds a `SalesAssist/Contracts/CrmLeadDriver`, which lives in the CRM's own connector
+(`Reynolds/Services/ReynoldsCrmDriver`, `Elead/Services/EleadCrmDriver`). To add a CRM, add the enum case and the driver.
+Do not copy the sync actions. A driver's `canCreate()` says whether the sync may create what it does not find (people,
+lead, a participant's people, catalog rows): Reynolds creates; eLead only links and updates, and answers `not_found`
+when nothing matches.
+`Reynolds/Activities/SyncCrmLeadActivity` is a deprecated alias for extension builds that still send the old name.
 
 ### `executeIntegration` requires `additionalParams`
 

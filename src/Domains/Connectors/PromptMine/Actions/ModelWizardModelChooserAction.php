@@ -41,14 +41,14 @@ class ModelWizardModelChooserAction
             ->with(['variants', 'categories',])
             ->get()
             ->flatMap(fn ($product) => $product->variants->map(fn ($variant) => [
-                'name'       => $variant->name,
-                'slug'       => $variant->slug,
-                'sku'        => $variant->sku,
+                'name' => $variant->name,
+                'slug' => $variant->slug,
+                'sku' => $variant->sku,
                 'type' => current($product->categories->pluck('slug')->toArray()),
             ]))
             ->toArray();
 
-        $prompt = "Based on the following user data: " . json_encode($modelWizardAnswers) . " and the following available models: "
+        $prompt = 'Based on the following user data: ' . json_encode($modelWizardAnswers) . ' and the following available models: '
             . json_encode($availableModels)
             . ", identify the best AI model for this user. Return the sku of the model only.Take into account the type of model as well. 
             If the user data indicates that they need a text-based model, prioritize models with type 'text'. 

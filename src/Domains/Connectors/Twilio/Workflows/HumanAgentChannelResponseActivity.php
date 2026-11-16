@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Workflows;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -71,7 +72,8 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
         $fromHumanAgent = $messageData['from_human'] ?? false;
         $user = $params['user'] ?? null; //@todo fix this get the user from the message
 
-        $fromPhone = $params['from'] ?? null;
+        // A rule saved with a number that has no "+" hands it over as an int.
+        $fromPhone = Str::trimToNull((string) ($params['from'] ?? ''));
 
         $messageContext = $channelContext + [
             'message_id' => $message->getId(),

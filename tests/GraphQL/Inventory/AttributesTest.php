@@ -11,7 +11,6 @@ class AttributesTest extends TestCase
 {
     /**
      * testCreate.
-     *
      */
     public function testCreate(): void
     {
@@ -22,7 +21,6 @@ class AttributesTest extends TestCase
 
     /**
      * testSearch.
-     *
      */
     public function testSearch(): void
     {
@@ -47,7 +45,6 @@ class AttributesTest extends TestCase
 
     /**
      * testUpdate.
-     *
      */
     public function testUpdate(): void
     {
@@ -55,7 +52,7 @@ class AttributesTest extends TestCase
         $id = $response['data']['createAttribute']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name
+            'name' => fake()->name,
         ];
 
         $response = $this->graphQL('
@@ -79,7 +76,7 @@ class AttributesTest extends TestCase
         $id = $response['data']['createAttribute']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name . " es"
+            'name' => fake()->name . ' es',
         ];
 
         $response = $this->graphQL('
@@ -99,7 +96,7 @@ class AttributesTest extends TestCase
             }', [
                 'dataUpdate' => $dataUpdate,
                 'id' => $id,
-                'code' => $language->code
+                'code' => $language->code,
             ]);
 
         $this->assertEquals(
@@ -110,7 +107,6 @@ class AttributesTest extends TestCase
 
     /**
      * testDelete.
-     *
      */
     public function testDelete(): void
     {
@@ -121,13 +117,12 @@ class AttributesTest extends TestCase
             mutation($id: ID!) {
                 deleteAttribute(id: $id)
             }', ['id' => $id])->assertJson([
-            'data' => ['deleteAttribute' => true]
+            'data' => ['deleteAttribute' => true],
         ]);
     }
 
     /**
      * testCreateDuplicatedSlug.
-     *
      */
     public function testCreateDuplicatedSlug(): void
     {
@@ -146,7 +141,6 @@ class AttributesTest extends TestCase
 
     /**
      * testUpdateDuplicatedSlug.
-     *
      */
     public function testUpdateDuplicatedSlug(): void
     {
@@ -168,7 +162,7 @@ class AttributesTest extends TestCase
             'data' => [
                 'name' => 'Updated Name',
                 'slug' => $slug,
-            ]
+            ],
         ])->json();
 
         $this->assertEquals(
@@ -179,7 +173,6 @@ class AttributesTest extends TestCase
 
     /**
      * Helper function createAttribute.
-     *
      */
     private function createAttribute(?string $slug = null): array
     {

@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\OAuthProviderInterface;
 use Kanvas\Connectors\Microsoft\Client as MicrosoftClient;
 use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Microsoft\Support\MicrosoftScopes;
+use Kanvas\Connectors\Microsoft\Support\MicrosoftTokenStore;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -23,8 +23,9 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
         Request $request,
         string $nonce
     ): string {
-        $clientId = (string) ($receiver->company->get(ConfigurationEnum::CLIENT_ID->value) ?? $app->get(ConfigurationEnum::CLIENT_ID->value));
-        $tenantId = (string) ($receiver->company->get(ConfigurationEnum::TENANT_ID->value) ?? $app->get(ConfigurationEnum::TENANT_ID->value));
+        $store = MicrosoftTokenStore::forReceiver($receiver, $app);
+        $clientId = $store->credential(ConfigurationEnum::CLIENT_ID);
+        $tenantId = $store->credential(ConfigurationEnum::TENANT_ID);
 
         if ($clientId === '') {
             throw new ValidationException('Microsoft Client ID is not configured');
@@ -35,7 +36,7 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
         }
 
         $redirectUrl = $this->getRedirectUrl($receiver, $app);
-        $scopes = MicrosoftScopes::forAuthorization($app);
+        $scopes = $store->authorizationScopes();
 
         return "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/authorize?" . http_build_query([
             'client_id' => $clientId,
@@ -58,26 +59,22 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
 
         if ($code === '') {
             $error = (string) ($request->input('error_description') ?? $request->input('error') ?? 'Unknown error');
+
             throw new ValidationException('Microsoft authorization failed: ' . $error);
         }
 
-        $clientId = (string) ($receiver->company->get(ConfigurationEnum::CLIENT_ID->value) ?? $app->get(ConfigurationEnum::CLIENT_ID->value));
-        $clientSecret = (string) ($receiver->company->get(ConfigurationEnum::CLIENT_SECRET->value) ?? $app->get(ConfigurationEnum::CLIENT_SECRET->value));
-        $tenantId = (string) ($receiver->company->get(ConfigurationEnum::TENANT_ID->value) ?? $app->get(ConfigurationEnum::TENANT_ID->value));
-        $redirectUrl = $this->getRedirectUrl($receiver, $app);
+        $store = MicrosoftTokenStore::forReceiver($receiver, $app);
 
         $tokenData = MicrosoftClient::exchangeCodeForToken(
-            $clientId,
-            $clientSecret,
-            $tenantId,
-            $redirectUrl,
+            $store->credential(ConfigurationEnum::CLIENT_ID),
+            $store->credential(ConfigurationEnum::CLIENT_SECRET),
+            $store->credential(ConfigurationEnum::TENANT_ID),
+            $this->getRedirectUrl($receiver, $app),
             $code,
-            MicrosoftScopes::forAuthorization($app)
+            $store->authorizationScopes()
         );
 
-        $configPrefix = '-' . $app->getId() . '-' . $receiver->company->getId();
-
-        MicrosoftClient::storeTokens($receiver->company, $configPrefix, $tokenData);
+        MicrosoftClient::storeTokens($store, $tokenData);
 
         $userProfile = MicrosoftClient::getUserProfile($tokenData['access_token']);
 
@@ -104,8 +101,10 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
 
         $redirectUrl = (string) ($config['oauth_callback_url'] ?? $app->get('microsoft-oauth-redirect-url') ?? '');
 
+        // Entra accepts only redirect URIs registered in advance, so a per-receiver URL would need
+        // one registration per company; the shared one finds the receiver from `state`.
         if ($redirectUrl === '') {
-            $redirectUrl = $receiver->getOAuthCallbackUrl();
+            $redirectUrl = ReceiverWebhook::sharedOAuthCallbackUrl();
         }
 
         return $redirectUrl;

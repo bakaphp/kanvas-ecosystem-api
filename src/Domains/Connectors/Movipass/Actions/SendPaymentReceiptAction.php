@@ -16,6 +16,7 @@ use Kanvas\Users\Models\Users;
 class SendPaymentReceiptAction
 {
     private array $channels = ['mail'];
+
     public function __construct(
         private Order $order,
         private Payments $payment,

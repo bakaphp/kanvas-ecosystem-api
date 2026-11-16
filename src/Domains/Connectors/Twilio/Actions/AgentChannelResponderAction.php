@@ -6,14 +6,18 @@ namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\Twilio\Client;
+use Kanvas\Connectors\Twilio\Services\TwilioReceiverService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Social\Messages\Models\Message;
 use Override;
+use Throwable;
 use Twilio\Exceptions\RestException;
 
 class AgentChannelResponderAction extends BaseAgentChannelReplyAction
@@ -37,8 +41,9 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         // The burst that closed is already one turn — FlushSmsBurstAction hands over every text in
         // it as a single prompt, so the agent answers the flurry rather than its first line.
+        $burstText = Str::trimToNull($params['burst_text'] ?? null);
         ['text' => $messageConversation, 'images' => $images, 'documents' => $documents] = $this->inboundContent(
-            Str::trimToNull($params['burst_text'] ?? null) ?? $this->message->message['content'] ?? null
+            $burstText ?? $this->message->message['content'] ?? null
         );
 
         $responseContent = new AgentChatKernel(
@@ -52,6 +57,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,
+            burstMessageIds: $burstText !== null ? ($params['burst_message_ids'] ?? []) : [],
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
@@ -74,7 +80,12 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         );
 
         if (! $messageResponse->is_locked) {
-            $this->sendResponse($to, $from, $responseText);
+            $this->sendResponse(
+                $messageResponse,
+                $to,
+                $from,
+                $responseText
+            );
         }
 
         return [
@@ -84,10 +95,18 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         ];
     }
 
-    protected function sendResponse(string $to, string $from, string $body): void
-    {
+    /**
+     * The send result goes through StoreMessageSidAction like every other lead SMS, so the reply carries
+     * its SID and the status callback can find it.
+     */
+    protected function sendResponse(
+        Message $outbound,
+        string $to,
+        string $from,
+        string $body
+    ): void {
         try {
-            $this->dispatchMessage($to, $from, $body);
+            $twilioMessage = $this->dispatchMessage($to, $from, $body);
         } catch (RestException $e) {
             // Recipient replied STOP → Twilio auto-unsubscribed them and rejects
             // any further reply with 21610. That's an expected opt-out, not a
@@ -97,6 +116,29 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             }
 
             $this->recordOptOutNote($to, $body);
+            new StoreMessageSidAction($outbound)->execute([
+                'channel' => LeadCommunicationChannelEnum::SMS->value,
+                'messages' => [],
+                'classification' => 'opted_out',
+                'retryable' => false,
+                'twilio_error_code' => self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE,
+                'error' => $e->getMessage(),
+                'from' => $from,
+                'to' => $to,
+            ]);
+
+            return;
+        }
+
+        // The SMS is already out: a failed write here must not fail the activity, whose retry would
+        // text the customer a second time.
+        try {
+            new StoreMessageSidAction($outbound)->execute([
+                'channel' => LeadCommunicationChannelEnum::SMS->value,
+                'messages' => [Client::describeMessage($twilioMessage)],
+            ]);
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 
@@ -115,15 +157,18 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         );
     }
 
-    protected function dispatchMessage(string $to, string $from, string $body): void
+    protected function dispatchMessage(string $to, string $from, string $body): object
     {
-        Client::getInstanceByCompany($this->message->company)
-            ->messages->create(
-                $to,
-                [
-                    'from' => $from,
-                    'body' => $body,
-                ]
-            );
+        $payload = [
+            'from' => $from,
+            'body' => $body,
+        ];
+
+        $statusCallbackUrl = new TwilioReceiverService()->statusCallbackUrl($this->message->app, $this->message->company);
+        if ($statusCallbackUrl !== null) {
+            $payload['statusCallback'] = $statusCallbackUrl;
+        }
+
+        return Client::getInstanceByCompany($this->message->company)->messages->create($to, $payload);
     }
 }

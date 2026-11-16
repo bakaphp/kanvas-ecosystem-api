@@ -3,7 +3,6 @@
 use Laravel\Sanctum\Sanctum;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Stateful Domains
@@ -74,5 +73,4 @@ return [
     */
 
     'routes' => false,
-
 ];

@@ -26,6 +26,8 @@ use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
+use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 use RuntimeException;
 use Throwable;
 
@@ -288,7 +290,11 @@ final class EnsureCommunicationSetupAction
             $agent = new AutoReplyPolicy()->agentFor($this->app, $this->integrationCompany->company, ChannelTypeEnum::from($channel));
 
             if ($agent !== null) {
-                new EnsureAutoReplyRuleAction($agent, $autoReply['channel_slug_pattern'], $autoReply['legacy_responder'])->execute();
+                new EnsureAutoReplyRuleAction(
+                    $agent,
+                    new RuleConditionData('slug', RuleConditionOperatorEnum::MATCHES, $autoReply['channel_slug_pattern']),
+                    $autoReply['legacy_responder']
+                )->execute();
 
                 return;
             }

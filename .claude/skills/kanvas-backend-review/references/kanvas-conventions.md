@@ -93,6 +93,28 @@ cs-fixer does not add the import for you. Fix directly: add the `use`, replace e
 
 `new CreateActionAction(...)->execute()`, never `(new CreateActionAction(...))->execute()`. Fix directly.
 
+### Break a long chain onto the next line
+
+When a call chained onto a constructor or another call pushes a line past ~110 characters, the chain goes
+on the next line, indented, one `->` per line. Max's preference; cs-fixer does not enforce it.
+
+```php
+// WRONG — 122 chars on one line
+return new NetSuiteSalesOrderService($this->app, $this->mainAppCompany)->getSalesOrderById($salesOrderInternalId);
+
+// CORRECT
+return new NetSuiteSalesOrderService($this->app, $this->mainAppCompany)
+    ->getSalesOrderById($salesOrderInternalId);
+
+$actual = (float) $order->items()
+    ->selectRaw('sum(unit_price_net_amount * quantity) as total')
+    ->value('total');
+```
+
+A long assertion over a query gets the query wrapped the same way, or the value pulled into a local
+first. Find candidates with `awk 'length($0) > 110 && /\)->/' <files>` over the diff. Fix directly, only
+on lines the diff touches.
+
 ### No decorative section separators
 
 `// --- Helpers ---` and friends are banned. If a file needs signposting it needs splitting. Delete on sight — this belongs to the "unnecessary comments" category and the same judgment applies to the rest of the comment.

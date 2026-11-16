@@ -21,6 +21,9 @@ class DrEcfValidator
 
     private const float TOLERANCE = 0.01;
 
+    // DGII's TipoCuentaPago catalogue: CT corriente, AH ahorros, OT otra. Anything else is observation 1144.
+    public const array PAYMENT_ACCOUNT_TYPES = ['CT', 'AH', 'OT'];
+
     /**
      * @return list<string>
      */
@@ -32,6 +35,7 @@ class DrEcfValidator
             ...$this->totalErrors($document),
             ...$this->sequenceErrors($document),
             ...$this->referenceErrors($document),
+            ...$this->foreignPaymentErrors($document),
         ];
     }
 
@@ -150,6 +154,20 @@ class DrEcfValidator
         return Carbon::parse($document->sequenceExpiresAt)->endOfDay()->lt(Carbon::today())
             ? ["The {$document->type->series()} number range expired on {$document->sequenceExpiresAt}; configure a new range."]
             : [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function foreignPaymentErrors(EcfDocument $document): array
+    {
+        $accountType = $document->foreignPayment?->accountType;
+
+        if ($accountType === null || in_array(strtoupper($accountType), self::PAYMENT_ACCOUNT_TYPES, true)) {
+            return [];
+        }
+
+        return ["The payment account type '{$accountType}' must be one of " . implode(', ', self::PAYMENT_ACCOUNT_TYPES) . ' (DGII TipoCuentaPago: CT corriente, AH ahorros, OT otra).'];
     }
 
     /**

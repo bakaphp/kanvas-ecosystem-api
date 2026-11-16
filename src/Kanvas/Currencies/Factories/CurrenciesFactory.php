@@ -29,7 +29,7 @@ class CurrenciesFactory extends Factory
             'currency' => $this->faker->currencyCode(),
             'code' => $this->faker->countryCode(),
             'symbol' => $this->faker->locale(),
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ];
     }
 }

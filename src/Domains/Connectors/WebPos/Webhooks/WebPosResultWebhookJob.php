@@ -19,7 +19,7 @@ use Override;
  * The payload is the same JSON GetResultFe returns, so it goes through the same mapper; the poll and the
  * webhook can never disagree on what a status means.
  *
- * systemRef is the attempt's uuid, so the answer lands on exactly the row that was sent — a late answer
+ * systemRef is the attempt's `system_ref`, so the answer lands on exactly the row that was sent — a late answer
  * about a superseded number never touches the document's current one. WebPOS may deliver the same result
  * twice, or a late "in process" after the final answer; ApplyFiscalAnswerAction dedupes and never steps back.
  */

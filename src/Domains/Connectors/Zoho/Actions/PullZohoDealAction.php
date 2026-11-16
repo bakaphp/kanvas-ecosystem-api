@@ -10,9 +10,12 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Kanvas\Connectors\Zoho\Actions\Concerns\ResolvesZohoOwner;
 use Kanvas\Connectors\Zoho\Actions\Concerns\SyncsZohoPerson;
+use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFields;
 use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
 use Kanvas\Connectors\Zoho\Client;
+use Kanvas\Connectors\Zoho\DataTransferObject\ZohoDeal;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
@@ -26,6 +29,7 @@ use Kanvas\Guild\Deals\Actions\UpdateDealAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
@@ -37,7 +41,9 @@ use Webleit\ZohoCrmApi\ZohoCrm;
  */
 class PullZohoDealAction
 {
+    use ResolvesZohoOwner;
     use SyncsZohoPerson;
+    use TracksZohoSyncedFields;
     use TracksZohoSyncedFiles;
 
     /**
@@ -48,6 +54,7 @@ class PullZohoDealAction
         'last_name' => 'Last_Name',
         'email' => 'Email',
         'phone' => 'Phone',
+        'mobile' => 'Mobile',
         'street' => 'Mailing_Street',
         'city' => 'Mailing_City',
         'state' => 'Mailing_State',
@@ -106,6 +113,7 @@ class PullZohoDealAction
             description: isset($zohoDealInfo['Description']) ? (string) $zohoDealInfo['Description'] : null,
             lead: $lead,
             people: $people,
+            owner: $this->resolveOwner($zohoDealInfo, $lead, $existing),
         );
 
         // The push activity listens on created/updated; it skips a change that carries zoho_payload,
@@ -121,6 +129,16 @@ class PullZohoDealAction
         $this->syncAddressCustomFields($deal, $people?->getDefaultAddress());
         $this->pullAttachments($deal);
 
+        // Zoho is the source of truth: what the deal holds right after a pull is what Zoho has, so
+        // only a later change made in Kanvas is pushed back. The stage is never pulled, so a stage
+        // moved in Zoho is not undone by the Kanvas one either.
+        $this->rememberSyncedFields(
+            $deal,
+            CustomFieldEnum::ZOHO_DEAL_SYNCED_FIELDS,
+            $this->zohoDealId,
+            ZohoDeal::fromDeal($deal)->toArray()
+        );
+
         $deal->fireWorkflow(
             $existing !== null ? WorkflowEnum::UPDATED->value : WorkflowEnum::CREATED->value,
             true,
@@ -128,6 +146,21 @@ class PullZohoDealAction
         );
 
         return $deal;
+    }
+
+    /**
+     * The lead's owner only stands in on a create: on an update it would undo a reassignment made
+     * in Kanvas every time Zoho names an owner nobody here matches.
+     */
+    protected function resolveOwner(array $zohoDealInfo, ?Lead $lead, ?Deal $existing): ?Users
+    {
+        $owner = $this->resolveZohoOwner($this->app, $zohoDealInfo['Owner'] ?? null);
+
+        if ($owner !== null || $existing !== null) {
+            return $owner;
+        }
+
+        return $lead?->owner;
     }
 
     protected function fetchDeal(): array
@@ -229,7 +262,6 @@ class PullZohoDealAction
             return $zohoDealInfo;
         }
 
-        $contact['Phone'] = $contact['Phone'] ?? $contact['Mobile'] ?? null;
         $fromContact = [];
 
         foreach (self::CONTACT_FIELDS as $personKey => $contactField) {

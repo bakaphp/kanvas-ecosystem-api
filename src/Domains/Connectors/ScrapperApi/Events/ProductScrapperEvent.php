@@ -30,6 +30,7 @@ class ProductScrapperEvent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         $product = Products::getById($this->product['id']);
+
         return [
             'kanvas_product_id' => $product->getId(),
             'sku' => $product->variants()->first()->sku,

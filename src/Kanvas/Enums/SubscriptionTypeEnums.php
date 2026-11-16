@@ -14,7 +14,6 @@ enum SubscriptionTypeEnums implements EnumsInterface
 
     /**
      * Get value.
-     *
      */
     public function getValue(): mixed
     {

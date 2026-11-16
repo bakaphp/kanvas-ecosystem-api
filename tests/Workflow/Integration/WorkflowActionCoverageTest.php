@@ -16,7 +16,7 @@ final class WorkflowActionCoverageTest extends TestCase
         $this->assertSame(
             [],
             $missing,
-            "The following KanvasActivity / ProcessWebhookJob subclasses are missing the "
+            'The following KanvasActivity / ProcessWebhookJob subclasses are missing the '
             . "#[WorkflowAction] attribute and will not appear in the rules UI:\n  - "
             . implode("\n  - ", $missing)
         );

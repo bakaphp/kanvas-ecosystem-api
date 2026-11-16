@@ -10,8 +10,10 @@ use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Actions\PullLeadAction as SalesAssistPullLeadAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Tests\Connectors\Traits\HasELeadConfiguration;
@@ -120,5 +122,49 @@ final class LeadTest extends TestCase
         $this->assertArrayHasKey('people_id', $pullLead[0]);
         //$this->assertInstanceOf(Lead::class, $pullLead[0]);
         //$this->assertEquals($newLead->id, $pullLead[0]->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+    }
+
+    public function testFollowUpPullSyncsALeadLinkedOnlyByOpportunityId(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $this->getClient($app, $company);
+
+        $people = People::factory()->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
+
+        $eleadCustomer = new SyncPeopleAction($people)->execute();
+
+        $opportunity = EntitiesLead::create($app, $company, [
+            'customerId' => $eleadCustomer->id,
+            'source' => 'Lead Link',
+            'status' => 'Active',
+            'subStatus' => 'New',
+            'upType' => 'Campaign',
+        ]);
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+        $lead->set(CustomFieldEnum::OPPORTUNITY_ID->value, $opportunity->id);
+
+        $synchronizer = new CrmLeadSourceSynchronizer();
+        $this->assertTrue($synchronizer->canSync($lead));
+
+        $result = new SalesAssistPullLeadAction($lead)->execute();
+
+        $this->assertCount(1, $result);
+        $this->assertEquals($lead->getId(), $result[0]['id']);
+        $this->assertSame($opportunity->id, $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+        $this->assertEmpty($lead->get(CustomFieldEnum::LEAD_ID->value));
+        $this->assertTrue($lead->fresh()->isActive());
     }
 }

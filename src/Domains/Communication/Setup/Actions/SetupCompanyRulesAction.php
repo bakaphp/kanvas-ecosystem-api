@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Setup\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
@@ -42,61 +43,73 @@ final class SetupCompanyRulesAction
     {
         $created = [];
         $skipped = [];
-        $catalog = new WorkflowActionCatalog();
 
         foreach (DefaultRuleEnum::cases() as $default) {
-            $params = $this->params($default);
+            $reason = $this->ensure($default);
 
-            if ($params === null) {
-                $skipped[$default->value] = 'not_configured';
-
-                continue;
+            if ($reason === null) {
+                $created[] = $default->value;
+            } else {
+                $skipped[$default->value] = $reason;
             }
-
-            $ruleType = RuleType::getByName($default->event()->value);
-            $systemModule = SystemModulesRepository::getByModelName($default->module(), $this->app);
-            $actions = array_map($catalog->register(...), $default->activities());
-
-            $alreadyRuns = $this->alreadyRuns(
-                $ruleType,
-                $systemModule->getId(),
-                array_map(fn (Action $action): int => $action->getId(), $actions),
-                $default
-            );
-
-            if ($alreadyRuns) {
-                $skipped[$default->value] = 'already_runs';
-
-                continue;
-            }
-
-            $conditions = $default->conditions();
-
-            new CreateRuleAction(new RuleData(
-                app: $this->app,
-                company: $this->company,
-                user: $this->company->user,
-                ruleType: $ruleType,
-                systemModule: $systemModule,
-                name: $default->value,
-                pattern: $conditions === [] ? '1' : implode(' AND ', range(1, count($conditions))),
-                params: $params,
-                is_async: true,
-                conditions: RuleConditionData::collect(array_map(
-                    fn (array $condition): RuleConditionData => new RuleConditionData(...$condition),
-                    $conditions
-                ), DataCollection::class),
-                actions: RuleActionData::collect(array_map(
-                    fn (Action $action, int $weight): RuleActionData => new RuleActionData($action, $weight),
-                    $actions,
-                    array_keys($actions)
-                ), DataCollection::class),
-            ))->execute();
-
-            $created[] = $default->value;
         }
 
         return ['created' => $created, 'skipped' => $skipped];
+    }
+
+    /**
+     * @param array<string, mixed>|null $fallbackParams for a caller that holds what the company
+     *                                                  itself has not configured, e.g. a sender number
+     *
+     * @return string|null why the rule was skipped, null when it was created
+     */
+    public function ensure(DefaultRuleEnum $default, ?array $fallbackParams = null): ?string
+    {
+        $params = $this->params($default) ?? $fallbackParams;
+
+        if ($params === null) {
+            return 'not_configured';
+        }
+
+        $ruleType = RuleType::getByName($default->event()->value);
+        $systemModule = SystemModulesRepository::getByModelName($default->module(), $this->app);
+        $actions = array_map(new WorkflowActionCatalog()->register(...), $default->activities());
+
+        $alreadyRuns = $this->alreadyRuns(
+            $ruleType,
+            $systemModule->getId(),
+            array_map(fn (Action $action): int => $action->getId(), $actions),
+            $default
+        );
+
+        if ($alreadyRuns) {
+            return 'already_runs';
+        }
+
+        $conditions = $default->conditions();
+
+        new CreateRuleAction(new RuleData(
+            app: $this->app,
+            company: $this->company,
+            user: $this->company->user,
+            ruleType: $ruleType,
+            systemModule: $systemModule,
+            name: $default->value,
+            pattern: $conditions === [] ? '1' : implode(' AND ', range(1, count($conditions))),
+            params: $params,
+            is_async: true,
+            conditions: RuleConditionData::collect(array_map(
+                fn (array $condition): RuleConditionData => new RuleConditionData(...$condition),
+                $conditions
+            ), DataCollection::class),
+            actions: RuleActionData::collect(array_map(
+                fn (Action $action, int $weight): RuleActionData => new RuleActionData($action, $weight),
+                $actions,
+                array_keys($actions)
+            ), DataCollection::class),
+        ))->execute();
+
+        return null;
     }
 
     /**
@@ -109,7 +122,8 @@ final class SetupCompanyRulesAction
                 ? ['agent_id' => $polly->getId()]
                 : null,
             // It sends through the lead's legacy SMS route, which needs the number to send from.
-            DefaultRuleEnum::HUMAN_AGENT_RESPONSE => ($from = $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value))
+            // A number saved without its "+" is read back as an int, and the activity passes it on as a string.
+            DefaultRuleEnum::HUMAN_AGENT_RESPONSE => ($from = Str::trimToNull((string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value))) !== null
                 ? ['from' => $from]
                 : null,
             DefaultRuleEnum::GOOGLE_CALENDAR_EVENT => $this->company->get(GoogleConfigurationEnum::GOOGLE_CALENDAR_CONFIG->value)

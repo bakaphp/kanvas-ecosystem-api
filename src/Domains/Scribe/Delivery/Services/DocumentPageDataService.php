@@ -70,7 +70,7 @@ class DocumentPageDataService
         $sow = $sowMessage !== null ? StatementOfWork::fromMessage($sowMessage)->toPayload($quote->getId()) : null;
 
         if ($sow !== null) {
-            unset($sow['quote_id'], $sow['payment_terms_id']);
+            unset($sow['quote_id'], $sow['payment_terms_id'], $sow['template']);
         }
 
         $data['sow'] = $sow;

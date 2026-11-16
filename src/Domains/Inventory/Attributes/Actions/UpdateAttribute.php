@@ -20,7 +20,6 @@ class UpdateAttribute
 
     /**
      * execute.
-     *
      */
     public function execute(): Attributes
     {

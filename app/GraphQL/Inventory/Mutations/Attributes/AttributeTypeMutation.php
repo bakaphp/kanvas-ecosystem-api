@@ -48,11 +48,11 @@ class AttributeTypeMutation
 
     /**
      * delete.
-     *
      */
     public function delete(mixed $root, array $req): bool
     {
         $attributeType = AttributesTypesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+
         return $attributeType->delete();
     }
 }

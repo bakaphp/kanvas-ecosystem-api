@@ -18,7 +18,6 @@ class PaymentFlag extends Data
     {
         $paymentFlagData = Arr::get($orderInput, 'paymentFlag');
 
-
         return new self(
             $paymentFlagData
         );

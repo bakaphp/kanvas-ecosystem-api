@@ -18,6 +18,7 @@ class ReceiverWebhookFactory extends Factory
     public function definition()
     {
         $action = WorkflowAction::factory()->create();
+
         return [
             'name' => $this->faker->name,
             'action_id' => $action->getId(),

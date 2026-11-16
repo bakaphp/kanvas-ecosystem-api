@@ -24,7 +24,7 @@ class IndexTagsCommand extends Command
      */
     public function handle(): void
     {
-        /** @var Apps $app  */
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
         $company = Companies::find($this->argument('companies_id'));

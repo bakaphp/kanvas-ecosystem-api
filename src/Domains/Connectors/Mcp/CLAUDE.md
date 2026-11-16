@@ -188,8 +188,12 @@ either, **probe the live endpoint**. Vendor docs were wrong or silent more often
 4. Request only the scopes the resource advertises. Scopes it never asked for are how consent screens start refusing.
 5. Check the catalog title against existing tool names: grants resolve by label, so a collision makes them
    ambiguous. That is why the calendar row is `Google Calendar (MCP)`.
-6. After changing a row's `oauth` block in place, forget its discovery cache.
-7. **Decide whether any of its tools start a background job** — see the section below. The tells, in the
+6. Every `nervous_system_tools` catalog row also needs a `tool_category_id`. Resolve it by category
+   `slug` from `nervous_system_tool_categories` where `apps_id = 0`; do not hard-code row ids. Reuse a
+   suitable global category, and only add a new global category when none fits. See
+   [`database/migrations/Intelligence/README.md`](../../../../database/migrations/Intelligence/README.md).
+7. After changing a row's `oauth` block in place, forget its discovery cache.
+8. **Decide whether any of its tools start a background job** — see the section below. The tells, in the
    `tools/list` you just probed: a tool whose description says it returns before the work finishes ("poll
    for completion", "check status", "long-running"), a **second tool that reports on the first** by id
    (`get_*`, `*_status`), or a result carrying an id plus a `status` that is not terminal. Anything driving

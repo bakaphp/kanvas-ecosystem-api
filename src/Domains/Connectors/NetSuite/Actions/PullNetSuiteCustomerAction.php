@@ -52,10 +52,10 @@ class PullNetSuiteCustomerAction
         }
 
         $results = [
-            "processed" => [],
-            "not_found_in_kanvas" => [],
-            "not_found_in_netsuite" => [],
-            "update_failed" => []
+            'processed' => [],
+            'not_found_in_kanvas' => [],
+            'not_found_in_netsuite' => [],
+            'update_failed' => [],
         ];
 
         // Determine which customers to process
@@ -64,7 +64,8 @@ class PullNetSuiteCustomerAction
         foreach ($customersToProcess as $netsuiteId) {
             // Check if customer exists in NetSuite results
             if (! isset($netsuiteIndex[$netsuiteId])) {
-                $results["not_found_in_netsuite"][] = $netsuiteId;
+                $results['not_found_in_netsuite'][] = $netsuiteId;
+
                 continue;
             }
 
@@ -77,7 +78,8 @@ class PullNetSuiteCustomerAction
             );
 
             if (! $linkCompany) {
-                $results["not_found_in_kanvas"][] = $netsuiteId;
+                $results['not_found_in_kanvas'][] = $netsuiteId;
+
                 continue;
             }
 
@@ -88,15 +90,15 @@ class PullNetSuiteCustomerAction
                 $linkCompany->disableWorkflows();
                 $linkCompany->saveOrFail();
 
-                $results["processed"][] = [
+                $results['processed'][] = [
                     'netsuiteId' => $netsuiteId,
                     'kanvasId' => $linkCompany->getId(),
-                    'name' => $companyName
+                    'name' => $companyName,
                 ];
             } catch (Exception $e) {
-                $results["update_failed"][] = [
+                $results['update_failed'][] = [
                     'netsuiteId' => $netsuiteId,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ];
             }
         }
@@ -106,14 +108,14 @@ class PullNetSuiteCustomerAction
             'searchId' => $savedSearchID,
             'savedSearchTotal' => count($customers),
             'totalToProcess' => count($customersToProcess),
-            'processed' => count($results["processed"]),
-            'processedList' => $results["processed"],
-            'not_found_in_kanvas' => count($results["not_found_in_kanvas"]),
-            'not_found_in_kanvas_list' => $results["not_found_in_kanvas"],
-            'not_found_in_netsuite' => count($results["not_found_in_netsuite"]),
-            'not_found_in_netsuite_list' => $results["not_found_in_netsuite"],
-            'update_failed' => count($results["update_failed"]),
-            'update_failed_list' => $results["update_failed"],
+            'processed' => count($results['processed']),
+            'processedList' => $results['processed'],
+            'not_found_in_kanvas' => count($results['not_found_in_kanvas']),
+            'not_found_in_kanvas_list' => $results['not_found_in_kanvas'],
+            'not_found_in_netsuite' => count($results['not_found_in_netsuite']),
+            'not_found_in_netsuite_list' => $results['not_found_in_netsuite'],
+            'update_failed' => count($results['update_failed']),
+            'update_failed_list' => $results['update_failed'],
         ];
     }
 }

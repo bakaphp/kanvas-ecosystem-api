@@ -74,6 +74,11 @@ final class FiscalDocMapperTest extends TestCase
         $this->assertEquals(30.0, $withheld['fiscalDoc']['items'][0]['retIsr']);
         $this->assertSame(1, $purchase['fiscalDoc']['items'][0]['retperInd'], 'E41 always carries retperInd 1.');
         $this->assertArrayNotHasKey('retperInd', $plain['fiscalDoc']['items'][0]);
+
+        $this->assertEquals(54.0, $withheld['fiscalDoc']['fedo']['totales']['totalItbisRetenido']);
+        $this->assertEquals(30.0, $withheld['fiscalDoc']['fedo']['totales']['totalIsrRetenido'], 'WebPOS does not sum the ISR withholding into the header by itself (DGII 11174).');
+        $this->assertArrayHasKey('totalIsrRetenido', $purchase['fiscalDoc']['fedo']['totales']);
+        $this->assertArrayNotHasKey('totalIsrRetenido', $plain['fiscalDoc']['fedo']['totales']);
     }
 
     public function testAForeignBuyerIsSentAsCustomerType06(): void
@@ -95,7 +100,7 @@ final class FiscalDocMapperTest extends TestCase
             encf: 'E310000000009',
             sequenceExpiresAt: '2028-12-31',
             issueDate: '2026-06-15',
-            systemRef: 'b3f1c2d4-0000-4000-8000-000000000101',
+            systemRef: 'KREF000000000101',
             buyer: new EcfParty(name: 'Cliente Ejemplo SRL', taxId: '101000001'),
             currency: 'DOP',
             exchangeRate: 1.0,
@@ -135,6 +140,27 @@ final class FiscalDocMapperTest extends TestCase
         $this->mapper()->map($document);
     }
 
+    /**
+     * WebPOS copies systemRef into DGII's NumeroFacturaInterna (20 alphanumerics): a uuid earned observation
+     * 1323 on every e-CF.
+     */
+    public function testAUuidShapedSystemRefIsRefusedBeforeTheCall(): void
+    {
+        $document = $this->singleLineDocument(EcfTypeEnum::CREDITO_FISCAL, EcfItbisRateEnum::RATE_18, systemRef: 'b3f1c2d4-0000-4000-8000-000000000031');
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('systemRef must be 1 to 20 alphanumeric characters');
+
+        $this->mapper()->map($document);
+    }
+
+    public function testASixteenCharacterSystemRefIsSentAsIs(): void
+    {
+        $document = $this->singleLineDocument(EcfTypeEnum::CREDITO_FISCAL, EcfItbisRateEnum::RATE_18, systemRef: 'A1B2C3D4E5F6G7H8');
+
+        $this->assertSame('A1B2C3D4E5F6G7H8', $this->mapper()->map($document)['fiscalDoc']['systemRef']);
+    }
+
     private function mapper(): FiscalDocMapperService
     {
         return new FiscalDocMapperService(companyLicense: 'YPSPUFLH', branch: '0001', pos: '001');
@@ -148,7 +174,7 @@ final class FiscalDocMapperTest extends TestCase
                 encf: 'E310000000004',
                 sequenceExpiresAt: '2028-12-31',
                 issueDate: '2026-06-15',
-                systemRef: 'b3f1c2d4-0000-4000-8000-000000000031',
+                systemRef: 'KREF000000000031',
                 buyer: new EcfParty(
                     name: 'Cliente Ejemplo SRL',
                     taxId: '1-01-00000-1',
@@ -196,7 +222,7 @@ final class FiscalDocMapperTest extends TestCase
                 encf: 'E320000000001',
                 sequenceExpiresAt: '2028-12-31',
                 issueDate: '2026-06-16',
-                systemRef: 'b3f1c2d4-0000-4000-8000-000000000032',
+                systemRef: 'KREF000000000032',
                 buyer: new EcfParty(name: 'Consumidor Final'),
                 currency: 'DOP',
                 exchangeRate: 1.0,
@@ -227,7 +253,7 @@ final class FiscalDocMapperTest extends TestCase
                 encf: 'E340000000001',
                 sequenceExpiresAt: '2028-12-31',
                 issueDate: '2026-06-20',
-                systemRef: 'b3f1c2d4-0000-4000-8000-000000000034',
+                systemRef: 'KREF000000000034',
                 buyer: new EcfParty(name: 'Cliente Ejemplo SRL', taxId: '101000001'),
                 currency: 'USD',
                 exchangeRate: 58.51234,
@@ -270,13 +296,14 @@ final class FiscalDocMapperTest extends TestCase
         ?EcfParty $buyer = null,
         string $description = 'Servicio',
         string $code = 'SVC-1',
+        ?string $systemRef = null,
     ): EcfDocument {
         return new EcfDocument(
             type: $type,
             encf: $type->series() . '0000000001',
             sequenceExpiresAt: '2028-12-31',
             issueDate: '2026-06-15',
-            systemRef: 'b3f1c2d4-0000-4000-8000-0000000000' . $type->value,
+            systemRef: $systemRef ?? 'KREF0000000000' . $type->value,
             buyer: $buyer ?? new EcfParty(name: 'Cliente Ejemplo SRL', taxId: '101000001'),
             currency: 'DOP',
             exchangeRate: 1.0,

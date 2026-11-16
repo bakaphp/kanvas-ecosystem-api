@@ -38,20 +38,21 @@ class DeleteOneDriveItemTool extends Tool
                 description: 'Path starting with "/" (e.g. "/Documentos/viejo.docx") or an item id.',
                 required: true,
             ),
+            $this->driveProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $path_or_id): array
+    public function __invoke(string $path_or_id, ?string $drive = null): array
     {
-        return $this->attempt(function () use ($path_or_id) {
+        return $this->attempt(function () use ($path_or_id, $drive) {
             if (OneDriveClient::isRootPath($path_or_id)) {
                 throw new InvalidToolInputException('path_or_id must name a specific file or folder, not the root.');
             }
 
-            $this->oneDrive()->delete($path_or_id);
+            $this->oneDrive($drive)->delete($path_or_id);
 
             return ['deleted' => $path_or_id];
         });

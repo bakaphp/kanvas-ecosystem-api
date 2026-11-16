@@ -41,6 +41,7 @@ class StripePriceService
     protected function getPlanId(string $productId): int
     {
         $plan = PlanRepository::getByStripeId($productId, $this->app);
+
         return $plan->id;
     }
 }

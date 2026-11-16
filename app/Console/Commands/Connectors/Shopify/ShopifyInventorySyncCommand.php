@@ -36,7 +36,6 @@ class ShopifyInventorySyncCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

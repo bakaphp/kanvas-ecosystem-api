@@ -44,18 +44,16 @@ class GeneratePdfJob implements ShouldQueue
             []
         );
 
-        $this->sendEmail($pdfFile->url ?? "N/D");
+        $this->sendEmail($pdfFile->url ?? 'N/D');
     }
-
 
     private function sendEmail(string $path)
     {
         $notification = new OrdersExportNotification(
             $this->entity,
             [
-                "downloadUrl" => $path,
-                "appName" => $this->entity->app->name
-
+                'downloadUrl' => $path,
+                'appName' => $this->entity->app->name,
             ],
         );
         Notification::route('mail', $this->user->email)->notify($notification);

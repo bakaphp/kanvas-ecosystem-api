@@ -53,7 +53,8 @@ class CreateMovipassOrderTransitionsCommand extends Command
                 $query->where('created_at', '<=', $untilDate);
                 $this->info("Filtering orders created until: {$untilDate->toDateString()}");
             } catch (\Exception $e) {
-                $this->error("Invalid date format for --until option. Use YYYY-MM-DD format.");
+                $this->error('Invalid date format for --until option. Use YYYY-MM-DD format.');
+
                 return;
             }
         }
@@ -63,6 +64,7 @@ class CreateMovipassOrderTransitionsCommand extends Command
 
         if ($totalOrders === 0) {
             $this->warn('No movipass orders found.');
+
             return;
         }
 
@@ -203,6 +205,7 @@ class CreateMovipassOrderTransitionsCommand extends Command
 
         if (! $createdStatus || ! $paidStatus || ! $completedStatus) {
             echo "Required statuses not found for order type '{$orderType->name}'\n";
+
             return [];
         }
 

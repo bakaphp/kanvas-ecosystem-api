@@ -80,7 +80,6 @@ class CompanyBranchUserTest extends TestCase
             }
             ',
             [
-
             ]
         )
         ->assertSuccessful();

@@ -109,6 +109,8 @@ class CreditApplicationService
 
             'DRIVERSLICENSENO' => $application->driversLicenseNumber,
             'DLSTATE' => $application->driversLicenseState,
+
+            'COMMENTS' => $application->comments,
         ];
 
         foreach ($optional as $key => $value) {

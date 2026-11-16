@@ -77,9 +77,10 @@ class UsersListsManagement
         $userList->entities()->create([
             'entity_id' => $entity->id,
             'entity_namespace' => $entity->getMorphClass(),
-            'description' => "",
-            'is_pin' => false
+            'description' => '',
+            'is_pin' => false,
         ]);
+
         return true;
     }
 
@@ -96,6 +97,7 @@ class UsersListsManagement
     private function getEntity(string $entityType, int $entityId): Model
     {
         $entityClass = SystemModules::getSystemModuleNameSpaceBySlug($entityType);
+
         return $entityClass::getById($entityId);
     }
 }

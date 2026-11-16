@@ -84,6 +84,7 @@ class FilesystemMapperTest extends TestCase
             ],
         ]);
     }
+
     public function testCreateFilesystemMapperDefault(): void
     {
         $app = app(Apps::class);
@@ -145,12 +146,13 @@ class FilesystemMapperTest extends TestCase
                 'createFilesystemMapper' => [
                     'id',
                     'name',
-                    'is_default'
+                    'is_default',
                 ],
             ],
         ]);
         $this->assertEquals('test', $response->json('data.createFilesystemMapper.name'));
     }
+
     public function testUpdateFilesystemMapper(): void
     {
         $app = app(Apps::class);

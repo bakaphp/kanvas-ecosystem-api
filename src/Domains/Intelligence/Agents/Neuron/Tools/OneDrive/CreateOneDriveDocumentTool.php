@@ -60,6 +60,7 @@ class CreateOneDriveDocumentTool extends Tool
                     . 'Excel: list of rows, e.g. \'[["Nombre", "Monto"], ["Ana", 500]]\'.',
                 required: false,
             ),
+            $this->driveProperty(),
         ];
     }
 
@@ -70,9 +71,10 @@ class CreateOneDriveDocumentTool extends Tool
         string $type,
         string $name,
         ?string $folder = null,
-        ?string $content = null
+        ?string $content = null,
+        ?string $drive = null
     ): array {
-        return $this->attempt(function () use ($type, $name, $folder, $content) {
+        return $this->attempt(function () use ($type, $name, $folder, $content, $drive) {
             $documentType = OneDriveDocumentTypeEnum::tryFrom(strtolower(trim($type)))
                 ?? throw new InvalidToolInputException('type must be "word" or "excel".');
 
@@ -81,7 +83,7 @@ class CreateOneDriveDocumentTool extends Tool
                 : $this->decodeRows($content, 'content');
 
             return new CreateOneDriveDocumentAction(
-                $this->oneDrive(),
+                $this->oneDrive($drive),
                 $documentType,
                 $name,
                 $folder,

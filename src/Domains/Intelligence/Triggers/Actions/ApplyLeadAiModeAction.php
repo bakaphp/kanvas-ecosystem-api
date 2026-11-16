@@ -71,7 +71,7 @@ class ApplyLeadAiModeAction
             TriggersEnum::MANUAL_OFF->value => $this->applyManualOff(),
             TriggersEnum::MANUAL_SUPPORT->value => $this->applyManualMode(IntelligenceModeEnum::SUPPORT->value),
             TriggersEnum::MANUAL_FON->value => $this->applyManualFullOn(),
-            TriggersEnum::FOLLOW_UP_ON->value => $this->setFollowUp(FollowUpValueEnum::ON()),
+            TriggersEnum::FOLLOW_UP_ON->value => $this->applyManualFollowUpOn(),
             TriggersEnum::FOLLOW_UP_OFF->value => $this->setFollowUp(FollowUpValueEnum::OFF()),
             TriggersEnum::CLOSE_LEAD->value => $this->closeLead(),
             TriggersEnum::SOLD_LEAD->value => $this->soldLead(),
@@ -173,7 +173,7 @@ class ApplyLeadAiModeAction
     {
         $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
         $this->setMode(IntelligenceModeEnum::FULL_ON->value);
-        $this->setFollowUp(FollowUpValueEnum::ON());
+        $this->applyManualFollowUpOn();
 
         try {
             foreach ($this->lead->socialChannels as $channel) {
@@ -192,11 +192,26 @@ class ApplyLeadAiModeAction
         // $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
     }
 
+    /**
+     * A person turning follow-up on pins it, like a manual AI mode: the company's follow-up start
+     * date and the lead type's default are admin config for the automatic follow-up and no longer
+     * hold the lead back (LeadFollowUpEligibilityService). Turning it off, by hand or not, clears it.
+     */
+    protected function applyManualFollowUpOn(): void
+    {
+        $this->setFollowUp(FollowUpValueEnum::ON());
+        new LeadConfigurationService()->setManualFollowUp($this->lead, true);
+    }
+
     protected function setFollowUp(FollowUpValueEnum $followUpValue)
     {
-        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($this->lead);
-        $this->lead->set($followUpKey, $followUpValue->value);
+        $configService = new LeadConfigurationService();
+        $this->lead->set($configService->getFollowUpModeKey($this->lead), $followUpValue->value);
         $this->lead->set(LeadConfigurationEnum::HAS_FOLLOW_UP->value, $followUpValue->value);
+
+        if ($followUpValue->equals(FollowUpValueEnum::OFF())) {
+            $configService->setManualFollowUp($this->lead, false);
+        }
     }
 
     protected function logModeChangeNote(string $newMode): void

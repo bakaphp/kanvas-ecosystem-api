@@ -20,14 +20,14 @@ class KanvasModulesSeeder extends Seeder
      * @var array<int, array{name: string, is_internal: bool, is_default: bool}>
      */
     private array $modules = [
-        KanvasModuleEnum::ECOSYSTEM->value     => ['name' => 'Ecosystem',     'is_internal' => true,  'is_default' => true],
-        KanvasModuleEnum::INVENTORY->value     => ['name' => 'Inventory',     'is_internal' => false, 'is_default' => true],
-        KanvasModuleEnum::CRM->value           => ['name' => 'CRM',           'is_internal' => false, 'is_default' => true],
-        KanvasModuleEnum::SOCIAL->value        => ['name' => 'Social',        'is_internal' => false, 'is_default' => true],
-        KanvasModuleEnum::WORKFLOW->value      => ['name' => 'WORKFLOW',      'is_internal' => true,  'is_default' => true],
+        KanvasModuleEnum::ECOSYSTEM->value => ['name' => 'Ecosystem',     'is_internal' => true,  'is_default' => true],
+        KanvasModuleEnum::INVENTORY->value => ['name' => 'Inventory',     'is_internal' => false, 'is_default' => true],
+        KanvasModuleEnum::CRM->value => ['name' => 'CRM',           'is_internal' => false, 'is_default' => true],
+        KanvasModuleEnum::SOCIAL->value => ['name' => 'Social',        'is_internal' => false, 'is_default' => true],
+        KanvasModuleEnum::WORKFLOW->value => ['name' => 'WORKFLOW',      'is_internal' => true,  'is_default' => true],
         KanvasModuleEnum::ACTION_ENGINE->value => ['name' => 'Action Engine', 'is_internal' => true,  'is_default' => true],
-        KanvasModuleEnum::AI->value            => ['name' => 'AI',            'is_internal' => false, 'is_default' => true],
-        KanvasModuleEnum::COMMERCE->value      => ['name' => 'Commerce',      'is_internal' => false, 'is_default' => true],
+        KanvasModuleEnum::AI->value => ['name' => 'AI',            'is_internal' => false, 'is_default' => true],
+        KanvasModuleEnum::COMMERCE->value => ['name' => 'Commerce',      'is_internal' => false, 'is_default' => true],
     ];
 
     public function run(): void

@@ -13,11 +13,11 @@ class UsersInviteRepository
 {
     /**
      * getById.
-     *
      */
     public static function getById(int $id, Companies $company, ?AppInterface $app = null): UsersInviteModel
     {
         $app = $app ?: app(Apps::class);
+
         return UsersInviteModel::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
@@ -27,11 +27,11 @@ class UsersInviteRepository
 
     /**
      * Get invite by its hash.
-     *
      */
     public static function getByHash(string $hash, ?AppInterface $app = null): UsersInviteModel
     {
         $app = $app ?: app(Apps::class);
+
         return UsersInviteModel::where('invite_hash', $hash)
             ->fromApp($app)
             ->notDeleted()

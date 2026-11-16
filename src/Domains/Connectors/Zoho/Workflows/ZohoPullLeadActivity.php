@@ -7,15 +7,13 @@ namespace Kanvas\Connectors\Zoho\Workflows;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
+use Kanvas\Connectors\Zoho\Actions\CreateZohoLeadChannelsAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
-use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -83,22 +81,7 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
         }
 
         try {
-            $agentName = $company->get(SalesAssistConfigurationEnum::AGENT_NAME->value)
-                ?? SalesAssistConfigurationEnum::DEFAULT_AGENT_NAME;
-            $agent = Agent::where('name', $agentName)
-                ->fromApp($app)
-                ->fromCompany($company)
-                ->notDeleted()
-                ->first() ?? Agent::fromApp($app)->fromCompany($company)->notDeleted()->first();
-
-            if ($agent) {
-                new CreateLeadSocialChannelsAction(
-                    $lead,
-                    $app,
-                    $params,
-                    $agent->getId(),
-                )->execute();
-            }
+            new CreateZohoLeadChannelsAction($lead, $params)->execute();
 
             new ApplyLeadClosingStatusAction($lead)->execute();
 

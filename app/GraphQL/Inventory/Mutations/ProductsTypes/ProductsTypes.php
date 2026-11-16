@@ -20,7 +20,6 @@ class ProductsTypes
 
     /**
      * create.
-     *
      */
     public function create(mixed $root, array $request): ProductsTypesModel
     {
@@ -61,7 +60,6 @@ class ProductsTypes
 
     /**
      * update.
-     *
      */
     public function update(mixed $root, array $request): ProductsTypesModel
     {
@@ -99,7 +97,6 @@ class ProductsTypes
 
     /**
      * Assign attributes to products types
-     *
      */
     public function assignAttributes(mixed $root, array $request): ProductsTypesModel
     {
@@ -120,11 +117,11 @@ class ProductsTypes
 
     /**
      * delete.
-     *
      */
     public function delete(mixed $root, array $request): bool
     {
         $productType = ProductsTypesRepository::getByIdOrGlobal((int) $request['id'], auth()->user()->getCurrentCompany());
+
         return $productType->delete();
     }
 

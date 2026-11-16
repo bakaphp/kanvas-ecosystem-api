@@ -26,6 +26,7 @@ final class ZohoFieldMapService
         'last_name' => 'Last_Name',
         'email' => 'Email',
         'phone' => 'Phone',
+        'mobile' => 'Mobile',
         'street' => 'Street',
         'city' => 'City',
         'state' => 'State',
@@ -134,6 +135,11 @@ final class ZohoFieldMapService
         return is_string($name) && $name !== '' ? $name : $fallback;
     }
 
+    public static function phoneIsMobile(CompanyInterface $company): bool
+    {
+        return (bool) $company->get(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value);
+    }
+
     /**
      * @param string $key one of the PERSON_FIELDS keys
      */
@@ -193,6 +199,13 @@ final class ZohoFieldMapService
             3600,
             fn () => Schema::connection($connectionName)->getColumnListing($table)
         );
+    }
+
+    public static function leadMapFor(CompanyInterface $company): array
+    {
+        $map = $company->get(CustomFieldEnum::FIELDS_MAP->value);
+
+        return is_array($map) ? $map : [];
     }
 
     /**

@@ -21,11 +21,11 @@ class ProductsTypesRepository
      * getBySourceId.
      *
      * @param  mixed $id
-     *
      */
     public static function getBySourceKey(string $key, string $id): ProductsTypes
     {
         $key = $key . '_id';
+
         return ProductsTypes::getByCustomField($key, $id);
     }
 }

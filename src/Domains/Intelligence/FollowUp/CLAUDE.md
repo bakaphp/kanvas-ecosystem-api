@@ -134,7 +134,10 @@ mutation passes no synchronizer, so a manual click never pulls.
 - `canSync()` requires the company to run a pull-capable connector (Elead, VinSolutions,
   DealerSocket, DriveCentric — Reynolds is webhook-only) AND the lead to carry that connector's
   external id. Without the id the pull becomes a people search by phone, which can create or
-  close leads; an hourly cron must not trigger that.
+  close leads; an hourly cron must not trigger that. For Elead either id counts: leads imported
+  from Elead carry only `ELEAD_OPPORTUNITY_ID` (never the popup `ELEAD_LEAD_ID`), and those sync
+  on the opportunity directly. Checking the popup id alone skipped the pull for those leads, so a
+  lead already sold in Elead still got a "still available" nudge.
 - Throttle: the lead custom field `guild_follow_up_source_synced_at` is stamped after a pull and
   skips the next one for `lead_follow_up_sync_interval_minutes` (company setting, default 55) —
   one CRM call per lead per tick, forced runs in between share it.
@@ -257,6 +260,16 @@ is a cutoff: a lead created before it skips with `lead_created_before_follow_up_
 runs included, and the fan-out query never queues it. Unset, empty or unparseable means no cutoff, so
 a typo in the setting never silences every lead. Read through
 `LeadConfigurationService::getFollowUpStartDate()` in both places.
+
+**A person turning follow-up on pins it** (`ai_follow_up_manual`, `LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL`),
+the way `lead_ai_mode_is_manual` pins a hand-picked AI mode. The `FOLLOW_UP_ON` and `MANUAL_FON`
+triggers and the `set_lead_follow_up_enabled` tool set it through
+`LeadConfigurationService::setManualFollowUp()`; any "off" (a person, `MANUAL_OFF`, a closing lead)
+deletes the row. While it is set and `ai_follow_up` is on (`hasManualFollowUp()`), the start date and
+the lead-type default no longer hold the lead back, like a plan: an old lead someone switched on after
+the follow-up release is followed up. Without the pin the date governs. The fan-out finds pinned leads
+by the row's name alone (`leadIdsWithField()`), which is why "off" deletes it instead of writing false.
+Everything else still applies: open status, mute, `ai_mode_manual`, exhaustion, hand-off.
 
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
 

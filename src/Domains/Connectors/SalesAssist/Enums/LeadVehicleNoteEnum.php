@@ -34,10 +34,18 @@ enum LeadVehicleNoteEnum: string
     }
 
     /**
-     * Fingerprint of the last value announced, so a CRM re-sync of the same vehicle stays quiet.
+     * md5 of the last raw value announced before fingerprints existed; read only to recognise those vehicles.
      */
     public function noteHashKey(): string
     {
         return 'sa_' . str_replace('-', '_', $this->value) . '_note_hash';
+    }
+
+    /**
+     * The vehicles already announced, so a CRM re-sync of any of them stays quiet.
+     */
+    public function noteFingerprintsKey(): string
+    {
+        return 'sa_' . str_replace('-', '_', $this->value) . '_note_fingerprints';
     }
 }

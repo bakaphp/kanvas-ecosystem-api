@@ -33,6 +33,7 @@ class Activity extends SpatieActivity
     public function scopeForApp($query, AppInterface $app)
     {
         $suffix = "-{$app->getId()}";
+
         return $query->where('log_name', 'LIKE', '%' . $suffix);
     }
 }

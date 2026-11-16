@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Searchable Attributes
@@ -89,7 +88,7 @@ return [
     'attributesForFaceting' => [
         'status.name',
         'attributes',
-        'warehouses.name'
+        'warehouses.name',
     ],
 
     /*

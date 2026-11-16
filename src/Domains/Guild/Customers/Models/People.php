@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
@@ -810,6 +811,8 @@ class People extends BaseModel implements ExposesTemplateData
 
     public function toSearchableArray(): array
     {
+        $contacts = $this->contacts()->get();
+
         $people = [
             'objectID' => $this->uuid,
             'id' => (string) $this->id,
@@ -820,6 +823,19 @@ class People extends BaseModel implements ExposesTemplateData
             'companies_id' => $this->companies_id,
             'email' => $this->getEmails()->first()?->value,
             'phone' => $this->getAllPhones()->first()?->value,
+            'emails' => $contacts
+                ->filter(fn (Contact $contact) => Contact::isEmailType((int) $contact->contacts_types_id))
+                ->map(fn (Contact $contact) => Str::lowerTrim($contact->value))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all(),
+            'phones' => $contacts
+                ->filter(fn (Contact $contact) => Contact::isPhoneType((int) $contact->contacts_types_id))
+                ->flatMap(fn (Contact $contact) => Str::phoneSearchTerms($contact->value))
+                ->unique()
+                ->values()
+                ->all(),
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
@@ -909,6 +925,16 @@ class People extends BaseModel implements ExposesTemplateData
                 [
                     'name' => 'phone',
                     'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'emails',
+                    'type' => 'string[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phones',
+                    'type' => 'string[]',
                     'optional' => true,
                 ],
                 [
@@ -1011,7 +1037,7 @@ class People extends BaseModel implements ExposesTemplateData
             ]
         );
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $query = self::traitSearch(Str::phoneSearchQuery((string) $query), $callback)->where('apps_id', $app->getId());
 
         /*         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
                     $query->where('companies_id', $user->getCurrentCompany()->getId());
@@ -1027,7 +1053,7 @@ class People extends BaseModel implements ExposesTemplateData
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,firstname,lastname,email,phone',
+                'query_by' => $query->model->queryByLiveFields('name,firstname,lastname,email,phone,emails,phones'),
             ]);
         }
 

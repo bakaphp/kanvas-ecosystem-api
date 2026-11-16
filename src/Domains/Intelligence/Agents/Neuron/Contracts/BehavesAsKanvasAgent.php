@@ -30,8 +30,12 @@ interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies,
     /** @param list<string> $media */
     public function setTurnMedia(array $media): void;
 
-    /** The Social message this turn answers, on a connector turn: what its memory entry is matched by. */
-    public function setInboundMessageId(?int $messageId): void;
+    /**
+     * The Social message this turn answers: what its memory entry is matched by.
+     *
+     * @param list<int> $burstMessageIds Every Social message represented in a combined prompt
+     */
+    public function setInboundMessageId(?int $messageId, array $burstMessageIds = []): void;
 
     /** Flag the current turn's user message private (persisted is_public=0) so the UI hides it. */
     public function setPrivateUserTurn(bool $private): void;

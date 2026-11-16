@@ -15,8 +15,12 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
+use Tests\Connectors\Integration\Zoho\Support\StubbedPushDealToZohoAction;
 use Tests\TestCase;
+use Webleit\ZohoCrmApi\Models\Record;
 
 final class PullZohoDealActionTest extends TestCase
 {
@@ -52,6 +56,31 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Acme funding', $deal->get(CustomFieldEnum::ZOHO_DEAL_RAW->value)['Deal_Name']);
         $this->assertSame('Acme LLC', $deal->get('business_legal_name'));
         $this->assertSame(50000, $deal->get('funding_amount_requested'));
+    }
+
+    public function testAPulledDealIsInSyncSoOnlyALaterKanvasChangeIsPushed(): void
+    {
+        $company = $this->makeZohoCompany();
+        $deal = $this->action($company, 'zd-11', [
+            'id' => 'zd-11',
+            'Deal_Name' => 'Pulled funding',
+            'Description' => 'From Zoho',
+        ])->execute();
+
+        $module = $this->module();
+        $module->method('get')->willReturn(new Record(['id' => 'zd-11'], $module));
+        $module->expects($this->once())
+            ->method('update')
+            ->with('zd-11', ['Description' => 'Edited in Kanvas'])
+            ->willReturn(new Record(['id' => 'zd-11'], $module));
+
+        $unchanged = new StubbedPushDealToZohoAction($deal, $module)->execute();
+        $this->assertSame([], $unchanged['zohoRequest']);
+
+        $deal->description = 'Edited in Kanvas';
+        $deal->saveOrFail();
+
+        new StubbedPushDealToZohoAction($deal, $module)->execute();
     }
 
     public function testAHandedInLeadIsLinkedWhenTheDealNamesNoLead(): void
@@ -218,7 +247,8 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Nedward', $people->firstname);
         $this->assertSame('Flanders', $people->lastname);
         $this->assertSame($email, $people->getEmails()->first()->value);
-        $this->assertSame('9395550116', $people->getPhones()->first()->value);
+        $this->assertSame('9395550116', $people->getCellPhones()->first()->value);
+        $this->assertCount(0, $people->getPhones());
         $this->assertSame('1960-02-29', $people->dob->format('Y-m-d'));
         $this->assertSame('744 Evergreen Terrace', $people->getDefaultAddress()->address);
         $this->assertSame('62704', $people->getDefaultAddress()->zip);
@@ -369,6 +399,78 @@ final class PullZohoDealActionTest extends TestCase
         );
     }
 
+    public function testTheZohoOwnerBecomesTheDealOwner(): void
+    {
+        $company = $this->makeZohoCompany();
+        $owner = $this->makeAppUser($company);
+
+        $deal = $this->action($company, 'zd-40', [
+            'id' => 'zd-40',
+            'Deal_Name' => 'Owned in Zoho',
+            'Owner' => ['name' => 'Funding Rep', 'id' => '4242', 'email' => $owner->email],
+        ])->execute();
+
+        $this->assertSame($owner->getId(), (int) $deal->owner_id);
+    }
+
+    public function testAReassignmentInZohoMovesTheOwnerOnTheNextPull(): void
+    {
+        $company = $this->makeZohoCompany();
+        $owner = $this->makeAppUser($company);
+        $info = ['id' => 'zd-41', 'Deal_Name' => 'Reassigned'];
+
+        $first = $this->action($company, 'zd-41', $info)->execute();
+        $this->assertSame(auth()->user()->getId(), (int) $first->owner_id);
+
+        $second = $this->action($company, 'zd-41', [
+            'Owner' => ['name' => 'Funding Rep', 'id' => '4242', 'email' => $owner->email],
+        ] + $info)->execute();
+
+        $this->assertSame($owner->getId(), (int) $second->fresh()->owner_id);
+    }
+
+    public function testANewDealTakesItsLeadsOwnerWhenNobodyMatchesTheZohoOwner(): void
+    {
+        $company = $this->makeZohoCompany();
+        $leadOwner = $this->makeAppUser($company);
+        $lead = $this->makeLead($company);
+        $lead->leads_owner_id = $leadOwner->getId();
+        $lead->saveOrFail();
+
+        $deal = $this->action(
+            $company,
+            'zd-42',
+            [
+                'id' => 'zd-42',
+                'Deal_Name' => 'Unknown Zoho owner',
+                'Owner' => ['name' => 'Nobody', 'id' => '1', 'email' => 'nobody-' . uniqid() . '@example.com'],
+            ],
+            lead: $lead
+        )->execute();
+
+        $this->assertSame($leadOwner->getId(), (int) $deal->owner_id);
+    }
+
+    public function testAnUnmatchedZohoOwnerLeavesAnExistingDealsOwnerAlone(): void
+    {
+        $company = $this->makeZohoCompany();
+        $owner = $this->makeAppUser($company);
+        $lead = $this->makeLead($company);
+        $lead->leads_owner_id = $this->makeAppUser($company)->getId();
+        $lead->saveOrFail();
+
+        $deal = $this->makeDeal($company, $owner, lead: $lead);
+        $deal->set(CustomFieldEnum::ZOHO_DEAL_ID->value, 'zd-43');
+
+        $pulled = $this->action($company, 'zd-43', [
+            'id' => 'zd-43',
+            'Deal_Name' => 'Reassigned in Kanvas',
+            'Owner' => ['name' => 'Nobody', 'id' => '1', 'email' => 'nobody-' . uniqid() . '@example.com'],
+        ])->execute();
+
+        $this->assertSame($owner->getId(), (int) $pulled->fresh()->owner_id);
+    }
+
     public function testReturnsNullWhenZohoHasNoSuchDeal(): void
     {
         $company = $this->makeZohoCompany();
@@ -384,6 +486,24 @@ final class PullZohoDealActionTest extends TestCase
         $deal = $this->action($company, 'zd-11', ['id' => 'zd-11', 'Deal_Name' => 'Fetched'])->execute();
 
         $this->assertSame('Fetched', $deal->title);
+    }
+
+    private function makeAppUser(Companies $company): Users
+    {
+        $user = Users::factory()->create();
+
+        UsersAssociatedApps::create([
+            'users_id' => $user->getId(),
+            'companies_id' => $company->getId(),
+            'apps_id' => app(Apps::class)->getId(),
+            'identify_id' => $user->getId(),
+            'email' => $user->email,
+            'user_active' => 1,
+            'user_role' => 'admin',
+            'is_deleted' => 0,
+        ]);
+
+        return $user;
     }
 
     private function action(

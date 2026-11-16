@@ -171,30 +171,31 @@ class OrderPaymentRepository
             )
             ->selectRaw("
                 DATE(CONVERT_TZ(COALESCE(paid_transition.changed_at, first_payment.payment_date), 'UTC', ?)) AS date,
-                COUNT(DISTINCT orders.id) AS total,
-                SUM(orders.total_net_amount) AS amount,
-                COUNT(DISTINCT CASE WHEN payments.payment_method = 'card' THEN payments.id END) AS card,
-                GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
-                COUNT(DISTINCT CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.id END) AS transaction,
-                SUM(CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
-                SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
+                {$this->channelBreakdownColumns()}
             ", [$timezone]);
         } else {
             $query->whereNotNull('first_payment.order_id')
                 ->whereBetween('first_payment.payment_date', [$start, $end])
                 ->selectRaw("
                     DATE(CONVERT_TZ(first_payment.payment_date, 'UTC', ?)) AS date,
-                    COUNT(DISTINCT orders.id) AS total,
-                    SUM(orders.total_net_amount) AS amount,
-                    COUNT(DISTINCT CASE WHEN payments.payment_method = 'card' THEN payments.id END) AS card,
-                    GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
-                    COUNT(DISTINCT CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.id END) AS transaction,
-                    SUM(CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
-                    SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
+                    {$this->channelBreakdownColumns()}
                 ", [$timezone]);
         }
 
         return $query->groupBy('date')->orderBy('date')->get();
+    }
+
+    private function channelBreakdownColumns(): string
+    {
+        return "
+            COUNT(DISTINCT orders.id) AS total,
+            SUM(orders.total_net_amount) AS amount,
+            COUNT(DISTINCT CASE WHEN payments.payment_method = 'card' THEN payments.id END) AS card,
+            GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
+            COUNT(DISTINCT CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.id END) AS transaction,
+            SUM(CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
+            SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
+        ";
     }
 
     /**
@@ -310,6 +311,64 @@ class OrderPaymentRepository
         ?array $metadataFilter = null,
         ?array $orderIds = null
     ): Collection {
+        return $this->paidOrdersQuery(
+            $start,
+            $end,
+            $paidStates,
+            $variantId,
+            $orderTypeNames,
+            $productVariantIds,
+            $providerCompanyIds,
+            $userEmail,
+            $reference,
+            $orderNumber,
+            $metadataFilter,
+            $orderIds,
+        )->pluck('orders.id');
+    }
+
+    public function getPaidOrderDates(
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        ?int $variantId = null,
+        array $orderTypeNames = [],
+        array $providerCompanyIds = [],
+        ?string $userEmail = null
+    ): Collection {
+        $anchor = empty($paidStates)
+            ? 'first_payment.payment_date'
+            : 'COALESCE(paid_transition.changed_at, first_payment.payment_date)';
+
+        return $this->paidOrdersQuery(
+            start: $start,
+            end: $end,
+            paidStates: $paidStates,
+            variantId: $variantId,
+            orderTypeNames: $orderTypeNames,
+            providerCompanyIds: $providerCompanyIds,
+            userEmail: $userEmail,
+        )
+            ->selectRaw("orders.id AS order_id, {$anchor} AS paid_at")
+            ->orderByRaw("{$anchor} ASC")
+            ->toBase()
+            ->pluck('paid_at', 'order_id');
+    }
+
+    private function paidOrdersQuery(
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        ?int $variantId = null,
+        array $orderTypeNames = [],
+        array $productVariantIds = [],
+        array $providerCompanyIds = [],
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null,
+        ?array $orderIds = null
+    ): Builder {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
             ->where('payable_type', Order::class)
@@ -381,7 +440,7 @@ class OrderPaymentRepository
                 ->whereBetween('first_payment.payment_date', [$start, $end]);
         }
 
-        return $query->pluck('orders.id');
+        return $query;
     }
 
     /**

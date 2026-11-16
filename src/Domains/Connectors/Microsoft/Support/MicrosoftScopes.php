@@ -19,6 +19,14 @@ class MicrosoftScopes
      */
     public const string PROFILE = 'User.Read';
 
+    /**
+     * The app's shared OneDrive connection: files only, no mail.
+     */
+    public const string ONEDRIVE = 'offline_access Files.ReadWrite User.Read';
+
+    /**
+     * A company's connection: its mail and its own OneDrive share one consent and one set of tokens.
+     */
     public static function forAuthorization(AppInterface $app): string
     {
         $configured = (string) ($app->get(ConfigurationEnum::SCOPES->value) ?? self::MAIL);
@@ -26,9 +34,14 @@ class MicrosoftScopes
         return self::merge($configured, self::FILES . ' ' . self::PROFILE);
     }
 
+    public static function grantsFiles(string $granted): bool
+    {
+        return in_array(strtolower(self::FILES), array_map('strtolower', preg_split('/\s+/', $granted) ?: []), true);
+    }
+
     /**
      * Microsoft rejects a refresh asking for scopes the user never consented to, so a company
-     * connected before Files existed (nothing stored) must keep refreshing with mail scopes only.
+     * connected before the granted scopes were stored keeps refreshing with mail scopes only.
      */
     public static function forRefresh(?string $granted): string
     {

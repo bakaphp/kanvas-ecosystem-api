@@ -9,7 +9,6 @@ use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class UpdateCompaniesAction
 {
@@ -31,7 +30,6 @@ class UpdateCompaniesAction
             return $value !== null;
         });
 
-
         $this->companies->updateOrFail($data);
 
         if ($this->data->files) {
@@ -52,7 +50,6 @@ class UpdateCompaniesAction
 
     public function activateUser(Users $user, Apps $app): bool
     {
-        $userAssociate = UsersRepository::belongsToThisApp($user, $app);
-        return $userAssociate->active();
+        return $user->getAppProfile($app)->active();
     }
 }

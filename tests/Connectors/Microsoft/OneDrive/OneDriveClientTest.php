@@ -7,8 +7,6 @@ namespace Tests\Connectors\Microsoft\OneDrive;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Enums\OneDriveErrorReasonEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Exceptions\OneDriveException;
 use Kanvas\Connectors\Microsoft\OneDrive\OneDriveClient;
@@ -290,23 +288,6 @@ class OneDriveClientTest extends TestCase
         Http::fake(['*' => Http::response(['error' => ['code' => 'x', 'message' => $message]], $status)]);
 
         $this->assertReason(OneDriveErrorReasonEnum::ONEDRIVE_NOT_AVAILABLE, fn () => $this->client()->listFolder(null));
-    }
-
-    public function test_for_company_without_tokens_is_not_connected(): void
-    {
-        $app = app(Apps::class);
-        $company = static::$cachedUser->getCurrentCompany();
-        $suffix = '-' . $app->getId() . '-' . $company->getId();
-        $original = $company->get(ConfigurationEnum::ACCESS_TOKEN->value . $suffix);
-        $company->del(ConfigurationEnum::ACCESS_TOKEN->value . $suffix);
-
-        try {
-            $this->assertReason(OneDriveErrorReasonEnum::NOT_CONNECTED, fn () => OneDriveClient::forCompany($app, $company));
-        } finally {
-            if ($original !== null) {
-                $company->set(ConfigurationEnum::ACCESS_TOKEN->value . $suffix, $original);
-            }
-        }
     }
 
     public function test_delete_refuses_the_drive_root(): void

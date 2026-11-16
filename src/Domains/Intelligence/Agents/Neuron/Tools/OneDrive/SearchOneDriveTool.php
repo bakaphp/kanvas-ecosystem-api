@@ -46,16 +46,17 @@ class SearchOneDriveTool extends Tool
                     . '(e.g. "/Documentos/Legal") or a folder id. Omit to search the whole OneDrive.',
                 required: false,
             ),
+            $this->driveProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $query, ?string $folder = null): array
+    public function __invoke(string $query, ?string $folder = null, ?string $drive = null): array
     {
-        return $this->attempt(function () use ($query, $folder) {
-            $items = $this->oneDrive()->search($query, folder: $folder);
+        return $this->attempt(function () use ($query, $folder, $drive) {
+            $items = $this->oneDrive($drive)->search($query, folder: $folder);
 
             return ['count' => count($items), 'items' => $items];
         });

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Phone;
 
 use Baka\Support\Str;
+use Kanvas\Communication\Setup\Actions\SetupCompanyRulesAction;
+use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Actions\EnsureSmsResponderRuleAction;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\Twilio\Services\TwilioReceiverService;
@@ -25,7 +28,9 @@ use function Sentry\captureException;
  * receiver for texts.
  *
  * A webhook another system set is left alone and reported as `conflict` unless
- * the caller asks to overwrite it, because the number may already be in use.
+ * the caller asks to overwrite it, because the number may already be in use. A
+ * voice number left on another voice runtime (another environment, or an old
+ * runtime URL) is not another system: it is moved to this one, with a warning.
  *
  * NON-BLOCKING but NOT SILENT: it is called on agent save and must never throw or
  * block the save, so it always returns a structured outcome instead of raising.
@@ -93,7 +98,10 @@ class ConfigureAgentInboundWebhookAction
             }
 
             $current = trim((string) $phone->{$this->channel->twilioUrlField()});
-            if ($current !== '' && $current !== $webhook && ! $this->overwrite) {
+            $fromOtherRuntime = $this->channel === AgentPhoneChannelEnum::VOICE
+                && $current !== $webhook
+                && VoiceRuntimeConfig::isRuntimeInboundUrl($current);
+            if ($current !== '' && $current !== $webhook && ! $this->overwrite && ! $fromOtherRuntime) {
                 return $this->result('conflict', "{$number} already points at another webhook, so it was left in place.", $current);
             }
 
@@ -111,13 +119,18 @@ class ConfigureAgentInboundWebhookAction
                     : "Texts to {$number} reach this company's Twilio receiver.",
                 $webhook,
                 $this->channel === AgentPhoneChannelEnum::SMS
-                    ? $this->smsWarnings(
-                        $twilio,
-                        $company,
-                        $number,
-                        $phone->sid
-                    )
-                    : []
+                    ? [
+                        ...$this->smsWarnings(
+                            $twilio,
+                            $company,
+                            $number,
+                            $phone->sid
+                        ),
+                        ...$this->smsRuleWarnings($company, $number),
+                    ]
+                    : ($fromOtherRuntime
+                        ? ["{$number} was moved here from another voice runtime ({$current}). A number can only reach one runtime, so if that environment saves it again, it moves back."]
+                        : [])
             );
         } catch (ValidationException $e) {
             // Expected, actionable misconfiguration — no need to page Sentry.
@@ -144,7 +157,7 @@ class ConfigureAgentInboundWebhookAction
     private function webhookUrl(): string
     {
         if ($this->channel === AgentPhoneChannelEnum::VOICE) {
-            return VoiceRuntimeConfig::inboundWebhookUrl($this->agent->app);
+            return VoiceRuntimeConfig::inboundWebhookUrl();
         }
 
         return new TwilioReceiverService()->ensure($this->agent)->getUrl();
@@ -168,6 +181,42 @@ class ConfigureAgentInboundWebhookAction
 
         if ($this->messagingServiceHandlesInbound($twilio, $company, $numberSid)) {
             $warnings[] = "{$number} is in a Messaging Service that handles inbound itself, so its webhook on the number is ignored.";
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * A wired webhook only files the texts; the rules are what answer them and what send a person's
+     * reply out. The number is already wired by now, so a rule that could not be made is a warning,
+     * never an error.
+     *
+     * @return list<string>
+     */
+    private function smsRuleWarnings(Companies $company, string $number): array
+    {
+        $warnings = [];
+
+        try {
+            $answering = new EnsureSmsResponderRuleAction($this->agent)->execute();
+
+            if ($answering !== null && $answering->getId() !== $this->agent->getId()) {
+                $warnings[] = "Texts to this company are answered by {$answering->name}, which already has an SMS number, so this agent will not answer {$number}.";
+            }
+        } catch (Throwable $e) {
+            captureException($e);
+            $warnings[] = "Texts to {$number} are received, but the rule that makes this agent answer them could not be created.";
+        }
+
+        try {
+            // The company's own sender wins; a company that never set one sends from this number.
+            new SetupCompanyRulesAction($this->agent->app, $company)->ensure(
+                DefaultRuleEnum::HUMAN_AGENT_RESPONSE,
+                ['from' => $number]
+            );
+        } catch (Throwable $e) {
+            captureException($e);
+            $warnings[] = 'The rule that sends a person\'s reply out by SMS could not be created.';
         }
 
         return $warnings;

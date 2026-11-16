@@ -517,7 +517,7 @@ class GetOrderStatsAction
         $caseStatements = [];
         $bindings = [];
         foreach ($this->providers as $provider) {
-            $caseStatements[] = "WHEN orders.user_email LIKE ? THEN ?";
+            $caseStatements[] = 'WHEN orders.user_email LIKE ? THEN ?';
             $bindings[] = $provider['emailPattern'];
             $bindings[] = $provider['name'];
         }

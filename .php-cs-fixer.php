@@ -49,6 +49,8 @@ return $config
     ])
     ->setFinder(
         PhpCsFixer\Finder::create()
-        ->exclude('vendor')
+        ->exclude(['vendor', 'node_modules', 'storage', 'bootstrap/cache', 'docs'])
+        // 1.1M-line data file: tokenizing it exhausts memory and hangs the parallel runner.
+        ->notPath('database/seeders/CitiesSeeder.php')
         ->in(__DIR__)
     );

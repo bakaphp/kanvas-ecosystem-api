@@ -82,6 +82,7 @@ class ResourceScheduleValidator
 
         if (! $this->isOpen($startTime)) {
             $message = $this->buildClosedErrorMessage($startTime);
+
             throw new ValidationException($message);
         }
     }
@@ -231,6 +232,7 @@ class ResourceScheduleValidator
 
         if (! $rule) {
             $dayName = $normalizedTime->format('l');
+
             return "{$resourceName} is closed on {$dayName}s. Requested time: {$formattedTime}";
         }
 
@@ -248,6 +250,7 @@ class ResourceScheduleValidator
             foreach ($metadata['periods'] as $period) {
                 $periodStrings[] = $period['open'] . ' - ' . $period['close'];
             }
+
             return implode(', ', $periodStrings);
         }
 
@@ -268,6 +271,7 @@ class ResourceScheduleValidator
 
         if (preg_match('/DTSTART:(\d{8}T\d{6})/', $dayRrule, $matches)) {
             $startTime = Carbon::createFromFormat('Ymd\THis', $matches[1]);
+
             return $startTime->format('H:i') . ' onwards';
         }
 

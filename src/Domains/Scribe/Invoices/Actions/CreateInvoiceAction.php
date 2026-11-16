@@ -73,6 +73,7 @@ class CreateInvoiceAction
             $invoice->internal_notes = $this->data->internal_notes;
             $invoice->terms = $this->data->terms;
             $invoice->quote_id = $this->data->quote_id;
+            $invoice->order_id = $this->data->order?->getId();
             $invoice->parent_invoice_id = $this->data->parent_invoice_id;
             $invoice->source = $this->data->source;
             $invoice->external_id = $this->data->external_id;

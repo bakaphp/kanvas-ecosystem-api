@@ -54,7 +54,6 @@ class TagsManagement
             ->fromApp($app)
             ->firstOrFail();
 
-
         return $tag->delete();
     }
 

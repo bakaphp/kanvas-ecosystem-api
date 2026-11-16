@@ -34,7 +34,6 @@ class CompanyReviewType extends BaseModel
 
     /**
      * scopeCompany.
-     *
      */
     public function scopeFromCompany(Builder $query, mixed $company = null): Builder
     {

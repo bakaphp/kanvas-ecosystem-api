@@ -35,7 +35,6 @@ class ImportVehicleAttributesCommand extends Command
 
         $userId = (int) ($this->option('user_id') ?? 0);
 
-
         $this->info("Importing vehicle attributes for App: {$app->name} (ID: {$app->getId()})");
 
         $makeAttribute = Attributes::firstOrCreate(

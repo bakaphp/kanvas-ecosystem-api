@@ -26,6 +26,8 @@ enum ConfigurationEnum: string
     case DISABLE_ORDER_ITEM_STOCK_VALIDATION = 'souk_disable_order_item_stock_validation';
     case ENFORCE_EXACT_PAYMENT_AMOUNT = 'souk_enforce_exact_payment_amount';
     case ALLOW_ORDER_CORRECTION_ON_FINAL_STATUS = 'souk_allow_order_correction_on_final_status';
+    case PAYMENT_REPORT_DIGITAL_FEE_RATE = 'souk_payment_report_digital_fee_rate';
+    case PAYMENT_REPORT_PHYSICAL_FEE_RATE = 'souk_payment_report_physical_fee_rate';
 
     /**
      * Where a product lives on the store's own site, as a template: `https://shop.example.com/products/{slug}`

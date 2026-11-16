@@ -31,7 +31,6 @@ class CustomFieldsValues extends BaseModel
 
     /**
      * Custom field modules.
-     *
      */
     public function customField(): BelongsTo
     {

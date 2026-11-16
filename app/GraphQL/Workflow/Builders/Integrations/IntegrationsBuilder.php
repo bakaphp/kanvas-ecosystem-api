@@ -44,7 +44,7 @@ class IntegrationsBuilder
 
         $root->select([
                 'entity_integration_history.*',
-                'entity_integration_history.id as id'
+                'entity_integration_history.id as id',
             ])
             ->join($integrationsCompanyTable, $entityIntegrationHistoryTable . '.integrations_company_id', '=', $integrationsCompanyTable . '.id')
             ->join($regionTable, $integrationsCompanyTable . '.region_id', '=', $regionTable . '.id')

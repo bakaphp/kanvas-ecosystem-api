@@ -48,6 +48,7 @@ class AddAdminsToCompanyAction
                 $addUserCompanyAction->execute($admins, $role->id);
             } catch (Exception $e) {
                 captureException($e);
+
                 throw $e;
             }
         }

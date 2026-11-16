@@ -39,16 +39,17 @@ class ListOneDriveFolderTool extends Tool
                     . 'search/list. Omit for the root.',
                 required: false,
             ),
+            $this->driveProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?string $path_or_id = null): array
+    public function __invoke(?string $path_or_id = null, ?string $drive = null): array
     {
-        return $this->attempt(function () use ($path_or_id) {
-            $items = $this->oneDrive()->listFolder($path_or_id);
+        return $this->attempt(function () use ($path_or_id, $drive) {
+            $items = $this->oneDrive($drive)->listFolder($path_or_id);
 
             return ['count' => count($items), 'items' => $items];
         });

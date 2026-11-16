@@ -14,6 +14,8 @@ use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Stripe\Support\StripeAccount;
 use Kanvas\Exceptions\ValidationException as KanvasValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
@@ -156,6 +158,85 @@ class StripePaymentLinkService
 
         $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value, $paymentLink->id);
         $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_URL->value, $paymentLink->url);
+
+        return $paymentLink;
+    }
+
+    /**
+     * A B2B customer pays the invoice, not the order: one line for what is still owed, so a partial
+     * payment or a credit note is already netted out. The link is reused while that balance holds and
+     * replaced (the old one deactivated) when it moves. Card only: the webhook books a payment when
+     * the session completes paid, and an ACH session completes unpaid.
+     */
+    public function generatePaymentLinkFromInvoice(Invoice $invoice, array $options = []): PaymentLink
+    {
+        if (! in_array($invoice->document_status, [InvoiceDocumentStatusEnum::ISSUED, InvoiceDocumentStatusEnum::SENT], true)) {
+            throw new KanvasValidationException(
+                'Invoice ' . $invoice->invoice_number . ' is ' . $invoice->document_status->value . '; only an issued or sent invoice can be paid'
+            );
+        }
+
+        $balance = (float) $invoice->balance_due_native;
+
+        if ($balance <= 0) {
+            throw new KanvasValidationException('Invoice ' . $invoice->invoice_number . ' has nothing left to pay');
+        }
+
+        $key = CustomFieldEnum::STRIPE_INVOICE_PAYMENT_LINK->value;
+        $metadata = $invoice->metadata ?? [];
+        $existing = $metadata[$key] ?? null;
+
+        if (is_array($existing) && isset($existing['id'])) {
+            if (abs((float) ($existing['balance'] ?? 0) - $balance) < 0.005) {
+                try {
+                    $link = $this->stripe()->paymentLinks->retrieve($existing['id']);
+
+                    if ($link->active) {
+                        return $link;
+                    }
+                } catch (Exception) {
+                }
+            } else {
+                try {
+                    $this->stripe()->paymentLinks->update($existing['id'], ['active' => false]);
+                } catch (Exception) {
+                }
+            }
+        }
+
+        $paymentLinkData = [
+            'line_items' => [
+                [
+                    'price_data' => [
+                        'currency' => strtolower($invoice->currency),
+                        'product_data' => [
+                            'name' => 'Invoice ' . $invoice->invoice_number,
+                            'description' => $invoice->billable_display_name ?? $invoice->customer?->name ?? '',
+                        ],
+                        'unit_amount' => Money::minorUnits($balance, $invoice->currency),
+                    ],
+                    'quantity' => 1,
+                ],
+            ],
+            'metadata' => [
+                'invoice_id' => (string) $invoice->getId(),
+                'invoice_number' => (string) $invoice->invoice_number,
+                'app_id' => (string) $invoice->apps_id,
+                'company_id' => (string) $invoice->companies_id,
+            ],
+            'customer_creation' => 'if_required',
+            'payment_method_types' => ['card'],
+        ];
+
+        if ($afterCompletion = $this->buildAfterCompletion($options)) {
+            $paymentLinkData['after_completion'] = $afterCompletion;
+        }
+
+        $paymentLink = $this->stripe()->paymentLinks->create($paymentLinkData);
+
+        $metadata[$key] = ['id' => $paymentLink->id, 'url' => $paymentLink->url, 'balance' => $balance];
+        $invoice->metadata = $metadata;
+        $invoice->saveOrFail();
 
         return $paymentLink;
     }

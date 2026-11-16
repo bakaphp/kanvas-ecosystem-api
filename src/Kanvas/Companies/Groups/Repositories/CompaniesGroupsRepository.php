@@ -12,7 +12,6 @@ class CompaniesGroupsRepository
 {
     /**
      * Associate a company to this company Group.
-     *
      */
     public static function associate(CompaniesGroups $companyGroup, Companies $company, int $isDefault = 1): CompaniesAssociations
     {

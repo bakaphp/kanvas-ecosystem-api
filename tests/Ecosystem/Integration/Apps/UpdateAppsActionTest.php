@@ -14,7 +14,6 @@ final class UpdateAppsActionTest extends TestCase
 {
     /**
      * Test Create Apps Action.
-     *
      */
     public function testCreateAppsAction(): void
     {

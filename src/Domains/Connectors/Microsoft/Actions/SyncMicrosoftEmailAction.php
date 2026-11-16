@@ -51,7 +51,7 @@ class SyncMicrosoftEmailAction
     public function execute(): array
     {
         $accessToken = MicrosoftClient::getValidAccessToken($this->app, $this->company);
-        $configPrefix = '-' . $this->app->getId() . '-' . $this->company->getId();
+        $configPrefix = ConfigurationEnum::companySuffix($this->app, $this->company);
         $lastSyncAt = (string) $this->company->get(ConfigurationEnum::LAST_SYNC_AT->value . $configPrefix);
 
         // OData filter: fetch only emails newer than last sync (or last 24h on first run)

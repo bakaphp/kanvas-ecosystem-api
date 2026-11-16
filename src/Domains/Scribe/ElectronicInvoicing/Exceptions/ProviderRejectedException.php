@@ -12,4 +12,12 @@ use Kanvas\Exceptions\ValidationException;
  */
 class ProviderRejectedException extends ValidationException
 {
+    /**
+     * @param array<array-key, mixed>|null $rawResponse what the provider answered, kept as the attempt's
+     *        response artifact: a refusal with no message is otherwise untraceable
+     */
+    public function __construct(string $message, public readonly ?array $rawResponse = null)
+    {
+        parent::__construct($message);
+    }
 }

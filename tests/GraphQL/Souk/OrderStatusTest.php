@@ -87,8 +87,8 @@ class OrderStatusTest extends OrderBase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -122,7 +122,7 @@ class OrderStatusTest extends OrderBase
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
-                'data' => []
+                'data' => [],
             ],
             orderType: $this->orderTypeName
         );
@@ -163,8 +163,8 @@ class OrderStatusTest extends OrderBase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -198,7 +198,7 @@ class OrderStatusTest extends OrderBase
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
-                'data' => []
+                'data' => [],
             ],
             currency: 'DOP',
             orderType: $this->orderTypeName
@@ -253,8 +253,8 @@ class OrderStatusTest extends OrderBase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -288,7 +288,7 @@ class OrderStatusTest extends OrderBase
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
-                'data' => []
+                'data' => [],
             ],
             orderType: $this->orderTypeName
         );
@@ -327,8 +327,8 @@ class OrderStatusTest extends OrderBase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -363,7 +363,7 @@ class OrderStatusTest extends OrderBase
             variantId: $variantResponse['id'],
             quantity: 1,
             metadata: [
-                'data' => []
+                'data' => [],
             ],
             orderType: $this->orderTypeName
         );

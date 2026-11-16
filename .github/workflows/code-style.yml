@@ -1,0 +1,22 @@
+name: code style
+
+on: ["push"]
+
+jobs:
+  php-cs-fixer:
+    name: PHP-CS-Fixer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          coverage: none
+          # Keep in sync with the version developers run locally, or CI and local disagree.
+          tools: php-cs-fixer:3.95.27
+
+      - name: Check code style
+        run: php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff --using-cache=no

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\Jobs;
 
+use Kanvas\Connectors\Zoho\Actions\CreateZohoLeadChannelsAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
+use Throwable;
 
 #[WorkflowAction(
     name: 'Zoho Sync Lead Webhook',
@@ -43,6 +45,15 @@ class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
         );
 
         $lead = $syncLead->execute();
+
+        // A lead the pull just created has no channels yet; an existing one already has them.
+        if ($lead?->wasRecentlyCreated) {
+            try {
+                new CreateZohoLeadChannelsAction($lead)->execute();
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
 
         return [
             'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,

@@ -19,6 +19,7 @@ use Kanvas\Support\Validations\UniqueSlugRule;
 class Region
 {
     use ResolvesTargetCompanyTrait;
+
     /**
      * create.
      *

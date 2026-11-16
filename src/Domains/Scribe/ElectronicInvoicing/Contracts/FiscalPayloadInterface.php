@@ -26,7 +26,7 @@ interface FiscalPayloadInterface
     public function issueDate(): string;
 
     /**
-     * The send attempt's uuid, which the provider dedupes on.
+     * The send attempt's `system_ref`, which the provider dedupes on.
      */
     public function systemRef(): string;
 

@@ -26,18 +26,21 @@ class ImportEmailTemplatesCommand extends Command
 
         if (! file_exists($jsonFile)) {
             error("File not found: {$jsonFile}");
+
             return;
         }
 
         $app = Apps::find($appId);
         if (! $app) {
             error("App with ID {$appId} not found.");
+
             return;
         }
 
         $data = json_decode(file_get_contents($jsonFile), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             error('Invalid JSON file: ' . json_last_error_msg());
+
             return;
         }
 
@@ -45,12 +48,14 @@ class ImportEmailTemplatesCommand extends Command
         foreach ($data as $item) {
             if (($item['type'] ?? '') === 'table' && $item['name'] === 'email_templates') {
                 $templates = $item['data'];
+
                 break;
             }
         }
 
         if (empty($templates)) {
             error('No email_templates table found in JSON file.');
+
             return;
         }
 
@@ -67,6 +72,7 @@ class ImportEmailTemplatesCommand extends Command
 
             if ($exists) {
                 $skipped++;
+
                 continue;
             }
 

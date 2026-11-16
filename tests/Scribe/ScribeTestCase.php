@@ -21,12 +21,14 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
+use Kanvas\Scribe\Invoices\Actions\ImportInvoiceFromExternalAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
+use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
@@ -233,6 +235,39 @@ abstract class ScribeTestCase extends TestCase
         return new IssueInvoiceAction(
             invoice: $draft,
             billable: $billable,
+            user: static::$cachedUser,
+        )->execute();
+    }
+
+    /**
+     * A one-line invoice issued in an external ERP and imported (origin EXTERNAL, no JE) — the shape a
+     * NetSuite or Acumatica invoice lands in. Reusing an $externalId is a re-import: same row, fresh balance.
+     */
+    protected function importTestInvoice(
+        float $total,
+        float $paid = 0.0,
+        ?string $externalId = null,
+        string $source = 'netsuite'
+    ): Invoice {
+        $externalId ??= 'EXT-' . uniqid();
+
+        return new ImportInvoiceFromExternalAction(
+            data: new InvoiceData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                billable: $this->seedTestOrganization('The Art Supply Depo ' . $externalId),
+                lines: new DataCollection(InvoiceLineData::class, [
+                    new InvoiceLineData(description: 'Copic markers', quantity: 1, unit_price_native: $total),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                invoice_number: $externalId,
+                issued_date: Carbon::parse($this->fiscalPeriodStart()),
+                source: $source,
+                external_id: $externalId,
+                origin: JournalEntryOriginEnum::EXTERNAL,
+            ),
+            paidNative: $paid,
             user: static::$cachedUser,
         )->execute();
     }

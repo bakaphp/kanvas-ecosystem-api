@@ -198,6 +198,13 @@ class GenerateQuoteSowTool extends Tool
                     . '(attach_quote_file kind "sow") and you are only recording its structure.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'template',
+                type: PropertyType::STRING,
+                description: 'Optional company SOW layout version (from get_sow_template). Omit to use the company '
+                    . 'default, or the stock layout when there is none.',
+                required: false,
+            ),
         ];
     }
 
@@ -225,6 +232,7 @@ class GenerateQuoteSowTool extends Tool
         ?string $change_process = null,
         ?int $payment_terms_id = null,
         ?bool $render_pdf = null,
+        ?string $template = null,
     ): array {
         $quote = $this->resolveQuote($quote_id);
 
@@ -253,6 +261,7 @@ class GenerateQuoteSowTool extends Tool
             'change_process' => $change_process,
             'payment_terms_id' => $payment_terms_id,
             'signatories' => $signatories,
+            'template' => $template,
         ]);
 
         try {
@@ -280,6 +289,7 @@ class GenerateQuoteSowTool extends Tool
             'quote_id' => $quote->getId(),
             'sow_message_id' => $message->getId(),
             'previous_sow_message_id' => $message->parent_id,
+            'template' => StatementOfWork::fromMessage($message)->template,
         ];
 
         if ($render_pdf === false) {

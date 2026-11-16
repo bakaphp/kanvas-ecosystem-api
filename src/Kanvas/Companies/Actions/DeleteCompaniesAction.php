@@ -20,7 +20,6 @@ class DeleteCompaniesAction
 {
     /**
      * Construct function.
-     *
      */
     public function __construct(
         protected Users $user

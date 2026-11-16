@@ -27,7 +27,7 @@ use Throwable;
  *     reusable, with no other attempt in flight); otherwise this is a no-op and returns null;
  *  3. the attempt row is inserted (and, outside a caller's transaction, committed) before the call.
  *
- * Every attempt goes out under its own uuid as systemRef, so a resend after a reusable rejection is a document
+ * Every attempt goes out under its own `system_ref`, so a resend after a reusable rejection is a document
  * the provider has not seen rather than a duplicate it answers with the old rejection.
  *
  * Outcomes:
@@ -52,8 +52,8 @@ class RecordFiscalSubmissionAction
     public function execute(): ?FiscalDocumentSubmission
     {
         $fiscal = $this->fiscalDocument;
-        $attempt = new FiscalDocumentSubmission()->generateUuidIfMissing();
-        $document = FiscalPayloadService::forFiscal($fiscal, $attempt->uuid);
+        $attempt = new FiscalDocumentSubmission()->generateUuidIfMissing()->generateSystemRefIfMissing();
+        $document = FiscalPayloadService::forFiscal($fiscal, $attempt->systemRef());
         $provider = $this->provider ??= new EcfProviderResolver()->resolveFor($fiscal);
 
         $request = $this->artifacts->store(
@@ -76,6 +76,10 @@ class RecordFiscalSubmissionAction
         try {
             $answer = $provider->submit($document);
         } catch (ProviderRejectedException $e) {
+            if ($e->rawResponse !== null) {
+                $this->storeResponse($fiscal, $attempt, $e->rawResponse);
+            }
+
             return $this->providerRejected(
                 $fiscal,
                 $attempt,
@@ -88,7 +92,7 @@ class RecordFiscalSubmissionAction
             return $this->unknown($fiscal, $attempt, $e);
         }
 
-        $this->storeResponse($fiscal, $attempt, $answer);
+        $this->storeResponse($fiscal, $attempt, $answer->rawResponse ?? $answer->except('pdfBase64')->toArray());
 
         if (! $answer->reachedAuthority) {
             return $this->providerRejected(
@@ -208,10 +212,12 @@ class RecordFiscalSubmissionAction
 
     /**
      * The answer is already in hand; a storage failure must not lose it, so it is reported and the hash kept.
+     *
+     * @param array<array-key, mixed> $response
      */
-    private function storeResponse(FiscalDocument $fiscal, FiscalDocumentSubmission $attempt, EcfSubmission $answer): void
+    private function storeResponse(FiscalDocument $fiscal, FiscalDocumentSubmission $attempt, array $response): void
     {
-        $raw = (string) json_encode($answer->rawResponse ?? $answer->except('pdfBase64')->toArray());
+        $raw = (string) json_encode($response);
         $attempt->response_sha256 = hash('sha256', $raw);
 
         try {

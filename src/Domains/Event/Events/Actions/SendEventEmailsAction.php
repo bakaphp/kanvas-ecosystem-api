@@ -44,7 +44,7 @@ class SendEventEmailsAction
             'event.resource',
             'event.resources',
             'dates',
-            'participants.people'
+            'participants.people',
         ]);
 
         $event = $this->eventVersion->event;

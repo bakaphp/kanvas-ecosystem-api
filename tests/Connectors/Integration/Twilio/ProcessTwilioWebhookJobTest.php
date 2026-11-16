@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
@@ -93,6 +94,27 @@ class ProcessTwilioWebhookJobTest extends TestCase
         $lead = $message->entity(Lead::class);
         $this->assertInstanceOf(Lead::class, $lead);
         $this->assertTrue($lead->tags()->where('name', 'engaged')->exists());
+    }
+
+    public function testProcessIncomingSmsFromExistingPersonWithoutFirstname(): void
+    {
+        $payload = $this->buildTwilioPayload();
+        $first = $this->dispatchWebhookJob($payload);
+        $peopleId = Message::query()->where('id', $first[0]['message_id'])->value('people_id');
+
+        // Imported and synced people can carry a null firstname (KANVAS-ECOSYSTEM-6XC).
+        People::query()->where('id', $peopleId)->update(['firstname' => null]);
+
+        $result = $this->dispatchWebhookJob(array_merge($payload, [
+            'SmsMessageSid' => 'SM' . Str::random(32),
+        ]));
+
+        $this->assertArrayHasKey('message_id', $result[0]);
+        $this->assertSame(
+            $peopleId,
+            Message::query()->where('id', $result[0]['message_id'])->value('people_id')
+        );
+        $this->assertNotNull(People::query()->where('id', $peopleId)->value('firstname'));
     }
 
     public function testProcessStopMarksPhoneContactsAsOptedOut(): void

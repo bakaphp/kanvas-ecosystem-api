@@ -31,15 +31,20 @@ class AgentChannelResponderOptOutTest extends TestCase
         ['lead' => $lead, 'message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
 
         $action = new class ($channel, $message, $agent, null) extends AgentChannelResponderAction {
-            protected function dispatchMessage(string $to, string $from, string $body): void
+            protected function dispatchMessage(string $to, string $from, string $body): object
             {
                 throw new RestException('Unable to create record: Attempt to send to unsubscribed recipient', 21610, 400);
             }
         };
 
         // Must not throw — the opt-out is expected and swallowed.
-        new ReflectionMethod($action, 'sendResponse')
-            ->invoke($action, '+17073383454', '+17076342748', 'Hi there, following up on your vehicle.');
+        new ReflectionMethod($action, 'sendResponse')->invoke(
+            $action,
+            $message,
+            '+17073383454',
+            '+17076342748',
+            'Hi there, following up on your vehicle.'
+        );
 
         $noteRecorded = Message::query()
             ->where('companies_id', $lead->companies_id)
@@ -47,6 +52,10 @@ class AgentChannelResponderOptOutTest extends TestCase
             ->exists();
 
         $this->assertTrue($noteRecorded, 'an opt-out note should be recorded on the lead');
+
+        $delivery = $message->fresh()->getMessage()['delivery'];
+        $this->assertSame('failed', $delivery['status']);
+        $this->assertSame('21610', $delivery['error_code']);
     }
 
     public function testOtherTwilioErrorsAreRethrown(): void
@@ -56,7 +65,7 @@ class AgentChannelResponderOptOutTest extends TestCase
             {
             }
 
-            protected function dispatchMessage(string $to, string $from, string $body): void
+            protected function dispatchMessage(string $to, string $from, string $body): object
             {
                 throw new RestException("The 'To' number is not a valid phone number", 21211, 400);
             }
@@ -65,8 +74,13 @@ class AgentChannelResponderOptOutTest extends TestCase
         $this->expectException(RestException::class);
         $this->expectExceptionCode(21211);
 
-        new ReflectionMethod($action, 'sendResponse')
-            ->invoke($action, '+17073383454', '+17076342748', 'reply body');
+        new ReflectionMethod($action, 'sendResponse')->invoke(
+            $action,
+            new Message(),
+            '+17073383454',
+            '+17076342748',
+            'reply body'
+        );
     }
 
     private function setupLeadMessageChannelAgent(): array

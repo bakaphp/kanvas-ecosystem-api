@@ -40,6 +40,12 @@ trait PostsSessionActivity
 
     protected function postQuestion(AgentTaskSession $session, HarnessQuestion $question): void
     {
+        if ($session->isChat()) {
+            $this->postToChat($session, '❓ ' . $question->describe() . "\n\nReply here with your answer.");
+
+            return;
+        }
+
         $this->postBlockingAsk(
             $session,
             "❓ The coding agent needs a decision:\n\n" . $question->describe()
@@ -51,6 +57,16 @@ trait PostsSessionActivity
 
     protected function postPermissionRequest(AgentTaskSession $session, HarnessPermissionRequest $permission): void
     {
+        if ($session->isChat()) {
+            $this->postToChat(
+                $session,
+                "🔐 It wants to run:\n\n`" . $permission->describe() . "`\n\n"
+                . 'Reply **yes** (this once), **always**, or **no**.'
+            );
+
+            return;
+        }
+
         $this->postBlockingAsk(
             $session,
             "🔐 The coding agent is asking permission to run:\n\n`" . $permission->describe() . '`'
@@ -110,6 +126,54 @@ trait PostsSessionActivity
 
         $this->postToPlan($session, ($this->mentionFor($plan) ?? '') . $body, $verb);
         $this->notifyTheAsker($plan, $title, $body);
+    }
+
+    /**
+     * Into the conversation a coding chat answers to, as the agent, through the plan's origin — the
+     * same transcript + broadcast + connector path a finished job's report takes.
+     */
+    protected function postToChat(AgentTaskSession $session, string $content): void
+    {
+        try {
+            /** @var Plan|null $plan */
+            $plan = $session->plan;
+
+            if ($plan === null) {
+                return;
+            }
+
+            $this->bindChatOrigin($session, $plan);
+            $this->alsoPostToOriginConversation(
+                plan: $plan,
+                body: $content,
+                verb: 'coding_chat',
+                mention: false,
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * A conversation's channel is created when the kernel persists its first turn — after the turn ran.
+     * A chat opened by that first message therefore records its plan with no origin channel, and every
+     * delivery would be dropped. By the time anything is posted the channel exists, so it is bound here.
+     */
+    private function bindChatOrigin(AgentTaskSession $session, Plan $plan): void
+    {
+        if ($plan->origin_channel_id !== null) {
+            return;
+        }
+
+        $channelId = $session->chatSession?->channel_id;
+
+        if ($channelId === null) {
+            return;
+        }
+
+        $plan->origin_channel_id = $channelId;
+        $plan->saveQuietly();
+        $plan->unsetRelation('originChannel');
     }
 
     protected function postToPlan(AgentTaskSession $session, string $content, string $verb): void

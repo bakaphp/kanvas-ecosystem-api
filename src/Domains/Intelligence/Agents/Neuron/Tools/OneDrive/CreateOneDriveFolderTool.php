@@ -44,14 +44,15 @@ class CreateOneDriveFolderTool extends Tool
                 description: 'Parent folder path starting with "/" (e.g. "/Documentos") or a folder id. Omit for the root.',
                 required: false,
             ),
+            $this->driveProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $name, ?string $parent = null): array
+    public function __invoke(string $name, ?string $parent = null, ?string $drive = null): array
     {
-        return $this->attempt(fn () => ['item' => $this->oneDrive()->createFolder($parent, $name)]);
+        return $this->attempt(fn () => ['item' => $this->oneDrive($drive)->createFolder($parent, $name)]);
     }
 }

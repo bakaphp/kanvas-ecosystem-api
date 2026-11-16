@@ -57,12 +57,12 @@ class PublishProductGraphqlAction
 
                 $productId = $this->products->getShopifyId($this->warehouse->regions);
                 $variables = [
-                    "input" => [
-                        "id" => "gid://shopify/Product/{$productId}",
+                    'input' => [
+                        'id' => "gid://shopify/Product/{$productId}",
                         'productPublications' => [
-                            "publicationId" => $publicationId,
-                        ]
-                    ]
+                            'publicationId' => $publicationId,
+                        ],
+                    ],
                 ];
                 $response = $client->GraphQL->post($graphql, null, null, $variables);
                 // if ($response['data']['productPublish']['userErrors']) {

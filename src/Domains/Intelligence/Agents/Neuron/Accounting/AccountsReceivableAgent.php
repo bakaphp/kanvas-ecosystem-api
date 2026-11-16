@@ -34,6 +34,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -43,21 +44,37 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SaveSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetDefaultSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPersonNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetDealRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadPersonActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TakeDealMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
@@ -143,6 +160,19 @@ class AccountsReceivableAgent extends SystemUserAgent
             new GetDocumentLinkTool(),
             new CreatePersonTool(),
             new LinkPersonToOrganizationTool(),
+            new FindPersonTool(),
+            new GetDealRefTool(),
+            new GetPersonTool(),
+            new LeadRefTool(),
+            new ReadLeadActivityTool(),
+            new ReadOrganizationActivityTool(),
+            new ReadPersonActivityTool(),
+            new SearchDealsTool(),
+            new SearchLeadsTool(),
+            new AddLeadNoteTool(),
+            new AddOrganizationNoteTool(),
+            new AddPersonNoteTool(),
+            new TakeDealMessageTool(),
             new ListOrganizationPeopleTool(),
             new TagPersonTool(),
             new CreateQuoteTool(),
@@ -155,6 +185,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new AttachQuoteFileTool(),
             new GenerateQuoteSowTool(),
             new GetQuoteSowTool(),
+            new GetSowTemplateTool(),
             new ScheduleBillingTool(),
             new ListBillingSchedulesTool(),
             new SetInvoiceTermsTool(),
@@ -179,6 +210,9 @@ class AccountsReceivableAgent extends SystemUserAgent
         $person = $this->personAsking();
         if ($person !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new ImportIssuedEcfExportTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
+            $tools[] = new SaveSowTemplateTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SetDefaultSowTemplateTool()->withContext($this->app, $this->company, $person);
         }
 
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
@@ -198,6 +232,11 @@ class AccountsReceivableAgent extends SystemUserAgent
         return implode("\n", [
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
+            '- Leaving something on the record for the team → add_lead_note, add_person_note, add_organization_note; a message about a deal ("have someone call me about the quote") → take_deal_message, which notes the deal and tells its owner.',
+            '- The sales side of a vendor or customer (who they are to the company, which deal or lead they came from, what was said to them) → search_leads / get_lead_ref / read_lead_activity, search_deals / get_deal_ref, find_person / get_person / read_person_activity, read_organization_activity. Read them to answer and to address the right person; leads and deals are changed by the sales team, not by you.',
+            '- An invoice, quote or SOW reaches a customer only through send_invoice / send_quote; never paste its '
+            . 'contents or describe its amounts in an email. send_person_email is for everything else: answering a '
+            . 'question, asking for a PO number, confirming a change before you revise a quote.',
             '- Customers send remittance advice, purchase orders and credit requests to the company accounting inbox. '
             . 'Each one reaches you as a task; recent_inbox_arrivals (outcome routed_to_ar) lists them. A remittance is '
             . 'matched to open invoices for you, but the payment is only applied when the bank confirms it — never '
@@ -269,6 +308,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
             . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '
             . 'invoice — it is not the vendor PDF an invoice email arrived with.',
+            '- The company\'s SOW layout is its own Twig template, in named versions with one default. "Change how our '
+            . 'SOW looks" → get_sow_template, edit the Twig, save_sow_template (make_default when they want it used from now '
+            . 'on); "use the retainer layout for this one" → generate_quote_sow with template; "go back to the normal '
+            . 'layout" → set_default_sow_template with no version. Show the person what changed before you make it the default.',
             '- Services quotes need a Statement of Work. "Write the SOW for quote X" → get_quote_sow (for the quote line '
             . 'ids), draft the SOW from the lines, the conversation and past SOWs in your knowledge, then '
             . 'generate_quote_sow. If it refuses, fix every listed problem or ask the user, and call it again. '

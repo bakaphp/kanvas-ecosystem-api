@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Support\Str;
-use DateTimeInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -24,7 +23,7 @@ use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\Twilio\Services\MessageErrorClassifier;
-use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
+use Kanvas\Connectors\Twilio\Services\TwilioReceiverService;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
@@ -48,7 +47,6 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Models\ReceiverWebhook;
 use Ramsey\Uuid\Uuid;
 use Throwable;
 use Twilio\Exceptions\RestException;
@@ -288,10 +286,13 @@ class SendMessageToLeadAction
 
     protected function createVideoEngagements(): void
     {
-        foreach ($this->processedFiles as $file) {
+        foreach ($this->processedFiles as $index => $file) {
             if (! isset($file['is_processed_video']) || ! $file['is_processed_video']) {
                 continue;
             }
+
+            // Without a link the customer has no way to reach the video, so it goes out as a plain file.
+            $this->processedFiles[$index] = $file['video'];
 
             $filesystems = [];
             if (isset($file['video']['filesystem'])) {
@@ -322,10 +323,10 @@ class SendMessageToLeadAction
                 $engagementUrl = $engagement->message->message['action_link'] ?? '';
 
                 if (! empty($engagementUrl)) {
+                    $this->processedFiles[$index] = $file;
                     $this->videoEngagements[] = [
                         'engagement' => $engagement,
                         'url' => $engagementUrl,
-                        'gif_url' => $file['gif']['url'] ?? null,
                     ];
                 }
             } catch (Exception $e) {
@@ -589,7 +590,7 @@ class SendMessageToLeadAction
                 'media_per_batch' => [0],
                 'lead_id' => $this->lead->getId(),
                 'lead_uuid' => $this->lead->uuid,
-                'messages' => [$this->describeTwilioMessage($twilioMessage)],
+                'messages' => [Client::describeMessage($twilioMessage)],
             ];
         }
 
@@ -616,7 +617,7 @@ class SendMessageToLeadAction
             'media_per_batch' => array_map('count', $batches),
             'lead_id' => $this->lead->getId(),
             'lead_uuid' => $this->lead->uuid,
-            'messages' => array_map(fn ($m) => $this->describeTwilioMessage($m), $twilioMessages),
+            'messages' => array_map(Client::describeMessage(...), $twilioMessages),
         ];
     }
 
@@ -852,39 +853,7 @@ class SendMessageToLeadAction
 
     protected function getTwilioStatusCallbackUrl(): ?string
     {
-        $receiver = ReceiverWebhook::query()
-            ->fromApp($this->lead->app)
-            ->fromCompany($this->lead->company)
-            ->notDeleted()
-            ->where('is_active', true)
-            ->forJob(ProcessTwilioMessageStatusWebhookJob::class)
-            ->first();
-
-        return $receiver?->getUrl();
-    }
-
-    private function describeTwilioMessage(object $twilioMessage): array
-    {
-        return [
-            'sid' => $twilioMessage->sid,
-            'account_sid' => $twilioMessage->accountSid,
-            'messaging_service_sid' => $twilioMessage->messagingServiceSid,
-            'status' => $twilioMessage->status,
-            'direction' => $twilioMessage->direction,
-            'from' => $twilioMessage->from,
-            'to' => $twilioMessage->to,
-            'body' => $twilioMessage->body,
-            'num_segments' => $twilioMessage->numSegments,
-            'num_media' => $twilioMessage->numMedia,
-            'error_code' => $twilioMessage->errorCode,
-            'error_message' => $twilioMessage->errorMessage,
-            'price' => $twilioMessage->price,
-            'price_unit' => $twilioMessage->priceUnit,
-            'date_created' => $twilioMessage->dateCreated?->format(DateTimeInterface::ATOM),
-            'date_sent' => $twilioMessage->dateSent?->format(DateTimeInterface::ATOM),
-            'date_updated' => $twilioMessage->dateUpdated?->format(DateTimeInterface::ATOM),
-            'uri' => $twilioMessage->uri,
-        ];
+        return new TwilioReceiverService()->statusCallbackUrl($this->lead->app, $this->lead->company);
     }
 
     protected function getMediaUrlsForTwilio(): array
@@ -897,20 +866,13 @@ class SendMessageToLeadAction
         $maxUrls = (int) ($this->lead->app->get(TwilioConfigurationEnum::TWILIO_MMS_MAX_TOTAL_MEDIA->value) ?: self::DEFAULT_MMS_MAX_TOTAL_MEDIA);
         $maxUrls = max(1, $maxUrls);
 
-        foreach ($this->videoEngagements as $videoEngagement) {
-            if (count($mediaUrls) >= $maxUrls) {
-                break;
-            }
-            if (! empty($videoEngagement['gif_url'])) {
-                $mediaUrls[] = $videoEngagement['gif_url'];
-            }
-        }
-
         foreach ($this->processedFiles as $file) {
             if (count($mediaUrls) >= $maxUrls) {
                 break;
             }
 
+            // A video goes out as its engagement link only: the GIF as MMS media can fail the whole
+            // message and take the link with it. The preview is the link page's job.
             if (isset($file['is_processed_video']) && $file['is_processed_video']) {
                 continue;
             }

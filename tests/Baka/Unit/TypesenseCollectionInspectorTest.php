@@ -7,6 +7,7 @@ namespace Tests\Baka\Unit;
 use Baka\Search\TypesenseCollectionInspector;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 
 final class TypesenseCollectionInspectorTest extends TestCase
@@ -48,6 +49,54 @@ final class TypesenseCollectionInspectorTest extends TestCase
 
         $this->assertNull(TypesenseCollectionInspector::fieldType($app, 'missing_message_index', 'message'));
         $this->assertFalse(TypesenseCollectionInspector::rejectsObjectField($app, 'missing_message_index', 'message'));
+    }
+
+    public function testQueryByDropsFieldsTheLiveCollectionNeverGot(): void
+    {
+        $app = app(Apps::class);
+        $this->fakeSchema($app, 'legacy_people_index', [
+            'fields' => [
+                ['name' => 'name', 'type' => 'string'],
+                ['name' => 'firstname', 'type' => 'string'],
+                ['name' => 'lastname', 'type' => 'string'],
+            ],
+        ]);
+
+        $this->assertSame(
+            'name,firstname,lastname',
+            TypesenseCollectionInspector::queryableFields($app, 'legacy_people_index', 'name,firstname,lastname,email,phone')
+        );
+    }
+
+    public function testQueryByIsUnchangedWhenTheSchemaIsUnknownOrNoFieldSurvives(): void
+    {
+        $app = app(Apps::class);
+        $this->fakeSchema($app, 'missing_people_index', []);
+        $this->fakeSchema($app, 'unrelated_people_index', [
+            'fields' => [['name' => 'title', 'type' => 'string']],
+        ]);
+
+        $this->assertSame('name,email', TypesenseCollectionInspector::queryableFields($app, 'missing_people_index', 'name,email'));
+        $this->assertSame('name,email', TypesenseCollectionInspector::queryableFields($app, 'unrelated_people_index', 'name,email'));
+    }
+
+    public function testPeopleSearchOnlyQueriesFieldsTheLiveCollectionHas(): void
+    {
+        $app = app(Apps::class);
+        $people = new People();
+        $people->setTypesense();
+        $this->fakeSchema($app, $people->searchableAs(), [
+            'fields' => [
+                ['name' => 'name', 'type' => 'string'],
+                ['name' => 'firstname', 'type' => 'string'],
+                ['name' => 'lastname', 'type' => 'string'],
+            ],
+        ]);
+
+        $this->assertSame(
+            'name,firstname,lastname',
+            $people->queryByLiveFields('name,firstname,lastname,email,phone')
+        );
     }
 
     private function fakeSchema(Apps $app, string $collection, array $schema): void

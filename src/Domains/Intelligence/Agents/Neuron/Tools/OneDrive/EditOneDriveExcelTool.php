@@ -60,6 +60,7 @@ class EditOneDriveExcelTool extends Tool
                 description: 'Sheet name to edit. Defaults to the first sheet.',
                 required: false,
             ),
+            $this->driveProperty(),
         ];
     }
 
@@ -70,14 +71,15 @@ class EditOneDriveExcelTool extends Tool
         string $path_or_id,
         ?string $cells = null,
         ?string $append_rows = null,
-        ?string $sheet = null
+        ?string $sheet = null,
+        ?string $drive = null
     ): array {
-        return $this->attempt(function () use ($path_or_id, $cells, $append_rows, $sheet) {
+        return $this->attempt(function () use ($path_or_id, $cells, $append_rows, $sheet, $drive) {
             $cellMap = $this->decodeCells($cells, 'cells');
             $rows = $this->decodeRows($append_rows, 'append_rows');
 
             return new EditExcelDocumentAction(
-                $this->oneDrive(),
+                $this->oneDrive($drive),
                 $path_or_id,
                 $sheet,
                 $cellMap,

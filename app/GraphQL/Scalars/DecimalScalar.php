@@ -76,7 +76,6 @@ class DecimalScalar extends ScalarType
 
     /**
      * Format the number to ensure it has proper decimal precision.
-     *
      */
     protected function formatDecimal($value): string
     {
