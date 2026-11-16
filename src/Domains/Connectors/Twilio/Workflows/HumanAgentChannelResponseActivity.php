@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Twilio\Workflows;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Guild\Leads\Actions\FollowLeadOnMessageAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -19,6 +20,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -190,6 +192,10 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
                 new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: true);
+
+                if ($message->user instanceof Users) {
+                    new FollowLeadOnMessageAction($lead, $message->user)->execute();
+                }
 
                 return [
                     'message' => 'Message sent to lead via ' . $channelType,

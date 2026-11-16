@@ -14,6 +14,7 @@ use Kanvas\Notifications\Notification as NotificationsNotification;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
 
 class NotifyLeadStakeholdersService
@@ -94,18 +95,28 @@ class NotifyLeadStakeholdersService
             return;
         }
 
-        if ($this->lead->getTotalFollowers($this->lead->app) === 0) {
+        $followers = $this->followersExceptOwner();
+
+        if ($followers->isEmpty()) {
             return;
         }
-        foreach ($this->lead->followers as $follower) {
-            if ($follower->id !== $this->lead->owner->getId()) {
-                $follower->notify($this->notification);
-            }
-        }
+
+        Notification::send($followers, $this->notification);
     }
 
     /**
-     * Notify lead owner + BDC managers when a customer engages on a channel.
+     * Read from users_follows directly: Lead::followers() joins on the follower's own id, and the
+     * social-count custom field is only maintained for user-to-user follows.
+     */
+    protected function followersExceptOwner(): Collection
+    {
+        return UsersFollowsRepository::getEntityFollowersBuilder($this->lead, $this->lead->app)
+            ->where('users.id', '!=', (int) $this->lead->leads_owner_id)
+            ->get();
+    }
+
+    /**
+     * Notify lead owner + BDC managers + lead followers when a customer engages on a channel.
      *
      * Honors company config:
      * - ai_manager_notifications (off → skip entirely)
@@ -195,7 +206,7 @@ class NotifyLeadStakeholdersService
     }
 
     /**
-     * Notify lead owner + BDC managers when an agent (AI or human) replies to a customer.
+     * Notify lead owner + BDC managers + lead followers when an agent (AI or human) replies to a customer.
      *
      * Internal-only by default: 'database' channel — recipients see it in the in-app feed
      * without getting SMS/email/push spam every time the agent answers.
@@ -358,7 +369,7 @@ class NotifyLeadStakeholdersService
     }
 
     /**
-     * BDC managers + lead owner, deduped by user id.
+     * BDC managers + lead owner + lead followers, deduped by user id.
      */
     protected function collectManagerRecipients(Message $message, bool $includeOwner): Collection
     {
@@ -369,6 +380,12 @@ class NotifyLeadStakeholdersService
             $owner = $this->lead->owner;
             if ($owner && ! $managers->contains('id', $owner->getId())) {
                 $managers->push($owner);
+            }
+        }
+
+        foreach ($this->followersExceptOwner() as $follower) {
+            if (! $managers->contains('id', $follower->getId())) {
+                $managers->push($follower);
             }
         }
 
