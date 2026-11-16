@@ -138,6 +138,7 @@
             "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Kanvas\\HumanResources\\": "src/Domains/HumanResources",
             "Kanvas\\Insurance\\": "src/Domains/Insurance",
+            "Kanvas\\Meeting\\": "src/Domains/Meeting",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -175,7 +176,8 @@
             "php artisan migrate --path database/migrations/Intelligence/ --database intelligence",
             "php artisan migrate --path database/migrations/Scribe/ --database accounting",
             "php artisan migrate --path database/migrations/HumanResources/ --database hr",
-            "php artisan migrate --path database/migrations/Insurance/ --database insurance"
+            "php artisan migrate --path database/migrations/Insurance/ --database insurance",
+            "php artisan migrate --path database/migrations/Meeting/ --database meeting"
         ],
         "migrate-kanvas": [
             "php artisan migrate"
@@ -218,6 +220,9 @@
         ],
         "migrate-insurance": [
             "php artisan migrate --path database/migrations/Insurance/ --database insurance"
+        ],
+        "migrate-meeting": [
+            "php artisan migrate --path database/migrations/Meeting/ --database meeting"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },

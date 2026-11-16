@@ -93,6 +93,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Souk/CLAUDE.md` — commerce: order vs invoice in regular ecommerce (paid at checkout, no invoice record) vs B2B (paid on terms, one order → N Scribe invoices linked by `invoices.order_id`, the payment link is built from the invoice balance, ERP-issued invoices import with no JE), and the `USE_B2B_COMPANY_GROUP` global-company rule.
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 - `src/Domains/Connectors/Dhl/CLAUDE.md` — DHL Express order fulfillment (first used by Cabinet): the order status path and which hook moves it, reserve-then-call booking (MyDHL cannot void), quote replay, the hourly tracking poll and the late proof of delivery.
+- `src/Domains/Meeting/CLAUDE.md` — recorded meetings (recording, transcript versions with speakers/segments, notes) on their own `meeting` connection: owner-only access through the meeting, no soft delete (so no `getById*` helpers), idempotent create/upload, transcription through the "Transcript" agent type (`gemini-3.5-transcribe`, 25-minute chunks, speakers without timestamps), enhanced notes through the "Meeting Notes" agent type once a transcript completes, and what is not built yet (presigned upload, purge, delete).
 
 ### Where to put new conventions (don't bloat this file)
 

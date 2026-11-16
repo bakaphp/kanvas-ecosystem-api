@@ -31,6 +31,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Domains/Insurance/Actions/SeedInsuranceTemplatesAction.php',
         // Admin-configured WSDL endpoint (S3), not user input.
         'src/Domains/Connectors/UniversalAssistance/Client.php',
+        // Reads an audio chunk ffmpeg just wrote to the worker's own temp directory.
+        'src/Domains/Meeting/Transcripts/Agents/TranscriptAgent.php',
         // Reads local docker-compose templates from disk.
         'src/Domains/Intelligence/AgentRuntime/Services/BaseDockerComposeBuilderService.php',
         // Reads local PHP source files for attribute discovery.

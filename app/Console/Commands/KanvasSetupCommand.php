@@ -51,6 +51,7 @@ class KanvasSetupCommand extends Command
             'migrate --path database/migrations/Scribe/ --database accounting',
             'migrate --path database/migrations/HumanResources/ --database hr',
             'migrate --path database/migrations/Insurance/ --database insurance',
+            'migrate --path database/migrations/Meeting/ --database meeting',
             'db:seed',
             'db:seed --class=Database\\\Seeders\\\GuildSeeder --database crm',
             'kanvas:create-role Admin',
