@@ -7,6 +7,7 @@ namespace Kanvas\Event\Passes\Actions;
 use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use InvalidArgumentException;
 use Kanvas\Event\Events\Enums\EventPassScopeEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -17,24 +18,30 @@ use Kanvas\Event\Passes\Services\PassMotiveService;
 
 class CreatePassAction
 {
+    private const string PIN_ALPHABET = '0123456789';
+    private const string CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+    private const int MIN_CODE_LENGTH = 4;
+
     public function __construct(
         private Event $event,
         private EventVersion $eventVersion,
         private ?ParticipantPassMotive $motive = null,
         private ?int $participantId = null,
         private ?Carbon $expirationDate = null,
-        private PassFormatEnum $format = PassFormatEnum::NUMERIC_PIN
+        private PassFormatEnum $format = PassFormatEnum::NUMERIC_PIN,
+        private ?int $codeLength = null,
     ) {
+        if ($this->codeLength !== null && $this->codeLength < self::MIN_CODE_LENGTH) {
+            throw new InvalidArgumentException('Pass code length must be at least ' . self::MIN_CODE_LENGTH . '.');
+        }
     }
 
     public function execute(): array
     {
-        // Check if the event has already finished
         if ($this->eventVersion->end_at && $this->eventVersion->end_at->isPast()) {
             throw new Exception('Cannot issue a pass for an event that has already finished.');
         }
 
-        // Check if a pass already exists for this participant/event and has been used
         $existingPass = ParticipantPass::where('event_id', $this->event->getId())
             ->where('event_version_id', $this->eventVersion->getId())
             ->when($this->participantId, fn ($q) => $q->where('participant_id', $this->participantId))
@@ -101,27 +108,28 @@ class CreatePassAction
         );
 
         foreach ($participants as $participant) {
-            [$pass, $plainCode] = (new self(
+            [$pass, $plainCode] = new self(
                 $this->event,
                 $this->eventVersion,
                 $motive,
                 $participant->getId(),
                 $this->expirationDate,
-                $this->format
-            ))->execute();
+                $this->format,
+                $this->codeLength,
+            )->execute();
 
             $passes[$participant->getId()] = $plainCode;
         }
 
-        // Create event-level pass
-        [$pass, $plainCode] = (new self(
+        [$pass, $plainCode] = new self(
             $this->event,
             $this->eventVersion,
             $motive,
             null,
             $this->expirationDate,
-            $this->format
-        ))->execute();
+            $this->format,
+            $this->codeLength,
+        )->execute();
 
         $passes['event'] = $plainCode;
 
@@ -131,33 +139,21 @@ class CreatePassAction
     private function generatePlainCode(): string
     {
         if ($this->format === PassFormatEnum::NUMERIC_PIN) {
-            return $this->generatePin();
+            return $this->generateUniqueCode(self::PIN_ALPHABET, $this->codeLength ?? 6);
         }
 
-        return $this->generateCode();
+        return $this->generateUniqueCode(self::CODE_ALPHABET, $this->codeLength ?? 8);
     }
 
-    private function generatePin(int $length = 6): string
+    private function generateUniqueCode(string $alphabet, int $length): string
     {
+        $lastIndex = strlen($alphabet) - 1;
+
         do {
-            $pin = '';
+            $code = '';
             for ($i = 0; $i < $length; $i++) {
-                $pin .= random_int(0, 9);
+                $code .= $alphabet[random_int(0, $lastIndex)];
             }
-            $lookup = new GenerateLookupAction(
-                $this->event->app,
-                $this->event->company,
-                $pin
-            )->execute();
-        } while (ParticipantPass::where('pin_lookup', $lookup)->exists());
-
-        return $pin;
-    }
-
-    private function generateCode(int $length = 8): string
-    {
-        do {
-            $code = strtoupper(substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, $length));
             $lookup = new GenerateLookupAction(
                 $this->event->app,
                 $this->event->company,

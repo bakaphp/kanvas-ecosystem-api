@@ -4,17 +4,29 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Booking;
 
+use Baka\Support\IPInfo;
 use Baka\Support\Str;
+use Closure;
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\BuildEventDataAction;
+use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
 use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\TimeSlots;
+use Kanvas\Event\Events\Services\TimeSlotBookingLock;
+use Kanvas\Event\Participants\Models\ParticipantPass;
+use Kanvas\Event\Passes\DataTransferObject\EventAccess;
+use Kanvas\Event\Passes\Services\InviteCodeGate;
+use Kanvas\Event\Passes\Services\PassAttemptLimiter;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class TimeSlotBookingMutation
@@ -25,25 +37,89 @@ class TimeSlotBookingMutation
     public function book(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): EventVersion
     {
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $userCompany = $user->getCurrentCompany();
         $app = app(Apps::class);
 
         $input = $args['input'];
 
-        $timeSlot = TimeSlots::fromApp($app)
-            ->fromCompany($company)
-            ->findOrFail($input['time_slot_id']);
+        $timeSlot = $this->findBookableSlot((int) $input['time_slot_id'], $userCompany, $app);
+        $access = EventAccess::forResource($timeSlot->resource);
+        $company = $access === null ? $userCompany : $timeSlot->company;
 
-        if ($timeSlot->hasStarted()) {
-            throw new ValidationException('This time slot has already started and can no longer be booked. Slot start: ' . $timeSlot->start_at->toDateTimeString());
+        $this->assertSlotIsBookable($timeSlot, $access);
+
+        $gate = $access === null ? null : new InviteCodeGate(
+            $access,
+            $app,
+            $company,
+            new PassAttemptLimiter('invite-code', $user->getId(), IPInfo::getClientIp())
+        );
+        $inviteCode = Str::trimToNull($input['invite_code'] ?? null);
+        unset($input['invite_code']);
+
+        $gate?->verify($inviteCode, $timeSlot);
+
+        $claimInvite = $gate === null
+            ? null
+            : fn (EventVersion $booking) => $gate->redeem($inviteCode, $timeSlot, $booking);
+
+        return TimeSlotBookingLock::run(
+            [$timeSlot->id],
+            fn (): EventVersion => $this->createLockedBooking(
+                TimeSlots::getById($timeSlot->id, $app),
+                $input,
+                $user,
+                $company,
+                $app,
+                $claimInvite
+            )
+        );
+    }
+
+    private function assertSlotIsBookable(TimeSlots $timeSlot, ?EventAccess $access): void
+    {
+        if ($access !== null && $timeSlot->end_at->isPast()) {
+            throw new ValidationException(
+                'This time slot has ended and can no longer be booked. Slot end: ' . $timeSlot->end_at->toDateTimeString()
+            );
         }
 
-        // Validate capacity before booking
+        if ($access === null && $timeSlot->hasStarted()) {
+            throw new ValidationException(
+                'This time slot has already started and can no longer be booked. Slot start: ' . $timeSlot->start_at->toDateTimeString()
+            );
+        }
+    }
+
+    private function findBookableSlot(int $id, Companies $userCompany, Apps $app): TimeSlots
+    {
+        $timeSlot = TimeSlots::getById($id, $app);
+        $ownedByUser = (int) $timeSlot->companies_id === $userCompany->getId();
+
+        if (! $ownedByUser && EventAccess::forResource($timeSlot->resource) === null) {
+            throw new ModelNotFoundException()->setModel(TimeSlots::class, [$id]);
+        }
+
+        return $timeSlot;
+    }
+
+    private function createLockedBooking(
+        TimeSlots $timeSlot,
+        array $input,
+        Users $user,
+        Companies $company,
+        Apps $app,
+        ?Closure $claimInvite = null
+    ): EventVersion {
+        if ($claimInvite !== null) {
+            $input['participants'] = [$this->guestParticipant($user)];
+        }
+
         $participantCount = count($input['participants'] ?? []);
         if (! $timeSlot->hasAvailableCapacity($participantCount)) {
             throw new ValidationException('Time slot does not have enough available capacity. Available: ' . $timeSlot->getAvailableSlots() . ', Required: ' . $participantCount);
         }
-        // Extract resource information from the time slot
+
         $bookingData = $input;
         $bookingData['resources_id'] = $timeSlot->resources_id;
         $bookingData['resources_type'] = $timeSlot->resources_type;
@@ -51,17 +127,18 @@ class TimeSlotBookingMutation
         $bookingData['end_at'] = $timeSlot->end_at->toDateTimeString();
         $bookingData['time_slot_id'] = $timeSlot->id;
 
-        // Use the resource from the time slot
         $resource = $timeSlot->resource;
 
         if (! $resource) {
             throw new ValidationException('Resource not found for the given time slot.');
         }
 
-        // Build event data using the same action as bookResource
         $eventData = new BuildEventDataAction($resource, $user, $company, $bookingData)->execute();
+        $eventData['start_at'] = $bookingData['start_at'];
+        $eventData['end_at'] = $bookingData['end_at'];
         $eventDto = EventDto::from($app, $user, $company, $eventData);
         $metadata = $bookingData['metadata'] ?? [];
+        unset($metadata['invite_code']);
         $metadata['time_slot_id'] = $timeSlot->id;
         $metadata['resource_name'] = $resource?->name ?? '';
         $metadata['resource_type'] = $bookingData['resources_type'];
@@ -72,11 +149,15 @@ class TimeSlotBookingMutation
         }
 
         $createEventAction = new CreateEventAction($eventDto, $metadata);
+
+        if ($claimInvite !== null) {
+            $createEventAction->claimingBookingWith($claimInvite);
+        }
+
         $event = $createEventAction->execute();
 
         $eventVersion = $event->versions->first();
 
-        // Update time slot status based on available capacity
         $newStatus = $timeSlot->isFullyBooked()
             ? TimeSlotStatusEnum::BOOKED->value
             : TimeSlotStatusEnum::OPEN->value;
@@ -84,6 +165,35 @@ class TimeSlotBookingMutation
         $timeSlot->update(['status' => $newStatus]);
 
         return $eventVersion;
+    }
+
+    public function cancel(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): EventVersion
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $eventVersion = EventVersion::getById((int) $args['id'], $app);
+
+        if ($eventVersion->time_slot_id === null) {
+            throw new ValidationException('This booking is not associated with a time slot.');
+        }
+
+        if (! $eventVersion->isManagedBy($user)) {
+            throw new ModelNotFoundException()->setModel(EventVersion::class, [$args['id']]);
+        }
+
+        return new CancelEventAction($eventVersion)->execute();
+    }
+
+    private function guestParticipant(Users $user): array
+    {
+        return [
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
+            'contacts' => [
+                ['contacts_types_id' => ContactTypeEnum::EMAIL->value, 'value' => $user->email, 'weight' => 1],
+            ],
+        ];
     }
 
     /**
@@ -101,6 +211,10 @@ class TimeSlotBookingMutation
         $eventVersion = EventVersion::fromApp($app)
             ->fromCompany($company)
             ->findOrFail($input['event_version_id']);
+
+        if (ParticipantPass::query()->where('redeemed_event_version_id', $eventVersion->getId())->exists()) {
+            throw new ValidationException('An invite booking cannot be moved. Cancel it and book again.');
+        }
 
         $oldTimeSlotId = $eventVersion->time_slot_id ?? null;
 
@@ -121,13 +235,28 @@ class TimeSlotBookingMutation
             throw new ValidationException('This time slot has already started and can no longer be booked. Slot start: ' . $newTimeSlot->start_at->toDateTimeString());
         }
 
-        // Validate capacity for the new time slot
+        return TimeSlotBookingLock::run(
+            [$oldTimeSlot->id, $newTimeSlot->id],
+            fn (): EventVersion => $this->moveLockedBooking(
+                $eventVersion,
+                $oldTimeSlot->refresh(),
+                $newTimeSlot->refresh(),
+                $input
+            )
+        );
+    }
+
+    private function moveLockedBooking(
+        EventVersion $eventVersion,
+        TimeSlots $oldTimeSlot,
+        TimeSlots $newTimeSlot,
+        array $input
+    ): EventVersion {
         $participantCount = count($input['participants'] ?? $eventVersion->participants ?? []);
         if (! $newTimeSlot->hasAvailableCapacity($participantCount)) {
             throw new ValidationException('New time slot does not have enough available capacity. Available: ' . $newTimeSlot->getAvailableSlots() . ', Required: ' . $participantCount);
         }
 
-        // Build update data for UpdateEventAction
         $updateData = [
             'dates' => [
                 [
@@ -157,7 +286,6 @@ class TimeSlotBookingMutation
             $updateData['resources'] = $input['resources'];
         }
 
-        // Prepare metadata to include time slot information
         $metadata = [
             'time_slot_id' => $newTimeSlot->id,
             'resource_name' => $newTimeSlot->resource?->name ?? '',
@@ -172,11 +300,8 @@ class TimeSlotBookingMutation
 
         $updateData['metadata'] = $metadata;
 
-        // Use UpdateEventAction to handle the update
-        $updateAction = new UpdateEventAction($eventVersion, $updateData);
-        $updatedEventVersion = $updateAction->execute();
+        $updatedEventVersion = new UpdateEventAction($eventVersion, $updateData)->execute();
 
-        // Update time slot statuses
         $oldTimeSlot->autoUpdateStatus();
         $newTimeSlot->autoUpdateStatus();
 

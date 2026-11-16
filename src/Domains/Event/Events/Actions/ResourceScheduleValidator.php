@@ -19,6 +19,8 @@ class ResourceScheduleValidator
     protected Model $scheduled;
     protected string $tz;
 
+    private const int MINUTES_PER_DAY = 1440;
+
     public function __construct(
         protected Model $resource,
         protected ?AppInterface $app = null
@@ -67,11 +69,11 @@ class ResourceScheduleValidator
 
         $rule = $this->findRuleForDay($datetime);
 
-        if (! $rule) {
-            return false;
+        if ($rule && $this->isWithinOperatingHours($rule, $datetime)) {
+            return true;
         }
 
-        return $this->isWithinOperatingHours($rule, $datetime);
+        return $this->isWithinPreviousDayOvernightTail($datetime);
     }
 
     public function validateAvailability(Carbon $startTime): void
@@ -169,57 +171,100 @@ class ResourceScheduleValidator
 
     private function isWithinOperatingHours(ScheduleRules $rule, Carbon $datetime): bool
     {
-        // Check if rule has multiple periods (split schedule support)
-        $metadata = $rule->metadata ?? [];
-        if (isset($metadata['periods']) && is_array($metadata['periods'])) {
-            return $this->isWithinAnyPeriod($metadata['periods'], $datetime);
-        }
+        $periods = $this->resolveOperatingPeriods($rule);
 
-        // Fallback to legacy single period validation
-        $dayRrule = $rule->day_rrule;
-
-        if (! $dayRrule) {
+        if ($periods === null) {
             return true;
         }
 
-        if (preg_match('/BYHOUR=([0-9,]+)/', $dayRrule, $matches)) {
-            $hours = array_map('intval', explode(',', $matches[1]));
-            $openHour = min($hours);
-            $closeHour = max($hours) + 1;
-
-            $currentMinutes = (int) $datetime->format('H') * 60 + (int) $datetime->format('i');
-            $openMinutes = $openHour * 60;
-            $closeMinutes = $closeHour * 60;
-
-            return $currentMinutes >= $openMinutes && $currentMinutes < $closeMinutes;
-        }
-
-        if (preg_match('/DTSTART:(\d{8}T\d{6})/', $dayRrule, $matches)) {
-            $startTime = Carbon::createFromFormat('Ymd\THis', $matches[1]);
-
-            return $datetime->format('H:i') >= $startTime->format('H:i');
-        }
-
-        return true;
-    }
-
-    private function isWithinAnyPeriod(array $periods, Carbon $datetime): bool
-    {
-        $currentMinutes = (int) $datetime->format('H') * 60 + (int) $datetime->format('i');
+        $currentMinutes = $this->minutesOfDay($datetime);
 
         foreach ($periods as $period) {
-            $openTime = Carbon::parse('today ' . $period['open']);
-            $closeTime = Carbon::parse('today ' . $period['close']);
+            if ($currentMinutes < $period['open']) {
+                continue;
+            }
 
-            $openMinutes = (int) $openTime->format('H') * 60 + (int) $openTime->format('i');
-            $closeMinutes = (int) $closeTime->format('H') * 60 + (int) $closeTime->format('i');
-
-            if ($currentMinutes >= $openMinutes && $currentMinutes < $closeMinutes) {
+            if ($this->closesNextDay($period) || $currentMinutes < ($period['close'] ?? self::MINUTES_PER_DAY)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function isWithinPreviousDayOvernightTail(Carbon $datetime): bool
+    {
+        $rule = $this->findRuleForDay($datetime->copy()->subDay());
+        $periods = $rule ? $this->resolveOperatingPeriods($rule) : null;
+
+        if ($periods === null) {
+            return false;
+        }
+
+        $currentMinutes = $this->minutesOfDay($datetime);
+
+        foreach ($periods as $period) {
+            if ($this->closesNextDay($period) && $currentMinutes < $period['close']) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function closesNextDay(array $period): bool
+    {
+        return $period['close'] !== null && $period['close'] <= $period['open'];
+    }
+
+    private function minutesOfDay(Carbon $time): int
+    {
+        return (int) $time->format('H') * 60 + (int) $time->format('i');
+    }
+
+    private function resolveOperatingPeriods(ScheduleRules $rule): ?array
+    {
+        $metadata = $rule->metadata ?? [];
+
+        if (isset($metadata['periods']) && is_array($metadata['periods'])) {
+            return array_map(
+                fn (array $period): array => [
+                    'open' => $this->clockToMinutes($period['open']),
+                    'close' => $this->clockToMinutes($period['close']),
+                ],
+                $metadata['periods']
+            );
+        }
+
+        $dayRrule = $rule->day_rrule;
+
+        if (! $dayRrule) {
+            return null;
+        }
+
+        if (preg_match('/BYHOUR=([0-9,]+)/', $dayRrule, $matches)) {
+            $hours = array_map('intval', explode(',', $matches[1]));
+
+            return [['open' => min($hours) * 60, 'close' => (max($hours) + 1) * 60]];
+        }
+
+        if (preg_match('/DTSTART:(\d{8}T\d{6})/', $dayRrule, $matches)) {
+            $startTime = Carbon::createFromFormat('Ymd\THis', $matches[1]);
+
+            return [['open' => $this->minutesOfDay($startTime), 'close' => null]];
+        }
+
+        return null;
+    }
+
+    private function clockToMinutes(string $clock): int
+    {
+        return $this->minutesOfDay(Carbon::parse('today ' . $clock));
+    }
+
+    private function formatMinutes(int $minutes): string
+    {
+        return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
     }
 
     private function buildClosedErrorMessage(Carbon $requestedTime): string
@@ -243,38 +288,17 @@ class ResourceScheduleValidator
 
     private function extractOperatingHours(ScheduleRules $rule): string
     {
-        // Check if rule has multiple periods (split schedule)
-        $metadata = $rule->metadata ?? [];
-        if (isset($metadata['periods']) && is_array($metadata['periods'])) {
-            $periodStrings = [];
-            foreach ($metadata['periods'] as $period) {
-                $periodStrings[] = $period['open'] . ' - ' . $period['close'];
-            }
+        $periods = $this->resolveOperatingPeriods($rule);
 
-            return implode(', ', $periodStrings);
-        }
-
-        // Fallback to legacy single period extraction
-        $dayRrule = $rule->day_rrule;
-
-        if (! $dayRrule) {
+        if ($periods === null) {
             return 'not configured';
         }
 
-        if (preg_match('/BYHOUR=([0-9,]+)/', $dayRrule, $matches)) {
-            $hours = array_map('intval', explode(',', $matches[1]));
-            $openHour = min($hours);
-            $closeHour = max($hours) + 1;
-
-            return sprintf('%02d:00 - %02d:00', $openHour, $closeHour);
-        }
-
-        if (preg_match('/DTSTART:(\d{8}T\d{6})/', $dayRrule, $matches)) {
-            $startTime = Carbon::createFromFormat('Ymd\THis', $matches[1]);
-
-            return $startTime->format('H:i') . ' onwards';
-        }
-
-        return 'not configured';
+        return implode(', ', array_map(
+            fn (array $period): string => $period['close'] === null
+                ? $this->formatMinutes($period['open']) . ' onwards'
+                : $this->formatMinutes($period['open']) . ' - ' . $this->formatMinutes($period['close']),
+            $periods
+        ));
     }
 }

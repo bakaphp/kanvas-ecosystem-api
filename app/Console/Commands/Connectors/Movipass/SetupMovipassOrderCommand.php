@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Movipass;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -12,6 +13,8 @@ use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 
 class SetupMovipassOrderCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas:movipass-setup-movipass-order {app_id?}';
 
     protected $description = 'Setup Movipass parking reservation order type and statuses';
@@ -20,6 +23,7 @@ class SetupMovipassOrderCommand extends Command
     {
         $appId = $this->argument('app_id');
         $app = $appId ? Apps::getById((int) $appId) : app(Apps::class);
+        $this->overwriteAppService($app);
 
         $cancelled = MovipassOrderStatusEnum::CANCELLED->value;
 
@@ -45,10 +49,9 @@ class SetupMovipassOrderCommand extends Command
             ],
         ])->execute();
 
-        // Mark order type as expirable for slot availability tracking
         $orderType = $result['order_type'];
         if (! $orderType->isExpirable()) {
-            $orderType->config = ['expirable' => true];
+            $orderType->config = [...($orderType->config ?? []), 'expirable' => true];
             $orderType->save();
         }
 
