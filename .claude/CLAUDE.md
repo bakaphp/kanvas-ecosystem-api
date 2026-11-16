@@ -142,6 +142,7 @@ class MyNotification extends Notification
 **Key points:**
 - `Kanvas\Notifications\Notification` implements `ShouldQueue`, includes SMTP config, OneSignal, Expo, SMS, and storage traits
 - Set `$this->channels` with slug strings (`'mail'`, `'sms'`, `'push'`, `'expo'`, `'database'`) — the base `via()` maps them to channel classes automatically via `Kanvas\Notifications\Enums\NotificationChannelEnum::getNotificationChannelBySlug()`
+- An app pushes through **one** provider: the `push_provider` app setting (`onesignal` | `expo`, default `onesignal`). The `'push'` and `'expo'` slugs both resolve to it (`PushProviderEnum`), so new notifications just list `'push'`
 - Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
 - Never use `\Illuminate\Notifications\Notification` directly
 
