@@ -16,7 +16,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Actions\AttachDhlDocumentAction;
 use Kanvas\Connectors\Dhl\Actions\CreateDhlShipmentAction;
 use Kanvas\Connectors\Dhl\Activities\CreateDhlShipmentActivity;
-use Kanvas\Connectors\Dhl\Activities\NotifyOrderStatusActivity;
+use Kanvas\Connectors\Dhl\Activities\FlagCancelledDhlShipmentActivity;
 use Kanvas\Connectors\Dhl\Enums\BookingStateEnum;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
@@ -25,6 +25,7 @@ use Kanvas\Connectors\Dhl\Exceptions\DhlBookingException;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Activities\NotifyDeliveryOrderStatusActivity;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Orders\Notifications\OrderNotification;
@@ -88,6 +89,8 @@ final class CreateDhlShipmentTest extends TestCase
         $this->assertSame('dispatched', $this->statusSlugOf($order));
         $this->assertSame(BookingStateEnum::BOOKED->value, $order->get(CustomFieldEnum::BOOKING_STATE->value));
         $this->assertSame('PRG-241110-0001', $order->get(CustomFieldEnum::DISPATCH_CONFIRMATION_NUMBER->value));
+        $this->assertSame('https://www.dhl.com/do-en/home/tracking.html?tracking-id=' . self::DHL_AWB, $order->get(NotifyDeliveryOrderStatusActivity::TRACKING_URL_FIELD));
+        Notification::assertNothingSent();
         $this->assertCount(1, $documents);
         $this->assertSame('dhl-label-' . self::DHL_AWB . '.pdf', $documents[0]['file']);
         $this->assertSame('dhl-label', $documents[0]['field']);
@@ -104,7 +107,7 @@ final class CreateDhlShipmentTest extends TestCase
             && $request['outputImageProperties']['imageOptions'][0]['templateName'] === ConfigurationEnum::DEFAULT_LABEL_TEMPLATE);
     }
 
-    public function testADocumentThatCannotBeStoredStillDispatchesAndEmailsTheCustomer(): void
+    public function testADocumentThatCannotBeStoredStillDispatchesTheOrder(): void
     {
         $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::response($this->dhlShipmentResponse(), 201)]);
         app()->bind(AttachDhlDocumentAction::class, fn (): AttachDhlDocumentAction => new class () extends AttachDhlDocumentAction {
@@ -118,38 +121,12 @@ final class CreateDhlShipmentTest extends TestCase
             }
         });
         $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
-        $order->people->addEmail('maria@customer.test');
 
         $result = new CreateDhlShipmentAction($order)->execute();
 
         $this->assertSame('success', $result['status']);
         $this->assertSame('dispatched', $this->statusSlugOf($order));
         $this->assertSame(BookingStateEnum::BOOKED->value, $order->get(CustomFieldEnum::BOOKING_STATE->value));
-        Notification::assertSentOnDemand(
-            OrderNotification::class,
-            fn (OrderNotification $notification): bool => $notification->getTemplateName() === CreateDhlShipmentAction::CUSTOMER_TEMPLATE
-        );
-    }
-
-    public function testThePreparingNoticeIsNotSentOnceTheShipmentIsBookedButIsWithoutABooking(): void
-    {
-        $booked = $this->dhlOrder($this->company, 'dispatched');
-        $booked->people->addEmail('maria@customer.test');
-        $booked->set(CustomFieldEnum::BOOKING_STATE->value, BookingStateEnum::BOOKED->value);
-
-        $skipped = $this->activity(NotifyOrderStatusActivity::class)
-            ->execute($booked, app(Apps::class), $this->transitionParams('ready-for-dispatch'));
-
-        $this->assertSame('skipped', $skipped['status'] ?? json_encode($skipped));
-        Notification::assertNothingSent();
-
-        $manual = $this->dhlOrder($this->company, 'ready-for-dispatch', ['metadata' => ['shipping' => ['provider' => 'inposdom']]]);
-        $manual->people->addEmail('maria@customer.test');
-
-        $sent = $this->activity(NotifyOrderStatusActivity::class)
-            ->execute($manual, app(Apps::class), $this->transitionParams('ready-for-dispatch'));
-
-        $this->assertSame('success', $sent['status'] ?? json_encode($sent));
     }
 
     public function testAnOrderThatLeftReadyForDispatchIsNeverBooked(): void
@@ -487,52 +464,31 @@ final class CreateDhlShipmentTest extends TestCase
         $booked->set(CustomFieldEnum::BOOKING_STATE->value, BookingStateEnum::BOOKED->value);
         $unbooked = $this->dhlOrder($this->company, 'cancelled');
 
-        $this->activity(NotifyOrderStatusActivity::class)
+        $this->activity(FlagCancelledDhlShipmentActivity::class)
             ->execute($booked, app(Apps::class), $this->transitionParams('cancelled'));
-        $this->activity(NotifyOrderStatusActivity::class)
+        $this->activity(FlagCancelledDhlShipmentActivity::class)
             ->execute($unbooked, app(Apps::class), $this->transitionParams('cancelled'));
 
         $this->assertSame(BookingStateEnum::MANUAL_REVIEW->value, $booked->get(CustomFieldEnum::BOOKING_STATE->value));
         $this->assertNull($unbooked->get(CustomFieldEnum::BOOKING_STATE->value));
+        Notification::assertSentOnDemandTimes(OrderNotification::class, 1);
+        Notification::assertSentOnDemand(
+            OrderNotification::class,
+            fn (OrderNotification $notification): bool => $notification->getTemplateName() === FlagCancelledDhlShipmentActivity::MANUAL_REVIEW_TEMPLATE
+        );
     }
 
-    #[DataProvider('statusNotices')]
-    public function testEachStatusEmailsTheCustomerAndTheOwnerItConcerns(string $toStatus, array $expected): void
+    public function testTheCancelFlagIgnoresOtherTransitions(): void
     {
-        $order = $this->dhlOrder($this->company, $toStatus);
-        $order->people->addEmail('maria@customer.test');
+        $this->fakeDhl();
+        $booked = $this->dhlOrder($this->company, 'dispatched');
+        $booked->set(CustomFieldEnum::BOOKING_STATE->value, BookingStateEnum::BOOKED->value);
 
-        $this->activity(NotifyOrderStatusActivity::class)
-            ->execute($order, app(Apps::class), $this->transitionParams($toStatus));
+        $this->activity(FlagCancelledDhlShipmentActivity::class)
+            ->execute($booked, app(Apps::class), $this->transitionParams('returned'));
 
-        if ($expected === []) {
-            Notification::assertNothingSent();
-
-            return;
-        }
-
-        $sent = [];
-        Notification::assertSentOnDemand(OrderNotification::class, function (OrderNotification $notification) use (&$sent): bool {
-            $sent[] = $notification->getTemplateName();
-
-            return true;
-        });
-
-        $this->assertEqualsCanonicalizing($expected, $sent);
-    }
-
-    public static function statusNotices(): array
-    {
-        return [
-            'placed' => ['verifying', ['user-order-verifying', 'owner-order-verifying']],
-            'confirmed' => ['paid', ['user-order-paid']],
-            'preparing' => ['ready-for-dispatch', ['user-order-ready-for-dispatch']],
-            'shipped is sent by the booking' => ['dispatched', []],
-            'delivered' => ['delivered', ['user-order-delivered', 'owner-order-delivered']],
-            'returned' => ['returned', ['user-order-returned', 'owner-order-returned']],
-            'out of stock' => ['out-of-stock', ['user-order-out-of-stock']],
-            'cancelled' => ['cancelled', ['user-order-cancelled', 'owner-order-cancelled']],
-        ];
+        $this->assertSame(BookingStateEnum::BOOKED->value, $booked->get(CustomFieldEnum::BOOKING_STATE->value));
+        Notification::assertNothingSent();
     }
 
     private function runBooking(Order $order, string $toStatus): array

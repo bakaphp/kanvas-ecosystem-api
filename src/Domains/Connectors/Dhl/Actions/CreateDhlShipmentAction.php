@@ -13,17 +13,16 @@ use Kanvas\Connectors\Dhl\Enums\BookingStateEnum;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomsAttributeEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Dhl\Exceptions\DhlBookingException;
 use Kanvas\Connectors\Dhl\Providers\DhlShippingProvider;
-use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
+use Kanvas\Souk\Orders\Activities\NotifyDeliveryOrderStatusActivity;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Throwable;
 
 class CreateDhlShipmentAction
 {
-    public const string CUSTOMER_TEMPLATE = 'user-order-dispatched';
     public const string LABEL_FIELD = 'dhl-label';
     public const string INVOICE_FIELD = 'dhl-commercial-invoice';
     public const array DOCUMENT_FIELDS = [
@@ -71,7 +70,7 @@ class CreateDhlShipmentAction
             return $this->skipped("Booking state is already {$state->value}");
         }
 
-        if ($this->order->orderStatus()->value('slug') !== OrderStatusEnum::READY_FOR_DISPATCH->value) {
+        if ($this->order->orderStatus()->value('slug') !== DeliveryOrderStatusEnum::READY_FOR_DISPATCH->value) {
             return $this->skipped('The order is no longer ready for dispatch');
         }
 
@@ -88,8 +87,8 @@ class CreateDhlShipmentAction
 
         $this->persistBooking($response);
         $this->attachDocuments($response);
+        $this->storeTrackingUrl($response);
         $this->moveToDispatched();
-        $this->notifyCustomer($response);
 
         return [
             'order' => $this->order->getId(),
@@ -205,20 +204,12 @@ class CreateDhlShipmentAction
 
     private function moveToDispatched(): void
     {
-        $this->order->transitionToStatus($this->order->company->user, OrderStatusEnum::DISPATCHED->value);
+        $this->order->transitionToStatus($this->order->company->user, DeliveryOrderStatusEnum::DISPATCHED->value);
     }
 
-    private function notifyCustomer(array $response): void
+    private function storeTrackingUrl(array $response): void
     {
-        new SendOrderEmailsAction(
-            $this->order,
-            self::CUSTOMER_TEMPLATE,
-            [
-                'tracking_number' => $response['shipmentTrackingNumber'],
-                'tracking_url' => $response['trackingUrl'] ?? null,
-            ],
-            ['mail', 'database'],
-        )->execute();
+        $this->order->set(NotifyDeliveryOrderStatusActivity::TRACKING_URL_FIELD, $response['trackingUrl'] ?? null);
     }
 
     private function quoteMeta(array $shipping): array

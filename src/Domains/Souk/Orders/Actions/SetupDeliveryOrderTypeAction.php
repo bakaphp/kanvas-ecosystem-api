@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Dhl\Actions;
+namespace Kanvas\Souk\Orders\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderTypeEnum;
-use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderTypeEnum;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use RuntimeException;
 
-class SetupDhlOrderTypeAction
+class SetupDeliveryOrderTypeAction
 {
     public function __construct(protected AppInterface $app)
     {
@@ -22,7 +21,7 @@ class SetupDhlOrderTypeAction
     {
         $result = new CreateOrderStatusesAction(
             $this->app,
-            OrderTypeEnum::DELIVERY->value,
+            DeliveryOrderTypeEnum::DELIVERY->value,
             $this->statusGraph()
         )->execute();
 
@@ -33,29 +32,29 @@ class SetupDhlOrderTypeAction
 
     private function statusGraph(): array
     {
-        $cancelled = OrderStatusEnum::CANCELLED->value;
-        $outOfStock = OrderStatusEnum::OUT_OF_STOCK->value;
+        $cancelled = DeliveryOrderStatusEnum::CANCELLED->value;
+        $outOfStock = DeliveryOrderStatusEnum::OUT_OF_STOCK->value;
 
         return [
-            OrderStatusEnum::VERIFYING->value => [
+            DeliveryOrderStatusEnum::VERIFYING->value => [
                 'name' => 'Order placed, pending confirmation',
                 'is_default' => true,
-                'transitions' => [OrderStatusEnum::PAID->value, $outOfStock, $cancelled],
+                'transitions' => [DeliveryOrderStatusEnum::PAID->value, $outOfStock, $cancelled],
             ],
-            OrderStatusEnum::PAID->value => [
+            DeliveryOrderStatusEnum::PAID->value => [
                 'name' => 'Order confirmed',
-                'transitions' => [OrderStatusEnum::READY_FOR_DISPATCH->value, $outOfStock, $cancelled],
+                'transitions' => [DeliveryOrderStatusEnum::READY_FOR_DISPATCH->value, $outOfStock, $cancelled],
             ],
-            OrderStatusEnum::READY_FOR_DISPATCH->value => [
+            DeliveryOrderStatusEnum::READY_FOR_DISPATCH->value => [
                 'name' => 'Preparing to ship',
-                'transitions' => [OrderStatusEnum::DISPATCHED->value, $cancelled],
+                'transitions' => [DeliveryOrderStatusEnum::DISPATCHED->value, $cancelled],
             ],
-            OrderStatusEnum::DISPATCHED->value => [
+            DeliveryOrderStatusEnum::DISPATCHED->value => [
                 'name' => 'Shipped',
-                'transitions' => [OrderStatusEnum::DELIVERED->value, OrderStatusEnum::RETURNED->value, $cancelled],
+                'transitions' => [DeliveryOrderStatusEnum::DELIVERED->value, DeliveryOrderStatusEnum::RETURNED->value, $cancelled],
             ],
-            OrderStatusEnum::DELIVERED->value => ['name' => 'Delivered', 'is_final' => true],
-            OrderStatusEnum::RETURNED->value => ['name' => 'Returned', 'is_final' => true],
+            DeliveryOrderStatusEnum::DELIVERED->value => ['name' => 'Delivered', 'is_final' => true],
+            DeliveryOrderStatusEnum::RETURNED->value => ['name' => 'Returned', 'is_final' => true],
             $outOfStock => ['name' => 'Out of stock', 'is_final' => true],
             $cancelled => ['name' => 'Cancelled', 'is_final' => true],
         ];
@@ -64,7 +63,7 @@ class SetupDhlOrderTypeAction
     private function assertPaidTransitionExists(array $statuses): void
     {
         $bySlug = collect($statuses)->keyBy('slug');
-        $verifying = $bySlug->get(OrderStatusEnum::VERIFYING->value);
+        $verifying = $bySlug->get(DeliveryOrderStatusEnum::VERIFYING->value);
         $paid = $bySlug->get(PaymentStatusEnum::PAID->value);
 
         $exists = $verifying !== null && $paid !== null && OrderStatusTransitions::query()

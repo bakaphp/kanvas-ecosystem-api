@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Dhl\Enums;
 
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
+
 enum DhlTrackingEventEnum: string
 {
     case DELIVERED = 'OK';
@@ -11,11 +13,11 @@ enum DhlTrackingEventEnum: string
     case DELIVERY_REFUSED = 'RD';
     case NOT_HOME = 'NH';
 
-    public function orderStatus(): ?OrderStatusEnum
+    public function orderStatus(): ?DeliveryOrderStatusEnum
     {
         return match ($this) {
-            self::DELIVERED => OrderStatusEnum::DELIVERED,
-            self::RETURNED_TO_SHIPPER, self::DELIVERY_REFUSED => OrderStatusEnum::RETURNED,
+            self::DELIVERED => DeliveryOrderStatusEnum::DELIVERED,
+            self::RETURNED_TO_SHIPPER, self::DELIVERY_REFUSED => DeliveryOrderStatusEnum::RETURNED,
             self::NOT_HOME => null,
         };
     }

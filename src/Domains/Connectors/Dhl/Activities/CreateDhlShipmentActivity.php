@@ -7,9 +7,9 @@ namespace Kanvas\Connectors\Dhl\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Dhl\Actions\CreateDhlShipmentAction;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Dhl\Exceptions\DhlBookingException;
 use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -20,7 +20,7 @@ use Throwable;
 #[WorkflowAction(
     name: 'DHL Create Shipment',
     description: 'Books a DHL Express shipment for a DHL order that reached ready-for-dispatch: replays the applied quote, '
-        . 'stores the tracking number and label on the order, moves it to dispatched and emails the customer.',
+        . 'stores the tracking number, tracking link and label on the order, and moves it to dispatched; the customer email comes from the delivery order status notice.',
     integration: IntegrationsEnum::DHL,
 )]
 class CreateDhlShipmentActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -38,7 +38,7 @@ class CreateDhlShipmentActivity extends KanvasActivity implements WorkflowActivi
             integration: IntegrationsEnum::DHL,
             additionalParams: $params,
             integrationOperation: function (Model $order, AppInterface $app, mixed $integrationCompany, array $additionalParams): array {
-                if (($additionalParams['to_status'] ?? null) !== OrderStatusEnum::READY_FOR_DISPATCH->value) {
+                if (($additionalParams['to_status'] ?? null) !== DeliveryOrderStatusEnum::READY_FOR_DISPATCH->value) {
                     return ['order' => $order->getId(), 'status' => 'skipped', 'message' => 'Not a ready-for-dispatch transition'];
                 }
 

@@ -80,7 +80,7 @@ final class DhlStaysOptionalTest extends TestCase
     public function testTheScheduledCommandsDoNothingWithoutADhlIntegration(): void
     {
         $this->artisan('kanvas:dhl-poll-tracking')->assertSuccessful();
-        $this->artisan('kanvas:dhl-alert-unverified-orders')->assertSuccessful();
+        $this->artisan('kanvas:souk-alert-unverified-delivery-orders')->assertSuccessful();
 
         Http::assertNothingSent();
         $this->assertSame(0, Order::query()->whereNotNull('tracking_client_id')->where('tracking_client_id', 'like', 'DHL%')->count());

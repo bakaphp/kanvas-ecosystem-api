@@ -2,18 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Dhl\Actions;
+namespace Kanvas\Souk\Orders\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
-use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
-class AlertUnverifiedOrdersAction
+class AlertUnverifiedDeliveryOrdersAction
 {
     public const int MAX_HOURS_IN_VERIFYING = 24;
+    public const string ALERTED_AT_FIELD = 'unverified_alerted_at';
     public const string ALERT_TEMPLATE = 'owner-order-unverified';
 
     public function __construct(protected AppInterface $app)
@@ -22,7 +21,7 @@ class AlertUnverifiedOrdersAction
 
     public function execute(): int
     {
-        $verifying = OrderStatusEnum::VERIFYING->forApp($this->app);
+        $verifying = DeliveryOrderStatusEnum::VERIFYING->forApp($this->app);
 
         if ($verifying === null) {
             return 0;
@@ -38,7 +37,7 @@ class AlertUnverifiedOrdersAction
             ->get();
 
         foreach ($overdue as $order) {
-            if ($order->get(CustomFieldEnum::UNVERIFIED_ALERTED_AT->value) !== null) {
+            if ($order->get(self::ALERTED_AT_FIELD) !== null) {
                 continue;
             }
 
@@ -48,7 +47,7 @@ class AlertUnverifiedOrdersAction
                 ['hours_in_verifying' => self::MAX_HOURS_IN_VERIFYING],
             )->execute();
 
-            $order->set(CustomFieldEnum::UNVERIFIED_ALERTED_AT->value, Carbon::now()->toIso8601String());
+            $order->set(self::ALERTED_AT_FIELD, Carbon::now()->toIso8601String());
             $alerted++;
         }
 
