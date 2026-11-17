@@ -22,7 +22,8 @@ class CompanyNameNotificationService
      * Recipients in more than one company of the app cannot tell which one a notification is about,
      * so only they get `company_name` in the template data and the subject; everyone else gets it empty.
      *
-     * @param callable(string): string $subject receives " from <company>" or an empty string
+     * @param callable(string): ?string $subject receives " from <company>" or an empty string; null keeps
+     *                                          the template's own subject
      */
     public function send(
         Collection $recipients,

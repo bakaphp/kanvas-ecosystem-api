@@ -96,6 +96,41 @@ final class LeadFollowersNotificationTest extends TestCase
         );
     }
 
+    public function testStakeholderNotificationsCarryTheCompanyNameForMultiCompanyRecipients(): void
+    {
+        $follower = auth()->user();
+        $owner = $this->createUser();
+        $lead = $this->makeLead($owner);
+        new FollowLeadOnMessageAction($lead, $follower)->execute();
+        Companies::factory()->create()->associateUserApp($follower, app(Apps::class), 1);
+        Notification::fake();
+
+        $notification = new Blank(
+            'lead-manager-notification',
+            [],
+            ['mail'],
+            $lead
+        );
+        $notification->setSubject('Submitted - Credit App');
+
+        $service = new NotifyLeadStakeholdersService($lead, $notification);
+        $service->owner();
+        $service->followers();
+
+        Notification::assertSentTo(
+            $follower,
+            Blank::class,
+            fn (Blank $sent) => $sent->getData()['company_name'] === $lead->company->name
+                && $sent->getSubject() === 'Submitted - Credit App from ' . $lead->company->name
+        );
+        Notification::assertSentTo(
+            $owner,
+            Blank::class,
+            fn (Blank $sent) => $sent->getData()['company_name'] === ''
+                && $sent->getSubject() === 'Submitted - Credit App'
+        );
+    }
+
     public function testAnotherLeadsFollowersAreNotNotified(): void
     {
         $follower = auth()->user();
