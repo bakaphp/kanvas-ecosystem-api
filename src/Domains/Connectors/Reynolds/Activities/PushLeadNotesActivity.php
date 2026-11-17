@@ -14,6 +14,7 @@ use Kanvas\Connectors\Intellicheck\Services\PeopleService;
 use Kanvas\Connectors\Reynolds\Actions\AddNoteToLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Actions\AddTradeInAction;
+use Kanvas\Connectors\SalesAssist\Services\ConversationNoteFormatter;
 use Kanvas\Connectors\SalesAssist\Services\MessageNoteService;
 use Kanvas\Connectors\SalesAssist\Services\MessageNotificationTextService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -33,9 +34,10 @@ use Throwable;
  * consistent across Elead / VinSolution / DealerSocket / Reynolds and
  * lets the dealer / admin edit the templates without touching code.
  *
- * When the engagement lookup fails (no stage template configured, or
- * plain agent notes that never went through ActionEngine), the raw
- * message content is pushed as-is so nothing gets silently dropped.
+ * When the engagement lookup fails (no stage template configured, or a
+ * conversation message that never went through ActionEngine), the message
+ * content is pushed with the same "(Sms) Name:" / "Customer:" label the
+ * other dealer CRMs get, so nothing gets silently dropped.
  *
  * ID verification and esign clean-up are Kanvas-local and never reach
  * R&R — same shape as VinSolution.
@@ -147,10 +149,10 @@ class PushLeadNotesActivity extends KanvasActivity
 
         // Everything else — build a note the SalesAssist way: engagement
         // template rendered via MessageNotificationTextService + file
-        // links from MessageNoteService. Falls back to the raw content of
-        // the message when there's no engagement template to render (plain
-        // agent notes, unwired verbs).
-        $note = $this->buildStructuredNote($message, $lead) ?? $this->extractNoteContent($message);
+        // links from MessageNoteService. Falls back to the labelled content
+        // of the message when there's no engagement template to render
+        // (conversation messages, unwired verbs).
+        $note = $this->buildStructuredNote($message, $lead) ?? $this->buildConversationNote($message);
 
         $result = $this->pushNote($lead, $note, $verb !== '' ? $verb : 'raw');
         if ($tradeIn !== null) {
@@ -231,10 +233,19 @@ class PushLeadNotesActivity extends KanvasActivity
         $lead->del('actions_pdf_custom_form');
     }
 
-    private function extractNoteContent(Message $message): string
+    private function buildConversationNote(Message $message): string
     {
         $content = $message->message['content'] ?? '';
+        $content = is_string($content) ? trim($content) : '';
 
-        return is_string($content) ? trim($content) : '';
+        if ($content === '') {
+            return '';
+        }
+
+        return ConversationNoteFormatter::format(
+            $message,
+            $content,
+            (bool) ($message->message['from_me'] ?? false)
+        );
     }
 }
