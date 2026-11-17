@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\SalesAssist\Services\ConversationNoteFormatter;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
-use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -50,43 +50,9 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         return false;
     }
 
-    /**
-     * Build the formatted note with agent/customer prefix and channel info.
-     */
     protected function buildFormattedNote(Message $message, string $note, bool $fromAgent): string
     {
-        $verb = $message->messageType?->verb;
-        $isNote = strtolower((string) $verb) === 'note';
-        $fromWho = match (true) {
-            $isNote => 'Agent Note',
-            $fromAgent => '(' . ucfirst($this->resolveDeliveryChannel($message, $verb)) . ') ' . $this->agentDisplayName($message),
-            default => 'Customer',
-        };
-
-        return $fromWho . ': ' . $note;
-    }
-
-    /**
-     * The verb wins: a follow-up SMS can be filed under the person's email session channel,
-     * and `channels->first()` is unordered (the lead conversation channel would read as "notes").
-     */
-    private function resolveDeliveryChannel(Message $message, ?string $verb): string
-    {
-        $fromVerb = ChannelCategoryEnum::getLeadChannelNameFromVerb($verb);
-        if ($fromVerb !== null) {
-            return $fromVerb;
-        }
-
-        $channelSlug = $message->channels->first()?->slug;
-
-        return $channelSlug ? ChannelCategoryEnum::getLeadChannelName($channelSlug) : ChannelCategoryEnum::SMS->value;
-    }
-
-    private function agentDisplayName(Message $message): string
-    {
-        $name = trim(($message->user?->firstname ?? '') . ' ' . ($message->user?->lastname ?? ''));
-
-        return $name !== '' ? $name : 'Sally';
+        return ConversationNoteFormatter::format($message, $note, $fromAgent);
     }
 
     /**
