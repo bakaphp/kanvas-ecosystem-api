@@ -117,7 +117,12 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
             'Contact' => new PullPeopleAction($app, $company, $fields, $salesforceId)->execute(),
             'Account' => new PullOrganizationAction($app, $company, $fields, $salesforceId)->execute(),
             'Opportunity' => new PullDealAction($app, $company, $fields, $salesforceId)->execute(),
-            'Location__c' => new PullPropertyAction($app, $company, $company->user, $fields, $salesforceId)->execute(),
+            'Location__c' => new PullPropertyAction(
+                $app,
+                $company,
+                $company->user,
+                $salesforceId
+            )->execute(),
             default => null,
         };
 
