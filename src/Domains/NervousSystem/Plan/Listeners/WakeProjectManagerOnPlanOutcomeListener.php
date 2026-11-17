@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Listeners;
 
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 
@@ -166,7 +168,26 @@ class WakeProjectManagerOnPlanOutcomeListener
             $plan->getId(),
             (string) $plan->title,
             $plan->agent?->name ?? 'its assignee',
+        ) . $this->nextFactoryStage($plan);
+    }
+
+    /**
+     * Nobody else starts what follows a landed ticket. Told only "it is finished", the orchestrator
+     * reported the last ticket and stopped, and the stage never got its release pull request.
+     */
+    private function nextFactoryStage(Plan $plan): string
+    {
+        $landed = $plan->tasks()->whereNull('parent_task_id')->get()->contains(
+            fn (Task $task): bool => str_contains($task->fullText(), 'HEAD:' . FactoryStage::INTEGRATION_BRANCH)
         );
+
+        if (! $landed) {
+            return '';
+        }
+
+        return ' This factory stage landed on `' . FactoryStage::INTEGRATION_BRANCH . '`. Right away, without asking '
+            . 'anyone: start the next ticket of the approved plan with start_factory_ticket, or, if this was the '
+            . 'last one, call start_factory_release with every ticket of the stage in notes.';
     }
 
     private function outcomeFact(Plan $plan, PlanChangeTypeEnum $changeType): string

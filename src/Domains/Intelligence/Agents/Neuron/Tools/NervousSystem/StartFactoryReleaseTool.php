@@ -30,11 +30,12 @@ class StartFactoryReleaseTool extends Tool implements RequiresSystemAgent
 
     protected string $name = 'start_factory_release';
 
-    protected ?string $description = 'Open the one pull request of an app\'s stage on the factory Mac: everything its '
-        . 'tickets landed on the factory/integration branch goes into develop, with a dated changelog and QA on both '
-        . 'platforms. Call it once, when the last ticket of the approved plan has finished, without asking anyone: '
-        . 'the person reviews and merges this pull request, not each ticket. Calling it again the same day returns '
-        . 'the release already on the board.';
+    protected ?string $description = 'Finish an app\'s stage on the factory Mac: the builder tests the unified app on '
+        . 'the factory/integration branch, where every ticket landed (nothing lost or overwritten, the features '
+        . 'working together on both platforms), adds the dated changelog, and opens the one pull request from that '
+        . 'branch into develop. Call it once, when the last ticket of the approved plan has finished, without asking '
+        . 'anyone, and list every ticket of the stage in notes: the person reviews and merges this pull request, '
+        . 'not each ticket. Calling it again the same day returns the release already on the board.';
 
     public function __construct(
         private readonly ?Session $session = null,
@@ -63,7 +64,8 @@ class StartFactoryReleaseTool extends Tool implements RequiresSystemAgent
             new ToolProperty(
                 name: 'notes',
                 type: PropertyType::STRING,
-                description: 'Optional: the tickets this release closes and anything the pull request must mention.',
+                description: 'Every ticket of the stage, one per line: its number, short name and branch '
+                    . '(ticket/<n>-<name>), plus any backend gap the tickets reported.',
                 required: false,
             ),
         ];

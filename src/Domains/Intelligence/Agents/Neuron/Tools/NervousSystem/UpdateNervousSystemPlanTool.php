@@ -12,6 +12,7 @@ use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -142,6 +143,18 @@ class UpdateNervousSystemPlanTool extends Tool
                         . implode(', ', array_map(fn (PlanStatusEnum $case): string => $case->value, PlanStatusEnum::cases()))
                         . '. To hold a plan for sign-off set requires_human_approval=true instead.',
                 ];
+            }
+
+            // Closing a plan closes its tasks, and a coding run still building one of them would be
+            // ended with it (a whole ticket marked done while its build was running).
+            $closes = in_array($data['status'], [PlanStatusEnum::DONE->value, PlanStatusEnum::CANCELLED->value, PlanStatusEnum::BLOCKED->value], true);
+
+            if ($closes && $plan->tasks()->get()->contains(fn (Task $task): bool => $task->hasALiveRun())) {
+                return ['error' => sprintf(
+                    'Plan %d has a coding run that is still going; it reports its own outcome and the plan follows. '
+                        . 'Nothing changed.',
+                    $plan->getId()
+                )];
             }
         }
         if ($priority !== null) {

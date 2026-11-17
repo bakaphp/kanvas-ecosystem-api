@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Baka\Support\Str;
-use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use Kanvas\NervousSystem\Plan\Models\Task;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -110,7 +108,7 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
 
         // A run's task, and the step it runs for, close when the run does. A PM that read a pending ask as
         // "blocked" marked a live factory run blocked, and the steps above it followed while it kept working.
-        if ($this->hasALiveRun($task)) {
+        if ($task->hasALiveRun()) {
             return ['error' => sprintf(
                 'Task #%d has a coding run that is still going; it reports its own outcome. Nothing changed. '
                     . 'To stop it, use cancel_self_hosted_coding_job.',
@@ -164,12 +162,5 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
             'plan_id' => $updated->plan_id,
             'description_replaced' => $description !== null,
         ];
-    }
-
-    private function hasALiveRun(Task $task): bool
-    {
-        $ids = [$task->getId(), ...$task->children()->pluck('id')->all()];
-
-        return AgentTaskSession::query()->whereIn('task_id', $ids)->live()->exists();
     }
 }

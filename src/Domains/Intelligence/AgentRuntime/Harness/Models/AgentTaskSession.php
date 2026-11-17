@@ -75,6 +75,9 @@ class AgentTaskSession extends BaseModel
 {
     use UuidTrait;
 
+    /** The line a factory task run ends its final reply with; without it a stopped turn is not a finish. */
+    public const string RUN_FINISHED_MARKER = 'TASK COMPLETE';
+
     protected $table = 'agent_task_sessions';
     protected $guarded = [];
 

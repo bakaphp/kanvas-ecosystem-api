@@ -37,10 +37,22 @@ final readonly class FactoryStage
         . 'Metro uses. Then run the post-change QA the app\'s `CLAUDE.md` and `specs/` require, scoped to what you '
         . 'changed, on both platforms, asserting real outcomes and not only that a screen rendered (in apps from the '
         . 'mobile template that is the Argent sweep, `specs/qa/app-test.runbook.md`). Save the report where the specs '
-        . 'say (`specs/qa/reports/` in the template) and name it in your reply. If the QA tool is not available, '
-        . 'run the same checks by hand on both platforms and say so. If either platform still cannot run your change '
-        . 'after you tried to fix it, reply BLOCKED with what you tried and what stops it: work is never finished with '
-        . 'a platform untested, and a check that did not run is never marked passed.';
+        . 'say (`specs/qa/reports/` in the template) and name it in your reply. The QA runs through Argent itself, '
+        . 'signed in with the test login it holds as secrets (`{{secret:KANVAS_TEST_EMAIL}}` and '
+        . '`{{secret:KANVAS_TEST_PASSWORD}}`, never printed or committed), never by hand with simulator tools and '
+        . 'never through a temporary login bypass in the code; this overrides any manual fallback in the app\'s own '
+        . 'docs. If Argent or the test login is not available, that is not a reason to test another way: reply '
+        . 'BLOCKED saying exactly what is missing. Argent is also the gate: start with its environment check, and '
+        . 'treat anything it finds as yours to fix before the work goes anywhere: a red screen, a "Failed to '
+        . 'compile" or bundling error (a Metro left over from another run serving the device counts: stop it and '
+        . 'start your own), a crash, an error in the LogBox or in the JS and network logs (read them through '
+        . 'Argent\'s log tools), or a check that did not pass. Its severity does not matter: a finding called '
+        . 'minor, polish or pre-existing is fixed too. Fix it, run Argent again, and repeat until it '
+        . 'reports nothing; never land the work, open a pull request or mark one ready while Argent reports an '
+        . 'issue. A gap the backend has to close (an API not deployed yet) is the one thing that may stay, shown '
+        . 'by the app as its unavailable state and listed under "Waiting on backend". If either platform '
+        . 'still cannot run your change after you tried to fix it, reply BLOCKED with what you tried and what stops '
+        . 'it: work is never finished with a platform untested, and a check that did not run is never marked passed.';
 
     /**
      * @param list<FactoryStep> $steps run in this order
@@ -179,8 +191,9 @@ final readonly class FactoryStage
     }
 
     /**
-     * The stage's one pull request: everything that landed on the integration branch, with the dated
-     * changelog, into `develop`. Cut from `develop` so the pull request carries only what is new.
+     * The stage's one pull request, from the integration branch itself into `develop`, opened only after the
+     * unified app was tested as a whole: each ticket was tested alone, and what breaks when they meet (a
+     * conflict resolved the wrong way, one feature overwriting another) only shows on the unified branch.
      */
     public static function release(Project $project, string $repository, ?string $notes = null): self
     {
@@ -188,35 +201,48 @@ final readonly class FactoryStage
         $builder = self::builder($project);
         $date = now()->toDateString();
         $notes = Str::trimToNull($notes);
+        $integration = self::INTEGRATION_BRANCH;
 
         $text = implode("\n", array_filter([
             'Repo: ' . $repository,
-            'Branch: release/' . $date,
+            'Branch: ' . $integration,
             '',
-            'Release: open the one pull request of this stage, everything on `' . self::INTEGRATION_BRANCH . '` into `develop`.',
-            $notes !== null ? "From the orchestrator:\n" . TaskDirectives::neutralize($notes) : null,
+            'Release: test the unified app on `' . $integration . '` and open the one pull request of this stage, from '
+                . '`' . $integration . '` into `develop`.',
+            $notes !== null ? "The tickets of this stage, from the orchestrator:\n" . TaskDirectives::neutralize($notes) : null,
             '',
             'Steps:',
-            '1. Read `CLAUDE.md` and the specs on commits, pull requests and the changelog. Run `git fetch origin` and merge '
-                . '`origin/' . self::INTEGRATION_BRANCH . '` into this branch, which starts from `develop`. If that adds '
-                . 'nothing, reply that there is nothing to release and stop.',
-            '2. Add a changelog entry dated ' . $date . ' where the specs say (otherwise `CHANGELOG.md`, newest first): '
-                . 'one line per ticket that landed, read from the merge history.',
-            '3. ' . self::APP_QA . ' Here "your change" is every ticket in this release.',
-            '4. Push the branch and open the pull request into `develop` following the app\'s specs: Conventional Commits '
-                . 'from `CLAUDE.md`, `specs/workflows/pull-request.spec.md` and the PR Description Format of '
-                . '`specs/workflows/multi-app-pipeline.spec.md`. List every ticket with its QA report and screenshots, '
-                . 'and under a "Waiting on backend" heading every gap the tickets reported (read the landing commits '
-                . 'and `specs/qa/reports/`), each with what a person has to do. Wait for CI, fix what you broke, and '
-                . 'mark it ready only when every check is green. A person merges it.',
-            '5. Reply with the pull request link, its CI state and whether it is draft or ready.',
+            '1. Read `CLAUDE.md` and the specs on commits, pull requests and the changelog. This worktree may have started '
+                . 'from `develop`: run `git fetch origin` and `git reset --hard origin/' . $integration . '` (nothing of '
+                . 'yours is on it yet). Merge `origin/develop` into it so the pull request has no conflict. If the branch '
+                . 'has nothing `develop` lacks, reply that there is nothing to release and stop.',
+            '2. Make sure no ticket\'s work was lost or overwritten when they were unified: every ticket branch of this '
+                . 'stage (the ones listed above; without a list, the `origin/ticket/*` branches whose commits are in this '
+                . 'history) is an ancestor of HEAD (`git merge-base --is-ancestor`); nothing is left of a conflict '
+                . '(`git grep -nE "^(<<<<<<<|>>>>>>>)"`); and for each ticket, the files it changed still carry its work '
+                . '(`git diff origin/<its branch> HEAD -- <its files>` shows only later, intended changes). Never merge '
+                . 'a ticket branch that was not landed. Fix anything lost on this branch and commit it.',
+            '3. ' . self::APP_QA . ' Here "your change" is the whole unified app: run the full app sweep '
+                . '(`specs/qa/app-test.runbook.md`) and every ticket\'s own runbook together, checking that the '
+                . 'features do not overlap or break each other (navigation, shared components, the data one feature '
+                . 'writes and another reads). Fix what you find on this branch, commit, and test again.',
+            '4. Add a changelog entry dated ' . $date . ' where the specs say (otherwise `CHANGELOG.md`, newest first): '
+                . 'one line per ticket.',
+            '5. Only when that Argent QA passed on both platforms, signed in: push `' . $integration . '` and open the '
+                . 'pull request from it into `develop` following the app\'s specs: '
+                . 'Conventional Commits from `CLAUDE.md`, `specs/workflows/pull-request.spec.md` and the PR Description '
+                . 'Format of `specs/workflows/multi-app-pipeline.spec.md`. List every ticket with its QA report and '
+                . 'screenshots, the unified QA report, and under a "Waiting on backend" heading every gap the tickets '
+                . 'reported (read the landing commits and `specs/qa/reports/`), each with what a person has to do. Wait '
+                . 'for CI, fix what you broke, and mark it ready only when every check is green. A person merges it.',
+            '6. Reply with the pull request link, its CI state, whether it is draft or ready, and the unified QA result.',
         ], fn (?string $line): bool => $line !== null));
 
         return new self(
             $project,
             'Release: ' . $repository . ' into develop (' . $date . ')',
-            'One pull request from `' . self::INTEGRATION_BRANCH . '` into `develop`, with the dated changelog.',
-            [new FactoryStep('Release ' . $date . ': pull request into develop', $text, $builder)],
+            'The unified app on `' . $integration . '` tested as a whole, then one pull request from it into `develop`.',
+            [new FactoryStep('Release ' . $date . ': test the unified app, pull request into develop', $text, $builder)],
         );
     }
 

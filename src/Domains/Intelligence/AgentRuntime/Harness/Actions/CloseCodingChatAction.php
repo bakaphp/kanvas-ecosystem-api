@@ -10,6 +10,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
+use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\ReleaseFactoryCheckoutJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Throwable;
 
@@ -82,6 +83,8 @@ class CloseCodingChatAction
         try {
             return $factory->release($this->session->repo_slug, $this->session->uuid);
         } catch (HarnessTransportException) {
+            ReleaseFactoryCheckoutJob::dispatch($this->session->app, $this->session->getId())->delay(60);
+
             return null;
         } catch (Throwable $e) {
             report($e);

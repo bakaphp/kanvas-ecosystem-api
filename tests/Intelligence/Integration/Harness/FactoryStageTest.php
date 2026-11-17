@@ -20,13 +20,16 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissio
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryReleaseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
+use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use ReflectionMethod;
@@ -128,7 +131,24 @@ final class FactoryStageTest extends TestCase
         $this->assertStringNotContainsString('app-test.runbook', (string) $design->description);
     }
 
-    /** The stage's one pull request: the integration branch into develop, from a branch cut off develop. */
+    /** Told only that the last ticket finished, the orchestrator reported it and never opened the release. */
+    public function testAFinishedTicketTellsTheOrchestratorWhatToStartNext(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $result = $this->ticket()($project->getId(), 'example-app', 2, 'Record list', 'As a user I see my records.', false);
+        [$ship] = $this->stepsOf((int) $result['plan_id']);
+
+        new UpdateTaskStatusAction($ship, TaskStatusEnum::DONE)->execute();
+
+        Queue::assertPushed(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
+                && str_contains((string) $job->triggerMessage, 'start_factory_release')
+        );
+    }
+
+    /** The stage's one pull request, from the integration branch itself, after the unified app was tested. */
     public function testAReleaseOpensTheOnePullRequestIntoDevelop(): void
     {
         Queue::fake();
@@ -148,11 +168,27 @@ final class FactoryStageTest extends TestCase
         $this->assertCount(1, $steps);
         $this->assertTrue($steps[0]->agent?->is($builder));
         $this->assertSame('example-app', TaskDirectives::repo($steps[0]->fullText()));
-        $this->assertSame('release/' . now()->toDateString(), TaskDirectives::branch($steps[0]->fullText()));
-        $this->assertStringContainsString('merge `origin/factory/integration`', (string) $steps[0]->description);
-        $this->assertStringContainsString('changelog entry dated ' . now()->toDateString(), (string) $steps[0]->description);
-        $this->assertStringContainsString('open the pull request into `develop`', (string) $steps[0]->description);
-        $this->assertStringContainsString('"Waiting on backend" heading', (string) $steps[0]->description);
+        $text = (string) $steps[0]->description;
+        $this->assertSame('factory/integration', TaskDirectives::branch($steps[0]->fullText()));
+        $this->assertStringContainsString('git reset --hard origin/factory/integration', $text);
+        // Nothing a ticket did may be lost when they are unified, and the whole app is tested before the PR.
+        $this->assertStringContainsString('git merge-base --is-ancestor', $text);
+        $this->assertStringContainsString('do not overlap or break each other', $text);
+        $this->assertStringContainsString('BOTH the iOS simulator and the Android emulator', $text);
+        // A release QA run by hand, or behind a login bypass, opened the pull request anyway.
+        $this->assertStringContainsString('runs through Argent itself', $text);
+        $this->assertStringContainsString('{{secret:KANVAS_TEST_EMAIL}}', $text);
+        $this->assertStringNotContainsString('run the same checks by hand', $text);
+        $this->assertStringContainsString('Only when that Argent QA passed', $text);
+        // Argent is the gate: what it finds is fixed and re-checked before anything ships.
+        $this->assertStringContainsString('Argent is also the gate', $text);
+        $this->assertStringContainsString('repeat until it reports nothing', $text);
+        // A release went ready with findings it had labelled minor, polish and pre-existing.
+        $this->assertStringContainsString('minor, polish or pre-existing is fixed too', $text);
+        $this->assertStringContainsString('overrides any manual fallback', $text);
+        $this->assertLessThan(strpos($text, 'open the pull request from it'), strpos($text, 'full app sweep'));
+        $this->assertStringContainsString('changelog entry dated ' . now()->toDateString(), $text);
+        $this->assertStringContainsString('"Waiting on backend" heading', $text);
         $this->assertTrue($again['reused']);
     }
 
@@ -278,6 +314,14 @@ final class FactoryStageTest extends TestCase
         }
 
         $this->assertStringContainsString('still going', (string) ($status($create->getId(), 'pending')['error'] ?? ''));
+
+        // Closing the whole plan would close the step with it.
+        $plan = new UpdateNervousSystemPlanTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+        $planBefore = $create->plan->refresh()->status;
+
+        $this->assertStringContainsString('still going', (string) ($plan($create->plan_id, status: 'done')['error'] ?? ''));
+        $this->assertSame($planBefore, $create->plan->refresh()->status);
+        $this->assertNotSame('done', $create->refresh()->status);
     }
 
     /** The orchestrator passes on a person's decision about a teammate's run; it never makes one. */

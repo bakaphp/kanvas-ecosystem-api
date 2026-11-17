@@ -176,12 +176,15 @@ class Plan extends BaseModel implements HandlesAgentMention
     }
 
     /**
-     * A blocked plan whose blocked work was sent back to run again. Left blocked, it is invisible to the
-     * still-working updates and to the every-task-finished wake, so it would finish with nobody told.
+     * A blocked or finished plan whose work was sent back to run again. Left blocked, it is invisible to
+     * the still-working updates and to the every-task-finished wake, so it would finish with nobody told;
+     * left done, the orchestrator reads it as finished and moves on (a release opened without its ticket).
      */
     public function resumeIfNothingBlocks(): void
     {
-        if ($this->status !== PlanStatusEnum::BLOCKED->value
+        $from = $this->status;
+
+        if (! in_array($from, [PlanStatusEnum::BLOCKED->value, PlanStatusEnum::DONE->value], true)
             || $this->tasks()->where('status', TaskStatusEnum::BLOCKED->value)->exists()
         ) {
             return;
@@ -189,12 +192,13 @@ class Plan extends BaseModel implements HandlesAgentMention
 
         $this->status = PlanStatusEnum::ACTIVE->value;
         $this->blocked_needs = null;
+        $this->completed_at = null;
         $this->save();
 
-        $this->emitLedgerEvent('plan.resumed', payload: ['status_from' => PlanStatusEnum::BLOCKED->value]);
+        $this->emitLedgerEvent('plan.resumed', payload: ['status_from' => $from]);
         $this->broadcastChange(
             changeType: PlanChangeTypeEnum::UPDATED,
-            previousStatus: PlanStatusEnum::BLOCKED->value,
+            previousStatus: $from,
         );
     }
 

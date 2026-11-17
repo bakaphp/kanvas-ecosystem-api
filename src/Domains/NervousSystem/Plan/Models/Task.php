@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
@@ -201,6 +202,18 @@ class Task extends BaseModel
             ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
             ->where('is_deleted', 0)
             ->exists();
+    }
+
+    /**
+     * A coding run is still working this task, or a step it was handed to. Its outcome closes them: a
+     * project manager that closed one by hand (a task status, a whole plan "done") ended a ticket whose
+     * run was still building it.
+     */
+    public function hasALiveRun(): bool
+    {
+        $ids = [$this->getId(), ...$this->children()->pluck('id')->all()];
+
+        return AgentTaskSession::query()->whereIn('task_id', $ids)->live()->exists();
     }
 
     /**

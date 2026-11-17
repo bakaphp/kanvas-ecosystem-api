@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
@@ -352,6 +353,9 @@ class RunTaskWorkerJob implements ShouldQueue
             'When you finish, reply with what you did and where it is: branch, commits, pull request link, '
             . 'reports. IF YOU COULD NOT DO IT, START YOUR REPLY WITH THE WORD BLOCKED, then say exactly '
             . 'what stopped you and what someone has to do.',
+            'Your run ends when you reply, so do every step before you reply, and end that final reply with a '
+            . 'line that says exactly ' . AgentTaskSession::RUN_FINISHED_MARKER . '. A reply without it is read '
+            . 'as stopping midway, and you are asked to carry on.',
         ]));
     }
 

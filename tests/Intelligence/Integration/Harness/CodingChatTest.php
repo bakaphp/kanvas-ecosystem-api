@@ -32,6 +32,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\RuntimeNotListeningExcep
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\LaunchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\PollHarnessSessionJob;
+use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\ReleaseFactoryCheckoutJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\WatchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
@@ -592,7 +593,7 @@ class CodingChatTest extends TestCase
         $run = $this->startFactoryRun($task);
         $answer = 'Opened https://github.com/mctekk/Quorum-app/pull/12 against develop; tsc and lint pass.';
 
-        $this->finishTurn($run, HarnessStatusEnum::IDLE, $answer);
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, $answer . "\n\n" . AgentTaskSession::RUN_FINISHED_MARKER);
 
         $this->assertSame(HarnessStatusEnum::COMPLETED->value, $run->refresh()->status, 'a task run closes with its turn');
         $this->assertSame(TaskStatusEnum::DONE->value, $run->task()->firstOrFail()->status);
@@ -608,6 +609,72 @@ class CodingChatTest extends TestCase
             'resuming the task must not start the same work in the factory again'
         );
         Queue::assertPushed(WakeAgentForPlanJob::class);
+    }
+
+    /** A turn that ends mid-work ("Now restart both apps") is not a finished ticket, so the run is told to carry on. */
+    public function testAFactoryRunThatStopsWithoutSayingItIsDoneIsToldToCarryOn(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        $run = $this->startFactoryRun($task);
+        $transport = $this->transport();
+
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'Now restart both apps so they pick up the harness.', transport: $transport);
+
+        $run->refresh();
+        $this->assertSame(HarnessStatusEnum::RUNNING->value, $run->status, 'the run is still working');
+        $this->assertSame(1, (int) $run->turn_offset);
+        $this->assertNotSame(TaskStatusEnum::DONE->value, $run->task()->firstOrFail()->status);
+        $carryOn = collect($transport->requests)->first(fn (array $request): bool => str_ends_with($request[1], '/prompt'));
+        $this->assertNotNull($carryOn, 'the same session is asked to carry on');
+        $this->assertStringContainsString(AgentTaskSession::RUN_FINISHED_MARKER, (string) ($carryOn[2]['text'] ?? ''));
+        Queue::assertPushed(PollHarnessSessionJob::class);
+    }
+
+    public function testAFactoryRunThatKeepsStoppingClosesAsFailedNeverAsDone(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        $run = $this->startFactoryRun($task);
+
+        $this->finishTurn(
+            run: $run,
+            status: HarnessStatusEnum::IDLE,
+            reply: 'Next I will run the QA.',
+            closedTurns: DeliverCodingChatTurnAction::MAX_TASK_RUN_TURNS,
+        );
+        new RunTaskWorkerJob($task->refresh(), 'Task #1 is now blocked.')->handle();
+
+        $this->assertSame(HarnessStatusEnum::FAILED->value, $run->refresh()->status);
+        $this->assertSame(TaskStatusEnum::BLOCKED->value, $task->refresh()->status);
+        $this->assertStringContainsString('stopped before it finished', (string) $task->blocked_reason);
+    }
+
+    /** A release lost to a dropped tunnel left the worktree holding its branch, and the next run on it failed. */
+    public function testACheckoutTheMacCouldNotReleaseIsReleasedOnceItAnswers(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        $run = $this->startFactoryRun($task);
+        $machine = new AgentMachine();
+        $machine->name = 'kaneda';
+        $unreachable = new class ($machine, CodingChatSettingEnum::DEFAULT_FACTORY_DIR) extends FactoryServeClient {
+            #[Override]
+            protected function run(string $command, int $timeout): string
+            {
+                throw new HarnessTransportException('Cannot reach machine kaneda (factory)');
+            }
+        };
+        $this->app->bind(FactoryServeClient::class, static fn (): FactoryServeClient => $unreachable);
+
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'Pushed and landed.' . "\n" . AgentTaskSession::RUN_FINISHED_MARKER);
+
+        Queue::assertPushed(ReleaseFactoryCheckoutJob::class, fn (ReleaseFactoryCheckoutJob $job): bool => $job->sessionId === $run->getId());
+
+        $factory = $this->bindFactory('{"released":"true"}');
+        new ReleaseFactoryCheckoutJob(app(Apps::class), $run->getId())->handle();
+
+        $this->assertStringContainsString("'release'", $factory->commands[0] ?? '');
     }
 
     public function testAFactoryRunThatFailsBlocksTheTaskThatStartedIt(): void
@@ -908,7 +975,7 @@ class CodingChatTest extends TestCase
         Queue::fake();
         [$design, $logic] = $this->ticketLine();
         $run = $this->startFactoryRun($design);
-        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'Designed the login screen; committed on ticket/12-login-screen.');
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, "Designed the login screen; committed on ticket/12-login-screen.\nTASK COMPLETE");
 
         new RunTaskWorkerJob($design->refresh(), 'Task #1 is now done.')->handle();
 
@@ -955,7 +1022,7 @@ class CodingChatTest extends TestCase
         Queue::fake();
         [$check, $planning] = $this->factoryThenKanvasLine();
         $run = $this->startFactoryRun($check);
-        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'The template has a list screen and the API serves messages.');
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, "The template has a list screen and the API serves messages.\nTASK COMPLETE");
 
         new RunTaskWorkerJob($check->refresh(), 'Task #1 is now done.')->handle();
 
@@ -1927,15 +1994,17 @@ class CodingChatTest extends TestCase
         AgentTaskSession $run,
         HarnessStatusEnum $status,
         ?string $reply,
-        ?string $error = null
+        ?string $error = null,
+        int $closedTurns = 1,
+        ?HarnessTransport $transport = null
     ): void {
         new DeliverCodingChatTurnAction($run, new HarnessTick(
             status: $status,
             usage: new HarnessUsage(),
             error: $error,
-            closedTurns: 1,
+            closedTurns: $closedTurns,
             turnReply: $reply,
-        ))->execute();
+        ), $transport)->execute();
     }
 
     private function chatSession(Agent $agent): Session
