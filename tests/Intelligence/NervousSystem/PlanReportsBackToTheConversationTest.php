@@ -11,8 +11,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\AbsorbHarnessTickAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -518,6 +521,38 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $this->assertStringContainsString('Job ' . $run->getId(), $content);
         $this->assertStringContainsString('per_1', $content);
         $this->assertStringContainsString((string) $runSession->agent?->name, $content);
+    }
+
+    /**
+     * Answered once, the agent asked again before any poll saw it running: the session never left the
+     * waiting state and the second ask was never said. Each ask is said once, by its id.
+     */
+    public function testEveryNewAskIsSaidOnceEvenWithoutLeavingTheWaitingState(): void
+    {
+        [$plan, , $session] = $this->plannedInAConversation();
+        [, $run] = $this->factoryStepWithItsRun($plan);
+        $runSession = $this->runSession($run, HarnessStatusEnum::AWAITING_PERMISSION);
+
+        $tick = fn (string $id): HarnessTick => new HarnessTick(
+            status: HarnessStatusEnum::AWAITING_PERMISSION,
+            usage: new HarnessUsage(),
+            permissions: [new HarnessPermissionRequest($id, 'webfetch', ['https://example.com/' . $id])],
+        );
+
+        new AbsorbHarnessTickAction($runSession, $tick('per_first'))->execute();
+        new AbsorbHarnessTickAction($runSession->refresh(), $tick('per_first'))->execute();
+        new AbsorbHarnessTickAction($runSession->refresh(), $tick('per_second'))->execute();
+
+        $asks = Channel::query()->findOrFail($session->channel_id)->messages()
+            ->orderBy('messages.id')
+            ->get()
+            ->map(fn (Message $message): string => (string) ($message->message['content'] ?? ''))
+            ->filter(fn (string $content): bool => str_contains($content, 'webfetch: https://example.com/per_'))
+            ->values();
+
+        $this->assertCount(2, $asks, 'Each ask once: the repeat of the first is silent, the second is said.');
+        $this->assertStringContainsString('per_first', (string) $asks->first());
+        $this->assertStringContainsString('per_second', (string) $asks->last());
     }
 
     /** A coding chat is the agent's own plan, and that chat reports its own progress minute by minute. */

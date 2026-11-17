@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -30,7 +31,6 @@ class AbsorbHarnessTickAction
     public function execute(): AgentTaskSession
     {
         $usage = $this->tick->usage;
-        $wasWaiting = $this->session->harnessStatus()->isWaitingOnAHuman();
 
         $this->session->input_tokens = $usage->inputTokens;
         $this->session->output_tokens = $usage->outputTokens;
@@ -49,32 +49,38 @@ class AbsorbHarnessTickAction
         $this->session->saveOrFail();
 
         if ($this->announce) {
-            $this->say($wasWaiting);
+            $this->say();
         }
 
         return $this->session;
     }
 
     /**
-     * Every poll re-reports a pending permission, so announcing per tick buries the feed in identical
-     * messages. Announced on the way IN to the waiting state; parking again after a resume says so again.
+     * Every poll re-reports a pending ask, so each one is announced once, by its id. Keying it on the
+     * status instead missed an agent that asks again before a poll sees it running: the session never
+     * leaves the waiting state, and the second ask was never said.
      */
-    private function say(bool $wasWaiting): void
+    private function say(): void
     {
         if ($this->tick->hasNarration()) {
             $this->postNarration($this->session, $this->tick->narration);
         }
 
-        if ($wasWaiting) {
-            return;
-        }
-
         foreach ($this->tick->questions as $question) {
-            $this->postQuestion($this->session, $question);
+            if ($this->firstTimeAsked($question->id)) {
+                $this->postQuestion($this->session, $question);
+            }
         }
 
         foreach ($this->tick->permissions as $permission) {
-            $this->postPermissionRequest($this->session, $permission);
+            if ($this->firstTimeAsked($permission->id)) {
+                $this->postPermissionRequest($this->session, $permission);
+            }
         }
+    }
+
+    private function firstTimeAsked(string $askId): bool
+    {
+        return Cache::add('harness:asked:' . $this->session->getId() . ':' . $askId, true, now()->addDays(2));
     }
 }
