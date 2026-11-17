@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Services;
 
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Notification;
 use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -62,7 +61,7 @@ class NotifyLeadStakeholdersService
         }
 
         if ($this->lead->owner) {
-            $this->lead->owner->notify($this->notification);
+            $this->sendWithCompanyName(collect([$this->lead->owner]));
         }
     }
 
@@ -87,7 +86,7 @@ class NotifyLeadStakeholdersService
 
         $this->lead->set('sent_email_notification_to_manager', 1);
 
-        Notification::send($managers, $this->notification);
+        $this->sendWithCompanyName($managers);
     }
 
     public function followers(): void
@@ -102,7 +101,18 @@ class NotifyLeadStakeholdersService
             return;
         }
 
-        Notification::send($followers, $this->notification);
+        $this->sendWithCompanyName($followers);
+    }
+
+    protected function sendWithCompanyName(Collection $recipients): void
+    {
+        $subject = $this->notification->getSubject();
+
+        new CompanyNameNotificationService($this->lead->company, $this->lead->app)->send(
+            $recipients,
+            $this->notification,
+            fn (string $fromCompany) => $subject === null ? null : $subject . $fromCompany
+        );
     }
 
     /**
