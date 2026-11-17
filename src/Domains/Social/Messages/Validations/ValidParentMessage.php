@@ -23,7 +23,9 @@ class ValidParentMessage implements ValidationRule
             return;
         }
 
-        $exists = ModelsMessage::withTrashed()
+        // A deleted parent must fail here: the tree builds a child's path from its live parent, so
+        // letting one through fatals on insert instead of returning this message.
+        $exists = ModelsMessage::query()
             ->where('id', $value)
             ->where('apps_id', $this->appId)
             ->exists();

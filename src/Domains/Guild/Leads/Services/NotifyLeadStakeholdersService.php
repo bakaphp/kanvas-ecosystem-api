@@ -14,7 +14,9 @@ use Kanvas\Notifications\Notification as NotificationsNotification;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class NotifyLeadStakeholdersService
 {
@@ -94,18 +96,28 @@ class NotifyLeadStakeholdersService
             return;
         }
 
-        if ($this->lead->getTotalFollowers($this->lead->app) === 0) {
+        $followers = $this->followersExceptOwner();
+
+        if ($followers->isEmpty()) {
             return;
         }
-        foreach ($this->lead->followers as $follower) {
-            if ($follower->id !== $this->lead->owner->getId()) {
-                $follower->notify($this->notification);
-            }
-        }
+
+        Notification::send($followers, $this->notification);
     }
 
     /**
-     * Notify lead owner + BDC managers when a customer engages on a channel.
+     * Read from users_follows directly: Lead::followers() joins on the follower's own id, and the
+     * social-count custom field is only maintained for user-to-user follows.
+     */
+    protected function followersExceptOwner(): Collection
+    {
+        return UsersFollowsRepository::getEntityFollowersBuilder($this->lead, $this->lead->app)
+            ->where('users.id', '!=', (int) $this->lead->leads_owner_id)
+            ->get();
+    }
+
+    /**
+     * Notify lead owner + BDC managers + lead followers when a customer engages on a channel.
      *
      * Honors company config:
      * - ai_manager_notifications (off → skip entirely)
@@ -164,7 +176,6 @@ class NotifyLeadStakeholdersService
         );
 
         $peopleName = (string) ($this->lead->people->name ?? '');
-        $notification->setSubject($peopleName . ' Engaged with Sally');
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
         $notification->setDatabaseTemplateName('agent_manager_sms_notification');
@@ -175,7 +186,11 @@ class NotifyLeadStakeholdersService
             return ['skipped' => 'no_recipients'];
         }
 
-        Notification::send($recipients, $notification);
+        $this->sendWithCompanyName(
+            $recipients,
+            $notification,
+            fn (string $fromCompany) => $peopleName . $fromCompany . ' Engaged with Sally'
+        );
 
         $this->lead->set(self::LAST_MANAGER_NOTIFICATION_AT, date('Y-m-d H:i:s'));
 
@@ -195,7 +210,7 @@ class NotifyLeadStakeholdersService
     }
 
     /**
-     * Notify lead owner + BDC managers when an agent (AI or human) replies to a customer.
+     * Notify lead owner + BDC managers + lead followers when an agent (AI or human) replies to a customer.
      *
      * Internal-only by default: 'database' channel — recipients see it in the in-app feed
      * without getting SMS/email/push spam every time the agent answers.
@@ -241,9 +256,7 @@ class NotifyLeadStakeholdersService
         );
 
         $peopleName = (string) ($this->lead->people->name ?? '');
-        $notification->setSubject(
-            ($isHuman ? 'Agent ' : 'Sally ') . 'replied to ' . $peopleName
-        );
+        $sender = $isHuman ? 'Agent ' : 'Sally ';
 
         $recipients = $this->collectManagerRecipients($message, $includeOwner);
 
@@ -251,7 +264,11 @@ class NotifyLeadStakeholdersService
             return ['skipped' => 'no_recipients'];
         }
 
-        Notification::send($recipients, $notification);
+        $this->sendWithCompanyName(
+            $recipients,
+            $notification,
+            fn (string $fromCompany) => $sender . 'replied to ' . $peopleName . $fromCompany
+        );
 
         if ($channel !== null) {
             $channel->set(self::LAST_AGENT_REPLY_NOTIFICATION_AT, date('Y-m-d H:i:s'));
@@ -266,6 +283,34 @@ class NotifyLeadStakeholdersService
             'manager_count' => $recipients->count(),
             'manager_ids' => $recipients->pluck('id')->toArray(),
         ];
+    }
+
+    /**
+     * Recipients in more than one company of the app cannot tell which one a lead belongs to, so only
+     * they get `company_name` in the template data and the subject; everyone else gets it empty.
+     *
+     * @param callable(string): string $subject receives " from <company>" or an empty string
+     */
+    protected function sendWithCompanyName(
+        Collection $recipients,
+        NotificationsNotification $notification,
+        callable $subject
+    ): void {
+        $multiCompanyIds = UsersRepository::getMultiCompanyUserIds(
+            $recipients->pluck('id')->all(),
+            $this->lead->app
+        );
+
+        foreach ($recipients as $recipient) {
+            $inSeveralCompanies = in_array((int) $recipient->getId(), $multiCompanyIds, true);
+            $companyName = $inSeveralCompanies ? (string) $this->lead->company->name : '';
+
+            $copy = clone $notification;
+            $copy->setData(['company_name' => $companyName]);
+            $copy->setSubject($subject($inSeveralCompanies ? ' from ' . $companyName : ''));
+
+            $recipient->notify($copy);
+        }
     }
 
     protected function isWithinAgentReplyDedupeWindow(Channel $channel): bool
@@ -358,7 +403,7 @@ class NotifyLeadStakeholdersService
     }
 
     /**
-     * BDC managers + lead owner, deduped by user id.
+     * BDC managers + lead owner + lead followers, deduped by user id.
      */
     protected function collectManagerRecipients(Message $message, bool $includeOwner): Collection
     {
@@ -369,6 +414,12 @@ class NotifyLeadStakeholdersService
             $owner = $this->lead->owner;
             if ($owner && ! $managers->contains('id', $owner->getId())) {
                 $managers->push($owner);
+            }
+        }
+
+        foreach ($this->followersExceptOwner() as $follower) {
+            if (! $managers->contains('id', $follower->getId())) {
+                $managers->push($follower);
             }
         }
 
