@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Harness\Transports;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\RuntimeNotListeningException;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Override;
@@ -142,7 +143,7 @@ class SshExecHarnessTransport implements HarnessTransport
         // `-w` prints the marker with 000 when the connection is refused; without this check a dead
         // runtime reads as an empty, successful response — a session with no messages.
         if ($status === 0) {
-            throw new HarnessTransportException(
+            throw new RuntimeNotListeningException(
                 'The runtime is not listening (' . $method . ' ' . $path . '): ' . mb_substr($payload, 0, 300)
             );
         }

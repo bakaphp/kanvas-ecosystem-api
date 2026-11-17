@@ -26,6 +26,7 @@ use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Event\Events\Models\Event;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -139,7 +140,12 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
     protected $table = 'orders';
     protected $guarded = [];
 
+    /**
+     * `is_deleted` is SoftDeletes' DELETED_AT here, which Laravel casts to a date unless told
+     * otherwise: 0 then reads back as a 1970 Carbon and every `if ($order->is_deleted)` is true.
+     */
     protected $casts = [
+        'is_deleted' => 'boolean',
         'total_gross_amount' => 'float',
         'total_net_amount' => 'float',
         'shipping_price_gross_amount' => 'float',
@@ -933,6 +939,11 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         }
 
         return $query;
+    }
+
+    public function isEventBacked(): bool
+    {
+        return $this->resources_type === new Event()->getMorphClass();
     }
 
     public function setOrderType(string $orderType): void

@@ -93,6 +93,7 @@ class ApplyShippingQuoteToCartAction
                 ShippingConditionEnum::QUOTED_AMOUNT->value => $quote->amount,
                 ShippingConditionEnum::CURRENCY->value => $quote->currency,
                 ShippingConditionEnum::QUOTED_AT->value => Carbon::now()->toIso8601String(),
+                ...($quote->bookingMeta === [] ? [] : [ShippingConditionEnum::BOOKING_META->value => $quote->bookingMeta]),
             ],
         ]);
     }

@@ -6,7 +6,7 @@ namespace Kanvas\Event\Participants\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Event\Events\Enums\EventStatusEnum;
+use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Models\BaseModel;
@@ -15,6 +15,13 @@ class ParticipantPass extends BaseModel
 {
     protected $table = 'participant_passes';
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'redeemed_at' => 'datetime',
+        ];
+    }
 
     /**
      * Passes of people who never checked in for something that already started.
@@ -39,15 +46,53 @@ class ParticipantPass extends BaseModel
                 'eventVersion',
                 fn (Builder $version) => $version->where('is_deleted', 0)->where('start_at', '<', now())
             )
-            // Nobody was expected to show up for a cancelled booking. Compared on slug *or* name
-            // because seeded statuses carry a null slug while the ones written at runtime have one.
-            ->whereDoesntHave(
-                'event.eventStatus',
-                fn (Builder $status) => $status->whereRaw(
-                    'LOWER(COALESCE(NULLIF(slug, ""), name)) = ?',
-                    [strtolower(EventStatusEnum::CANCELLED->value)]
-                )
-            );
+            ->whereDoesntHave('event.eventStatus', fn (Builder $status) => $status->cancelled());
+    }
+
+    private function redemptionHolderIsActive(): bool
+    {
+        if ($this->redeemed_event_version_id === null) {
+            return false;
+        }
+
+        return EventVersion::query()->whereKey($this->redeemed_event_version_id)->live()->exists();
+    }
+
+    public function markAsUsed(): bool
+    {
+        $usedAt = now();
+
+        $claimed = static::query()
+            ->whereKey($this->getKey())
+            ->whereNull('used_date')
+            ->update(['used_date' => $usedAt]) === 1;
+
+        if ($claimed) {
+            $this->used_date = $usedAt;
+            $this->syncOriginal();
+        }
+
+        return $claimed;
+    }
+
+    public function isValid(): bool
+    {
+        return $this->revoked_at === null && ! now()->gt(Carbon::parse($this->expiration_date)->endOfDay());
+    }
+
+    public function isRedeemable(): bool
+    {
+        return $this->isValid() && ($this->redeemed_at === null || ! $this->redemptionHolderIsActive());
+    }
+
+    public function isRedeemedBy(EventVersion $booking): bool
+    {
+        return $this->redeemed_at !== null && (int) $this->redeemed_event_version_id === $booking->getId();
+    }
+
+    public function redemptionHolder(): BelongsTo
+    {
+        return $this->belongsTo(EventVersion::class, 'redeemed_event_version_id');
     }
 
     public function participant(): BelongsTo

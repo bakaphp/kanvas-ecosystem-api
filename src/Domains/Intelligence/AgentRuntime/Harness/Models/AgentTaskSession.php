@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -16,6 +17,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Override;
@@ -30,6 +32,7 @@ use Override;
  * @property int|null $agent_id
  * @property int|null $plan_id
  * @property int $task_id
+ * @property int|null $chat_session_id
  * @property int|null $agent_machine_id
  * @property string|null $repo_slug
  * @property string $harness
@@ -115,6 +118,67 @@ class AgentTaskSession extends BaseModel
     public function isRetry(): bool
     {
         return $this->retry_of_session_id !== null;
+    }
+
+    public function chatSession(): BelongsTo
+    {
+        return $this->belongsTo(Session::class, 'chat_session_id', 'id');
+    }
+
+    /**
+     * A coding chat: a conversation drives this session turn by turn in the factory's own checkout. It
+     * never finalizes on `idle` (the next message is the next turn), never pushes (the agent does, as
+     * `akira` does), and has no `workspace_path`, so the reaper can never delete that checkout.
+     */
+    public function isChat(): bool
+    {
+        return $this->chat_session_id !== null;
+    }
+
+    /**
+     * A factory run a workflow started for one of its tasks: a chat nobody types into. Its first turn
+     * is the whole job, and its answer is that task's result, so it closes when the turn does.
+     */
+    public function isTaskRun(): bool
+    {
+        return $this->isChat() && $this->task?->parent_task_id !== null;
+    }
+
+    /**
+     * One branch per ticket, under the agent that works it and named for the task, so a person can
+     * tell from the branch list who built what and find it on the board.
+     */
+    public function taskRunBranch(): ?string
+    {
+        $ticket = $this->isTaskRun() ? $this->task?->parent : null;
+
+        if ($ticket === null) {
+            return null;
+        }
+
+        $owner = Str::slug((string) $this->agent?->name);
+        $slug = trim(Str::limit(Str::slug((string) $ticket->title), 40, ''), '-');
+
+        return ($owner !== '' ? $owner : 'agent') . '/task-' . $ticket->getId() . ($slug !== '' ? '-' . $slug : '');
+    }
+
+    public static function findInApp(int $id, Apps $app): ?self
+    {
+        /** @var self|null */
+        return self::query()->where('id', $id)->fromApp($app)->first();
+    }
+
+    public static function liveChatFor(Agent $agent, Session $chat): ?self
+    {
+        /** @var self|null */
+        return self::query()
+            ->useWritePdo()
+            ->where('agent_id', $agent->getId())
+            ->where('chat_session_id', $chat->getId())
+            ->notDeleted()
+            ->live()
+            ->latest('id')
+            ->first();
     }
 
     /**

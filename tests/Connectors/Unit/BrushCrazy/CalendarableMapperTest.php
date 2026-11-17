@@ -39,7 +39,13 @@ final class CalendarableMapperTest extends TestCase
 
     private function map(CalendarableTypeEnum $morph, array $overrides = [], string $tz = 'America/Denver'): array
     {
-        return CalendarableMapper::map($morph, $this->row($overrides), 3, $tz, $this->cutoff());
+        return CalendarableMapper::map(
+            $morph,
+            $this->row($overrides),
+            3,
+            $tz,
+            $this->cutoff()
+        );
     }
 
     /** The version column is the source id, so the composite unique key needs no lookup. */
@@ -63,8 +69,20 @@ final class CalendarableMapperTest extends TestCase
 
     public function testDifferentStudiosNeverShareAnEvent(): void
     {
-        $a = CalendarableMapper::map(CalendarableTypeEnum::LESSON, $this->row(), 1, 'America/Denver', $this->cutoff());
-        $b = CalendarableMapper::map(CalendarableTypeEnum::LESSON, $this->row(), 3, 'America/Denver', $this->cutoff());
+        $a = CalendarableMapper::map(
+            CalendarableTypeEnum::LESSON,
+            $this->row(),
+            1,
+            'America/Denver',
+            $this->cutoff()
+        );
+        $b = CalendarableMapper::map(
+            CalendarableTypeEnum::LESSON,
+            $this->row(),
+            3,
+            'America/Denver',
+            $this->cutoff()
+        );
 
         $this->assertNotSame($a['group_key'], $b['group_key']);
         $this->assertNotSame($a['event']['slug'], $b['event']['slug']);
@@ -165,5 +183,44 @@ final class CalendarableMapperTest extends TestCase
         ]);
 
         $this->assertLessThanOrEqual(255, strlen($mapped['event']['slug']));
+    }
+
+    public function testSubstratesKeepTheSourceOrderAndPriceTheTicketAtTheCheapest(): void
+    {
+        $substrates = CalendarableMapper::substrates([
+            (object) ['id' => 9, 'name' => '16x20 Canvas', 'price' => '{"amount": 3500, "currency": "USD"}', 'sort_order' => 2, 'product_id' => 5],
+            (object) ['id' => 4, 'name' => '11x14 Canvas', 'price' => '{"amount": "2500", "currency": "USD"}', 'sort_order' => 1, 'product_id' => null],
+        ]);
+
+        $this->assertSame(['11x14 Canvas', '16x20 Canvas'], array_column($substrates['options'], 'name'));
+        $this->assertSame([2500, 3500], array_column($substrates['options'], 'price_cents'));
+        $this->assertSame([null, 5], array_column($substrates['options'], 'product_id'));
+        $this->assertSame(25.0, $substrates['price_per_ticket']);
+    }
+
+    public function testAClassWithoutSubstratesIsFree(): void
+    {
+        $this->assertSame(['options' => [], 'price_per_ticket' => 0.0], CalendarableMapper::substrates([]));
+    }
+
+    /** "RSVP" $0 beside a $35 canvas: the listing must say $35, not free. */
+    public function testAFreeRsvpOptionDoesNotPriceAPaidClass(): void
+    {
+        $substrates = CalendarableMapper::substrates([
+            (object) ['id' => 1, 'name' => 'RSVP', 'price' => '{"amount": 0, "currency": "USD"}', 'sort_order' => 1, 'product_id' => null],
+            (object) ['id' => 2, 'name' => '16x20 Canvas', 'price' => '{"amount": 3500, "currency": "USD"}', 'sort_order' => 2, 'product_id' => null],
+        ]);
+
+        $this->assertCount(2, $substrates['options']);
+        $this->assertSame(35.0, $substrates['price_per_ticket']);
+    }
+
+    public function testAClassWithOnlyFreeOptionsIsFree(): void
+    {
+        $substrates = CalendarableMapper::substrates([
+            (object) ['id' => 1, 'name' => 'RSVP', 'price' => '{"amount": 0, "currency": "USD"}', 'sort_order' => 1, 'product_id' => null],
+        ]);
+
+        $this->assertSame(0.0, $substrates['price_per_ticket']);
     }
 }

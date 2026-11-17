@@ -52,4 +52,44 @@ enum CalendarableTypeEnum: string
     {
         return $this === self::EVENT;
     }
+
+    /** The BRUSHCRAZY_CALENDARABLE_KEY on an EventVersion; parseKey() reads it back. */
+    public function key(int|string $id): string
+    {
+        return $this->value . ':' . $id;
+    }
+
+    /**
+     * @return array{0: self, 1: int}|null
+     */
+    public static function parseKey(string $key): ?array
+    {
+        [$morph, $id] = array_pad(explode(':', $key, 2), 2, null);
+        $type = self::tryFrom((string) $morph);
+
+        if ($type === null || ! is_numeric($id) || (int) $id < 1) {
+            return null;
+        }
+
+        return [$type, (int) $id];
+    }
+
+    /**
+     * @param  array<int, string>  $calendarableKeys
+     * @return array<string, array<int, int>> morph => ids
+     */
+    public static function idsByMorph(array $calendarableKeys): array
+    {
+        $byMorph = [];
+
+        foreach ($calendarableKeys as $key) {
+            $parsed = self::parseKey((string) $key);
+
+            if ($parsed !== null) {
+                $byMorph[$parsed[0]->value][] = $parsed[1];
+            }
+        }
+
+        return $byMorph;
+    }
 }

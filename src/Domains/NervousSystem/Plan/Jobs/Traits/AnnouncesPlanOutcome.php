@@ -59,8 +59,12 @@ trait AnnouncesPlanOutcome
      * Also say it where the plan was asked for. The Activities channel has no subscribers, so a report
      * that lands only there reaches no one.
      */
-    protected function alsoPostToOriginConversation(Plan $plan, string $body, string $verb): void
-    {
+    protected function alsoPostToOriginConversation(
+        Plan $plan,
+        string $body,
+        string $verb,
+        bool $mention = true
+    ): void {
         $origin = $plan->originChannel;
 
         if ($origin === null) {
@@ -79,8 +83,9 @@ trait AnnouncesPlanOutcome
         $session = $plan->originSession;
 
         // Addressed to whoever asked, so the ping in their own conversation reaches THEM. Falls back
-        // to the plan owner only when no asker was recorded (a cron, a workflow).
-        $content = ($this->mentionFor($plan, $this->asker($plan)) ?? '') . $body;
+        // to the plan owner only when no asker was recorded (a cron, a workflow). A live conversation
+        // (a coding chat answering turn by turn) skips it: the person is already there.
+        $content = ($mention ? ($this->mentionFor($plan, $this->asker($plan)) ?? '') : '') . $body;
 
         $posted = new PostPlanActivityMessageAction(
             plan: $plan,

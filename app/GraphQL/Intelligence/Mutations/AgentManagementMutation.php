@@ -204,7 +204,6 @@ class AgentManagementMutation
         ) {
             new ReleaseInboundWebhookForNumberAction(
                 number: $previousNumber,
-                app: $app,
                 company: $company,
                 exceptAgentId: $agent->getId(),
             )->execute();

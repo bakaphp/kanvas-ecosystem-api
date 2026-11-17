@@ -6,7 +6,7 @@ namespace Tests\Connectors\Unit\BrushCrazy;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\BrushCrazy\Support\EventInstant;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Columbus OH (~8,100 rows, 37% of the dataset) is the only studio outside America/Denver, so it is
@@ -21,10 +21,20 @@ final class EventInstantTest extends TestCase
         return Carbon::parse(self::CUTOFF, 'UTC');
     }
 
+    private function resolve(?string $rawStart, ?string $rawEnd, string $studioTimezone): ?EventInstant
+    {
+        return EventInstant::resolve(
+            $rawStart,
+            $rawEnd,
+            $studioTimezone,
+            $this->cutoff()
+        );
+    }
+
     /** A Denver studio round-trips untouched — the source zone already matches reality. */
     public function testDenverStudioIsNeverCorrected(): void
     {
-        $instant = EventInstant::resolve('2026-09-15 01:00:00', '2026-09-15 04:00:00', 'America/Denver', $this->cutoff());
+        $instant = $this->resolve('2026-09-15 01:00:00', '2026-09-15 04:00:00', 'America/Denver');
 
         $this->assertNotNull($instant);
         $this->assertFalse($instant->corrected);
@@ -38,7 +48,7 @@ final class EventInstantTest extends TestCase
      */
     public function testFutureColumbusRowIsCorrectedButKeepsItsWallClock(): void
     {
-        $instant = EventInstant::resolve('2026-09-15 01:00:00', '2026-09-15 04:00:00', 'America/New_York', $this->cutoff());
+        $instant = $this->resolve('2026-09-15 01:00:00', '2026-09-15 04:00:00', 'America/New_York');
 
         $this->assertNotNull($instant);
         $this->assertTrue($instant->corrected);
@@ -52,7 +62,7 @@ final class EventInstantTest extends TestCase
     /** Historical rows keep the stored instant so they still reconcile against the legacy UI. */
     public function testHistoricalColumbusRowKeepsStoredInstant(): void
     {
-        $instant = EventInstant::resolve('2018-05-16 15:00:00', null, 'America/New_York', $this->cutoff());
+        $instant = $this->resolve('2018-05-16 15:00:00', null, 'America/New_York');
 
         $this->assertNotNull($instant);
         $this->assertFalse($instant->corrected);
@@ -68,8 +78,8 @@ final class EventInstantTest extends TestCase
      */
     public function testBothSemanticsRenderTheSameWallClock(): void
     {
-        $before = EventInstant::resolve('2026-08-20 01:00:00', null, 'America/New_York', $this->cutoff());
-        $after = EventInstant::resolve('2026-08-22 01:00:00', null, 'America/New_York', $this->cutoff());
+        $before = $this->resolve('2026-08-20 01:00:00', null, 'America/New_York');
+        $after = $this->resolve('2026-08-22 01:00:00', null, 'America/New_York');
 
         $this->assertSame('19:00:00', $before->localStartTime());
         $this->assertSame('19:00:00', $after->localStartTime());
@@ -81,15 +91,13 @@ final class EventInstantTest extends TestCase
 
     public function testCutoffBoundaryIsInclusive(): void
     {
-        $instant = EventInstant::resolve(self::CUTOFF, null, 'America/New_York', $this->cutoff());
-
-        $this->assertTrue($instant->corrected);
+        $this->assertTrue($this->resolve(self::CUTOFF, null, 'America/New_York')->corrected);
     }
 
     public function testSemanticsAreRecordedForLaterReaders(): void
     {
-        $corrected = EventInstant::resolve('2026-09-15 01:00:00', null, 'America/New_York', $this->cutoff());
-        $stored = EventInstant::resolve('2018-05-16 15:00:00', null, 'America/New_York', $this->cutoff());
+        $corrected = $this->resolve('2026-09-15 01:00:00', null, 'America/New_York');
+        $stored = $this->resolve('2018-05-16 15:00:00', null, 'America/New_York');
 
         $this->assertSame('corrected', $corrected->semanticsMetadata($this->cutoff())['tz_semantics']);
         $this->assertSame('as_stored', $stored->semanticsMetadata($this->cutoff())['tz_semantics']);
@@ -98,7 +106,7 @@ final class EventInstantTest extends TestCase
 
     public function testMissingStartYieldsNothing(): void
     {
-        $this->assertNull(EventInstant::resolve(null, '2026-09-15 04:00:00', 'America/Denver', $this->cutoff()));
-        $this->assertNull(EventInstant::resolve('  ', null, 'America/Denver', $this->cutoff()));
+        $this->assertNull($this->resolve(null, '2026-09-15 04:00:00', 'America/Denver'));
+        $this->assertNull($this->resolve('  ', null, 'America/Denver'));
     }
 }

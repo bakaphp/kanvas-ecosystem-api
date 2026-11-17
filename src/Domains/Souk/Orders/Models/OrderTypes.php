@@ -40,6 +40,8 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
 
     public const string EXPIRATION = 'expiration';
 
+    public const string EVENT_BOOKING = 'event_booking';
+
     protected $table = 'order_types';
     protected $guarded = [];
 
@@ -58,6 +60,18 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
         $allowed = $this->config[self::ALLOWED_PAYMENT_PROCESSORS] ?? null;
 
         return is_array($allowed) && $allowed !== [] ? array_values(array_map('strval', $allowed)) : null;
+    }
+
+    public function isEventBooking(): bool
+    {
+        return isset($this->config[self::EVENT_BOOKING]);
+    }
+
+    public function isEventBookingFor(?string $productTypeSlug): bool
+    {
+        $productTypes = $this->config[self::EVENT_BOOKING]['product_types'] ?? null;
+
+        return $productTypeSlug !== null && is_array($productTypes) && in_array($productTypeSlug, $productTypes, true);
     }
 
     public function expirationRule(): ?array
