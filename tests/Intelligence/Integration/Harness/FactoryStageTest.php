@@ -121,6 +121,7 @@ final class FactoryStageTest extends TestCase
         $this->assertStringContainsString('never open a pull request', (string) $ship->description);
         // A backend gap lands the work and is listed, instead of stopping a line nobody is watching.
         $this->assertStringContainsString('"Waiting on backend" list', (string) $ship->description);
+        $this->assertStringContainsString('the ticket is NOT finished', (string) $ship->description);
         // The app's mandatory Argent QA run is skipped when the task does not name it.
         $this->assertStringContainsString('specs/qa/app-test.runbook.md', (string) $ship->description);
         // A ticket must not be reported done while a simulator cannot run it.
@@ -188,7 +189,10 @@ final class FactoryStageTest extends TestCase
         $this->assertStringContainsString('overrides any manual fallback', $text);
         $this->assertLessThan(strpos($text, 'open the pull request from it'), strpos($text, 'full app sweep'));
         $this->assertStringContainsString('changelog entry dated ' . now()->toDateString(), $text);
-        $this->assertStringContainsString('"Waiting on backend" heading', $text);
+        // A release PR went ready while records could be saved but never listed back.
+        $this->assertStringContainsString('every ticket\'s feature works end to end against the Kanvas', $text);
+        $this->assertStringContainsString('do not open a pull request or mark one ready', $text);
+        $this->assertStringNotContainsString('"Waiting on backend" heading', $text);
         $this->assertTrue($again['reused']);
     }
 

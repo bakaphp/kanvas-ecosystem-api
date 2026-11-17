@@ -173,10 +173,11 @@ final readonly class FactoryStage
             . 'message type (createMessage, the messages query, attachFileToMessage, tags), a single value is a '
             . 'custom field. Never change kanvas-ecosystem-api yourself. When the Kanvas the app points at lacks '
             . 'something the ticket needs (an API change not deployed yet, a message type an admin has to create), '
-            . 'that is a backend gap, not a reason to stop: build everything else, keep the screen in its '
-            . 'unavailable state, land the work, and end your reply with a "Waiting on backend" list naming each '
-            . 'gap and exactly what a person has to do about it. Reply BLOCKED only when the app itself cannot be '
-            . 'built or tested.' . $quoted;
+            . 'that is a backend gap: build everything else, keep the screen in its unavailable state and land the '
+            . 'work so nothing is lost, but the ticket is NOT finished. End your reply with a "Waiting on backend" '
+            . 'list naming each gap and exactly what a person has to do about it; the person is told at once, and '
+            . 'no release pull request opens until the feature works against Kanvas. Reply BLOCKED only when the '
+            . 'app itself cannot be built or tested.' . $quoted;
 
         $shipStep = new FactoryStep('Ticket ' . $number . ' logic and landing: ' . $shortName, $ship, $builder);
 
@@ -228,14 +229,18 @@ final readonly class FactoryStage
                 . 'writes and another reads). Fix what you find on this branch, commit, and test again.',
             '4. Add a changelog entry dated ' . $date . ' where the specs say (otherwise `CHANGELOG.md`, newest first): '
                 . 'one line per ticket.',
-            '5. Only when that Argent QA passed on both platforms, signed in: push `' . $integration . '` and open the '
-                . 'pull request from it into `develop` following the app\'s specs: '
+            '5. A release is a finished app: every ticket\'s feature works end to end against the Kanvas the app points '
+                . 'at, shown by Argent with real data (a record saved is then read back and listed). If any feature still '
+                . 'waits on the backend (an API not deployed, a message type to create), the stage is not done: do not '
+                . 'open a pull request or mark one ready, push `' . $integration . '`, and reply BLOCKED listing each gap '
+                . 'and exactly what a person has to do; this step is sent back once they did it.',
+            '6. Only when that Argent QA passed on both platforms, signed in, with every feature working: push `'
+                . $integration . '` and open the pull request from it into `develop` following the app\'s specs: '
                 . 'Conventional Commits from `CLAUDE.md`, `specs/workflows/pull-request.spec.md` and the PR Description '
                 . 'Format of `specs/workflows/multi-app-pipeline.spec.md`. List every ticket with its QA report and '
-                . 'screenshots, the unified QA report, and under a "Waiting on backend" heading every gap the tickets '
-                . 'reported (read the landing commits and `specs/qa/reports/`), each with what a person has to do. Wait '
-                . 'for CI, fix what you broke, and mark it ready only when every check is green. A person merges it.',
-            '6. Reply with the pull request link, its CI state, whether it is draft or ready, and the unified QA result.',
+                . 'screenshots and the unified QA report. Wait for CI, fix what you broke, and mark it ready only when '
+                . 'every check is green. A person merges it.',
+            '7. Reply with the pull request link, its CI state, whether it is draft or ready, and the unified QA result.',
         ], fn (?string $line): bool => $line !== null));
 
         return new self(
