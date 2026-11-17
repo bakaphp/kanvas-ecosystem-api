@@ -120,8 +120,8 @@ final class FactoryStageTest extends TestCase
         $this->assertStringContainsString('git push origin HEAD:factory/integration', (string) $ship->description);
         $this->assertStringContainsString('never open a pull request', (string) $ship->description);
         // A backend gap lands the work and is listed, instead of stopping a line nobody is watching.
-        $this->assertStringContainsString('"Waiting on backend" list', (string) $ship->description);
-        $this->assertStringContainsString('the ticket is NOT finished', (string) $ship->description);
+        // A ticket whose feature does not work against Kanvas yet is blocked on the board, never done.
+        $this->assertStringContainsString('Start your reply with "BLOCKED — waiting on backend"', (string) $ship->description);
         // The app's mandatory Argent QA run is skipped when the task does not name it.
         $this->assertStringContainsString('specs/qa/app-test.runbook.md', (string) $ship->description);
         // A ticket must not be reported done while a simulator cannot run it.
@@ -147,6 +147,28 @@ final class FactoryStageTest extends TestCase
             fn (WakeAgentForProjectJob $job): bool => $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
                 && str_contains((string) $job->triggerMessage, 'start_factory_release')
         );
+    }
+
+    /** A release PR means every ticket is done and the board is clean; one went ready with blocked tickets. */
+    public function testAReleaseDoesNotStartWhileATicketIsNotDone(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $ticket = $this->ticket()($project->getId(), 'example-app', 2, 'Record list', 'As a user I see my records.', false);
+        [$ship] = $this->stepsOf((int) $ticket['plan_id']);
+        new UpdateTaskStatusAction($ship, TaskStatusEnum::BLOCKED, blockedReason: 'waiting on backend')->execute();
+        $user = static::$cachedUser;
+        $release = new StartFactoryReleaseTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user, $this->orchestrator);
+
+        $refused = $release($project->getId(), 'example-app');
+
+        $this->assertFalse($refused['success']);
+        $this->assertStringContainsString('#' . $ship->getId(), json_encode($refused));
+        $this->assertSame(0, Plan::query()->where('project_id', $project->getId())->where('title', 'like', 'Release:%')->count());
+
+        new UpdateTaskStatusAction($ship->refresh(), TaskStatusEnum::DONE)->execute();
+
+        $this->assertTrue($release($project->getId(), 'example-app')['success']);
     }
 
     /** The stage's one pull request, from the integration branch itself, after the unified app was tested. */

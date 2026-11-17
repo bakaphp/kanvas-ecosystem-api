@@ -9,6 +9,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Models\Project;
 
 /**
@@ -174,10 +176,10 @@ final readonly class FactoryStage
             . 'custom field. Never change kanvas-ecosystem-api yourself. When the Kanvas the app points at lacks '
             . 'something the ticket needs (an API change not deployed yet, a message type an admin has to create), '
             . 'that is a backend gap: build everything else, keep the screen in its unavailable state and land the '
-            . 'work so nothing is lost, but the ticket is NOT finished. End your reply with a "Waiting on backend" '
-            . 'list naming each gap and exactly what a person has to do about it; the person is told at once, and '
-            . 'no release pull request opens until the feature works against Kanvas. Reply BLOCKED only when the '
-            . 'app itself cannot be built or tested.' . $quoted;
+            . 'work so nothing is lost, but the ticket is NOT done. Start your reply with "BLOCKED — waiting on '
+            . 'backend", then name each gap and exactly what a person has to do about it: the ticket stays blocked '
+            . 'on the board until the backend landed and the feature was verified, and no release starts before '
+            . 'then.' . $quoted;
 
         $shipStep = new FactoryStep('Ticket ' . $number . ' logic and landing: ' . $shortName, $ship, $builder);
 
@@ -200,6 +202,7 @@ final readonly class FactoryStage
     {
         $repository = self::folder($repository);
         $builder = self::builder($project);
+        self::assertBoardIsDone($project);
         $date = now()->toDateString();
         $notes = Str::trimToNull($notes);
         $integration = self::INTEGRATION_BRANCH;
@@ -248,6 +251,37 @@ final readonly class FactoryStage
             'Release: ' . $repository . ' into develop (' . $date . ')',
             'The unified app on `' . $integration . '` tested as a whole, then one pull request from it into `develop`.',
             [new FactoryStep('Release ' . $date . ': test the unified app, pull request into develop', $text, $builder)],
+        );
+    }
+
+    /**
+     * A release pull request says the stage is finished, so it never starts while the board says
+     * otherwise. One went ready with two tickets whose features did not work yet and blocked steps
+     * on the board. The release's own plan is left out: it is the one being started or sent back.
+     */
+    private static function assertBoardIsDone(Project $project): void
+    {
+        $open = Task::query()
+            ->whereHas('plan', fn ($plan) => $plan
+                ->where('project_id', $project->getId())
+                ->where('is_deleted', 0)
+                ->where('title', 'not like', 'Release: %'))
+            ->where('is_deleted', 0)
+            ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
+            ->orderBy('id')
+            ->limit(10)
+            ->get(['id', 'status', 'title']);
+
+        if ($open->isEmpty()) {
+            return;
+        }
+
+        throw new ValidationException(
+            'The release cannot start: these tasks are not done, and a release pull request means every ticket is '
+            . "done and the board is clean.\n"
+            . $open->map(fn (Task $task): string => '- #' . $task->getId() . ' ' . $task->status . ': ' . $task->title)->implode("\n")
+            . "\nFinish or close them first. A ticket waiting on the backend is finished once the backend landed and it "
+            . 'was verified.'
         );
     }
 
