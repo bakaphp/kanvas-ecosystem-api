@@ -87,7 +87,7 @@ final class LeadFollowersNotificationTest extends TestCase
             $follower,
             Blank::class,
             fn (Blank $sent) => $sent->getData()['company_name'] === $lead->company->name
-                && str_ends_with($this->subjectOf($sent), ' from ' . $lead->company->name)
+                && str_ends_with((string) $sent->getSubject(), ' from ' . $lead->company->name)
         );
         Notification::assertSentTo(
             $owner,
@@ -114,15 +114,6 @@ final class LeadFollowersNotificationTest extends TestCase
         new NotifyLeadStakeholdersService($other, $notification)->followers();
 
         Notification::assertNothingSentTo($follower);
-    }
-
-    /**
-     * Read the subject off the notification: rendering it through toMail() needs a template row the
-     * CI database does not seed.
-     */
-    private function subjectOf(Blank $notification): string
-    {
-        return (string) (fn () => $this->subject)->call($notification);
     }
 
     private function followRows(Lead $lead, Users $user): int

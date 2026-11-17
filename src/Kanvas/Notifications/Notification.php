@@ -79,6 +79,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $this;
     }
 
+    public function getSubject(): ?string
+    {
+        return $this->subject;
+    }
+
     /**
      * Opt-in only — defaults false on every notification. A caller must explicitly ask for this on
      * each send; it is never inferred from content/subject, so routine mail never gets flagged by

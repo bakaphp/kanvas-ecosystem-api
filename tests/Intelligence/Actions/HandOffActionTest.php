@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Actions;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -178,6 +179,25 @@ class HandOffActionTest extends TestCase
 
         $this->assertTrue($retry['duplicate']);
         Notification::assertNothingSent();
+    }
+
+    public function testAnOwnerInSeveralCompaniesGetsTheCompanyName(): void
+    {
+        Notification::fake();
+        $lead = $this->createTestLead();
+        $app = app(Apps::class);
+        $owner = $lead->owner ?? $lead->user;
+        Companies::factory()->create()->associateUserApp($owner, $app, 1);
+
+        new HandOffAction($lead, $app)->execute();
+
+        Notification::assertSentTo(
+            $owner,
+            HandOffNotification::class,
+            fn (HandOffNotification $sent) => $sent->getData()['company_name'] === $lead->company->name
+                && $sent->getSubject() === 'Lead Handoff Notification - ' . $lead->people->name
+                    . ' from ' . $lead->company->name
+        );
     }
 
     #[Group('serial')]
