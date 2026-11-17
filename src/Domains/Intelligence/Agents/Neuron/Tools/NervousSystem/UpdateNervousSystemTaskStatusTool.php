@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Baka\Support\Str;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -104,6 +105,16 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
 
         if ($newStatus === TaskStatusEnum::WAITING) {
             return ['error' => 'A wait needs its wake: use snooze_task with the date, not a status change.'];
+        }
+
+        // A run's task closes when its run does. A PM that read a pending ask as "blocked" marked a live
+        // factory run blocked, and the steps above it followed while the run kept working.
+        if (AgentTaskSession::query()->forTask($task->getId())->live()->exists()) {
+            return ['error' => sprintf(
+                'Task #%d is a coding run that is still going; it reports its own outcome. Nothing changed. '
+                    . 'To stop it, use cancel_self_hosted_coding_job.',
+                $task->getId()
+            )];
         }
 
         // Without this, "send it back with what to fix" cannot change what the task says, so a task whose

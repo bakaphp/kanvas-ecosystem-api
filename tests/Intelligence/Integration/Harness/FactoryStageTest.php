@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
@@ -202,6 +205,34 @@ final class FactoryStageTest extends TestCase
         $this->assertContains('start_factory_ticket', $tools);
         $this->assertContains('answer_self_hosted_coding_permission', $tools);
         $this->assertContains('answer_self_hosted_coding_question', $tools);
+    }
+
+    /** A PM that read a pending ask as "blocked" marked a live run blocked, and the plan above it followed. */
+    public function testATaskWhoseRunIsStillGoingKeepsItsStatus(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
+        [$create] = $this->stepsOf((int) $result['plan_id']);
+
+        $run = new AgentTaskSession();
+        $run->apps_id = $create->apps_id;
+        $run->companies_id = $create->companies_id;
+        $run->agent_id = $create->agent_id;
+        $run->plan_id = $create->plan_id;
+        $run->task_id = $create->getId();
+        $run->harness = HarnessEnum::OPENCODE->value;
+        $run->status = HarnessStatusEnum::AWAITING_PERMISSION->value;
+        $run->saveOrFail();
+
+        $user = static::$cachedUser;
+        $status = new UpdateNervousSystemTaskStatusTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+        $before = $create->refresh()->status;
+
+        $answer = $status($create->getId(), 'blocked', blocked_reason: 'Waiting on a permission.');
+
+        $this->assertStringContainsString('still going', (string) ($answer['error'] ?? ''));
+        $this->assertSame($before, $create->refresh()->status);
     }
 
     /** The orchestrator passes on a person's decision about a teammate's run; it never makes one. */
