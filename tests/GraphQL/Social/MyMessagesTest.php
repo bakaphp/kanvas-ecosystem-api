@@ -48,6 +48,7 @@ class MyMessagesTest extends TestCase
         );
 
         $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', (array) $response->json(), (string) json_encode($response->json()));
 
         $data = collect($response->json('data.myMessages.data'));
         $ids = $data->pluck('id')->all();
@@ -78,7 +79,7 @@ class MyMessagesTest extends TestCase
         $response = $this->graphQL(
             '
                 query myMessages($verb: String!) {
-                    myMessages(hasType: {column: "verb", value: $verb}) {
+                    myMessages(hasType: {column: VERB, value: $verb}) {
                         data {
                             id
                             messageType {
@@ -94,6 +95,7 @@ class MyMessagesTest extends TestCase
         );
 
         $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', (array) $response->json(), (string) json_encode($response->json()));
 
         $ids = collect($response->json('data.myMessages.data'))->pluck('id')->all();
 
