@@ -85,12 +85,25 @@ class SendMessageToLeadAction
     protected ?string $attemptedProvider = null;
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
+    protected bool $sentByHuman = false;
     protected ?CampaignRecipient $campaignRecipient = null;
     protected string $emailTemplate = self::DEFAULT_EMAIL_TEMPLATE;
 
     public function withSignatureOwner(?Users $user): self
     {
         $this->signatureOwner = $user;
+
+        return $this;
+    }
+
+    /**
+     * A person wrote and sent this themselves, so their own opt-in signature closes the email — no
+     * agent's signing grant is involved (see UserEmailSignature::forSender() for agent sends).
+     */
+    public function sentByUser(?Users $user): self
+    {
+        $this->signatureOwner = $user;
+        $this->sentByHuman = $user !== null;
 
         return $this;
     }
@@ -926,7 +939,9 @@ class SendMessageToLeadAction
 
         $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
 
-        $ownerSignature = UserEmailSignature::forSender($this->signatureOwner, $this->lead->company, $fromAgent);
+        $ownerSignature = $this->sentByHuman && $fromAgent === null
+            ? UserEmailSignature::fromUser($this->signatureOwner, $this->lead->company)
+            : UserEmailSignature::forSender($this->signatureOwner, $this->lead->company, $fromAgent);
         $signature = $signature && $ownerSignature === null;
 
         $mailboxAddress = $fromAgent !== null
