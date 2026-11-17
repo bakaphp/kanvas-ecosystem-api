@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Testing\TestResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Social\Messages\Models\Message;
@@ -48,7 +49,7 @@ class MyMessagesTest extends TestCase
         );
 
         $response->assertSuccessful();
-        $this->assertArrayNotHasKey('errors', (array) $response->json(), (string) json_encode($response->json()));
+        $this->assertNoGraphQLErrors($response);
 
         $data = collect($response->json('data.myMessages.data'));
         $ids = $data->pluck('id')->all();
@@ -78,7 +79,7 @@ class MyMessagesTest extends TestCase
 
         $response = $this->graphQL(
             '
-                query myMessages($verb: String!) {
+                query myMessages($verb: Mixed) {
                     myMessages(hasType: {column: VERB, value: $verb}) {
                         data {
                             id
@@ -95,12 +96,19 @@ class MyMessagesTest extends TestCase
         );
 
         $response->assertSuccessful();
-        $this->assertArrayNotHasKey('errors', (array) $response->json(), (string) json_encode($response->json()));
+        $this->assertNoGraphQLErrors($response);
 
         $ids = collect($response->json('data.myMessages.data'))->pluck('id')->all();
 
         $this->assertContains((string) $question->getId(), $ids);
         $this->assertNotContains((string) $record->getId(), $ids);
+    }
+
+    private function assertNoGraphQLErrors(TestResponse $response): void
+    {
+        if ($response->json('errors') !== null) {
+            $this->fail((string) json_encode($response->json('errors')));
+        }
     }
 
     private function recordAttributes(Apps $app, int $usersId): array
