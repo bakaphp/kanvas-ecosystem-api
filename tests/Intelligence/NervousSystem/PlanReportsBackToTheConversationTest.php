@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
@@ -463,16 +468,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
     public function testAStepWaitingOnItsFactoryRunIsStillWorking(): void
     {
         [$plan, $pm, $session] = $this->plannedInAConversation();
-        $step = $this->makeTask($plan, TaskStatusEnum::WAITING);
-        $step->agent_id = $plan->agent_id;
-        $step->title = 'Audit the template';
-        $step->saveOrFail();
-
-        $run = $this->makeTask($this->makePlan(['title' => 'Factory run'], $plan->agent), TaskStatusEnum::IN_PROGRESS);
-        $run->parent_task_id = $step->getId();
-        $run->agent_id = $plan->agent_id;
-        $run->created_at = now()->subMinutes(7);
-        $run->saveOrFail();
+        $this->factoryStepWithItsRun($plan);
 
         $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
 
@@ -481,6 +477,47 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
         $this->assertStringContainsString('"Audit the template"', $content);
         $this->assertStringContainsString('7 min so far', $content);
+    }
+
+    public function testAStepWhoseRunWaitsOnAPermissionSaysItIsWaiting(): void
+    {
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        [, $run] = $this->factoryStepWithItsRun($plan);
+        $this->runSession($run, HarnessStatusEnum::AWAITING_PERMISSION);
+        $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
+
+        new PostStillWorkingUpdateJob(app(Apps::class), $session)->handle();
+
+        $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
+        $this->assertStringContainsString('is waiting for your answer on "Audit the template"', $content);
+        $this->assertStringNotContainsString('min so far', $content);
+    }
+
+    /**
+     * A factory run is a chat nobody types into, and its plan's asker is the orchestrator's bot user: a
+     * permission it asked for reached no one and the run sat until the time limit.
+     */
+    public function testAFactoryRunsPermissionIsAskedWhereTheWorkWasRequested(): void
+    {
+        [$plan, , $session] = $this->plannedInAConversation();
+        [, $run] = $this->factoryStepWithItsRun($plan);
+        $runSession = $this->runSession($run, HarnessStatusEnum::AWAITING_PERMISSION);
+
+        $poster = new class () {
+            use PostsSessionActivity;
+
+            public function ask(AgentTaskSession $session, HarnessPermissionRequest $permission): void
+            {
+                $this->postPermissionRequest($session, $permission);
+            }
+        };
+        $poster->ask($runSession, new HarnessPermissionRequest('per_1', 'webfetch', ['https://example.com/a.php']));
+
+        $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
+        $this->assertStringContainsString('webfetch: https://example.com/a.php', $content);
+        $this->assertStringContainsString('Job ' . $run->getId(), $content);
+        $this->assertStringContainsString('per_1', $content);
+        $this->assertStringContainsString((string) $runSession->agent?->name, $content);
     }
 
     /** A coding chat is the agent's own plan, and that chat reports its own progress minute by minute. */
@@ -533,6 +570,42 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         ]);
 
         return $id;
+    }
+
+    /**
+     * @return array{0: Task, 1: Task}
+     */
+    private function factoryStepWithItsRun(Plan $plan): array
+    {
+        $step = $this->makeTask($plan, TaskStatusEnum::WAITING);
+        $step->agent_id = $plan->agent_id;
+        $step->title = 'Audit the template';
+        $step->saveOrFail();
+
+        $run = $this->makeTask($this->makePlan(['title' => 'Factory run'], $plan->agent), TaskStatusEnum::IN_PROGRESS);
+        $run->parent_task_id = $step->getId();
+        $run->agent_id = $plan->agent_id;
+        $run->created_at = now()->subMinutes(7);
+        $run->saveOrFail();
+
+        return [$step, $run];
+    }
+
+    private function runSession(Task $run, HarnessStatusEnum $status): AgentTaskSession
+    {
+        $session = new AgentTaskSession();
+        $session->apps_id = $run->apps_id;
+        $session->companies_id = $run->companies_id;
+        $session->users_id = $this->human()->getId();
+        $session->agent_id = $run->agent_id;
+        $session->plan_id = $run->plan_id;
+        $session->task_id = $run->getId();
+        $session->chat_session_id = random_int(900000, 999999);
+        $session->harness = HarnessEnum::OPENCODE->value;
+        $session->status = $status->value;
+        $session->saveOrFail();
+
+        return $session;
     }
 
     private function runningTask(Plan $plan, int $startedMinutesAgo): Task

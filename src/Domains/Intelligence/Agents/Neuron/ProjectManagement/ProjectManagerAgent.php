@@ -14,6 +14,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingQuestionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
@@ -466,6 +468,9 @@ class ProjectManagerAgent extends SystemUserAgent
                 new StartAppKickoffTool($this->session),
                 new StartFactoryTicketTool($this->session),
             ]));
+            // A factory step that stops on a permission or a question is asked in this conversation.
+            $core[] = new AnswerHarnessCodingPermissionTool($agent, onlyRelays: true);
+            $core[] = new AnswerHarnessCodingQuestionTool($agent);
         }
 
         $core[] = new CapabilityLookupTool($agent);

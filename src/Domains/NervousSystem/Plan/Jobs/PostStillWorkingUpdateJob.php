@@ -15,6 +15,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -110,6 +111,15 @@ class PostStillWorkingUpdateJob implements ShouldQueue
 
             $step = Str::trimToNull((string) $task?->title);
 
+            if ($run !== null && $this->waitsOnAPerson($run)) {
+                return sprintf(
+                    '• %s: %s is waiting for your answer%s (the request is above)',
+                    (string) $plan->title,
+                    $agent,
+                    $step !== null ? ' on "' . $step . '"' : '',
+                );
+            }
+
             return sprintf(
                 '• %s: %s %s%s',
                 (string) $plan->title,
@@ -120,6 +130,15 @@ class PostStillWorkingUpdateJob implements ShouldQueue
         });
 
         return "⏳ Still working on it. I'll tell you here when it's done.\n" . $lines->implode("\n");
+    }
+
+    /** A run parked on a permission or a question is not working, and saying so hides the ask. */
+    private function waitsOnAPerson(Task $run): bool
+    {
+        /** @var AgentTaskSession|null $session */
+        $session = AgentTaskSession::query()->forTask($run->getId())->latest('id')->first();
+
+        return $session?->harnessStatus()->isWaitingOnAHuman() ?? false;
     }
 
     /** The step on this plan itself, never a sub-step under it. */

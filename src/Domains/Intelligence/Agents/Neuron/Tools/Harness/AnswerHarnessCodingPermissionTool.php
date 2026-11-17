@@ -43,8 +43,13 @@ class AnswerHarnessCodingPermissionTool extends Tool implements RequiresSystemAg
         . 'like it for the rest of the job. Use "always" ONLY when a human in this conversation '
         . 'said so; otherwise ask them, or answer "once".';
 
+    /**
+     * `$onlyRelays` is for an orchestrator answering a teammate's job: whatever the decision, it passes
+     * on a person's answer and never makes its own.
+     */
     public function __construct(
         private readonly Agent $agent,
+        private readonly bool $onlyRelays = false,
     ) {
     }
 
@@ -98,6 +103,14 @@ class AnswerHarnessCodingPermissionTool extends Tool implements RequiresSystemAg
             return $this->invalidArgs(
                 'Decision must be once, reject or always — got "' . $decision . '".',
                 guidance: 'Answer again with one of those three.'
+            );
+        }
+
+        if ($this->onlyRelays && $relaying_human_instruction !== true) {
+            return $this->denied(
+                'Only a person decides what a teammate\'s coding job may run.',
+                guidance: 'Tell the person what it wants to run and ask: yes (this once), always, or no. '
+                    . 'Answer only with what they say.'
             );
         }
 

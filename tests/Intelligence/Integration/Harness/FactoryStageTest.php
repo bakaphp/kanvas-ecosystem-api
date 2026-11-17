@@ -13,6 +13,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
@@ -192,11 +193,26 @@ final class FactoryStageTest extends TestCase
         $pm->type->update(['handler' => ProjectManagerAgent::class]);
 
         $this->assertNotContains('start_app_kickoff', $this->toolNamesOf($pm->refresh()));
+        $this->assertNotContains('answer_self_hosted_coding_permission', $this->toolNamesOf($pm));
 
         $this->factoryAgent();
 
-        $this->assertContains('start_app_kickoff', $this->toolNamesOf($pm));
-        $this->assertContains('start_factory_ticket', $this->toolNamesOf($pm));
+        $tools = $this->toolNamesOf($pm);
+        $this->assertContains('start_app_kickoff', $tools);
+        $this->assertContains('start_factory_ticket', $tools);
+        $this->assertContains('answer_self_hosted_coding_permission', $tools);
+        $this->assertContains('answer_self_hosted_coding_question', $tools);
+    }
+
+    /** The orchestrator passes on a person's decision about a teammate's run; it never makes one. */
+    public function testTheOrchestratorOnlyRelaysAPermission(): void
+    {
+        $tool = new AnswerHarnessCodingPermissionTool($this->makeAgent(), onlyRelays: true);
+
+        $result = $tool(job_id: 1, permission_id: 'per_1', decision: 'once');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('denied', $result['outcome']);
     }
 
     /** The orchestrator's turn runs on a queue worker, where nobody is logged in. */
