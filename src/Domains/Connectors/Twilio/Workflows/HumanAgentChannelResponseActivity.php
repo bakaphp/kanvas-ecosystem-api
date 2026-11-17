@@ -180,14 +180,18 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     $content = SmsOptOutNoticeService::appendIfFirstOutbound($channel, $content, $message);
                 }
 
-                $result = new SendMessageToLeadAction($lead)->execute(
-                    $channelType,
-                    $content,
-                    $fromPhone,
-                    $params['title'] ?? null,
-                    false,
-                    $files->isNotEmpty() ? $files : null
-                );
+                // Message::user is a UserFullTableName, which caches its settings under another Redis key
+                // than the one a signature is saved to: read the signature off the Users row itself.
+                $result = new SendMessageToLeadAction($lead)
+                    ->sentByUser(Users::where('id', $message->users_id)->notDeleted()->first())
+                    ->execute(
+                        $channelType,
+                        $content,
+                        $fromPhone,
+                        $params['title'] ?? null,
+                        false,
+                        $files->isNotEmpty() ? $files : null
+                    );
                 new StoreMessageSidAction($message)->execute($result);
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
