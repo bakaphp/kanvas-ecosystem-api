@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Services\MetaWhatsAppIntegration;
+use Kanvas\Connectors\Meta\Services\MetaWhatsAppIntegration;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;

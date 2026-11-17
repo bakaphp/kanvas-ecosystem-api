@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Reynolds\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Concerns\DeclaresSalesAssistPullRules;
 use Kanvas\Exceptions\ValidationException;

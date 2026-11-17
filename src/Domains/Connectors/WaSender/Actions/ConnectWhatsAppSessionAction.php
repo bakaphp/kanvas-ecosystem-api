@@ -4,46 +4,36 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Actions\EnsureProviderIntegrationAction;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
+use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Connectors\WaSender\Services\SessionService;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
-use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Models\WorkflowAction;
-use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
-use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Workflow\Rules\Models\Rule;
-use Kanvas\Workflow\Rules\Models\RuleAction;
-use Kanvas\Workflow\Rules\Models\RuleType;
-use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 
 /**
- * Link a company's WhatsApp number to a receptionist agent and return the QR to scan.
+ * Link a company's WhatsApp number to an agent and return the QR to scan. The session posts to the
+ * company's communication receiver, the number becomes a connection the agent owns, and that
+ * ownership is all it takes for the agent to answer — no rule is made.
  *
- * Two non-obvious bits: the agent_id must live on the workflow rule (the webhook's fireWorkflow
- * never passes it), and WaSender generates the webhook_secret and returns it in the create-session
- * response — we store it so signature verification (a direct compare) accepts inbound calls.
+ * WaSender generates the webhook_secret and returns it in the create-session response; it is kept
+ * on the receiver, which is what the signature is checked against.
  */
 class ConnectWhatsAppSessionAction
 {
-    public const string RULE_NAME = 'WhatsApp Receptionist responder';
-
     protected SessionService $sessionService;
-    private const string CHANNEL_SLUG_ATTRIBUTE = 'slug';
-    private const string CHANNEL_SLUG_PATTERN = '/wa/';
 
     public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
+        protected readonly Apps $app,
+        protected readonly Companies $company,
         protected readonly UserInterface $user,
         protected readonly Agent $agent,
         protected readonly string $phoneNumber,
@@ -58,8 +48,28 @@ class ConnectWhatsAppSessionAction
      */
     public function execute(): array
     {
-        $receiver = $this->resolveReceiver();
-        $this->bindAgentRule();
+        // Asked again for the number it already linked, the agent gets the same session with a new
+        // QR. A second session would take the company's key and the receiver's secret with it, and
+        // leave the first one posting calls that are no longer signed.
+        if ($this->linkedSessionIsForThisNumber()) {
+            return new RefreshWhatsAppQrCodeAction(
+                $this->app,
+                $this->company,
+                $this->agent,
+                $this->sessionService
+            )->execute();
+        }
+
+        // Linking another number replaces the one the agent had; an agent has one session.
+        new DisconnectWhatsAppSessionAction(
+            app: $this->app,
+            company: $this->company,
+            agent: $this->agent,
+            remove: true,
+            sessionService: $this->sessionService,
+        )->execute();
+
+        $receiver = new CommunicationReceivers()->ensure($this->app, $this->company, WaSenderHandler::slug());
 
         $name = $this->sessionName !== null && trim($this->sessionName) !== ''
             ? trim($this->sessionName)
@@ -69,8 +79,7 @@ class ConnectWhatsAppSessionAction
             name: $name,
             phoneNumber: $this->phoneNumber,
             webhookUrl: $receiver->getUrl(),
-            webhookEnabled: true,
-            webhookEvents: $this->webhookEvents(),
+            webhookEvents: WebhookEventEnum::subscribable(),
         );
 
         $session = (array) ($result['session'] ?? []);
@@ -92,80 +101,33 @@ class ConnectWhatsAppSessionAction
         ];
     }
 
-    private function resolveReceiver(): ReceiverWebhook
+    /**
+     * False when the agent has no session, when WaSender no longer has it, or when it was made for
+     * another number. A session WaSender describes without a number is taken to be this one: the
+     * alternative is deleting a live session on a guess.
+     */
+    private function linkedSessionIsForThisNumber(): bool
     {
-        $webhookAction = WorkflowAction::where('model_name', ProcessWaSenderWebhookJob::class)->firstOrFail();
+        $sessionId = (int) $this->agent->get(ConnectionFieldEnum::SESSION_ID->value);
 
-        return ReceiverWebhook::firstOrCreate(
-            [
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->company->getId(),
-                'action_id' => $webhookAction->getId(),
-            ],
-            [
-                'users_id' => $this->user->getId(),
-                'name' => 'WhatsApp Receptionist',
-                'description' => 'Inbound WhatsApp routed to the receptionist agent.',
-                'configuration' => ['agent_id' => $this->agent->getId()],
-                'is_active' => true,
-                'run_async' => true,
-            ]
-        );
-    }
-
-    private function bindAgentRule(): void
-    {
-        $agentId = $this->agent->getId();
-        $action = Action::where('model_name', AgentChannelResponderActivity::class)->firstOrFail();
-        $systemModule = SystemModulesRepository::getByModelName(Channel::class, $this->app);
-        $ruleType = RuleType::where('name', WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value)->firstOrFail();
-
-        $rule = Rule::firstOrCreate(
-            [
-                'name' => self::RULE_NAME,
-                'rules_types_id' => $ruleType->getId(),
-                'systems_modules_id' => $systemModule->getId(),
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->company->getId(),
-            ],
-            [
-                'params' => ['agent_id' => $agentId],
-                'pattern' => '1',
-                'is_async' => 1,
-                'is_deleted' => 0,
-            ]
-        );
-
-        if (($rule->params['agent_id'] ?? null) !== $agentId) {
-            $rule->params = array_merge($rule->params ?? [], ['agent_id' => $agentId]);
-            $rule->saveOrFail();
+        if ($sessionId <= 0) {
+            return false;
         }
 
-        // Scope to WhatsApp channels (prod: slug matches /wa/); otherwise this fires the WhatsApp
-        // responder on every inbound channel message, and it reads chat_jid directly.
-        $rule->getRulesConditions()->firstOrCreate(
-            [
-                'attribute_name' => self::CHANNEL_SLUG_ATTRIBUTE,
-                'operator' => RuleConditionOperatorEnum::MATCHES->value,
-                'value' => self::CHANNEL_SLUG_PATTERN,
-            ],
-            ['is_deleted' => 0],
-        );
+        try {
+            $session = $this->sessionService->getSession($sessionId);
+        } catch (WaSenderRefusedException) {
+            return false;
+        }
 
-        $ruleWorkflowAction = RuleWorkflowAction::firstOrCreate(
-            ['system_modules_id' => $systemModule->getId(), 'actions_id' => $action->getId()],
-            ['is_deleted' => 0],
-        );
+        $linked = Str::digitsOnly((string) ($session['phone_number'] ?? ''));
 
-        RuleAction::firstOrCreate(
-            ['rules_id' => $rule->getId(), 'rules_workflow_actions_id' => $ruleWorkflowAction->getId()],
-            ['weight' => 0, 'is_deleted' => 0],
-        );
+        return $linked === '' || $linked === Str::digitsOnly($this->phoneNumber);
     }
 
     /**
-     * The agent owns the connection: store session id / phone / receiver id on it so update+remove
-     * can read them back. The receiver config keeps the secret (for verifySignature) + session id.
+     * The agent owns the connection: session id / phone / receiver id are kept on it so update and
+     * remove can read them back. The receiver keeps the secret the signature is checked against.
      *
      * @param array<string, mixed> $session
      * @param array<string, mixed> $connection
@@ -202,13 +164,18 @@ class ConnectWhatsAppSessionAction
         }
         $this->agent->set(ConnectionFieldEnum::PHONE_NUMBER->value, $this->phoneNumber);
         $this->agent->set(ConnectionFieldEnum::RECEIVER_ID->value, $receiver->getId());
-    }
 
-    /**
-     * @return list<string>
-     */
-    private function webhookEvents(): array
-    {
-        return WebhookEventEnum::subscribable();
+        // The row is what Communication sets the connection up from; saving it schedules that.
+        new EnsureProviderIntegrationAction(
+            $this->app,
+            $this->company,
+            $this->user,
+            WaSenderHandler::class,
+            array_filter([
+                'phone_number' => Str::toE164($this->phoneNumber),
+                'agent_id' => $this->agent->getId(),
+                'session_id' => $sessionId !== null ? (int) $sessionId : null,
+            ])
+        )->execute();
     }
 }

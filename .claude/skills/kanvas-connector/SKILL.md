@@ -50,7 +50,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\{ConnectorName}\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 
@@ -83,7 +83,7 @@ class {ConnectorName}Handler extends BaseIntegration
 }
 ```
 
-The `BaseIntegration` base class (`src/Domains/Connectors/Contracts/BaseIntegration.php`) provides:
+The `BaseIntegration` base class (`src/Baka/Contracts/BaseIntegration.php`) provides:
 - `$this->app` — current App
 - `$this->company` — current Company
 - `$this->region` — KanvasRegions instance

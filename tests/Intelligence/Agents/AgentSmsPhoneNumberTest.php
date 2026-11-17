@@ -7,7 +7,7 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;

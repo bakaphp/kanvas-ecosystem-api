@@ -22,12 +22,11 @@ use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Actions\TriggerLeadIntelligenceAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
-use ReflectionClass;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
@@ -141,9 +140,8 @@ class TriggerIntelligenceActivityTest extends TestCase
 
         $this->assertFalse(method_exists($type->handler, 'sendDataToAgent'));
 
-        /** @var TestableTriggerIntelligenceActivity $activity */
-        $activity = new ReflectionClass(TestableTriggerIntelligenceActivity::class)->newInstanceWithoutConstructor();
-        $activity->sendDataForTest($lead, IntelligenceModeEnum::FULL_ON->value);
+        new TriggerLeadIntelligenceAction($lead, TriggersEnum::NEW_LEAD->value)
+            ->sendModeToOrchestration(IntelligenceModeEnum::FULL_ON->value);
     }
 
     public function testOrchestrationSkipsSessionWithMissingAgent(): void
@@ -179,8 +177,8 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead = $this->createLead('Internet');
         $lead->setRelation('aiSession', collect([$broken, $this->healthySession()]));
 
-        $activity = new ReflectionClass(TestableTriggerIntelligenceActivity::class)->newInstanceWithoutConstructor();
-        $activity->sendDataForTest($lead, IntelligenceModeEnum::FULL_ON->value);
+        new TriggerLeadIntelligenceAction($lead, TriggersEnum::NEW_LEAD->value)
+            ->sendModeToOrchestration(IntelligenceModeEnum::FULL_ON->value);
 
         $this->assertSame(1, IntelligenceHandlerWithoutSendData::$constructed);
     }
@@ -602,14 +600,6 @@ class TriggerIntelligenceActivityTest extends TestCase
 
         $this->assertNull($command->sentContent);
         $this->assertTrue($message->fresh()->isLocked());
-    }
-}
-
-final class TestableTriggerIntelligenceActivity extends TriggerIntelligenceActivity
-{
-    public function sendDataForTest(Lead $lead, string $aiMode): void
-    {
-        $this->sendDataToOrchestration($lead, $aiMode);
     }
 }
 

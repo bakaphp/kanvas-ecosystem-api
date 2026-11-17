@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\UniversalAssistance\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
+use Exception;
 use Kanvas\Connectors\UniversalAssistance\Client;
 use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 use Override;
@@ -32,7 +33,7 @@ class UniversalAssistanceHandler extends BaseIntegration
             $client->testConnection();
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log the error if needed
             // error_log('Universal Assistance setup failed: ' . $e->getMessage());
             return false;

@@ -5,23 +5,26 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Mailgun;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Jobs\EnsureCommunicationSetupJob;
+use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Actions\DisconnectAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Actions\ProvisionAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
-use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
+use Kanvas\Connectors\Mailgun\Handlers\MailgunHandler;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
-use Kanvas\Connectors\Mailgun\Webhooks\AgentInboxWebhookJob;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Models\WorkflowAction;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Models\Integrations;
 use Tests\TestCase;
 
 final class AgentMailboxProvisioningTest extends TestCase
@@ -51,9 +54,21 @@ final class AgentMailboxProvisioningTest extends TestCase
         // left by an earlier test would decide this one's outcome.
         $this->user->del('contact_email');
 
-        WorkflowAction::firstOrCreate(
-            ['model_name' => AgentInboxWebhookJob::class],
-            ['name' => 'AgentInboxWebhookJob']
+        // The integration a first mailbox gives the company is filed under its region in this app.
+        Regions::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'Region ' . uniqid(),
+            'is_default' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        // Registering the route with Mailgun is the setup job's work, covered in MailgunProviderTest.
+        Queue::fake();
+        Integrations::firstOrCreate(
+            ['handler' => MailgunHandler::class, 'apps_id' => 0],
+            ['name' => 'Mailgun', 'config' => []]
         );
     }
 
@@ -76,7 +91,7 @@ final class AgentMailboxProvisioningTest extends TestCase
         return $app;
     }
 
-    public function testProvisioningGivesTheAgentAnAddressAndARouteIntoItsOwnReceiver(): void
+    public function testProvisioningGivesTheAgentAnAddressOnAConnectionOfTheCompanysMailgun(): void
     {
         $this->fakeMailgun();
         $agent = $this->agent();
@@ -84,20 +99,38 @@ final class AgentMailboxProvisioningTest extends TestCase
         $mailbox = new ProvisionAgentMailboxAction($agent)->execute();
 
         $this->assertSame($this->addressOf($agent), $mailbox['address']);
-        $this->assertSame('route-1', $mailbox['route_id']);
-        $this->assertStringContainsString('/v1/receiver/', $mailbox['receiver_url']);
         $this->assertSame(MailboxAccessEnum::RESTRICTED->value, $mailbox['access']);
 
-        $receiver = $this->receiverOf($agent->refresh());
-        $this->assertTrue($receiver->is_active);
-        $this->assertSame($agent->getId(), $receiver->configuration[ReceiverConfigurationEnum::AGENT_ID->value]);
-        // Without capture_files the attachments are gone by the time the job runs.
-        $this->assertTrue($receiver->configuration[ReceiverConfigurationEnum::CAPTURE_FILES->value]);
+        $connection = Connection::query()
+            ->fromApp($this->kanvasApp)
+            ->fromCompany($this->company)
+            ->where('provider', MailgunHandler::slug())
+            ->where('account_key', $mailbox['address'])
+            ->sole();
 
-        Http::assertSent(fn ($request): bool => $request->method() === 'POST'
-            && str_contains($request->url(), '/v3/routes')
-            && str_contains((string) $request->body(), 'match_recipient("' . $mailbox['address'] . '")')
-            && str_contains((string) $request->body(), $mailbox['receiver_url']));
+        $this->assertTrue($connection->agent()->is($agent));
+        $this->assertTrue($connection->personalOwner()->is($agent));
+        Queue::assertPushed(EnsureCommunicationSetupJob::class);
+        // The route is the connection's to register, never the mailbox's own.
+        Http::assertNotSent(fn ($request): bool => str_contains($request->url(), '/v3/routes'));
+    }
+
+    /**
+     * Mailgun set up once for the app is enough: the first mailbox gives the company the
+     * integration its connection hangs off.
+     */
+    public function testACompanyThatNeverIntegratedMailgunGetsTheIntegrationWithItsFirstMailbox(): void
+    {
+        $this->fakeMailgun();
+
+        new ProvisionAgentMailboxAction($this->agent())->execute();
+        new ProvisionAgentMailboxAction($this->agent())->execute();
+
+        $this->assertSame(1, IntegrationsCompany::query()
+            ->fromApp($this->kanvasApp)
+            ->fromCompany($this->company)
+            ->whereHas('integration', fn ($query) => $query->where('handler', MailgunHandler::class))
+            ->count());
     }
 
     public function testTheAddressIsRecordedAsTheAgentUsersContactEmail(): void
@@ -127,7 +160,7 @@ final class AgentMailboxProvisioningTest extends TestCase
         $this->assertSame('real.person@gmail.test', $agent->user->get('contact_email'));
     }
 
-    public function testReprovisioningUpdatesTheSameRouteAndReceiver(): void
+    public function testReprovisioningKeepsTheAddressAndItsOneConnection(): void
     {
         $this->fakeMailgun();
         $agent = $this->agent();
@@ -136,12 +169,11 @@ final class AgentMailboxProvisioningTest extends TestCase
         $second = new ProvisionAgentMailboxAction($agent->refresh(), MailboxAccessEnum::OPEN)->execute();
 
         $this->assertSame($first['address'], $second['address']);
-        // A second receiver would orphan the URL the Mailgun route already points at.
-        $this->assertSame($first['receiver_url'], $second['receiver_url']);
         $this->assertSame(MailboxAccessEnum::OPEN->value, $second['access']);
-
-        Http::assertSent(fn ($request): bool => $request->method() === 'PUT'
-            && str_contains($request->url(), '/v3/routes/route-1'));
+        $this->assertSame(1, Connection::query()
+            ->fromApp($this->kanvasApp)
+            ->where('account_key', $first['address'])
+            ->count());
     }
 
     public function testASecondAgentWithTheSameNameGetsItsOwnAddress(): void
@@ -197,7 +229,44 @@ final class AgentMailboxProvisioningTest extends TestCase
         new ProvisionAgentMailboxAction($agent)->execute();
     }
 
-    public function testDisconnectDeletesTheRouteAndClearsTheAddressButKeepsTheReceiver(): void
+    /**
+     * A customer line is the company's own address, handed to an agent when its old responder
+     * rule is retired; it is never provisioned onto an address named after the agent.
+     */
+    public function testACustomerLineIsNeverProvisionedOnAnAgent(): void
+    {
+        $this->fakeMailgun();
+        $agent = $this->agent();
+
+        try {
+            new ProvisionAgentMailboxAction($agent, MailboxAccessEnum::CUSTOMER_LINE)->execute();
+            $this->fail('A customer line was provisioned on an agent.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('customer line', $exception->getMessage());
+        }
+
+        $this->assertNull(new AgentMailboxService()->addressFor($agent->refresh()));
+        $this->artisan('kanvas:mailgun:provision-agent-mailbox', ['--agent' => $agent->getId(), '--access' => 'customer_line'])
+            ->expectsOutputToContain('customer line')
+            ->assertFailed();
+    }
+
+    public function testAnAgentAnsweringTheCompanysAddressGetsAMailboxOfItsOwnInstead(): void
+    {
+        $this->fakeMailgun();
+        $agent = $this->agent();
+        $companyAddress = 'sales@' . self::DOMAIN;
+        $agent->set(CustomFieldEnum::MAILBOX_ADDRESS->value, $companyAddress);
+        $agent->set(CustomFieldEnum::MAILBOX_ACCESS->value, MailboxAccessEnum::CUSTOMER_LINE->value);
+
+        $mailbox = new ProvisionAgentMailboxAction($agent->refresh())->execute();
+
+        $this->assertNotSame($companyAddress, $mailbox['address']);
+        $this->assertSame($this->addressOf($agent->refresh()), $mailbox['address']);
+        $this->assertSame(MailboxAccessEnum::RESTRICTED->value, $mailbox['access']);
+    }
+
+    public function testDisconnectClearsTheAddressAndRetiresItsConnection(): void
     {
         $this->fakeMailgun();
         $agent = $this->agent();
@@ -206,17 +275,14 @@ final class AgentMailboxProvisioningTest extends TestCase
         new DisconnectAgentMailboxAction($agent->refresh())->execute();
 
         $agent = $agent->refresh();
-        $receiver = $this->receiverOf($agent);
 
         $this->assertNull(new AgentMailboxService()->addressFor($agent));
-        $this->assertNull($agent->get(CustomFieldEnum::ROUTE_ID->value));
-        $this->assertFalse($receiver->is_active);
-        // Kept: any route the customer built by hand still forwards here.
-        $this->assertSame($provisioned['receiver_url'], $receiver->getUrl());
         $this->assertNull($agent->user->get('contact_email'));
-
-        Http::assertSent(fn ($request): bool => $request->method() === 'DELETE'
-            && str_contains($request->url(), '/v3/routes/route-1'));
+        $this->assertFalse(Connection::query()
+            ->fromApp($this->kanvasApp)
+            ->live()
+            ->where('account_key', $provisioned['address'])
+            ->exists());
     }
 
     public function testStatusReflectsTheLifecycle(): void
@@ -363,10 +429,5 @@ final class AgentMailboxProvisioningTest extends TestCase
     private function addressOf(Agent $agent): string
     {
         return Str::slug($agent->name) . '@' . self::DOMAIN;
-    }
-
-    private function receiverOf(Agent $agent): ReceiverWebhook
-    {
-        return ReceiverWebhook::getById((int) $agent->get(CustomFieldEnum::RECEIVER_ID->value), $agent->app);
     }
 }

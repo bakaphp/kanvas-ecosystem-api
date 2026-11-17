@@ -105,8 +105,7 @@ class EnsureAccountingInboxAction
             throw new ValidationException('No Mailgun API key is configured, so the route forwarding ' . $address . ' was not created.');
         }
 
-        $signingKey = ConfigurationEnum::WEBHOOK_SIGNING_KEY->value;
-        if ((string) ($this->company->get($signingKey) ?: $this->app->get($signingKey)) === '') {
+        if (ConfigurationEnum::signingKeyFor($this->app, $this->company) === '') {
             throw new ValidationException('No Mailgun webhook signing key is configured, so forwarded email would be refused.');
         }
 

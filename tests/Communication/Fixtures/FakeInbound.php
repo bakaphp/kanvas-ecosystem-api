@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Communication\Fixtures;
 
 use Illuminate\Http\Request;
+use Kanvas\Communication\Contracts\Concerns\HasInboundDefaults;
 use Kanvas\Communication\Contracts\InboundSource;
-use Kanvas\Communication\Messages\Actions\FlushInboundBurstAction;
 use Kanvas\Communication\Messages\DataTransferObject\InboundAttachment;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
@@ -22,6 +22,8 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
  */
 final class FakeInbound implements InboundSource
 {
+    use HasInboundDefaults;
+
     public const string SIGNATURE = 'fake-signature';
 
     /** @var list<string> */
@@ -97,15 +99,5 @@ final class FakeInbound implements InboundSource
             maxSeconds: 90,
             jitterSeconds: 0,
         );
-    }
-
-    public function burstHandler(): string
-    {
-        return FlushInboundBurstAction::class;
-    }
-
-    public function answersHelpItself(): bool
-    {
-        return false;
     }
 }

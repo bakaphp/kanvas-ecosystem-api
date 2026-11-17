@@ -8,7 +8,7 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 
 /**
- * What a provider's webhook job parsed out of one inbound payload, before anything is filed. The
+ * What a provider's `InboundSource` parsed out of one inbound payload, before anything is filed. The
  * provider knows its payload; everything after this is the same for every medium.
  */
 final readonly class InboundMessage
@@ -20,16 +20,20 @@ final readonly class InboundMessage
      * @param string $conversationSlug the Social channel the conversation is filed in, one per
      *                                 counterpart and provider
      * @param string $messageVerb the message type it is filed as
-     * @param string|null $messageSlug stable per vendor message, so a redelivery updates rather than
-     *                                 files a second copy
+     * @param string|null $messageSlug stable per vendor message, so a redelivery is recognised and
+     *                                 files nothing
      * @param bool $fromUs a message the vendor reports from our own side — announced, never answered
      * @param ConsentSignalEnum|null $consentSignal the vendor's own classification, when it makes one;
      *                                              otherwise the shared keyword matcher decides
      * @param list<InboundAttachment> $attachments
      * @param array<string, mixed> $personCustomFields
      * @param list<string> $personTags
-     * @param bool $reuseKnownPerson keep a person already on file as they are (a test session that
-     *                               stands in for someone else's number)
+     * @param InboundSenderPolicy|null $senderPolicy who may write in on this account; a customer
+     *                                               line when the provider does not say
+     * @param string|null $replyTo where an answer goes when that is not `from`: a test session is
+     *                             filed as the person it stands in for and answered on its own number
+     * @param string|null $fromName the name the counterpart goes by, when the medium carries one: a
+     *                              mail names its sender, a text only has the number
      */
     public function __construct(
         public string $provider,
@@ -47,7 +51,9 @@ final readonly class InboundMessage
         public array $attachments = [],
         public array $personCustomFields = [],
         public array $personTags = [],
-        public bool $reuseKnownPerson = false
+        public ?InboundSenderPolicy $senderPolicy = null,
+        public ?string $replyTo = null,
+        public ?string $fromName = null
     ) {
     }
 }

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Github\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Baka\Support\Str;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Github\Client;
 use Kanvas\Connectors\Github\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

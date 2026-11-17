@@ -6,16 +6,15 @@ namespace Tests\Connectors\Integration\WaSender;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WaSender\Actions\ListWhatsAppGroupsAction;
-use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Connectors\WaSender\Services\GroupService;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\TestCase;
 
 /**
@@ -116,32 +115,22 @@ final class ListWhatsAppGroupsActionTest extends TestCase
         $app = app(Apps::class);
         /** @var Users $user */
         $user = auth()->user();
+        // A company of its own: the receiver is found by company, not by an id the agent holds.
+        $company = Companies::factory()->create();
 
-        $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
-        );
+        $receiver = new CommunicationReceivers()->ensure($app, $company, WaSenderHandler::slug());
+        $receiver->configuration = [
+            ...$receiver->configuration,
+            GroupConfigEnum::ALLOWED_GROUP_JIDS->value => $allowedJids,
+        ];
+        $receiver->saveOrFail();
 
-        $receiver = ReceiverWebhook::factory()
-            ->app($app->getId())
-            ->company($user->getCurrentCompany()->getId())
-            ->user($user->getId())
-            ->create([
-                'action_id' => $action->getId(),
-                'configuration' => [GroupConfigEnum::ALLOWED_GROUP_JIDS->value => $allowedJids],
-                'is_active' => true,
-            ]);
-
-        $agent = Agent::factory()
+        return Agent::factory()
             ->withAppId($app->getId())
-            ->withCompanyId($user->getCurrentCompany()->getId())
+            ->withCompanyId($company->getId())
             ->create([
                 'agent_type_id' => AgentType::factory()->create(['apps_id' => $app->getId()]),
                 'user_id' => $user->getId(),
             ]);
-
-        $agent->set(ConnectionFieldEnum::RECEIVER_ID->value, $receiver->getId());
-
-        return $agent;
     }
 }

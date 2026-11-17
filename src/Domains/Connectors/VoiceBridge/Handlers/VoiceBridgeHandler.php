@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VoiceBridge\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\VoiceBridge\Client;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

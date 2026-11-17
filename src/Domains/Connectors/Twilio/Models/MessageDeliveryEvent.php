@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Models\BaseModel;
@@ -16,7 +17,7 @@ class MessageDeliveryEvent extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'payload' => 'array',
+        'payload' => Json::class,
         'occurred_at' => 'datetime',
         'received_at' => 'datetime',
         'processed_at' => 'datetime',

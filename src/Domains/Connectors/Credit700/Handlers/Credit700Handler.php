@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Credit700\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Credit700\Client;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

@@ -4,45 +4,30 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Setup\Enums;
 
-use Kanvas\Connectors\Google\Activities\CreateGoogleCalendarEventActivity;
-use Kanvas\Connectors\SalesAssist\Activities\AIAssistChannelResponderActivity;
-use Kanvas\Connectors\SalesAssist\Activities\SalesAssistAgentReachOutActivity;
-use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
-use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Workflows\Activities\PrivatizeConversationMessageActivity;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 
 /**
- * The workflow rules every company runs its agents with, by the name the rule is saved under. Each
- * case knows the event and module it listens on, the activities it runs in order and the conditions
- * that keep it to its own traffic; the params that name company records are filled in by setup.
+ * The workflow rules setup still gives a company, by the name the rule is saved under. Each case
+ * knows the event and module it listens on and the conditions that keep it to its own traffic; the
+ * activities it runs are named in `config/communication.php`.
+ *
+ * What an agent does on its own (reach out to a new lead, answer on AI Assist, keep a lead's AI
+ * mode, index its documents) is not here: those listen for the event themselves and are switched on
+ * the agent; a person's reply in a lead conversation is delivered by Guild the same way. A rule is
+ * for a step that triggers an external system, or one not yet moved.
  */
 enum DefaultRuleEnum: string
 {
-    case AGENT_REACH_OUT = 'AgentReachOut';
-    case AI_ASSIST_RESPONDER = 'AI Assist Channel Responder';
     case PRIVATIZE_MESSAGES = 'Privatize Conversation Messages';
-    case HUMAN_AGENT_RESPONSE = 'HumanAgentChannelResponseActivity';
-    case TRIGGER_AI = 'Trigger ia';
-    case INDEX_AGENT_KNOWLEDGE = 'Index agent knowledge documents';
     case GOOGLE_CALENDAR_EVENT = 'Create Google Calendar Event';
 
     public function event(): WorkflowEnum
     {
         return match ($this) {
-            self::AGENT_REACH_OUT, self::PRIVATIZE_MESSAGES => WorkflowEnum::CREATED,
-            // Channel::addMessage() fires it with the message, which is what these read.
-            self::AI_ASSIST_RESPONDER, self::HUMAN_AGENT_RESPONSE => WorkflowEnum::UPDATED,
-            self::TRIGGER_AI => WorkflowEnum::TRIGGER_AI,
-            self::INDEX_AGENT_KNOWLEDGE => WorkflowEnum::ATTACH_FILE,
+            self::PRIVATIZE_MESSAGES => WorkflowEnum::CREATED,
             self::GOOGLE_CALENDAR_EVENT => WorkflowEnum::EVENT_VERSIONS_WORKFLOW,
         };
     }
@@ -53,10 +38,7 @@ enum DefaultRuleEnum: string
     public function module(): string
     {
         return match ($this) {
-            self::AGENT_REACH_OUT, self::TRIGGER_AI => Lead::class,
-            self::AI_ASSIST_RESPONDER, self::HUMAN_AGENT_RESPONSE => Channel::class,
             self::PRIVATIZE_MESSAGES => Message::class,
-            self::INDEX_AGENT_KNOWLEDGE => Agent::class,
             self::GOOGLE_CALENDAR_EVENT => EventVersion::class,
         };
     }
@@ -66,16 +48,23 @@ enum DefaultRuleEnum: string
      */
     public function activities(): array
     {
-        return match ($this) {
-            // The new lead's AI mode first, so the reach-out reads the mode it was just given.
-            self::AGENT_REACH_OUT => [TriggerIntelligenceActivity::class, SalesAssistAgentReachOutActivity::class],
-            self::AI_ASSIST_RESPONDER => [AIAssistChannelResponderActivity::class],
-            self::PRIVATIZE_MESSAGES => [PrivatizeConversationMessageActivity::class],
-            self::HUMAN_AGENT_RESPONSE => [HumanAgentChannelResponseActivity::class],
-            self::TRIGGER_AI => [TriggerIntelligenceActivity::class],
-            self::INDEX_AGENT_KNOWLEDGE => [IndexKnowledgeDocumentActivity::class],
-            self::GOOGLE_CALENDAR_EVENT => [CreateGoogleCalendarEventActivity::class],
-        };
+        return $this->definition()['activities'];
+    }
+
+    /**
+     * The company setting the rule's vendor has to have written before the rule can run.
+     */
+    public function requiredCompanySetting(): ?string
+    {
+        return $this->definition()['requires_company_setting'] ?? null;
+    }
+
+    /**
+     * @return array{activities: list<class-string>, requires_company_setting?: string}
+     */
+    private function definition(): array
+    {
+        return config('communication.default_rules')[$this->value];
     }
 
     /**
@@ -83,34 +72,6 @@ enum DefaultRuleEnum: string
      */
     public function conditions(): array
     {
-        return match ($this) {
-            self::AGENT_REACH_OUT,
-            self::PRIVATIZE_MESSAGES,
-            self::TRIGGER_AI,
-            self::GOOGLE_CALENDAR_EVENT => [['id', RuleConditionOperatorEnum::GREATER_THAN, '0']],
-            self::AI_ASSIST_RESPONDER => [['name', RuleConditionOperatorEnum::EQUAL, 'AI Assist']],
-            self::HUMAN_AGENT_RESPONSE => [
-                ['message.message.from_human', RuleConditionOperatorEnum::EQUAL, 'true'],
-                ['name', RuleConditionOperatorEnum::NOT_EQUAL, 'Default Channel'],
-                ['name', RuleConditionOperatorEnum::NOT_EQUAL, 'Notes'],
-                ['name', RuleConditionOperatorEnum::NOT_EQUAL, 'AI Assist'],
-            ],
-            self::INDEX_AGENT_KNOWLEDGE => [],
-        };
-    }
-
-    /**
-     * Params that do not depend on the company. The agent ids and the sender number are added by
-     * setup from the company's own records.
-     *
-     * @return array<string, mixed>
-     */
-    public function params(): array
-    {
-        return match ($this) {
-            // Never an agent_id: the reach-out reads the company's agent_reach_out_default_agent_id.
-            self::AGENT_REACH_OUT => ['trigger_type' => TriggersEnum::NEW_LEAD->value],
-            default => [],
-        };
+        return [['id', RuleConditionOperatorEnum::GREATER_THAN, '0']];
     }
 }

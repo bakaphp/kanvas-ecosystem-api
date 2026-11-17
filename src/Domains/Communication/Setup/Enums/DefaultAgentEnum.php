@@ -12,7 +12,8 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 
 /**
  * The agents every company needs to converse, by the name the code looks them up with. A company
- * missing one gets a copy of the app's global agent of that name (companies_id 0).
+ * missing one gets a copy of the app's onboarding template of that name: an `agents` row with
+ * `companies_id = 0`, which is only ever copied and never acts for a company.
  */
 enum DefaultAgentEnum: string
 {
@@ -27,13 +28,13 @@ enum DefaultAgentEnum: string
     }
 
     /**
-     * The company's own agent of that name, never the app's global one.
+     * The company's own agent of that name, never the app's template.
      */
     public static function named(Apps $app, Companies $company, string $name): ?Agent
     {
         return Agent::query()
             ->fromApp($app)
-            ->fromCompany($company)
+            ->fromCompany($company->getId())
             ->where('name', $name)
             ->notDeleted()
             ->orderBy('id')

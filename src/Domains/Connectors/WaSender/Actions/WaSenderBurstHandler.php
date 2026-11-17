@@ -8,6 +8,7 @@ use Kanvas\Connectors\WaSender\Enums\ConversationTypeEnum;
 use Kanvas\Connectors\WaSender\Enums\DirectConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupReplyModeEnum;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Connectors\WaSender\Services\GroupMentionService;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -95,11 +96,14 @@ class WaSenderBurstHandler extends BurstHandler
 
     private function resolveAgent(ReceiverWebhook $receiver, bool $isDirect): ?Agent
     {
-        // An assistant conversation belongs to the agent that owns the connection; the group
-        // agent is a deliberate, separate assignment.
+        // An assistant conversation belongs to the agent that owns the number; the group agent is
+        // a deliberate, separate assignment. The receiver's own agent covers a number that is not
+        // a connection yet, and a group nobody was assigned to.
         $agentId = $isDirect
-            ? ($receiver->configuration['agent_id'] ?? GroupConfigEnum::GROUP_AGENT_ID->get($receiver))
-            : GroupConfigEnum::GROUP_AGENT_ID->get($receiver);
+            ? (WaSenderHandler::connectionFor($this->app, $receiver->company)?->agent()?->getId()
+                ?? $receiver->configuration['agent_id']
+                ?? GroupConfigEnum::GROUP_AGENT_ID->get($receiver))
+            : GroupConfigEnum::agentId($receiver);
 
         if ($agentId === null) {
             return null;
@@ -155,8 +159,6 @@ class WaSenderBurstHandler extends BurstHandler
                     'channel' => $this->channel,
                     'entity_namespace' => Channel::class,
                     'entity_id' => (string) $this->channel->getId(),
-                    // The direct canal matches the one the lead DM flow builds for the same
-                    // number, so a conversation keeps its session across mode changes.
                     'canal_id' => $isDirect
                         ? SessionChannelService::createCanalId('whatsapp', $conversationJid)
                         : SessionChannelService::createCanalId('whatsapp-group', $conversationJid),

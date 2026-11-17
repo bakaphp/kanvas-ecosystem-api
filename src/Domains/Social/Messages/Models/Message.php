@@ -175,6 +175,14 @@ class Message extends BaseModel
         );
     }
 
+    /**
+     * Written by a person on the team, as opposed to the customer or an agent.
+     */
+    public function isFromHuman(): bool
+    {
+        return (bool) ($this->message['from_human'] ?? false);
+    }
+
     public function appModuleMessage(): HasOne
     {
         return $this->hasOne(AppModuleMessage::class, 'message_id');
@@ -315,18 +323,24 @@ class Message extends BaseModel
         $this->saveOrFail();
     }
 
+    /**
+     * One link per record, however many paths file the same message: an agent's history and the lead
+     * summary read these links, and a second one reads as a second message.
+     */
     public function addEntity(Model $entity): void
     {
-        $this->appModuleMessage()->create([
-            'entity_id' => $entity->getId(),
-            'apps_id' => $this->apps_id,
-            'message_types_id' => $this->message_types_id,
-            'companies_id' => $this->companies_id,
-            'system_modules' => get_class($entity),
-        ]);
+        if (! $this->appModuleMessages()->forEntity($entity)->exists()) {
+            $this->appModuleMessage()->create([
+                'entity_id' => $entity->getId(),
+                'apps_id' => $this->apps_id,
+                'message_types_id' => $this->message_types_id,
+                'companies_id' => $this->companies_id,
+                'system_modules' => get_class($entity),
+            ]);
 
-        $this->unsetRelation('appModuleMessage');
-        $this->unsetRelation('appModuleMessages');
+            $this->unsetRelation('appModuleMessage');
+            $this->unsetRelation('appModuleMessages');
+        }
 
         $this->attachPersonFromEntity($entity);
     }

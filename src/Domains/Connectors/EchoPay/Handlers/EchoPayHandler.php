@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\EchoPay\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\EchoPay\Client;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;

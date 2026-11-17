@@ -44,14 +44,19 @@ class ActivityRunRecorderService
         $rule = $params['rule'] ?? null;
         $rule = $rule instanceof Rule ? $rule : null;
         $failed = $exception !== null || $activity->workflowStatus() === StatusEnum::FAILED;
+        $skipped = ! $failed && $activity->workflowStatus() === StatusEnum::SKIPPED;
 
-        if (! $failed && ! $this->logsSuccess($rule)) {
+        if (! $failed && ! $skipped && ! $this->logsSuccess($rule)) {
             return null;
         }
 
         try {
             $action = Action::forHandler($activity::class);
-            $status = $activity->getStatus($failed ? StatusEnum::FAILED : StatusEnum::CONNECTED);
+            $status = $activity->getStatus(match (true) {
+                $failed => StatusEnum::FAILED,
+                $skipped => StatusEnum::SKIPPED,
+                default => StatusEnum::CONNECTED,
+            });
             $company = $entity->companies_id ? Companies::getById((int) $entity->companies_id) : null;
 
             if ($status === null) {

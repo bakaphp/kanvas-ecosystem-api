@@ -6,9 +6,9 @@ namespace App\Http\Controllers;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Http\Request;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\MetaInbound;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
+use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
+use Kanvas\Connectors\Meta\MetaInbound;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**

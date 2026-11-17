@@ -11,10 +11,8 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\Stubs\Intelligence\FakeTwilioNumbersClient;
 use Tests\TestCase;
 use Twilio\Rest\Client;
@@ -40,32 +38,38 @@ class SetAgentPhoneNumberCommandTest extends TestCase
         $this->number = '+1555' . fake()->unique()->numerify('#######');
     }
 
-    public function testDryRunWritesNothingAndPredictsAConflict(): void
+    public function testDryRunWritesNothingAndAsksForTheIntegrationATextNumberNeeds(): void
     {
         $this->fakeTwilio(new FakeTwilioNumbersClient(smsUrl: 'https://other-system.test/hook'));
         $agent = $this->agent();
 
         $this->artisan(self::COMMAND, $this->commandOptions($agent) + ['--dry-run' => true])
-            ->expectsOutputToContain('conflict, webhook left in place')
+            ->expectsOutputToContain('error, connect the Twilio integration')
             ->assertExitCode(0);
 
         $this->assertNull($agent->fresh()->smsPhoneNumber());
         $this->assertSame(0, $this->receivers()->count());
     }
 
-    public function testDryRunRecognisesTheCompanysExistingReceiver(): void
+    public function testDryRunOfATextNumberNeverPredictsAWebhookConflict(): void
     {
-        $receiver = ReceiverWebhook::factory()->create([
-            'apps_id' => $this->testApp->getId(),
-            'companies_id' => $this->company->getId(),
-            'users_id' => auth()->user()->getId(),
-            'action_id' => WorkflowAction::factory()->create(['model_name' => ProcessTwilioWebhookJob::class])->getId(),
-            'is_active' => 1,
-        ]);
-        $this->fakeTwilio(new FakeTwilioNumbersClient(smsUrl: $receiver->getUrl()));
+        $this->fakeTwilio(
+            new FakeTwilioNumbersClient(smsUrl: 'https://other-system.test/hook'),
+            communicationManagesTwilio: true
+        );
 
         $this->artisan(self::COMMAND, $this->commandOptions($this->agent()) + ['--dry-run' => true])
-            ->expectsOutputToContain('wired, Twilio unchanged')
+            ->expectsOutputToContain('pending, the number becomes a connection this agent answers')
+            ->assertExitCode(0);
+    }
+
+    public function testDryRunOfAVoiceNumberLeavesAnotherSystemsWebhook(): void
+    {
+        config(['kanvas.voice_runtime.url' => 'https://voice.test']);
+        $this->fakeTwilio(new FakeTwilioNumbersClient(voiceUrl: 'https://other-system.test/hook'));
+
+        $this->artisan(self::COMMAND, ['--channel' => 'voice', '--dry-run' => true] + $this->commandOptions($this->agent()))
+            ->expectsOutputToContain('conflict, webhook left in place')
             ->assertExitCode(0);
     }
 
@@ -97,7 +101,7 @@ class SetAgentPhoneNumberCommandTest extends TestCase
         $agent = $this->agent();
 
         $this->artisan(self::COMMAND, $this->commandOptions($agent))
-            ->expectsOutputToContain('Twilio credentials are not set')
+            ->expectsOutputToContain('Connect the Twilio integration')
             ->assertExitCode(1);
 
         $this->assertSame($this->number, $agent->fresh()->smsPhoneNumber());
@@ -150,17 +154,24 @@ class SetAgentPhoneNumberCommandTest extends TestCase
             ->create($attributes);
     }
 
-    private function fakeTwilio(FakeTwilioNumbersClient $fake): void
+    private function fakeTwilio(FakeTwilioNumbersClient $fake, bool $communicationManagesTwilio = false): void
     {
-        $command = new class ($fake) extends SetAgentPhoneNumberCommand {
-            public function __construct(private FakeTwilioNumbersClient $fake)
-            {
+        $command = new class ($fake, $communicationManagesTwilio) extends SetAgentPhoneNumberCommand {
+            public function __construct(
+                private FakeTwilioNumbersClient $fake,
+                private bool $managesTwilio
+            ) {
                 parent::__construct();
             }
 
             protected function twilio(Companies $company): Client
             {
                 return $this->fake;
+            }
+
+            protected function communicationManagesTwilio(Agent $agent): bool
+            {
+                return $this->managesTwilio;
             }
         };
 

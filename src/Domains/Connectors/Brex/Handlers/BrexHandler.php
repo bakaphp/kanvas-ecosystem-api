@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Brex\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Brex\DataTransferObject\Brex as BrexDto;
 use Kanvas\Connectors\Brex\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Brex\Services\BrexAccountService;
 use Kanvas\Connectors\Brex\Services\BrexService;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Ledger\Services\GlOwnershipService;
 use Override;

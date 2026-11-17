@@ -17,11 +17,11 @@ use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
+use Kanvas\Guild\Customers\Actions\Communication\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
-use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
@@ -277,10 +277,9 @@ class ProcessLeadCampaignJob implements ShouldQueue
     /**
      * The agent that was running when create_lead_campaign/send_batch_message built this campaign,
      * stashed in `criteria` rather than a dedicated column — a campaign has no agent concept of its
-     * own otherwise, and threading it through here is what lets sendToLead()/sendToPeople() go out
-     * through SendAsAgentMailboxAction (and so with open tracking on) instead of always falling back
-     * to the company's SMTP identity. Null when the campaign was built by a human with no acting
-     * agent, or by anything that predates this field — both fall back exactly as before.
+     * own otherwise, and threading it through here is what lets sendToLead()/sendToPeople() leave
+     * from that agent's own mailbox instead of the company's email connection. Null when the
+     * campaign was built by a human with no acting agent: it then leaves as the company.
      */
     private function resolveSendingAgent(): ?Agent
     {

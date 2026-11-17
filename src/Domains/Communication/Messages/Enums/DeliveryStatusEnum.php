@@ -27,7 +27,11 @@ enum DeliveryStatusEnum: string
     public function canAdvanceTo(self $next): bool
     {
         return match ($this) {
-            self::SENDING, self::UNKNOWN => in_array($next, [self::ACCEPTED, self::DELIVERED, self::READ, self::FAILED], true),
+            self::SENDING, self::UNKNOWN => in_array(
+                $next,
+                [self::ACCEPTED, self::DELIVERED, self::READ, self::FAILED],
+                true
+            ),
             self::ACCEPTED => in_array($next, [self::DELIVERED, self::READ, self::FAILED], true),
             self::DELIVERED => $next === self::READ,
             default => false,
@@ -37,5 +41,14 @@ enum DeliveryStatusEnum: string
     public function reachedTheProvider(): bool
     {
         return in_array($this, [self::ACCEPTED, self::DELIVERED, self::READ], true);
+    }
+
+    /**
+     * Also true when nobody can say: a call still in flight, or one whose outcome was lost. Whatever
+     * answers true here is never sent a second time on a guess.
+     */
+    public function mayHaveReachedTheProvider(): bool
+    {
+        return $this->reachedTheProvider() || in_array($this, [self::SENDING, self::UNKNOWN], true);
     }
 }

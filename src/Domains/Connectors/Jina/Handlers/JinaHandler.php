@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Jina\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Jina\Client;
 use Kanvas\Connectors\Jina\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Microsoft\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Microsoft\Actions\EnsureMicrosoftOAuthReceiverAction;
 use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Microsoft\OneDrive\Exceptions\OneDriveException;

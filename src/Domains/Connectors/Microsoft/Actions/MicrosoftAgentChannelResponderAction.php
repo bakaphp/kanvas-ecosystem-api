@@ -18,7 +18,7 @@ use Override;
 /**
  * Handles outbound email responses via Microsoft Graph when an AI agent replies.
  *
- * This mirrors the Mailgun AgentChannelResponderAction pattern:
+ * The flow:
  * 1. Triggered by the AFTER_ADDING_MESSAGE_TO_CHANNEL workflow (via MicrosoftAgentChannelResponderActivity)
  * 2. Reads the inbound email content from the message
  * 3. Passes it to the AI agent for a response
@@ -31,8 +31,7 @@ use Override;
  *
  * The access token is auto-refreshed via Client::getValidAccessToken() before sending.
  *
- * @see \Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction
- * @see \Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity
+ * @see MicrosoftAgentChannelResponderActivity
  */
 class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction
 {

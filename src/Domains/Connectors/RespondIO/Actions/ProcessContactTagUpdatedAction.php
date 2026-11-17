@@ -12,25 +12,16 @@ class ProcessContactTagUpdatedAction extends BaseRespondIOAction
     #[Override]
     public function execute(): array
     {
-        /** @var array<string, mixed> $contact */
-        $contact = $this->payload['contact'] ?? [];
         $tag = $this->payload['tag'] ?? null;
         $action = $this->payload['action'] ?? null;
+        $people = $this->resolvePeople();
 
-        $identifier = $this->getContactIdentifier($contact);
-
-        if ($identifier === null) {
-            return ['error' => 'Missing contact identifier'];
-        }
-
-        $people = $this->findPeopleByIdentifier($this->app, $this->company, $identifier);
-
-        if (! $people) {
-            return ['status' => 'contact_not_found', 'identifier' => $identifier];
+        if ($people === null) {
+            return $this->unresolved('contact_not_found');
         }
 
         /** @var array<int, string> $allTags */
-        $allTags = $contact['tags'] ?? [];
+        $allTags = $this->payload['contact']['tags'] ?? [];
         if (! empty($allTags)) {
             $people->syncTags($allTags);
         } elseif ($tag !== null && $action === 'add') {

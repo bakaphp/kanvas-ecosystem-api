@@ -8,11 +8,11 @@ use Baka\Search\SearchEngineResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Knowledge\Actions\IndexAgentDocumentsAction;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
-use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use Laravel\Ai\Embeddings;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
@@ -164,13 +164,13 @@ class KnowledgeScopeIsolationTest extends TestCase
         $indexer = KnowledgeComponents::indexer($this->kanvasApp);
         $indexer->indexDocument(
             $scopeAgentA,
-            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            IndexAgentDocumentsAction::SOURCE_TYPE,
             'agent-a-doc',
             'Agent A handbook: onboarding steps for the sales team.',
         );
         $indexer->indexDocument(
             $scopeAgentB,
-            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            IndexAgentDocumentsAction::SOURCE_TYPE,
             'agent-b-doc',
             'Agent B handbook: escalation matrix for support.',
         );
@@ -196,7 +196,7 @@ class KnowledgeScopeIsolationTest extends TestCase
         $scope = new KnowledgeScope($appId, self::COMPANY_A);
         KnowledgeComponents::indexer($this->kanvasApp)->indexDocument(
             $scope,
-            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            IndexAgentDocumentsAction::SOURCE_TYPE,
             'file-to-delete',
             'Gamma handbook: this document is about to be deleted.',
         );
@@ -206,8 +206,8 @@ class KnowledgeScopeIsolationTest extends TestCase
         $present = collect($store->search($vector, $scope, 10))->pluck('content');
         $this->assertTrue($present->contains(fn (string $c): bool => str_contains($c, 'about to be deleted')));
 
-        // What PruneKnowledgeDocumentActivity does on a Filesystem delete.
-        $store->deleteBySource($scope, IndexKnowledgeDocumentActivity::SOURCE_TYPE, 'file-to-delete');
+        // What PruneKnowledgeDocumentAction does when a file is deleted.
+        $store->deleteBySource($scope, IndexAgentDocumentsAction::SOURCE_TYPE, 'file-to-delete');
 
         $afterPrune = collect($store->search($vector, $scope, 10))->pluck('content');
         $this->assertFalse($afterPrune->contains(fn (string $c): bool => str_contains($c, 'about to be deleted')));

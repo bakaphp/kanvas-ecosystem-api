@@ -73,3 +73,13 @@ So: **template config lives on the rotation, is set by a command, and is not par
 TODO: receivers created before the observer existed (2025-03-26; ~1.4k rows in dev) have no webhook, so their uuid 404s. No backfill command yet — decided against one for now.
 
 Storefronts reach receivers through `Product.leadReceivers` / `Variant.leadReceivers` (`HasLeadReceiversTrait`, a Compoships `(companies_id, apps_id)` hasMany — which is why `LeadReceiver` uses `Compoships`).
+
+## Messaging a lead's customer lives in `Actions/Communication/`
+
+Every action that talks to the customer through the Communication domain, or files what came of it, is in
+[`Actions/Communication/`](Actions/Communication/): `SendMessageToLeadAction`, `DeliverConversationMessageAction`,
+`SendOptOutConfirmationAction`, `OpenLeadFromConversationAction`, `RecordRecipientOptedOutNoteAction`,
+`MarkLeadMessagesAsRespondedAction`. A new one
+goes there. The intake emails (`SendLeadEmailsAction`, `SendRotationEmailsAction`,
+`SendLeadConfirmationToContactAction`) stay in `Actions/`: they are notifications of the receiver flow above,
+not conversation messages.

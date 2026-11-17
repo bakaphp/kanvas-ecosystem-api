@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Apollo\Handlers;
 
+use Baka\Contracts\BaseIntegration;
+use Exception;
 use Kanvas\Connectors\Apollo\Client;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 
@@ -27,7 +28,7 @@ class ApolloHandler extends BaseIntegration
         try {
             $client = new Client($this->app);
             $client->get('/auth/health');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             if (str_contains($e->getMessage(), 'Unauthorized') || str_contains($e->getMessage(), '401')) {
                 throw new ValidationException('Invalid Apollo API key.');
             }

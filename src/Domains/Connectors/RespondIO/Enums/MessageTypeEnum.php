@@ -19,6 +19,11 @@ enum MessageTypeEnum: string
     {
         $type = $messageContent['type'] ?? 'unknown';
 
+        // Respond.io wraps a file as `attachment` and names the kind one level down.
+        if ($type === 'attachment') {
+            $type = $messageContent['attachment']['type'] ?? 'file';
+        }
+
         return match ($type) {
             'text' => self::TEXT,
             'image' => self::IMAGE,
@@ -31,13 +36,8 @@ enum MessageTypeEnum: string
         };
     }
 
-    public static function isDocumentType(string $type): bool
+    public function isDocumentType(): bool
     {
-        return in_array($type, [
-            self::FILE->value,
-            self::AUDIO->value,
-            self::IMAGE->value,
-            self::VIDEO->value,
-        ]);
+        return in_array($this, [self::FILE, self::AUDIO, self::IMAGE, self::VIDEO], true);
     }
 }

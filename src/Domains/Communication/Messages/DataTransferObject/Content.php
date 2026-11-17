@@ -14,12 +14,14 @@ final readonly class Content
      * @param list<Attachment> $attachments
      * @param bool $attachmentsRequired a channel that cannot carry them fails the delivery instead
      *                                  of sending the text alone with a warning
+     * @param EmailOptions|null $email read by the email channel only; every other channel ignores it
      */
     private function __construct(
         public string $text,
         public ?string $subject = null,
         public array $attachments = [],
-        public bool $attachmentsRequired = false
+        public bool $attachmentsRequired = false,
+        public ?EmailOptions $email = null
     ) {
     }
 
@@ -43,7 +45,8 @@ final readonly class Content
             $this->text,
             $this->subject,
             $normalized,
-            $required
+            $required,
+            $this->email
         );
     }
 
@@ -53,7 +56,19 @@ final readonly class Content
             $this->text,
             $subject,
             $this->attachments,
-            $this->attachmentsRequired
+            $this->attachmentsRequired,
+            $this->email
+        );
+    }
+
+    public function withEmail(EmailOptions $email): self
+    {
+        return new self(
+            $this->text,
+            $this->subject,
+            $this->attachments,
+            $this->attachmentsRequired,
+            $email
         );
     }
 
@@ -62,8 +77,12 @@ final readonly class Content
         return [
             'text' => $this->text,
             'subject' => $this->subject,
-            'attachments' => array_map(fn (Attachment $attachment): array => $attachment->toArray(), $this->attachments),
+            'attachments' => array_map(
+                fn (Attachment $attachment): array => $attachment->toArray(),
+                $this->attachments
+            ),
             'attachments_required' => $this->attachmentsRequired,
+            'email' => $this->email?->toArray(),
         ];
     }
 
@@ -73,7 +92,8 @@ final readonly class Content
             (string) ($data['text'] ?? ''),
             $data['subject'] ?? null,
             array_map(Attachment::fromArray(...), $data['attachments'] ?? []),
-            (bool) ($data['attachments_required'] ?? false)
+            (bool) ($data['attachments_required'] ?? false),
+            is_array($data['email'] ?? null) ? EmailOptions::fromArray($data['email']) : null
         );
     }
 }

@@ -230,8 +230,9 @@ final class SyncZohoLeadPersonDataTest extends TestCase
             $this->assertSame('1 Infinite Loop', $lead->get('street'));
             $this->assertSame($before, StoredWorkflow::query()->where('class', DynamicRuleWorkflow::class)->count());
         } finally {
+            // Only the rule: the factory hands back the catalogued `actions` row when the activity
+            // is already there, and that row is every tenant's, never this test's to delete.
             $rule->delete();
-            $action->delete();
         }
     }
 

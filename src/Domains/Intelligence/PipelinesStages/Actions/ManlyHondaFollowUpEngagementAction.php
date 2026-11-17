@@ -6,10 +6,10 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Exception;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as VinSolutionCustomFieldEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -151,7 +151,7 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
                 continue;
             }
 
-            $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
+            $emailTitle = $this->lead->emailThreadSubject() ?? $this->lead->company->name;
 
             $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                 $channel,
@@ -161,7 +161,7 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
             );
             $createdMessage = $createMessageAction->getCreatedMessage();
             if ($createdMessage !== null) {
-                new StoreMessageSidAction($createdMessage)->execute($providerResponse);
+                new LinkDeliveryMessageAction($createdMessage)->execute($providerResponse);
             }
 
             $this->logSuccess('message_sent', 'Follow-up message sent to lead', $session, $message);

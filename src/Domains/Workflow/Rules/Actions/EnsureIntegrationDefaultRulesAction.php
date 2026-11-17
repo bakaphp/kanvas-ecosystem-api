@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules\Actions;
 
+use Baka\Contracts\BaseIntegration;
+use Baka\Contracts\DefaultRule;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Contracts\BaseIntegration;
-use Kanvas\Connectors\Contracts\DefaultRule;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;

@@ -18,7 +18,7 @@ class ProvisionAgentMailboxCommand extends Command
 
     protected $signature = 'kanvas:mailgun:provision-agent-mailbox
         {--agent= : Agent ID (required)}
-        {--access=restricted : restricted (teammates + known contacts) or open (anyone)}
+        {--access=restricted : restricted (teammates + known contacts) or open (anyone); a customer line is never provisioned}
         {--disconnect : Remove the mailbox instead of creating it}';
 
     protected $description = 'Give an agent its own email address on the company Mailgun domain, or take it away.';
@@ -34,7 +34,7 @@ class ProvisionAgentMailboxCommand extends Command
         }
 
         /** @var Agent $agent */
-        $agent = Agent::query()->notDeleted()->findOrFail($agentId);
+        $agent = Agent::getById($agentId);
 
         // Bouncer scope and the container-bound app both leak from whatever ran before; the agent's
         // own app has to be bound before anything below touches a scoped model.
@@ -64,8 +64,9 @@ class ProvisionAgentMailboxCommand extends Command
         }
 
         $this->info('Agent ' . $agent->name . ' now answers at ' . $mailbox['address']);
-        $this->line('Route:    ' . $mailbox['route_id']);
-        $this->line('Forwards: ' . $mailbox['receiver_url']);
+        $this->line($mailbox['connected']
+            ? 'Route:    ' . $mailbox['route_id'] . ' → ' . $mailbox['receiver_url']
+            : 'The connection is being set up; the route is registered by the setup job.');
 
         if (! $mailbox['contact_email_set']) {
             $this->warn(

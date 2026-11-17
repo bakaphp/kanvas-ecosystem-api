@@ -6,10 +6,8 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
@@ -18,22 +16,16 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Models\LeadStatus;
-use Kanvas\Guild\Leads\Notifications\NewLeadCompanyOwnerNotification;
-use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-
-use function Sentry\captureException;
 
 class CreateLeadAction
 {
     protected CompanyInterface $company;
-    protected bool $runWorkflow = true;
 
     public function __construct(
         protected readonly LeadDataInput $leadData,
@@ -77,7 +69,6 @@ class CreateLeadAction
                 $newLead->pipeline_id = $pipelineStage->pipelines_id;
             }
 
-            //create people
             $people = new CreatePeopleAction($this->leadData->people)->execute();
             $newLead->people_id = $people->getId();
             $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
@@ -92,7 +83,7 @@ class CreateLeadAction
             }
 
             if ($this->leadData->organization instanceof Organization) {
-                $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();
+                $organization = new CreateOrganizationAction($this->leadData->organization)->execute();
                 $newLead->organization_id = $organization->getId();
             }
             $newLead->saveOrFail();
@@ -104,7 +95,6 @@ class CreateLeadAction
                 $newLead->addMultipleFilesFromUrl($this->leadData->files);
             }
 
-            //create organization
             if ($organization) {
                 $organization->addPeople($people);
             }
@@ -115,56 +105,29 @@ class CreateLeadAction
                 $this->leadAttempt->saveOrFail();
             }
 
-            if ($this->runWorkflow) {
+            // A lead brought in by an import is not announced: nothing reaches out to it and the AI
+            // is not told it is new. Its contacts are still saved, so its channels open.
+            if ($this->leadData->runWorkflow) {
                 $newLead->fireWorkflow(
                     WorkflowEnum::CREATED->value,
-                    true
+                    true,
+                    ['app' => $newLead->app, 'company' => $newLead->company]
                 );
+            }
 
-                //@todo improve this for create social channels
-                $newLead->people->contacts->each(function (Contact $contact) use ($newLead) {
-                    $contact->fireWorkflow(
-                        WorkflowEnum::CONTACT_SAVED->value,
-                        true,
-                        [
-                            'company' => $this->company,
-                            'app' => $newLead->app,
-                        ]
-                    );
-                });
-                $newLead->fireWorkflow(
-                    WorkflowEnum::TRIGGER_AI->value,
+            $newLead->people->contacts->each(function (Contact $contact) use ($newLead) {
+                $contact->fireWorkflow(
+                    WorkflowEnum::CONTACT_SAVED->value,
                     true,
                     [
                         'company' => $this->company,
                         'app' => $newLead->app,
-                        'trigger_type' => TriggersEnum::NEW_LEAD->value,
                     ]
                 );
-            }
+            });
 
-            try {
-                /**
-                 * @todo move this notifications to workflow
-                 */
-                /*   $newLead->owner?->notify(new NewLeadNotification($newLead, [
-                      'app' => $newLead->app,
-                      'company' => $newLead->company,
-                  ]));
-
-                  UserRoleNotificationService::notify(
-                      RolesEnums::ADMIN->value,
-                      new NewLeadCompanyOwnerNotification(
-                          $newLead,
-                          [
-                              'app' => $newLead->app,
-                              'company' => $newLead->company,
-                          ]
-                      ),
-                      $newLead->app
-                  ); */
-            } catch (Exception $e) {
-                captureException($e);
+            if ($this->leadData->runWorkflow) {
+                $newLead->announceAiTrigger(TriggersEnum::NEW_LEAD->value, reachOutAppliesMode: true);
             }
 
             return $newLead;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Azul\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Azul\Client;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Azul\Services\AzulCertificate;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 

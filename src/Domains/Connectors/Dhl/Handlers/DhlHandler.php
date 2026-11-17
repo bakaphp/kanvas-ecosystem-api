@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Dhl\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
-use Kanvas\Connectors\Contracts\DefaultRule;
+use Baka\Contracts\BaseIntegration;
+use Baka\Contracts\DefaultRule;
 use Kanvas\Connectors\Dhl\Actions\BuildDhlRatesPayloadAction;
 use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
 use Kanvas\Connectors\Dhl\Activities\CreateDhlShipmentActivity;

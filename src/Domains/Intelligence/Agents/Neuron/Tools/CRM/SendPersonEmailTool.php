@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Kanvas\Guild\Customers\Actions\Communication\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
-use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\ConsentGuard;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;

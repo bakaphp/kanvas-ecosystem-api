@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Connectors\WaSender\Actions\WaSenderBurstHandler;
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
@@ -20,7 +21,6 @@ use Kanvas\Connectors\WaSender\Enums\GroupReplyModeEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Services\ContactService;
 use Kanvas\Connectors\WaSender\Services\GroupMentionService;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -192,6 +192,41 @@ final class WaSenderBurstTest extends TestCase
         $job->handle();
 
         $this->assertSame(1, $this->agentReplyCount($channel), 'The retry must not answer a second time');
+    }
+
+    /**
+     * A company that allow-listed a group without naming an agent for it still gets one: the agent
+     * that linked the number.
+     */
+    public function testAGroupWithNoAgentOfItsOwnIsWorkedByTheAgentThatLinkedTheNumber(): void
+    {
+        Queue::fake();
+        $this->useStructuredAgent();
+        $receiver = $this->receiver();
+        $receiver->configuration = [
+            ...$receiver->configuration,
+            GroupConfigEnum::ALLOWED_GROUP_JIDS->value => [self::GROUP_JID],
+            GroupConfigEnum::GROUP_REPLY_MODE->value => GroupReplyModeEnum::NEVER->value,
+            GroupMentionService::OWN_LID_KEY => self::OWN_LID,
+            'agent_id' => $this->groupAgent->getId(),
+        ];
+        $receiver->saveOrFail();
+
+        $result = $this->ingestAt(0, $this->groupText('Alex Rivera'));
+        $headId = $result['result']['messages'][0]['message_id'];
+        $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
+
+        new FlushMessageBurstJob(
+            app(Apps::class),
+            $channel,
+            $headId,
+            (string) Cache::get(FlushMessageBurstJob::cacheKey($headId)),
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $receiver->getId()]
+        )->handle();
+
+        $this->assertArrayNotHasKey(GroupConfigEnum::GROUP_AGENT_ID->value, $receiver->configuration);
+        $this->assertSame(1, $this->agentReplyCount($channel));
     }
 
     /**
@@ -750,7 +785,7 @@ final class WaSenderBurstTest extends TestCase
             ],
         ]);
 
-        return new ProcessWaSenderWebhookJob($webhookCall)->execute();
+        return new WaSenderWebhookJob($webhookCall)->execute();
     }
 
     private ?ReceiverWebhook $receiver = null;
@@ -765,9 +800,11 @@ final class WaSenderBurstTest extends TestCase
         /** @var Users $user */
         $user = auth()->user();
 
+        // The catalog row CI seeds before the run: a row for the test stub would be inserted by every
+        // test in every parallel process, and those inserts deadlock on the unique model name.
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
+            ['model_name' => ProcessCommunicationWebhookJob::class],
+            ['name' => 'ProcessCommunicationWebhookJob'],
         );
 
         return $this->receiver = ReceiverWebhook::factory()

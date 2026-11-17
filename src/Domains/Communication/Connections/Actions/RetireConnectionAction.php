@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Connections\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\DataTransferObject\OwnedResource;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Jobs\RunConnectionCleanupJob;
@@ -12,9 +13,10 @@ use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\CleanupTask;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Services\SharedRegistry;
+use Kanvas\Communication\Support\ProviderRegistry;
 
 /**
- * Phase A of a disconnect: everything that can be decided without the vendor, in one transaction.
+ * The first half of a disconnect: everything that can be decided without the vendor, in one transaction.
  * The vendor calls cannot be part of it, so they are written down as cleanup tasks and run by
  * {@see RunConnectionCleanupJob} — a worker that dies halfway leaves the work on record, and the
  * number stays claimed until it is done.
@@ -52,7 +54,7 @@ final class RetireConnectionAction
         });
 
         DB::connection('workflow')->afterCommit(
-            fn () => RunConnectionCleanupJob::dispatch($this->connection->app, $this->connection)
+            fn () => RunConnectionCleanupJob::dispatch($this->connection)
         );
 
         return $this->connection;
@@ -60,13 +62,21 @@ final class RetireConnectionAction
 
     /**
      * The disconnect intent, kept on the integration so no sweep provisions the account again while
-     * it is still listed there. Only saving the integration with the account selected brings it back.
+     * the provider still lists it; saving the integration with the account selected brings it back.
+     * An account the provider no longer lists is not remembered, or giving it back (the same number
+     * to an agent, the same mailbox) would never make a connection again.
      */
     private function retireAccountOnIntegration(): void
     {
         $integrationCompany = $this->connection->integrationCompany;
+        $provider = $integrationCompany !== null ? new ProviderRegistry()->forIntegration($integrationCompany) : null;
 
-        if ($integrationCompany === null) {
+        $stillListed = $provider !== null && array_any(
+            $provider::accounts($integrationCompany),
+            fn (AccountSelection $account): bool => $account->key === $this->connection->account_key
+        );
+
+        if (! $stillListed) {
             return;
         }
 
@@ -111,7 +121,7 @@ final class RetireConnectionAction
     {
         $replacement = Connection::query()
             ->live()
-            ->where('integrations_company_id', $this->connection->integrations_company_id)
+            ->ofIntegration((int) $this->connection->integrations_company_id)
             ->whereKeyNot($this->connection->getKey())
             ->orderBy('account_key')
             ->first();

@@ -16,7 +16,7 @@ use Throwable;
 
 final class FakeTransport implements Transport
 {
-    /** @var list<array{delivery_id: int, to: string|null, text: string}> */
+    /** @var list<array{delivery_id: int, to: string|null, text: string, content: Content}> */
     public array $sent = [];
 
     public ?TransportResult $sendResult = null;
@@ -29,6 +29,7 @@ final class FakeTransport implements Transport
             'delivery_id' => $delivery->getId(),
             'to' => $delivery->to_address,
             'text' => $content->text,
+            'content' => $content,
         ];
 
         if ($this->sendException !== null) {

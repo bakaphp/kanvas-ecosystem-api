@@ -7,13 +7,14 @@ namespace Kanvas\Connectors\Mailgun\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Kanvas\Communication\Communication;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Workflow\Models\ReceiverWebhook;
 
 /**
  * Read side of an agent's mailbox — everything that needs to know "does this agent have an email
@@ -52,10 +53,9 @@ class AgentMailboxService
 
     public function isConfiguredFor(Agent $agent): bool
     {
-        $signingKey = (string) ($agent->company->get(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value)
-            ?: $agent->app->get(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value));
-
-        if (Client::apiKeyFor($agent->app) === '' || $signingKey === '') {
+        if (Client::apiKeyFor($agent->app) === ''
+            || ConfigurationEnum::signingKeyFor($agent->app, $agent->company) === ''
+        ) {
             return false;
         }
 
@@ -74,6 +74,11 @@ class AgentMailboxService
             ?? MailboxAccessEnum::RESTRICTED;
     }
 
+    public function domainFor(Agent $agent): string
+    {
+        return $this->domainForTenant($agent->app, $agent->company);
+    }
+
     /**
      * Company config wins over app config: one Mailgun account can serve many tenants, each on its
      * own sending domain, and the address an agent hands out has to be its own company's.
@@ -83,25 +88,10 @@ class AgentMailboxService
      * be the same value in N places. It is deliberately last: the moment a tenant is given its own
      * sending domain, that setting takes over and its agents move with it.
      */
-    public function domainFor(Agent $agent): string
-    {
-        return $this->domainForTenant($agent->app, $agent->company);
-    }
-
-    /**
-     * The same question asked without an agent in hand — anything resolving the sending domain for
-     * a company at large (webhook setup, a tenant-wide outbound send) needs this without pulling in
-     * an Agent that may not exist yet.
-     *
-     * Company config wins over app config: one Mailgun account can serve many tenants, each on its
-     * own sending domain. `services.mailgun.domain` is the last resort, for the single-domain install
-     * where the platform already sends all its mail through one Mailgun domain and copying it onto
-     * every company would be the same value in N places.
-     */
     public function domainForTenant(AppInterface $app, CompanyInterface $company): string
     {
-        // `?:` not `??`, matching the signing key above: a setting cleared to '' in the UI is absent,
-        // and `??` would keep the blank, skip both fallbacks and report nothing configured.
+        // `?:` not `??`: a setting cleared to '' in the UI is absent, and `??` would keep the blank,
+        // skip both fallbacks and report nothing configured.
         $domain = strtolower(trim((string) (
             $company->get(ConfigurationEnum::DOMAIN->value)
             ?: $app->get(ConfigurationEnum::DOMAIN->value)
@@ -137,7 +127,10 @@ class AgentMailboxService
     public function proposedAddressFor(Agent $agent): string
     {
         $domain = $this->domainFor($agent);
-        $current = $this->addressFor($agent);
+        // Only a mailbox of its own is kept. The company's address an agent answers is not the
+        // agent's: given a mailbox, it gets one named after it and the company line goes back to
+        // being nobody's.
+        $current = $this->accessFor($agent)->isPersonal() ? $this->addressFor($agent) : null;
 
         if ($current !== null && str_ends_with($current, '@' . $domain)) {
             return $current;
@@ -163,7 +156,10 @@ class AgentMailboxService
     }
 
     /**
-     * @return array{address: string, access: string, route_id: string, receiver_url: string, contact_email_set: bool}|null
+     * The route belongs to the mailbox's connection; `route_id` and `receiver_url` are read off it
+     * for clients that show them.
+     *
+     * @return array{address: string, access: string, route_id: string, receiver_url: string, connected: bool, contact_email_set: bool}|null
      *         null when the agent has no mailbox
      */
     public function statusFor(Agent $agent): ?array
@@ -174,14 +170,16 @@ class AgentMailboxService
             return null;
         }
 
-        $receiverId = $agent->get(CustomFieldEnum::RECEIVER_ID->value);
-        $receiver = $receiverId !== null ? ReceiverWebhook::getById((int) $receiverId, $agent->app) : null;
+        $connection = Communication::for($agent->app, $agent->company)
+            ->connectionFor(ChannelTypeEnum::EMAIL, fromAccount: $address);
+        $route = collect($connection?->provisioning['owned'] ?? [])->first();
 
         return [
             'address' => $address,
             'access' => $this->accessFor($agent)->value,
-            'route_id' => (string) ($agent->get(CustomFieldEnum::ROUTE_ID->value) ?? ''),
-            'receiver_url' => (string) $receiver?->getUrl(),
+            'route_id' => (string) ($route['external_id'] ?? ''),
+            'receiver_url' => (string) ($route['expected_value'] ?? ''),
+            'connected' => $connection !== null && $connection->unavailableReason() === null,
             'contact_email_set' => strtolower(trim((string) $agent->user->get('contact_email'))) === $address,
         ];
     }
@@ -200,20 +198,27 @@ class AgentMailboxService
         );
     }
 
-    /**
-     * The same question asked without an agent in hand — anything wiring a shared address needs to know
-     * whether it is about to take an agent's personal inbox out from under it.
-     */
     public function agentAtAddressIn(AppInterface $app, CompanyInterface $company, string $address): ?Agent
     {
-        return $this->lookupAgentAtAddress($app, $company, $address, null);
+        return $this->lookupAgentAtAddress($app, $company, $address);
+    }
+
+    /**
+     * The agent whose own mailbox the address is. Null for the company's customer line, even when
+     * an agent answers it.
+     */
+    public function personalOwnerAt(AppInterface $app, CompanyInterface $company, string $address): ?Agent
+    {
+        $agent = $this->agentAtAddressIn($app, $company, $address);
+
+        return $agent !== null && $this->accessFor($agent)->isPersonal() ? $agent : null;
     }
 
     private function lookupAgentAtAddress(
         AppInterface $app,
         CompanyInterface $company,
         string $address,
-        ?int $excludeAgentId,
+        ?int $excludeAgentId = null,
     ): ?Agent {
         $query = Agent::getByCustomFieldBuilderTransactionSafe(
             CustomFieldEnum::MAILBOX_ADDRESS->value,

@@ -22,6 +22,8 @@ use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
  */
 trait BuildsSyncRules
 {
+    use CataloguesStubActivities;
+
     /**
      * @param list<array{0: string, 1: string, 2: mixed}> $conditions attribute, operator, value; joined with `and`.
      *                                                                 None keeps the factory pattern `1`, which matches
