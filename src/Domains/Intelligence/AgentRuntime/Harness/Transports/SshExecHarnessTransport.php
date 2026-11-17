@@ -44,7 +44,15 @@ class SshExecHarnessTransport implements HarnessTransport
         ?array $body = null,
         int $timeout = 30
     ): array {
-        $client = $this->openSshClient();
+        // A connection that drops is a transport failure like any other. Escaping as the machine's own
+        // exception, it skipped every caller's transport handling and killed the chat's watch job.
+        try {
+            $client = $this->openSshClient();
+        } catch (Throwable $e) {
+            throw new HarnessTransportException(
+                'Harness request failed (' . $method . ' ' . $path . ') over ssh: ' . $e->getMessage()
+            );
+        }
 
         try {
             $raw = $client->exec(
