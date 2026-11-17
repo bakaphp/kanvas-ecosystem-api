@@ -45,6 +45,13 @@ class EventVersionParticipantMutation
         }
 
         $evp->saveOrFail();
+
+        // A metadata edit is how a booking is confirmed (the site's $0 RSVP flips `state`), and
+        // nothing else fires for it.
+        if ($evp->wasChanged('metadata')) {
+            $evp->fireEventVersionWorkflow('participant-updated');
+        }
+
         $evp->refresh();
 
         return $evp;

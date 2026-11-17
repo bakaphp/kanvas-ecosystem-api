@@ -43,6 +43,7 @@ final class GetShippingQuotesActionTest extends TestCase
     protected $connectionsToTransact = [null, 'workflow', 'ecosystem', 'commerce'];
 
     public static array $quotesByProvider = [];
+    public static array $unsupportedProviders = [];
     public static array $callsByCompany = [];
     public static bool $failingProviderIsDown = false;
 
@@ -51,6 +52,7 @@ final class GetShippingQuotesActionTest extends TestCase
         parent::setUp();
 
         self::$quotesByProvider = [];
+        self::$unsupportedProviders = [];
         self::$callsByCompany = [];
         self::$failingProviderIsDown = false;
         Cache::flush();
@@ -136,15 +138,12 @@ final class GetShippingQuotesActionTest extends TestCase
         $this->assertFreeQuote($quotes);
     }
 
-    public function testQuotesOnlyInAnotherCurrencyFallBackToFreeInTheRegionCurrency(): void
+    public function testQuotesOnlyInAnotherCurrencyGetNoFreeDefault(): void
     {
         $company = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0, 'USD')];
 
-        $quotes = $this->quotesFor($company, 0.5);
-
-        $this->assertFreeQuote($quotes);
-        $this->assertSame('DOP', $quotes[0]->currency);
+        $this->assertSame([], $this->quotesFor($company, 0.5));
     }
 
     public function testAProviderQuoteReplacesTheFreeDefault(): void
@@ -257,6 +256,18 @@ final class GetShippingQuotesActionTest extends TestCase
         $this->quotesFor($company, 0.8);
 
         $this->assertSame(2, self::$callsByCompany[$company->getId()]);
+    }
+
+    public function testACachedQuoteIsNotServedToARequestTheProviderNoLongerSupports(): void
+    {
+        $company = $this->companyWithApiIntegration();
+        self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
+
+        $this->assertContains('fake-a', array_map(fn (ShippingQuote $quote): string => $quote->provider, $this->quotesFor($company, 0.5)));
+
+        self::$unsupportedProviders = ['fake-a'];
+
+        $this->assertNotContains('fake-a', array_map(fn (ShippingQuote $quote): string => $quote->provider, $this->quotesFor($company, 0.5)));
     }
 
     private function quotesFor(Companies $company, float $weight): array
@@ -421,7 +432,7 @@ final class GetShippingQuotesActionTest extends TestCase
 
             public function supports(ShipmentRequest $request): bool
             {
-                return true;
+                return ! in_array($this->name, GetShippingQuotesActionTest::$unsupportedProviders, true);
             }
 
             public function quote(ShipmentRequest $request): array

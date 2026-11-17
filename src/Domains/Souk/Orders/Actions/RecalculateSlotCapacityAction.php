@@ -17,7 +17,7 @@ class RecalculateSlotCapacityAction
 
     public function execute(): void
     {
-        if (count($this->order->items) === 0 || $this->order->parent_id) {
+        if (count($this->order->items) === 0 || $this->order->parent_id || $this->order->isEventBacked()) {
             return;
         }
 

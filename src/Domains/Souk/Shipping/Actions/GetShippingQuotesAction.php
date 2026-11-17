@@ -38,13 +38,14 @@ class GetShippingQuotesAction
             return [];
         }
 
+        $providerQuotes = $this->quoteProviders();
         $quotes = array_values(array_filter(
-            $this->quoteProviders(),
+            $providerQuotes,
             fn (ShippingQuote $quote): bool => strcasecmp(trim($quote->currency), $currency) === 0
         ));
 
         if ($quotes === []) {
-            return $this->aProviderFailed ? [] : [ShippingQuote::free($currency)];
+            return $this->aProviderFailed || $providerQuotes !== [] ? [] : [ShippingQuote::free($currency)];
         }
 
         usort($quotes, fn (ShippingQuote $a, ShippingQuote $b): int => $a->amount <=> $b->amount);
@@ -68,6 +69,10 @@ class GetShippingQuotesAction
         try {
             if ($provider->integration() === null) {
                 return $provider->quote($request);
+            }
+
+            if (! $provider->supports($request)) {
+                return [];
             }
 
             $cached = Cache::remember(

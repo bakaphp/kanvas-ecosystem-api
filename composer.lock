@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ac5890df299ce61f4799a31eabfa5344",
+    "content-hash": "9fcdd798f7be040d2a37f70d10f0e633",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2274,16 +2274,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.465.1",
+            "version": "v0.466.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "637e740b0f2d00b52fc285717d79437729bce897"
+                "reference": "a5893e53f50b16b78684a99957e1a2880396f576"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/637e740b0f2d00b52fc285717d79437729bce897",
-                "reference": "637e740b0f2d00b52fc285717d79437729bce897",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/a5893e53f50b16b78684a99957e1a2880396f576",
+                "reference": "a5893e53f50b16b78684a99957e1a2880396f576",
                 "shasum": ""
             },
             "require": {
@@ -2312,9 +2312,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.465.1"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.466.0"
             },
-            "time": "2026-11-02T01:04:15+00:00"
+            "time": "2026-11-09T01:08:14+00:00"
         },
         {
             "name": "google/auth",
@@ -11521,16 +11521,16 @@
         },
         {
             "name": "ryanwinchester/netsuite-php",
-            "version": "v2024.2.0",
+            "version": "v2025.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/netsuitephp/netsuite-php.git",
-                "reference": "07e6089de7f4c02ce2bd529a48bbd8e727965b56"
+                "reference": "9d5da9cb4f2dc081c02d6808e559dbb759bcf13f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netsuitephp/netsuite-php/zipball/07e6089de7f4c02ce2bd529a48bbd8e727965b56",
-                "reference": "07e6089de7f4c02ce2bd529a48bbd8e727965b56",
+                "url": "https://api.github.com/repos/netsuitephp/netsuite-php/zipball/9d5da9cb4f2dc081c02d6808e559dbb759bcf13f",
+                "reference": "9d5da9cb4f2dc081c02d6808e559dbb759bcf13f",
                 "shasum": ""
             },
             "require": {
@@ -11577,9 +11577,9 @@
             ],
             "support": {
                 "issues": "https://github.com/netsuitephp/netsuite-php/issues",
-                "source": "https://github.com/netsuitephp/netsuite-php/tree/v2024.2.0"
+                "source": "https://github.com/netsuitephp/netsuite-php/tree/v2025.2.0"
             },
-            "time": "2025-01-24T17:51:40+00:00"
+            "time": "2026-03-26T17:26:58+00:00"
         },
         {
             "name": "sentry/sentry",

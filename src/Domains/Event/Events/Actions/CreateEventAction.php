@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
@@ -16,6 +17,7 @@ use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
+use Kanvas\Event\Passes\Enums\PassFormatEnum;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -24,18 +26,27 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Actions\CancelOrderAction;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
+use Kanvas\Souk\Orders\Actions\ResolveEventBookingOrderTypeAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 class CreateEventAction
 {
     protected bool $runWorkflow = true;
     protected bool $sendNotifications = true;
+    protected ?Closure $bookingClaim = null;
+    protected bool $freeBooking = false;
+    protected ?ModelsOrder $createdOrder = null;
 
     public function __construct(
         protected Event $event,
@@ -48,7 +59,31 @@ class CreateEventAction
         // Validate time slot availability
         $this->validateTimeSlotAvailability();
 
-        $event = DB::connection('event')->transaction(function () {
+        try {
+            $event = $this->createEventInTransaction();
+        } catch (Throwable $exception) {
+            $this->cancelCreatedOrder();
+
+            throw $exception;
+        }
+
+        if ($this->runWorkflow) {
+            $event->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->event->app,
+                    'company' => $this->event->company,
+                ]
+            );
+        }
+
+        return $event;
+    }
+
+    protected function createEventInTransaction(): ModelsEvent
+    {
+        return DB::connection('event')->transaction(function () {
             $slug = $this->event->slug ?? Str::slug($this->event->name);
             //Slug no attached to the event type id , idk why
             $slug = $slug . '-' . $this->event->type->getId();
@@ -117,41 +152,46 @@ class CreateEventAction
                 $createParticipant->execute();
             }
 
-            $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
-            $orderCreated = false;
-            if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
-                $this->createEventOrder(
-                    $eventVersion,
-                    $this->event->orderItems
-                );
-                $orderCreated = true;
+            if ($this->bookingClaim !== null) {
+                ($this->bookingClaim)($eventVersion);
             }
 
-            // Store additional resources in pivot table
+            $bookingOrderType = $this->resolveBookingOrderType($event);
+            $orderRequested = ($this->metadata['create_order'] ?? null) == '1';
+            $shouldCreateOrder = $orderRequested || $bookingOrderType !== null;
+            $orderCreated = (bool) $event->resources_id && ! $event->orders->count() && $shouldCreateOrder;
+
             if (count($this->event->resources)) {
                 $this->storeEventResources($event, $this->event->resources);
             }
 
             $participants = $eventVersion->participants;
+            $codes = [];
 
-            // Bookings that create an order are paid flows: passes + the BOOKING_CREATED email
-            // are deferred to ActivateBookingOnPaymentActivity (after-payment-intent). Free
-            // bookings (no order) still issue passes and notify immediately on creation.
-            if (! $participants->isEmpty() && ! $orderCreated) {
+            if (! $participants->isEmpty() && (! $orderCreated || $this->freeBooking)) {
                 $codes = new CreatePassAction(
-                    $eventVersion->event,
-                    $eventVersion
+                    event: $eventVersion->event,
+                    eventVersion: $eventVersion,
+                    format: $this->freeBooking ? PassFormatEnum::QR_CODE : PassFormatEnum::NUMERIC_PIN
                 )->forAllParticipants();
+            }
 
-                if ($this->sendNotifications) {
-                    new SendEventEmailsAction(
-                        $eventVersion,
-                        EmailTemplateEnum::BOOKING_CREATED->value,
-                        [
-                            'codes' => $codes,
-                        ]
-                    )->execute();
-                }
+            if ($orderCreated) {
+                $this->createdOrder = $this->createEventOrder(
+                    $eventVersion,
+                    $this->event->orderItems,
+                    $bookingOrderType
+                );
+            }
+
+            if ($codes !== [] && $this->sendNotifications) {
+                new SendEventEmailsAction(
+                    $eventVersion,
+                    EmailTemplateEnum::BOOKING_CREATED->value,
+                    [
+                        'codes' => $codes,
+                    ]
+                )->execute();
             }
 
             if ($this->sendNotifications) {
@@ -160,24 +200,19 @@ class CreateEventAction
 
             return $event;
         });
-
-        if ($this->runWorkflow) {
-            $event->fireWorkflow(
-                WorkflowEnum::CREATED->value,
-                true,
-                [
-                    'app' => $this->event->app,
-                    'company' => $this->event->company,
-                ]
-            );
-        }
-
-        return $event;
     }
 
     public function disableWorkflow(): self
     {
         $this->runWorkflow = false;
+
+        return $this;
+    }
+
+    public function claimingBookingWith(Closure $claim): self
+    {
+        $this->bookingClaim = $claim;
+        $this->freeBooking = true;
 
         return $this;
     }
@@ -228,12 +263,33 @@ class CreateEventAction
         return $baseSlug . '-' . $counter;
     }
 
-    protected function createEventOrder(ModelsEventVersion $eventVersion, array $orderItemsData = []): void
+    protected function resolveBookingOrderType(ModelsEvent $event): ?OrderTypes
     {
+        return new ResolveEventBookingOrderTypeAction(
+            $event->app,
+            $event->company,
+            $event->resource
+        )->execute();
+    }
+
+    protected function cancelCreatedOrder(): void
+    {
+        if ($this->createdOrder === null) {
+            return;
+        }
+
+        new CancelOrderAction($this->createdOrder, $this->event->user)->execute();
+    }
+
+    protected function createEventOrder(
+        ModelsEventVersion $eventVersion,
+        array $orderItemsData = [],
+        ?OrderTypes $bookingOrderType = null
+    ): ?ModelsOrder {
         $variant = $eventVersion->event->resource;
 
         if (! $variant) {
-            return;
+            return null;
         }
 
         $orderItemsCollection = [];
@@ -252,7 +308,7 @@ class CreateEventAction
                     name: $itemData['name'],
                     sku: $itemVariant->sku,
                     quantity: $itemData['quantity'],
-                    price: (float) ($itemData['price'] ?? 0.0),
+                    price: $this->freeBooking ? 0.0 : (float) ($itemData['price'] ?? 0.0),
                     tax: 0,
                     discount: 0.0,
                     currency: $currency,
@@ -264,7 +320,9 @@ class CreateEventAction
                 $total += $orderItem->getTotal();
             }
         } else {
-            $price = $eventVersion->metadata['price'] ?? $eventVersion->event->resource->price;
+            $price = $this->freeBooking
+                ? 0
+                : ($eventVersion->metadata['price'] ?? $eventVersion->event->resource->price);
 
             $orderItem = new OrderItem(
                 app: $eventVersion->event->app,
@@ -318,12 +376,14 @@ class CreateEventAction
             'people' => $people,
             'user' => $event->user,
             'orderNumber' => '',
-            'orderType' => 'event',
+            'orderType' => $bookingOrderType?->name ?? 'event',
+            'metadata' => $bookingOrderType === null ? null : $this->bookingOrderMetadata($eventVersion),
             'total' => (float) $total,
             'taxes' => 0.0,
             'totalDiscount' => 0.0,
             'totalShipping' => 0.0,
             'status' => OrderStatusEnum::COMPLETED->value,
+            'fulfillmentStatus' => $bookingOrderType === null ? null : OrderFulfillmentStatusEnum::PENDING->value,
             'checkoutToken' => '',
             'currency' => $orderCurrency,
             'items' => $items,
@@ -331,11 +391,43 @@ class CreateEventAction
 
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
+        $action->skipVariantCapacityCheck();
         $kanvasOrder = $action->execute();
 
         $kanvasOrder->resources_id = $event->id;
         $kanvasOrder->resources_type = $event->getMorphClass();
         $kanvasOrder->saveQuietly();
+
+        if ($bookingOrderType !== null && $this->runWorkflow) {
+            $kanvasOrder->fireWorkflowAfterCommit(
+                WorkflowEnum::CREATED->value,
+                ['app' => $event->app]
+            );
+        }
+
+        return $kanvasOrder;
+    }
+
+    protected function bookingOrderMetadata(ModelsEventVersion $eventVersion): array
+    {
+        $timezone = $eventVersion->event->app->get('timezone') ?: config('app.timezone');
+        $vehicleVariantId = $this->metadata['variants_ids']['vehicle_variant_id'] ?? null;
+
+        return [
+            'data' => array_filter([
+                'start_at' => $eventVersion->start_at?->copy()->setTimezone($timezone)->format('Y-m-d H:i'),
+                'end_at' => $eventVersion->end_at?->copy()->setTimezone($timezone)->format('Y-m-d H:i'),
+                'arrival_hour' => $this->metadata['arrival_hour'] ?? null,
+                'vehiclePlate' => $this->metadata['vehiclePlate'] ?? null,
+                'vehicleBrand' => $this->metadata['vehicleBrand'] ?? null,
+                'vehicleColor' => $this->metadata['vehicleColor'] ?? null,
+                'terms_and_conditions' => $this->metadata['terms_and_conditions'] ?? null,
+                'variants_ids' => array_filter([
+                    'parking_variant_id' => $eventVersion->event->resource?->getId(),
+                    'vehicle_variant_id' => $vehicleVariantId !== null ? (int) $vehicleVariantId : null,
+                ]),
+            ], fn ($value) => $value !== null && $value !== []),
+        ];
     }
 
     protected function storeEventResources(ModelsEvent $event, array $resources): void

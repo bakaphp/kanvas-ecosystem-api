@@ -22,14 +22,20 @@ class Client
 {
     protected ConnectionInterface $connection;
 
+    public static function isConfigured(AppInterface $app): bool
+    {
+        return (bool) $app->get(ConfigurationEnum::BRUSHCRAZY_DB_HOST->value)
+            && (bool) $app->get(ConfigurationEnum::BRUSHCRAZY_DB_DATABASE->value);
+    }
+
     public function __construct(AppInterface $app)
     {
-        $host = $app->get(ConfigurationEnum::BRUSHCRAZY_DB_HOST->value);
-        $database = $app->get(ConfigurationEnum::BRUSHCRAZY_DB_DATABASE->value);
-
-        if (! $host || ! $database) {
+        if (! self::isConfigured($app)) {
             throw new ValidationException('BrushCrazy database configuration is missing. Run the BrushCrazy connector setup first.');
         }
+
+        $host = $app->get(ConfigurationEnum::BRUSHCRAZY_DB_HOST->value);
+        $database = $app->get(ConfigurationEnum::BRUSHCRAZY_DB_DATABASE->value);
 
         // Named per app so two tenants pointing at different BrushCrazy databases can't share
         // (and clobber) one connection entry.

@@ -17,6 +17,7 @@ use Kanvas\Souk\Taxes\Jobs\ReverseTaxTransactionJob;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Taxes\Models\TaxOperation;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * @property int $apps_id
@@ -95,6 +96,16 @@ class PaymentRefund extends BaseModel
         ], actor: $this->user);
 
         $this->dispatchTaxReversal($payment);
+
+        // Partial refunds change no status, so this is the one event a connector can hang on to
+        // hear about every completed refund.
+        if ($payment->payable !== null && method_exists($payment->payable, 'fireWorkflowAfterCommit')) {
+            $payment->payable->fireWorkflowAfterCommit(WorkflowEnum::AFTER_REFUND->value, [
+                'app' => $this->app,
+                'company' => $this->company,
+                'payment_refund_id' => $this->getId(),
+            ]);
+        }
     }
 
     private function dispatchTaxReversal(Payments $payment): void

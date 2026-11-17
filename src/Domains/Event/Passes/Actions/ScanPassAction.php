@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Event\Passes\Actions;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Support\Facades\Hash;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
@@ -23,22 +22,13 @@ class ScanPassAction
 
     public function execute(): ParticipantPass
     {
-        $lookup = new GenerateLookupAction(
+        $pass = new FindPassByCodeAction(
             $this->apps,
             $this->company,
             $this->pin
         )->execute();
 
-        $pass = ParticipantPass::where('pin_lookup', $lookup)
-            ->fromApp($this->apps)
-            ->fromCompany($this->company)
-            ->first();
-
         if (! $pass) {
-            throw new ValidationException('Invalid PIN code.');
-        }
-
-        if (! Hash::check($this->pin, $pass->pin_hash)) {
             throw new ValidationException('Invalid PIN code.');
         }
 

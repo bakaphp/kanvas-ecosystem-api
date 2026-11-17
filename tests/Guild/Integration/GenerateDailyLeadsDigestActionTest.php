@@ -167,13 +167,15 @@ final class GenerateDailyLeadsDigestActionTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $company->set(ConfigurationEnum::DAILY_LEADS_DIGEST_SUMMARY_FIELDS->value, 'vehicle_of_interest');
+        // Well inside the one-hour window: a lead dated exactly an hour back falls out of it as
+        // soon as the clock ticks before the digest runs.
         $withVehicle = Lead::factory()
             ->withAppAndCompany($app->getId(), $company->getId())
-            ->create(['created_at' => now()->subHour()]);
+            ->create(['created_at' => now()->subMinutes(30)]);
         $withVehicle->set('vehicle_of_interest', ['make' => 'Toyota', 'model' => 'Corolla', 'yearFrom' => 2022]);
         Lead::factory()
             ->withAppAndCompany($app->getId(), $company->getId())
-            ->create(['created_at' => now()->subHour()]);
+            ->create(['created_at' => now()->subMinutes(30)]);
 
         $result = new GenerateDailyLeadsDigestAction($app, collect([$company]), 1)->execute(dryRun: true);
 

@@ -49,9 +49,9 @@
     "services": {
       "ems": {
         "name": "EMS",
-        "currency": "DOP",
+        "currency": "USD",
         "weight_unit": "kg",
-        "fixed_charge": 320,
+        "fixed_charge": 5.33,
         "zones": {
           "america": {
             "transit_min_days": 7,
@@ -59,243 +59,243 @@
             "rates": [
               {
                 "max_weight": 0.5,
-                "amount": 2500
+                "amount": 41.67
               },
               {
                 "max_weight": 1,
-                "amount": 2750
+                "amount": 45.84
               },
               {
                 "max_weight": 1.5,
-                "amount": 3000
+                "amount": 50
               },
               {
                 "max_weight": 2,
-                "amount": 3250
+                "amount": 54.17
               },
               {
                 "max_weight": 2.5,
-                "amount": 3500
+                "amount": 58.34
               },
               {
                 "max_weight": 3,
-                "amount": 3750
+                "amount": 62.5
               },
               {
                 "max_weight": 3.5,
-                "amount": 3900
+                "amount": 65
               },
               {
                 "max_weight": 4,
-                "amount": 4100
+                "amount": 68.34
               },
               {
                 "max_weight": 4.5,
-                "amount": 4400
+                "amount": 73.34
               },
               {
                 "max_weight": 5,
-                "amount": 4650
+                "amount": 77.5
               },
               {
                 "max_weight": 5.5,
-                "amount": 4900
+                "amount": 81.67
               },
               {
                 "max_weight": 6,
-                "amount": 5050
+                "amount": 84.17
               },
               {
                 "max_weight": 6.5,
-                "amount": 5250
+                "amount": 87.5
               },
               {
                 "max_weight": 7,
-                "amount": 5500
+                "amount": 91.67
               },
               {
                 "max_weight": 7.5,
-                "amount": 5750
+                "amount": 95.84
               },
               {
                 "max_weight": 8,
-                "amount": 5950
+                "amount": 99.17
               },
               {
                 "max_weight": 8.5,
-                "amount": 6200
+                "amount": 103.34
               },
               {
                 "max_weight": 9,
-                "amount": 6400
+                "amount": 106.67
               },
               {
                 "max_weight": 9.5,
-                "amount": 6600
+                "amount": 110
               },
               {
                 "max_weight": 10,
-                "amount": 6900
+                "amount": 115
               },
               {
                 "max_weight": 10.5,
-                "amount": 7100
+                "amount": 118.34
               },
               {
                 "max_weight": 11,
-                "amount": 7300
+                "amount": 121.67
               },
               {
                 "max_weight": 11.5,
-                "amount": 7550
+                "amount": 125.84
               },
               {
                 "max_weight": 12,
-                "amount": 7750
+                "amount": 129.17
               },
               {
                 "max_weight": 12.5,
-                "amount": 8000
+                "amount": 133.34
               },
               {
                 "max_weight": 13,
-                "amount": 8250
+                "amount": 137.5
               },
               {
                 "max_weight": 13.5,
-                "amount": 8450
+                "amount": 140.84
               },
               {
                 "max_weight": 14,
-                "amount": 8700
+                "amount": 145
               },
               {
                 "max_weight": 14.5,
-                "amount": 8950
+                "amount": 149.17
               },
               {
                 "max_weight": 15,
-                "amount": 9100
+                "amount": 151.67
               },
               {
                 "max_weight": 15.5,
-                "amount": 9400
+                "amount": 156.67
               },
               {
                 "max_weight": 16,
-                "amount": 9600
+                "amount": 160
               },
               {
                 "max_weight": 16.5,
-                "amount": 9800
+                "amount": 163.34
               },
               {
                 "max_weight": 17,
-                "amount": 10000
+                "amount": 166.67
               },
               {
                 "max_weight": 17.5,
-                "amount": 10250
+                "amount": 170.84
               },
               {
                 "max_weight": 18,
-                "amount": 10500
+                "amount": 175
               },
               {
                 "max_weight": 18.5,
-                "amount": 10700
+                "amount": 178.34
               },
               {
                 "max_weight": 19,
-                "amount": 10900
+                "amount": 181.67
               },
               {
                 "max_weight": 19.5,
-                "amount": 11100
+                "amount": 185
               },
               {
                 "max_weight": 20,
-                "amount": 11300
+                "amount": 188.34
               },
               {
                 "max_weight": 20.5,
-                "amount": 11600
+                "amount": 193.34
               },
               {
                 "max_weight": 21,
-                "amount": 11750
+                "amount": 195.84
               },
               {
                 "max_weight": 21.5,
-                "amount": 12000
+                "amount": 200
               },
               {
                 "max_weight": 22,
-                "amount": 12250
+                "amount": 204.17
               },
               {
                 "max_weight": 22.5,
-                "amount": 12450
+                "amount": 207.5
               },
               {
                 "max_weight": 23,
-                "amount": 12600
+                "amount": 210
               },
               {
                 "max_weight": 23.5,
-                "amount": 12900
+                "amount": 215
               },
               {
                 "max_weight": 24,
-                "amount": 13100
+                "amount": 218.34
               },
               {
                 "max_weight": 24.5,
-                "amount": 13300
+                "amount": 221.67
               },
               {
                 "max_weight": 25,
-                "amount": 13500
+                "amount": 225
               },
               {
                 "max_weight": 25.5,
-                "amount": 13750
+                "amount": 229.17
               },
               {
                 "max_weight": 26,
-                "amount": 14000
+                "amount": 233.34
               },
               {
                 "max_weight": 26.5,
-                "amount": 14200
+                "amount": 236.67
               },
               {
                 "max_weight": 27,
-                "amount": 14400
+                "amount": 240
               },
               {
                 "max_weight": 27.5,
-                "amount": 14600
+                "amount": 243.34
               },
               {
                 "max_weight": 28,
-                "amount": 15000
+                "amount": 250
               },
               {
                 "max_weight": 28.5,
-                "amount": 15150
+                "amount": 252.5
               },
               {
                 "max_weight": 29,
-                "amount": 15250
+                "amount": 254.17
               },
               {
                 "max_weight": 29.5,
-                "amount": 15500
+                "amount": 258.34
               },
               {
                 "max_weight": 30,
-                "amount": 15750
+                "amount": 262.5
               }
             ]
           },
@@ -305,243 +305,243 @@
             "rates": [
               {
                 "max_weight": 0.5,
-                "amount": 2900
+                "amount": 48.34
               },
               {
                 "max_weight": 1,
-                "amount": 3450
+                "amount": 57.5
               },
               {
                 "max_weight": 1.5,
-                "amount": 3750
+                "amount": 62.5
               },
               {
                 "max_weight": 2,
-                "amount": 4000
+                "amount": 66.67
               },
               {
                 "max_weight": 2.5,
-                "amount": 4300
+                "amount": 71.67
               },
               {
                 "max_weight": 3,
-                "amount": 4600
+                "amount": 76.67
               },
               {
                 "max_weight": 3.5,
-                "amount": 4900
+                "amount": 81.67
               },
               {
                 "max_weight": 4,
-                "amount": 5200
+                "amount": 86.67
               },
               {
                 "max_weight": 4.5,
-                "amount": 5500
+                "amount": 91.67
               },
               {
                 "max_weight": 5,
-                "amount": 5750
+                "amount": 95.84
               },
               {
                 "max_weight": 5.5,
-                "amount": 6100
+                "amount": 101.67
               },
               {
                 "max_weight": 6,
-                "amount": 6350
+                "amount": 105.84
               },
               {
                 "max_weight": 6.5,
-                "amount": 6650
+                "amount": 110.84
               },
               {
                 "max_weight": 7,
-                "amount": 6950
+                "amount": 115.84
               },
               {
                 "max_weight": 7.5,
-                "amount": 7250
+                "amount": 120.84
               },
               {
                 "max_weight": 8,
-                "amount": 7550
+                "amount": 125.84
               },
               {
                 "max_weight": 8.5,
-                "amount": 7800
+                "amount": 130
               },
               {
                 "max_weight": 9,
-                "amount": 8100
+                "amount": 135
               },
               {
                 "max_weight": 9.5,
-                "amount": 8400
+                "amount": 140
               },
               {
                 "max_weight": 10,
-                "amount": 8700
+                "amount": 145
               },
               {
                 "max_weight": 10.5,
-                "amount": 9000
+                "amount": 150
               },
               {
                 "max_weight": 11,
-                "amount": 9300
+                "amount": 155
               },
               {
                 "max_weight": 11.5,
-                "amount": 9600
+                "amount": 160
               },
               {
                 "max_weight": 12,
-                "amount": 9900
+                "amount": 165
               },
               {
                 "max_weight": 12.5,
-                "amount": 10150
+                "amount": 169.17
               },
               {
                 "max_weight": 13,
-                "amount": 10450
+                "amount": 174.17
               },
               {
                 "max_weight": 13.5,
-                "amount": 10750
+                "amount": 179.17
               },
               {
                 "max_weight": 14,
-                "amount": 11050
+                "amount": 184.17
               },
               {
                 "max_weight": 14.5,
-                "amount": 11350
+                "amount": 189.17
               },
               {
                 "max_weight": 15,
-                "amount": 11600
+                "amount": 193.34
               },
               {
                 "max_weight": 15.5,
-                "amount": 11900
+                "amount": 198.34
               },
               {
                 "max_weight": 16,
-                "amount": 12150
+                "amount": 202.5
               },
               {
                 "max_weight": 16.5,
-                "amount": 12400
+                "amount": 206.67
               },
               {
                 "max_weight": 17,
-                "amount": 12650
+                "amount": 210.84
               },
               {
                 "max_weight": 17.5,
-                "amount": 12900
+                "amount": 215
               },
               {
                 "max_weight": 18,
-                "amount": 13200
+                "amount": 220
               },
               {
                 "max_weight": 18.5,
-                "amount": 13450
+                "amount": 224.17
               },
               {
                 "max_weight": 19,
-                "amount": 13700
+                "amount": 228.34
               },
               {
                 "max_weight": 19.5,
-                "amount": 14000
+                "amount": 233.34
               },
               {
                 "max_weight": 20,
-                "amount": 14250
+                "amount": 237.5
               },
               {
                 "max_weight": 20.5,
-                "amount": 14500
+                "amount": 241.67
               },
               {
                 "max_weight": 21,
-                "amount": 14750
+                "amount": 245.84
               },
               {
                 "max_weight": 21.5,
-                "amount": 15000
+                "amount": 250
               },
               {
                 "max_weight": 22,
-                "amount": 15300
+                "amount": 255
               },
               {
                 "max_weight": 22.5,
-                "amount": 15500
+                "amount": 258.34
               },
               {
                 "max_weight": 23,
-                "amount": 15800
+                "amount": 263.34
               },
               {
                 "max_weight": 23.5,
-                "amount": 16000
+                "amount": 266.67
               },
               {
                 "max_weight": 24,
-                "amount": 16300
+                "amount": 271.67
               },
               {
                 "max_weight": 24.5,
-                "amount": 16600
+                "amount": 276.67
               },
               {
                 "max_weight": 25,
-                "amount": 16800
+                "amount": 280
               },
               {
                 "max_weight": 25.5,
-                "amount": 17100
+                "amount": 285
               },
               {
                 "max_weight": 26,
-                "amount": 17350
+                "amount": 289.17
               },
               {
                 "max_weight": 26.5,
-                "amount": 17600
+                "amount": 293.34
               },
               {
                 "max_weight": 27,
-                "amount": 17900
+                "amount": 298.34
               },
               {
                 "max_weight": 27.5,
-                "amount": 18100
+                "amount": 301.67
               },
               {
                 "max_weight": 28,
-                "amount": 18350
+                "amount": 305.84
               },
               {
                 "max_weight": 28.5,
-                "amount": 18650
+                "amount": 310.84
               },
               {
                 "max_weight": 29,
-                "amount": 18900
+                "amount": 315
               },
               {
                 "max_weight": 29.5,
-                "amount": 19200
+                "amount": 320
               },
               {
                 "max_weight": 30,
-                "amount": 19450
+                "amount": 324.17
               }
             ]
           },
@@ -551,243 +551,243 @@
             "rates": [
               {
                 "max_weight": 0.5,
-                "amount": 3500
+                "amount": 58.34
               },
               {
                 "max_weight": 1,
-                "amount": 3750
+                "amount": 62.5
               },
               {
                 "max_weight": 1.5,
-                "amount": 4150
+                "amount": 69.17
               },
               {
                 "max_weight": 2,
-                "amount": 4500
+                "amount": 75
               },
               {
                 "max_weight": 2.5,
-                "amount": 4750
+                "amount": 79.17
               },
               {
                 "max_weight": 3,
-                "amount": 5150
+                "amount": 85.84
               },
               {
                 "max_weight": 3.5,
-                "amount": 5500
+                "amount": 91.67
               },
               {
                 "max_weight": 4,
-                "amount": 5850
+                "amount": 97.5
               },
               {
                 "max_weight": 4.5,
-                "amount": 6250
+                "amount": 104.17
               },
               {
                 "max_weight": 5,
-                "amount": 6500
+                "amount": 108.34
               },
               {
                 "max_weight": 5.5,
-                "amount": 6900
+                "amount": 115
               },
               {
                 "max_weight": 6,
-                "amount": 7250
+                "amount": 120.84
               },
               {
                 "max_weight": 6.5,
-                "amount": 7500
+                "amount": 125
               },
               {
                 "max_weight": 7,
-                "amount": 7900
+                "amount": 131.67
               },
               {
                 "max_weight": 7.5,
-                "amount": 8250
+                "amount": 137.5
               },
               {
                 "max_weight": 8,
-                "amount": 8600
+                "amount": 143.34
               },
               {
                 "max_weight": 8.5,
-                "amount": 9000
+                "amount": 150
               },
               {
                 "max_weight": 9,
-                "amount": 9250
+                "amount": 154.17
               },
               {
                 "max_weight": 9.5,
-                "amount": 9600
+                "amount": 160
               },
               {
                 "max_weight": 10,
-                "amount": 10000
+                "amount": 166.67
               },
               {
                 "max_weight": 10.5,
-                "amount": 10400
+                "amount": 173.34
               },
               {
                 "max_weight": 11,
-                "amount": 10750
+                "amount": 179.17
               },
               {
                 "max_weight": 11.5,
-                "amount": 11000
+                "amount": 183.34
               },
               {
                 "max_weight": 12,
-                "amount": 11350
+                "amount": 189.17
               },
               {
                 "max_weight": 12.5,
-                "amount": 11400
+                "amount": 190
               },
               {
                 "max_weight": 13,
-                "amount": 12100
+                "amount": 201.67
               },
               {
                 "max_weight": 13.5,
-                "amount": 12350
+                "amount": 205.84
               },
               {
                 "max_weight": 14,
-                "amount": 12750
+                "amount": 212.5
               },
               {
                 "max_weight": 14.5,
-                "amount": 13150
+                "amount": 219.17
               },
               {
                 "max_weight": 15,
-                "amount": 13500
+                "amount": 225
               },
               {
                 "max_weight": 15.5,
-                "amount": 13750
+                "amount": 229.17
               },
               {
                 "max_weight": 16,
-                "amount": 14150
+                "amount": 235.84
               },
               {
                 "max_weight": 16.5,
-                "amount": 14400
+                "amount": 240
               },
               {
                 "max_weight": 17,
-                "amount": 14600
+                "amount": 243.34
               },
               {
                 "max_weight": 17.5,
-                "amount": 15100
+                "amount": 251.67
               },
               {
                 "max_weight": 18,
-                "amount": 15350
+                "amount": 255.84
               },
               {
                 "max_weight": 18.5,
-                "amount": 15600
+                "amount": 260
               },
               {
                 "max_weight": 19,
-                "amount": 15900
+                "amount": 265
               },
               {
                 "max_weight": 19.5,
-                "amount": 16250
+                "amount": 270.84
               },
               {
                 "max_weight": 20,
-                "amount": 16500
+                "amount": 275
               },
               {
                 "max_weight": 20.5,
-                "amount": 16900
+                "amount": 281.67
               },
               {
                 "max_weight": 21,
-                "amount": 17100
+                "amount": 285
               },
               {
                 "max_weight": 21.5,
-                "amount": 17400
+                "amount": 290
               },
               {
                 "max_weight": 22,
-                "amount": 17750
+                "amount": 295.84
               },
               {
                 "max_weight": 22.5,
-                "amount": 18000
+                "amount": 300
               },
               {
                 "max_weight": 23,
-                "amount": 18350
+                "amount": 305.84
               },
               {
                 "max_weight": 23.5,
-                "amount": 18500
+                "amount": 308.34
               },
               {
                 "max_weight": 24,
-                "amount": 19000
+                "amount": 316.67
               },
               {
                 "max_weight": 24.5,
-                "amount": 19250
+                "amount": 320.84
               },
               {
                 "max_weight": 25,
-                "amount": 19500
+                "amount": 325
               },
               {
                 "max_weight": 25.5,
-                "amount": 19850
+                "amount": 330.84
               },
               {
                 "max_weight": 26,
-                "amount": 20100
+                "amount": 335
               },
               {
                 "max_weight": 26.5,
-                "amount": 20500
+                "amount": 341.67
               },
               {
                 "max_weight": 27,
-                "amount": 20750
+                "amount": 345.84
               },
               {
                 "max_weight": 27.5,
-                "amount": 21000
+                "amount": 350
               },
               {
                 "max_weight": 28,
-                "amount": 21350
+                "amount": 355.84
               },
               {
                 "max_weight": 28.5,
-                "amount": 21650
+                "amount": 360.84
               },
               {
                 "max_weight": 29,
-                "amount": 21900
+                "amount": 365
               },
               {
                 "max_weight": 29.5,
-                "amount": 22250
+                "amount": 370.84
               },
               {
                 "max_weight": 30,
-                "amount": 22650
+                "amount": 377.5
               }
             ]
           }
@@ -795,9 +795,9 @@
       },
       "correo_certificado": {
         "name": "Correo Certificado",
-        "currency": "DOP",
+        "currency": "USD",
         "weight_unit": "kg",
-        "fixed_charge": 100,
+        "fixed_charge": 1.67,
         "zones": {
           "america": {
             "transit_min_days": 9,
@@ -805,19 +805,19 @@
             "rates": [
               {
                 "max_weight": 0.3,
-                "amount": 275
+                "amount": 4.58
               },
               {
                 "max_weight": 0.5,
-                "amount": 535
+                "amount": 8.91
               },
               {
                 "max_weight": 1,
-                "amount": 860
+                "amount": 14.33
               },
               {
                 "max_weight": 2,
-                "amount": 1410
+                "amount": 23.5
               }
             ]
           },
@@ -827,19 +827,19 @@
             "rates": [
               {
                 "max_weight": 0.3,
-                "amount": 350
+                "amount": 5.83
               },
               {
                 "max_weight": 0.5,
-                "amount": 700
+                "amount": 11.66
               },
               {
                 "max_weight": 1,
-                "amount": 1000
+                "amount": 16.66
               },
               {
                 "max_weight": 2,
-                "amount": 1700
+                "amount": 28.33
               }
             ]
           },
@@ -849,19 +849,19 @@
             "rates": [
               {
                 "max_weight": 0.3,
-                "amount": 400
+                "amount": 6.66
               },
               {
                 "max_weight": 0.5,
-                "amount": 775
+                "amount": 12.91
               },
               {
                 "max_weight": 1,
-                "amount": 1300
+                "amount": 21.66
               },
               {
                 "max_weight": 2,
-                "amount": 2500
+                "amount": 41.66
               }
             ]
           }

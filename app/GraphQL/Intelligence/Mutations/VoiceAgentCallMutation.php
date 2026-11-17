@@ -26,6 +26,6 @@ class VoiceAgentCallMutation
         $company = auth()->user()->getCurrentCompany();
         $agent = Agent::getByIdFromCompanyApp((int) $args['id'], $company, $app);
 
-        return new PlaceVoiceTestCallAction($agent, $app, $company, (string) $args['to_number'])->execute();
+        return new PlaceVoiceTestCallAction($agent, (string) $args['to_number'])->execute();
     }
 }
