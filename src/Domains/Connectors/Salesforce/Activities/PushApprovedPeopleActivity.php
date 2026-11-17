@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Salesforce\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Connectors\Salesforce\Actions\PullPropertyAction;
 use Kanvas\Connectors\Salesforce\Actions\PushPeopleAction;
 use Kanvas\Connectors\Salesforce\Actions\PushPropertyInterestAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
@@ -61,9 +62,11 @@ class PushApprovedPeopleActivity extends KanvasActivity implements WorkflowActiv
         $pushResult = new PushPeopleAction($people)->execute();
 
         $interestId = $approvalRequest->payload['lead_variant_interest_id'] ?? null;
-        $locationId = $interestId
-            ? LeadVariantInterest::find($interestId)?->variant?->product?->get(CustomFieldEnum::SALESFORCE_LOCATION_ID->value)
-            : null;
+        $variant = $interestId ? LeadVariantInterest::find($interestId)?->variant : null;
+        // A location is a variant of its project's product, so its Salesforce id lives in the
+        // variant SKU; the product custom field covers products that are a single location.
+        $locationId = PullPropertyAction::salesforceIdFromSku($variant?->sku)
+            ?? $variant?->product?->get(CustomFieldEnum::SALESFORCE_LOCATION_ID->value);
 
         if ($locationId) {
             new PushPropertyInterestAction($people, (string) $locationId)->execute();
