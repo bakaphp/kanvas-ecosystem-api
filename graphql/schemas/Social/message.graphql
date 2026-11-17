@@ -295,6 +295,40 @@ extend type Query @guard {
             scopes: ["fromApp", "notDeleted", "companyVisibility"]
         )
 
+    "Records written by the signed-in user only. Ownership is enforced on the server, so no filter here can widen it to a coworker's rows."
+    myMessages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "slug"
+                    "parent_id"
+                    "message_types_id"
+                    "is_public"
+                    "is_locked"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [Message!]!
+        @paginate(
+            model: "Kanvas\\Social\\Messages\\Models\\Message"
+            defaultCount: 25
+            scopes: ["fromApp", "fromCompany", "notDeleted", "companyVisibility", "fromUser"]
+        )
+
     forYouMessages(
         where: _
             @whereConditions(
