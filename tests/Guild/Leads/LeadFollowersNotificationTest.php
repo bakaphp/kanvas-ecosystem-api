@@ -6,6 +6,7 @@ namespace Tests\Guild\Leads;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Actions\FollowLeadOnMessageAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
@@ -68,6 +69,33 @@ final class LeadFollowersNotificationTest extends TestCase
         $this->assertContains($follower->getId(), $result['manager_ids']);
     }
 
+    public function testOnlyRecipientsInSeveralCompaniesGetTheCompanyName(): void
+    {
+        $follower = auth()->user();
+        $owner = $this->createUser();
+        $lead = $this->makeLead($owner);
+        $lead->company->set(NotifyLeadStakeholdersService::NOTIFY_ON_HUMAN_REPLY, 1);
+        new FollowLeadOnMessageAction($lead, $follower)->execute();
+        Companies::factory()->create()->associateUserApp($follower, app(Apps::class), 1);
+
+        $message = Message::factory()->create();
+        Notification::fake();
+
+        new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: true);
+
+        Notification::assertSentTo(
+            $follower,
+            Blank::class,
+            fn (Blank $sent) => $sent->getData()['company_name'] === $lead->company->name
+                && str_ends_with($this->subjectOf($sent), ' from ' . $lead->company->name)
+        );
+        Notification::assertSentTo(
+            $owner,
+            Blank::class,
+            fn (Blank $sent) => $sent->getData()['company_name'] === ''
+        );
+    }
+
     public function testAnotherLeadsFollowersAreNotNotified(): void
     {
         $follower = auth()->user();
@@ -86,6 +114,15 @@ final class LeadFollowersNotificationTest extends TestCase
         new NotifyLeadStakeholdersService($other, $notification)->followers();
 
         Notification::assertNothingSentTo($follower);
+    }
+
+    /**
+     * Read the subject off the notification: rendering it through toMail() needs a template row the
+     * CI database does not seed.
+     */
+    private function subjectOf(Blank $notification): string
+    {
+        return (string) (fn () => $this->subject)->call($notification);
     }
 
     private function followRows(Lead $lead, Users $user): int
