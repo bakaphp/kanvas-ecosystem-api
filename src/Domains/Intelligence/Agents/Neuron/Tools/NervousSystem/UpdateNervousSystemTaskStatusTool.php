@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -34,7 +35,9 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
 
     protected ?string $description = 'Move a Nervous System task to a new status (pending, in_progress, blocked, done, '
         . 'skipped). Use this to start work, mark a task done, or flag it blocked. Optionally attach a '
-        . 'short result note, or a blocked_reason when blocking.';
+        . 'short result note, or a blocked_reason when blocking. To send a task back with what to fix, '
+        . 'set status=pending and pass the corrected instructions as description: they replace the '
+        . 'task\'s text before it runs again.';
 
     /**
      * @return array<int, ToolProperty>
@@ -67,6 +70,13 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
                 description: 'Why the task is blocked — required in spirit when status is blocked.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'description',
+                type: PropertyType::STRING,
+                description: 'Only with status=pending: the task\'s full corrected instructions, replacing its '
+                    . 'current text (keep its Repo: and Branch: lines). Omit to keep the text as it is.',
+                required: false,
+            ),
         ];
     }
 
@@ -78,6 +88,7 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
         string $status,
         ?string $result = null,
         ?string $blocked_reason = null,
+        ?string $description = null,
     ): array {
         $task = $this->resolveTaskOrError($task_id, "Task {$task_id} was not found in this project.");
 
@@ -95,6 +106,24 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
             return ['error' => 'A wait needs its wake: use snooze_task with the date, not a status change.'];
         }
 
+        // Without this, "send it back with what to fix" cannot change what the task says, so a task whose
+        // instructions were wrong could only be skipped and written again.
+        $description = Str::trimToNull($description);
+
+        if ($description !== null) {
+            if ($newStatus !== TaskStatusEnum::PENDING) {
+                return ['error' => 'A task\'s description is replaced only when it goes back to pending. Nothing changed.'];
+            }
+
+            if (in_array($task->status, [TaskStatusEnum::IN_PROGRESS->value, TaskStatusEnum::WAITING->value], true)) {
+                return ['error' => sprintf('Task #%d is being worked right now, so its text cannot change under it. Nothing changed.', $task->getId())];
+            }
+
+            // Before the reset: going back to pending wakes the assignee, and the run reads this text.
+            $task->description = $description;
+            $task->saveQuietly();
+        }
+
         // A second "done" on a done task is not a write: it would re-emit the completion and, on a
         // follow-up, re-run the close. The person thanking the agent is not asking it to act again.
         if ($task->status === $newStatus->value) {
@@ -102,8 +131,11 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
                 'task_id' => $task->getId(),
                 'status' => $task->status,
                 'plan_id' => $task->plan_id,
-                'unchanged' => true,
-                'note' => sprintf('Task #%d was already %s; nothing changed. Do not say you marked it now.', $task->getId(), $task->status),
+                'unchanged' => $description === null,
+                'description_replaced' => $description !== null,
+                'note' => $description === null
+                    ? sprintf('Task #%d was already %s; nothing changed. Do not say you marked it now.', $task->getId(), $task->status)
+                    : sprintf('Task #%d was already pending; its description was replaced.', $task->getId()),
             ];
         }
 
@@ -118,6 +150,7 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
             'task_id' => $updated->getId(),
             'status' => $updated->status,
             'plan_id' => $updated->plan_id,
+            'description_replaced' => $description !== null,
         ];
     }
 }

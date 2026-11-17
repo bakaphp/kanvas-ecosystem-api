@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
-use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -97,9 +98,6 @@ class AssignNervousSystemTaskTool extends Tool
             return ['error' => "Task {$task_id} was NOT assigned to '{$agent->name}'. " . $refusal];
         }
 
-        $task->agent_id = $agent->getId();
-        $task->saveQuietly();
-
         // A plan nobody owns is inert: WakeWorkerForPlanJob returns on its first line, the plan-change
         // wake bails, and a comment on its board wakes nobody — so the work sits there while the PM
         // hand-drives it task by task (plan 22975). Assigning the first task adopts the plan for that
@@ -113,8 +111,7 @@ class AssignNervousSystemTaskTool extends Tool
             $adoptedPlan = true;
         }
 
-        // Delegation means the assignee actually runs — wake it to execute the task.
-        WakeAgentForTaskJob::dispatch($task);
+        $task->handTo($agent);
 
         return [
             'task_id' => $task->getId(),
@@ -124,6 +121,31 @@ class AssignNervousSystemTaskTool extends Tool
             // display name ("Format Specialist") becomes "@Format" and reaches nobody.
             'agent_handle' => MentionHandle::forUser($agent->user, $this->app),
             'plan_owner_set' => $adoptedPlan,
+            ...$this->whereItRuns($agent, $task),
+        ];
+    }
+
+    /**
+     * A factory task without a `Repo:` line runs in the agent's default checkout, which is correct for
+     * some work and silently wrong for a kickoff, which belongs in the template's checkout.
+     *
+     * @return array<string, string>
+     */
+    private function whereItRuns(Agent $agent, Task $task): array
+    {
+        if (! CodingChatSettingEnum::isEnabledFor($agent) || TaskDirectives::repo($task->fullText()) !== null) {
+            return [];
+        }
+
+        $default = CodingChatSettingEnum::defaultRepoFor($agent) ?? 'its default checkout';
+
+        return [
+            'note' => sprintf(
+                'Task %d has no `Repo: <folder>` line, so on the Mac it runs in the checkout its text names, '
+                    . 'else in %s. If it belongs in another repository, give it that line now.',
+                $task->getId(),
+                $default,
+            ),
         ];
     }
 }

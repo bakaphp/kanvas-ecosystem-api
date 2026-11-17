@@ -80,6 +80,17 @@ class WakeAgentForTaskJob implements ShouldQueue
             return;
         }
 
+        // The factory worker that finishes the step ahead starts this one (RunTaskWorkerJob).
+        if ($this->task->waitsOnEarlierFactoryWork()) {
+            $this->task->emitLedgerEvent('plan.task.queued', payload: [
+                'task_id' => $this->task->getId(),
+                'plan_id' => $this->task->plan_id,
+                'sequence' => (int) $this->task->sequence,
+            ]);
+
+            return;
+        }
+
         $project = Project::query()->where('id', $plan->project_id)->notDeleted()->first();
         if ($project === null) {
             return;

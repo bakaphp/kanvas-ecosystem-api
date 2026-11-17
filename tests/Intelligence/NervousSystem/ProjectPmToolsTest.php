@@ -904,6 +904,20 @@ class ProjectPmToolsTest extends TestCase
         $this->assertSame($agent->getId(), $plan->refresh()->agent_id);
     }
 
+    /** OpenAI fills the optional reply id with 0, and every comment came back "Message 0 is not among the recent activity". */
+    public function testCommentReadsAZeroReplyIdAsANewThread(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $tool = new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = ($tool)(plan_id: $plan->id, comment: 'Starting the assessment.', reply_to_message_id: 0);
+
+        $this->assertTrue($result['posted'] ?? false);
+        $this->assertNull($result['in_reply_to']);
+    }
+
     /**
      * Sentry KANVAS-ECOSYSTEM-6MC: `on_hold` is a project status the model carried over to a plan,
      * and the enum's ValueError killed the whole chat turn instead of being a correctable tool error.

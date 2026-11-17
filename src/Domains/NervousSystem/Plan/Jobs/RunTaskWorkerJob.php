@@ -208,7 +208,15 @@ class RunTaskWorkerJob implements ShouldQueue
         $next = $this->task->nextInLine();
         $agent = $next?->agent;
 
-        if ($next === null || $agent === null || ! CodingChatSettingEnum::runsTaskInFactory($agent, $next->fullText())) {
+        if ($next === null || $agent === null) {
+            return;
+        }
+
+        // A Kanvas step after a factory step was held for it (WakeAgentForTaskJob), so it starts here too.
+        $finished = $this->task->agent;
+        $heldForThis = $finished !== null && CodingChatSettingEnum::runsTaskInFactory($finished, $this->task->fullText());
+
+        if (! $heldForThis && ! CodingChatSettingEnum::runsTaskInFactory($agent, $next->fullText())) {
             return;
         }
 
@@ -254,7 +262,7 @@ class RunTaskWorkerJob implements ShouldQueue
 
         if ($repo === null) {
             throw new ValidationException(
-                'No checkout to work in: name the app in the task (for example "Repo: Quorum-app"), '
+                'No checkout to work in: name the app in the task (for example "Repo: example-app"), '
                 . 'or set CODING_CHAT_DEFAULT_REPO on ' . $agent->name . '.'
             );
         }
@@ -309,21 +317,35 @@ class RunTaskWorkerJob implements ShouldQueue
     {
         $plan = $this->task->plan;
 
+        $sharedBranch = TaskDirectives::branch($this->task->fullText()) !== null;
+
         return implode("\n\n", array_filter([
             'You are working ONE task of the plan "' . $plan->title . '", handed to you by '
             . ($plan->agent?->name ?? 'the team') . '. You are working unattended: nobody will answer a '
             . 'question, so do not ask one. The task\'s instructions count as the person\'s request.',
             'Task: ' . $this->task->title,
             Str::trimToNull((string) $this->task->description) !== null ? 'Detail: ' . $this->task->description : null,
-            TaskDirectives::branch($this->task->fullText()) !== null
+            // Every factory task, whoever wrote it: the repository's own rules decide how a change is made and
+            // proven, and a pull request opened on work nobody ran is the failure this prevents.
+            'Before you change anything, read the repository\'s `CLAUDE.md` and its `specs/` (or `docs/`) and '
+            . 'follow them. Before any pull request, run every check, test and QA step they require, and for a '
+            . 'mobile app run your change on both iOS and Android. Never open a pull request for work you have not '
+            . 'run.',
+            $sharedBranch
                 ? 'You are in a worktree of your own, on the branch the task names. Other tasks of the same '
                     . 'ticket work on it too: build on the commits already there and change nothing they did '
                     . 'unless the task asks you to.'
                 : 'You are in a worktree of your own, on a branch made for this task from the app\'s base branch '
                     . '(usually develop).',
-            'Finish the task end to end: commit your work with Conventional Commit messages, and once the '
-            . 'checks pass, push the branch and open a draft pull request into the app\'s base branch, unless '
-            . 'the task says otherwise.',
+            // A design step told "commit only" pushed, opened the pull request and wrote the logic as well:
+            // "end to end" with push as the default read as the whole ticket.
+            $sharedBranch
+                ? 'Do only what this task asks: the ticket\'s other steps come after you on this branch. Commit '
+                    . 'your work with Conventional Commit messages. Push the branch and open a pull request only '
+                    . 'if this task tells you to.'
+                : 'Finish the task end to end: commit your work with Conventional Commit messages, and once the '
+                    . 'checks pass, push the branch and open a draft pull request into the app\'s base branch, '
+                    . 'unless the task says otherwise.',
             'A task that asks you to check, verify, audit, review or report is answered in your reply, and '
             . 'that reply is the whole deliverable: change nothing, commit nothing, open no pull request. A '
             . 'report is never a file in the repository.',

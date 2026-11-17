@@ -19,16 +19,27 @@ final class TaskDirectives
     private const array PROTECTED_BRANCHES = ['main', 'master', 'develop', 'development', 'trunk'];
 
     /**
-     * `Repo: Quorum-app`, `**Repo:** mctekk/Quorum-app`, `Repository: https://github.com/mctekk/Quorum-app.git`:
+     * `Repo: example-app`, `**Repo:** acme/example-app`, `Repository: https://github.com/acme/example-app.git`:
      * the folder name only.
      */
     public static function repo(string $text): ?string
     {
         preg_match_all(
-            '/\bRepo(?:sitory)?\**[ \t]*:[ \t*`]*(?:(?:https?:\/\/|git@)?github\.com[\/:])?(?:[A-Za-z0-9._-]+\/)?([A-Za-z0-9][A-Za-z0-9._-]*)/i',
+            '/\bRepo(?:sitory)?\**[ \t]*:[ \t*`]*(?:(?:https?:\/\/|git@)?github\.com[\/:])?(?:[A-Za-z0-9._-]+\/)?([A-Za-z0-9][A-Za-z0-9._-]*)[`*]*([^\n]*)/i',
             $text,
             $matches
         );
+
+        // A run opens one checkout. "Repo: a and b" used to open `a` and drop `b` without a word, so a
+        // backend agent asked about two repositories read only the app.
+        foreach ($matches[2] as $index => $rest) {
+            if (preg_match('/^[ \t]*(?:,|&|\+|\band\b|\by\b)[ \t*`]*(?:[A-Za-z0-9._-]+\/[A-Za-z0-9]|[A-Za-z0-9._]+-[A-Za-z0-9])/i', $rest) === 1) {
+                throw new ValidationException(
+                    'The task names more than one repository on its "Repo:" line (' . trim($matches[1][$index] . $rest)
+                    . '). A task works in one repository: split it into one task per repository.'
+                );
+            }
+        }
 
         return self::single(
             'Repo',
@@ -68,6 +79,17 @@ final class TaskDirectives
         }
 
         return $branch;
+    }
+
+    /**
+     * Text quoted into a task (a ticket, a brief) may name a repository or branch of its own — a query
+     * clause reads "Repository: kanvas-ecosystem-api" — and would then contradict the task's real lines.
+     */
+    public static function neutralize(string $text): string
+    {
+        $text = (string) preg_replace('/\b(Repo(?:sitory)?)(\**[ \t]*:)/i', '$1 (quoted)$2', $text);
+
+        return (string) preg_replace('/^([ \t>*-]*Branch)(\**[ \t]*:)/im', '$1 (quoted)$2', $text);
     }
 
     /**

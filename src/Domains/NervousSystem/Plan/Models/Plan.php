@@ -162,10 +162,40 @@ class Plan extends BaseModel implements HandlesAgentMention
             ->whereHas('tasks', fn (Builder $tasks): Builder => $tasks->workingNow());
     }
 
+    /**
+     * The plan's own steps, not the questions they delegated: a sub-task's ending belongs to the task
+     * that asked it, and a failed duplicate question left blocked kept a finished plan from ever
+     * reporting.
+     */
     public function everyTaskFinished(): bool
     {
-        return $this->tasks()->exists()
-            && ! $this->tasks()->whereNotIn('status', TaskStatusEnum::completedStatusValues())->exists();
+        $steps = fn () => $this->tasks()->whereNull('parent_task_id');
+
+        return $steps()->exists()
+            && ! $steps()->whereNotIn('status', TaskStatusEnum::completedStatusValues())->exists();
+    }
+
+    /**
+     * A blocked plan whose blocked work was sent back to run again. Left blocked, it is invisible to the
+     * still-working updates and to the every-task-finished wake, so it would finish with nobody told.
+     */
+    public function resumeIfNothingBlocks(): void
+    {
+        if ($this->status !== PlanStatusEnum::BLOCKED->value
+            || $this->tasks()->where('status', TaskStatusEnum::BLOCKED->value)->exists()
+        ) {
+            return;
+        }
+
+        $this->status = PlanStatusEnum::ACTIVE->value;
+        $this->blocked_needs = null;
+        $this->save();
+
+        $this->emitLedgerEvent('plan.resumed', payload: ['status_from' => PlanStatusEnum::BLOCKED->value]);
+        $this->broadcastChange(
+            changeType: PlanChangeTypeEnum::UPDATED,
+            previousStatus: PlanStatusEnum::BLOCKED->value,
+        );
     }
 
     /**
@@ -394,6 +424,24 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function originSession(): BelongsTo
     {
         return $this->belongsTo(Session::class, 'origin_session_id');
+    }
+
+    /**
+     * Where the plan was asked for, so its outcome is reported back into that conversation instead of
+     * only onto its own Activities channel, which nobody is subscribed to. `users_id` is the plan's
+     * OWNER, another agent on agent-created work, so the human who was talking comes from the session.
+     */
+    public function rememberOrigin(?Session $session): void
+    {
+        $this->origin_channel_id = $session?->channel_id;
+        $this->origin_session_id = $session?->getId();
+
+        $sessionUser = $session?->user;
+        $this->origin_users_id = is_array($sessionUser) && isset($sessionUser['id'])
+            ? (int) $sessionUser['id']
+            : null;
+
+        $this->saveQuietly();
     }
 
     /**

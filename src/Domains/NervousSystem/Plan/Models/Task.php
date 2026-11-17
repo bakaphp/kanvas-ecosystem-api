@@ -12,12 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Traits\HasApprovals;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Concerns\TruncatesTitle;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Observers\TaskObserver;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Users\Models\Users;
 use Override;
 
@@ -128,6 +130,15 @@ class Task extends BaseModel
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
     }
 
+    /** Assigns it and wakes the agent; the wake holds a task whose earlier steps are not done yet. */
+    public function handTo(Agent $agent): void
+    {
+        $this->agent_id = $agent->getId();
+        $this->saveQuietly();
+
+        WakeAgentForTaskJob::dispatch($this);
+    }
+
     /** The task that delegated this one and is resumed by its outcome. */
     public function parent(): BelongsTo
     {
@@ -190,6 +201,30 @@ class Task extends BaseModel
             ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
             ->where('is_deleted', 0)
             ->exists();
+    }
+
+    /**
+     * An earlier unfinished step of this plan is factory work. Only those hold a task that runs in Kanvas:
+     * a planner handed the factory's answer as its second step started at once and found nothing to read.
+     * Plans with no factory work keep running their tasks as they always did.
+     */
+    public function waitsOnEarlierFactoryWork(): bool
+    {
+        if (! $this->waitsOnEarlierTasks()) {
+            return false;
+        }
+
+        return self::query()
+            ->where('plan_id', $this->plan_id)
+            ->whereNull('parent_task_id')
+            ->where('sequence', '<', (int) $this->sequence)
+            ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
+            ->whereNotNull('agent_id')
+            ->where('is_deleted', 0)
+            ->with('agent')
+            ->get()
+            ->contains(fn (self $earlier): bool => $earlier->agent !== null
+                && CodingChatSettingEnum::runsTaskInFactory($earlier->agent, $earlier->fullText()));
     }
 
     /**

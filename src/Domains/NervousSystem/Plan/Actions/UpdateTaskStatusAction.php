@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
@@ -104,6 +105,18 @@ class UpdateTaskStatusAction
             }
 
             $plan = $this->task->plan;
+
+            // Factory work only: a Mac task sent back to run again. Other plans keep their status as their
+            // agents set it.
+            $reopenedOnTheMac = $this->newStatus === TaskStatusEnum::PENDING
+                && in_array($oldStatus, TaskStatusEnum::terminalStatusValues(), true)
+                && $this->task->agent !== null
+                && CodingChatSettingEnum::runsTaskInFactory($this->task->agent, $this->task->fullText());
+
+            if ($reopenedOnTheMac) {
+                $plan?->resumeIfNothingBlocks();
+            }
+
             if ($plan !== null) {
                 $plan->recomputeCompletionPct();
 

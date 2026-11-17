@@ -75,6 +75,28 @@ class NervousSystemAgentToolsTest extends TestCase
         )->execute();
     }
 
+    /** A task sent back with what to fix must carry the fix, not the instructions that went wrong. */
+    public function testATaskSentBackToPendingCarriesItsCorrectedInstructions(): void
+    {
+        $app = app(Apps::class);
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $task = $this->makePlanWithTask($app, $company, $user)->tasks()->firstOrFail();
+        $tool = new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user);
+        $tool((int) $task->id, 'blocked', blocked_reason: 'Run interrupted.');
+
+        $refused = $tool((int) $task->id, 'done', description: 'Repo: kanvas-mobile-skeleton');
+        $this->assertArrayHasKey('error', $refused);
+
+        $result = $tool((int) $task->id, 'pending', description: "Repo: kanvas-mobile-skeleton\nAdd the app to apps.txt.");
+
+        $this->assertTrue($result['description_replaced']);
+        $fresh = Task::query()->findOrFail($task->id);
+        $this->assertSame('pending', $fresh->status);
+        $this->assertStringStartsWith('Repo: kanvas-mobile-skeleton', (string) $fresh->description);
+    }
+
     public function testUpdateTaskStatusToolMovesTheTask(): void
     {
         $app = app(Apps::class);

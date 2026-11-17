@@ -263,6 +263,19 @@ Things that bite:
   reader is the factory agent whose default checkout it is, else the first (`factoryAgentFor()`). And a
   task that declares a `Repo:` cannot be assigned to an agent that would work it in Kanvas, task or plan
   (`CodingChatSettingEnum::repositoryRefusal()`): the refusal names the factory agents to give it to.
+- **Factory stages are written in code, not by the orchestrator.** `start_app_kickoff` and
+  `start_factory_ticket` (PM tools, offered only where the company has factory agents) build a
+  `FactoryStage` and `StartFactoryStageAction` puts it on the board: the plan, its ordered tasks with
+  their `Repo:` / `Branch:` lines and steps, each handed to its agent. Who builds and who designs is per
+  project (`FactoryProjectSettingEnum`: `factory_builder_agent_id`, `factory_designer_agent_id`,
+  `factory_template_repo`). The ticket text also carries the post-change QA (both platforms, the app's
+  runbook, BLOCKED rather than untested) and the Kanvas-first data rule. Starting a stage that is open
+  returns it. A model left to type those lines leaves them out, and a task without `Repo:` runs in the
+  default checkout.
+- **Mixed plans: a Kanvas step waits for the factory step ahead of it** (`Task::waitsOnEarlierFactoryWork()`),
+  and the factory worker that finishes starts it. A reopened task on a factory-owned plan, or one that runs
+  on the Mac, is woken as a task; its blocked plan unblocks itself (`Plan::resumeIfNothingBlocks()`), only
+  for factory work. Plans with no factory work behave as before.
 - **A plan a factory agent owns never wakes that agent's chat.** A plan wake (task done, comment) would
   otherwise be typed into its opencode session as a request; `WakeAgentForPlanJob` forwards the fact to
   the agent that created the plan instead (`REASON_PLAN_OUTCOME`).

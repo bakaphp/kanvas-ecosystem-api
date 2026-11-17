@@ -138,6 +138,18 @@ class AssignNervousSystemPlanTool extends Tool
             ];
         }
 
+        // A factory agent's plan wake does nothing (WakeAgentForPlanJob): only a task assigned to it runs
+        // on the Mac. Accepting the plan answered "it will auto-run" and the kickoff sat untouched.
+        if (CodingChatSettingEnum::isEnabledFor($agent)) {
+            return ['error' => sprintf(
+                'Plan %d was NOT assigned to \'%s\': it works tasks on the factory Mac, never a whole plan, so a '
+                    . 'plan given to it never starts. Give each task of the plan exactly one `Repo: <folder>` line '
+                    . 'and assign each task to it with assign_nervous_system_task, in sequence order.',
+                $plan->getId(),
+                $agent->name,
+            )];
+        }
+
         // The plan's agent works every task nobody else was given, so one of those that declares a
         // checkout would reach an agent with no repository to read.
         $unassigned = $plan->tasks()

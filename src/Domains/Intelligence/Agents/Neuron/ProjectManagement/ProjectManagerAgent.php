@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\ProjectManagement;
 
 use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
@@ -35,6 +36,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlans
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
@@ -456,6 +459,14 @@ class ProjectManagerAgent extends SystemUserAgent
             new ListWorkflowOptionsTool(),
             new ListCompanyWorkflowsTool(),
         ]);
+
+        // Only a company with a factory Mac has stages to start; every other PM keeps its toolset as it was.
+        if (CodingChatSettingEnum::factoryAgentsOf($app, $company)->isNotEmpty()) {
+            array_push($core, ...$this->addToolContext([
+                new StartAppKickoffTool($this->session),
+                new StartFactoryTicketTool($this->session),
+            ]));
+        }
 
         $core[] = new CapabilityLookupTool($agent);
         $core[] = new ReportCapabilityGapTool($agent, $requestingHuman, $this->session);

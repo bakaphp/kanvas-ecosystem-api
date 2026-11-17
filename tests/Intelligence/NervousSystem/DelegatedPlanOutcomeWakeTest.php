@@ -222,8 +222,8 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
     }
 
     /**
-     * A worker records its result as a sync, which is how a factory run finishes: Tetsuo's backend check
-     * came back done and nobody told Kaneda, because the wake skipped every sync.
+     * A worker records its result as a sync, which is how a factory run finishes: a delegated check came
+     * back done and nobody told the agent that asked for it, because the wake skipped every sync.
      */
     public function testAWorkerFinishingTheLastTaskAsASyncStillWakesWhoeverAskedForIt(): void
     {
@@ -232,6 +232,24 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
         [, $plan] = $this->delegatedPlan();
 
         new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE, fromSync: true)->execute();
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reportsOn?->getId() === $plan->getId()
+        );
+    }
+
+    /** A question the step delegated, left blocked, is the step's business; the plan's own steps are done. */
+    public function testABlockedSubQuestionDoesNotKeepAFinishedPlanFromReporting(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+        $step = $this->taskOn($plan);
+        $question = $this->taskOn($plan);
+        $question->update(['parent_task_id' => $step->getId(), 'status' => TaskStatusEnum::BLOCKED->value]);
+
+        new UpdateTaskStatusAction($step, TaskStatusEnum::DONE)->execute();
 
         Bus::assertDispatched(
             WakeAgentForProjectJob::class,

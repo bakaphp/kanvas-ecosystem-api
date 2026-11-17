@@ -128,22 +128,9 @@ class CreateNervousSystemPlanTool extends Tool
         )->execute();
 
         $plan->project_id = $project->getId();
-        // Where it was asked for, so the outcome can be reported back into that conversation instead
-        // of only onto the plan's own Activities channel, which nobody is subscribed to.
-        $plan->origin_channel_id = $this->session?->channel_id;
-
-        // The CONVERSATION, not just the room. A chat thread is session-scoped, so a report posted to
-        // the channel without the session renders outside it and is never seen (plan 26824: the alert
-        // landed in the right DM and the person watching that DM saw nothing).
-        $plan->origin_session_id = $this->session?->getId();
-
-        // And by whom. `users_id` is the plan's OWNER, which on agent-created work is another agent,
-        // so it is never a route to a person. The session records the human who was actually talking.
-        $sessionUser = $this->session?->user;
-        $plan->origin_users_id = is_array($sessionUser) && isset($sessionUser['id'])
-            ? (int) $sessionUser['id']
-            : null;
-        $plan->saveQuietly();
+        // The CONVERSATION, not just the room (plan 26824: the alert landed in the right DM, outside the
+        // session, and the person watching that DM saw nothing).
+        $plan->rememberOrigin($this->session);
 
         $project->recomputeCompletionPct();
 

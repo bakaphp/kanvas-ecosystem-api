@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\ResumeParentTaskJob;
 use Kanvas\NervousSystem\Plan\Models\Task;
@@ -115,6 +116,29 @@ class RecordChildOutcomeAction
         $result = is_array($this->child->result) ? $this->child->result : [];
         $summary = $result['worker_summary'] ?? $result['summary'] ?? $this->child->blocked_reason;
 
-        return is_string($summary) && trim($summary) !== '' ? Str::limit(trim($summary), 4000) : null;
+        if (! is_string($summary) || trim($summary) === '') {
+            return null;
+        }
+
+        $summary = trim($summary);
+
+        // A factory answer (an API contract, a template inventory) cut at the cap read as complete-but-vague,
+        // and the asker blocked for detail it already had. Say where the rest is; other children keep the
+        // plain cut.
+        if (mb_strlen($summary) > 4000 && $this->answeredOnTheMac()) {
+            return Str::limit($summary, 3800) . sprintf(
+                "\n\n[Cut here. The full answer is the result of task #%d: read it with get_nervous_system_task before deciding anything is missing.]",
+                $this->child->getId()
+            );
+        }
+
+        return Str::limit($summary, 4000);
+    }
+
+    private function answeredOnTheMac(): bool
+    {
+        $agent = $this->child->agent;
+
+        return $agent !== null && CodingChatSettingEnum::runsTaskInFactory($agent, $this->child->fullText());
     }
 }

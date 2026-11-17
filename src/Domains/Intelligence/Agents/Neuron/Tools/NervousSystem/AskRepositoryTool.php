@@ -10,13 +10,13 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Task;
-use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -115,9 +115,9 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
         }
 
         $title = Str::limit('Read ' . $checkout . ': ' . $question, 120);
-        $asked = $this->openQuestion($task, $title) ?? $this->ask(
+        $asked = $this->openQuestion($task, $checkout) ?? $this->ask(
             $task,
-            $reader->getId(),
+            $reader,
             $checkout,
             $title,
             $question
@@ -135,17 +135,24 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
         );
     }
 
-    /** A repeated turn must not ask the factory the same thing twice. */
-    private function openQuestion(Task $task, string $title): ?Task
+    /**
+     * One open question per repository: a repeated turn rewords what it asks, and matching on the
+     * question's text sent the factory the same two questions twice.
+     */
+    private function openQuestion(Task $task, string $checkout): ?Task
     {
-        $open = $task->children()->open()->where('title', $title)->first();
+        $open = $task->children()
+            ->open()
+            ->where('title', 'like', 'Read ' . $checkout . ':%')
+            ->latest('id')
+            ->first();
 
         return $open instanceof Task ? $open : null;
     }
 
     private function ask(
         Task $task,
-        int $readerId,
+        Agent $reader,
         string $checkout,
         string $title,
         string $question
@@ -168,10 +175,7 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
             ),
         )->execute();
 
-        $child->agent_id = $readerId;
-        $child->saveQuietly();
-
-        WakeAgentForTaskJob::dispatch($child);
+        $child->handTo($reader);
 
         return $child;
     }
