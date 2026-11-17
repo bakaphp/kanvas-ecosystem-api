@@ -81,6 +81,10 @@ final class RespondToMentionJob implements ShouldQueue
             return;
         }
 
+        if ($this->liveThreadRootId() === null) {
+            return;
+        }
+
         /** @var Channel|null $channel */
         $channel = $this->mentionMessage->channels()->first();
         if ($channel === null) {
@@ -165,11 +169,18 @@ final class RespondToMentionJob implements ShouldQueue
             return;
         }
 
+        // Checked again: the turn above is long enough for the mention to be deleted under it.
+        $threadRootId = $this->liveThreadRootId();
+        if ($threadRootId === null) {
+            return;
+        }
+
         $replyMessage = $this->persistChildReply(
             $channel,
             $reply,
             $agentUser,
             $subjectEntity,
+            $threadRootId,
         );
 
         $this->notifyMentioner($replyMessage, $mentioner);
@@ -187,6 +198,7 @@ final class RespondToMentionJob implements ShouldQueue
         string $reply,
         Users $agentUser,
         ?Model $subjectEntity,
+        int $threadRootId,
     ): Message {
         return new PostChannelMessageAction(
             channel: $channel,
@@ -194,11 +206,27 @@ final class RespondToMentionJob implements ShouldQueue
             verb: 'agent',
             content: $reply,
             extraPayload: ['from_ia' => true, 'from_me' => true],
-            // Thread stays flat: anchor the reply to the thread root (AsTree self+ancestors, root last).
-            parentId: $this->mentionMessage->joinAncestors()->last()->getId(),
+            parentId: $threadRootId,
             runWorkflow: true,
             entity: $subjectEntity,
         )->execute();
+    }
+
+    /**
+     * The message a reply anchors to, or null when the mention has been deleted.
+     *
+     * The queue restores a soft-deleted model as if it were live (restoration skips global scopes),
+     * so a mention deleted before or during the turn still arrives here — and with no live ancestor
+     * it becomes its own anchor, a parent no reply can be created under. Thread stays flat: the
+     * anchor is the thread root (AsTree self+ancestors, root last).
+     */
+    private function liveThreadRootId(): ?int
+    {
+        if (! Message::query()->whereKey($this->mentionMessage->getId())->exists()) {
+            return null;
+        }
+
+        return (int) $this->mentionMessage->joinAncestors()->last()->getId();
     }
 
     /**

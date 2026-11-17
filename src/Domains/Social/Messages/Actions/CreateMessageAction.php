@@ -69,17 +69,7 @@ class CreateMessageAction
                 $data['parent_id'] = null;
             }
 
-            $message = new Message($data);
-
-            // The tree builds a child's path from `parent`, a relation that hides soft-deleted rows,
-            // while ValidParentMessage accepts them: replying to a message deleted in the meantime
-            // (an agent turn takes long enough) fataled on a null parent.
-            if ($data['parent_id'] !== null) {
-                $message->setRelation('parent', Message::withTrashed()->find($data['parent_id']));
-            }
-
-            $message->save();
-            $message->unsetRelation('parent');
+            $message = Message::create($data);
 
             if (! empty($this->messageInput->custom_fields)) {
                 $message->setCustomFields($this->messageInput->custom_fields);
