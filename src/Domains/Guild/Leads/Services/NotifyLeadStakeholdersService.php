@@ -16,6 +16,7 @@ use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class NotifyLeadStakeholdersService
 {
@@ -175,7 +176,6 @@ class NotifyLeadStakeholdersService
         );
 
         $peopleName = (string) ($this->lead->people->name ?? '');
-        $notification->setSubject($peopleName . ' Engaged with Sally');
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
         $notification->setDatabaseTemplateName('agent_manager_sms_notification');
@@ -186,7 +186,11 @@ class NotifyLeadStakeholdersService
             return ['skipped' => 'no_recipients'];
         }
 
-        Notification::send($recipients, $notification);
+        $this->sendWithCompanyName(
+            $recipients,
+            $notification,
+            fn (string $fromCompany) => $peopleName . $fromCompany . ' Engaged with Sally'
+        );
 
         $this->lead->set(self::LAST_MANAGER_NOTIFICATION_AT, date('Y-m-d H:i:s'));
 
@@ -252,9 +256,7 @@ class NotifyLeadStakeholdersService
         );
 
         $peopleName = (string) ($this->lead->people->name ?? '');
-        $notification->setSubject(
-            ($isHuman ? 'Agent ' : 'Sally ') . 'replied to ' . $peopleName
-        );
+        $sender = $isHuman ? 'Agent ' : 'Sally ';
 
         $recipients = $this->collectManagerRecipients($message, $includeOwner);
 
@@ -262,7 +264,11 @@ class NotifyLeadStakeholdersService
             return ['skipped' => 'no_recipients'];
         }
 
-        Notification::send($recipients, $notification);
+        $this->sendWithCompanyName(
+            $recipients,
+            $notification,
+            fn (string $fromCompany) => $sender . 'replied to ' . $peopleName . $fromCompany
+        );
 
         if ($channel !== null) {
             $channel->set(self::LAST_AGENT_REPLY_NOTIFICATION_AT, date('Y-m-d H:i:s'));
@@ -277,6 +283,34 @@ class NotifyLeadStakeholdersService
             'manager_count' => $recipients->count(),
             'manager_ids' => $recipients->pluck('id')->toArray(),
         ];
+    }
+
+    /**
+     * Recipients in more than one company of the app cannot tell which one a lead belongs to, so only
+     * they get `company_name` in the template data and the subject; everyone else gets it empty.
+     *
+     * @param callable(string): string $subject receives " from <company>" or an empty string
+     */
+    protected function sendWithCompanyName(
+        Collection $recipients,
+        NotificationsNotification $notification,
+        callable $subject
+    ): void {
+        $multiCompanyIds = UsersRepository::getMultiCompanyUserIds(
+            $recipients->pluck('id')->all(),
+            $this->lead->app
+        );
+
+        foreach ($recipients as $recipient) {
+            $inSeveralCompanies = in_array((int) $recipient->getId(), $multiCompanyIds, true);
+            $companyName = $inSeveralCompanies ? (string) $this->lead->company->name : '';
+
+            $copy = clone $notification;
+            $copy->setData(['company_name' => $companyName]);
+            $copy->setSubject($subject($inSeveralCompanies ? ' from ' . $companyName : ''));
+
+            $recipient->notify($copy);
+        }
     }
 
     protected function isWithinAgentReplyDedupeWindow(Channel $channel): bool
