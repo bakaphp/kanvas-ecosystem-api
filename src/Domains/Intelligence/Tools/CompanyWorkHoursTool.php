@@ -72,6 +72,17 @@ class CompanyWorkHoursTool implements ContextToolInterface
         ];
     }
 
+    public function isOpenOn(Carbon $date): bool
+    {
+        if ($this->getHolidayInfo($date)['is_observed_holiday'] || ! $this->isWorkingDay($date)) {
+            return false;
+        }
+
+        [$opensAt, $closesAt] = $this->getTodayOpenClose($date);
+
+        return $opensAt !== null && $closesAt !== null;
+    }
+
     protected function getStatus(
         Carbon $now,
         ?Carbon $opensAt,
