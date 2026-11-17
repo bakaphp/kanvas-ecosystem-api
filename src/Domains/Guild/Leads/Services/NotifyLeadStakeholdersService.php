@@ -291,7 +291,7 @@ class NotifyLeadStakeholdersService
      *
      * @param callable(string): string $subject receives " from <company>" or an empty string
      */
-    protected function sendWithCompanyName(
+    public function sendWithCompanyName(
         Collection $recipients,
         NotificationsNotification $notification,
         callable $subject

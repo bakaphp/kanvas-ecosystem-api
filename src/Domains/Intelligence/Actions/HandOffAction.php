@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Actions;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use Illuminate\Support\Collection;
 use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadType as LeadTypeDto;
@@ -13,6 +14,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadHandOffNotification;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
@@ -74,18 +76,18 @@ class HandOffAction
             $leadOwner,
             $handOffType,
         );
-        $leadOwner->notify($handOffNotification);
+        $managers = $this->handOffManagers($leadOwner, $handOffUserRole);
 
-        $managersNotified = $this->notifyManagers(
-            $leadOwner,
+        new NotifyLeadStakeholdersService($this->lead)->sendWithCompanyName(
+            collect([$leadOwner])->merge($managers),
             $handOffNotification,
-            $handOffUserRole,
+            fn (string $fromCompany) => $handOffNotification->getSubject() . $fromCompany
         );
 
         return [
             'success' => true,
             'message' => 'Handoff processed successfully to ' . $leadOwner->displayname,
-            'manager_notified' => $managersNotified,
+            'manager_notified' => $managers->count(),
             'notifications_sent' => $claimedSequence,
             'max_notifications' => $maxNotifications,
         ];
@@ -205,23 +207,12 @@ class HandOffAction
         $notification->setDatabaseTemplateName('lead_handoff_db');
     }
 
-    protected function notifyManagers(
-        Users $leadOwner,
-        HandOffNotification $notification,
-        string $handOffUserRole,
-    ): int {
-        $managers = new CompanyManagerService($this->lead->company, $this->lead->app)
-            ->getManagersByRole($handOffUserRole);
-
-        $notifiedCount = 0;
-        foreach ($managers as $manager) {
-            if ($leadOwner->getId() !== $manager->getId()) {
-                $manager->notify($notification);
-                $notifiedCount++;
-            }
-        }
-
-        return $notifiedCount;
+    protected function handOffManagers(Users $leadOwner, string $handOffUserRole): Collection
+    {
+        return new CompanyManagerService($this->lead->company, $this->lead->app)
+            ->getManagersByRole($handOffUserRole)
+            ->reject(fn (Users $manager) => $manager->getId() === $leadOwner->getId())
+            ->toBase();
     }
 
     protected function getOrCreateServiceLeadType(): LeadType
