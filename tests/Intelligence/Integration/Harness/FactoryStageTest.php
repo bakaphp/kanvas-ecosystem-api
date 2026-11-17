@@ -116,6 +116,8 @@ final class FactoryStageTest extends TestCase
         $this->assertStringContainsString('merge it into this branch', (string) $design->description);
         $this->assertStringContainsString('git push origin HEAD:factory/integration', (string) $ship->description);
         $this->assertStringContainsString('never open a pull request', (string) $ship->description);
+        // A backend gap lands the work and is listed, instead of stopping a line nobody is watching.
+        $this->assertStringContainsString('"Waiting on backend" list', (string) $ship->description);
         // The app's mandatory Argent QA run is skipped when the task does not name it.
         $this->assertStringContainsString('specs/qa/app-test.runbook.md', (string) $ship->description);
         // A ticket must not be reported done while a simulator cannot run it.
@@ -150,6 +152,7 @@ final class FactoryStageTest extends TestCase
         $this->assertStringContainsString('merge `origin/factory/integration`', (string) $steps[0]->description);
         $this->assertStringContainsString('changelog entry dated ' . now()->toDateString(), (string) $steps[0]->description);
         $this->assertStringContainsString('open the pull request into `develop`', (string) $steps[0]->description);
+        $this->assertStringContainsString('"Waiting on backend" heading', (string) $steps[0]->description);
         $this->assertTrue($again['reused']);
     }
 

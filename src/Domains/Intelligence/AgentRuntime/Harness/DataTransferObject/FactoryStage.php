@@ -159,8 +159,12 @@ final readonly class FactoryStage
             . ' The data comes from Kanvas, never '
             . 'hard-coded or dummy data: a new kind of thing the app keeps is a Kanvas message with its own '
             . 'message type (createMessage, the messages query, attachFileToMessage, tags), a single value is a '
-            . 'custom field. Only if none of that can serve the ticket, say exactly what is missing in your reply '
-            . 'and stop: never change kanvas-ecosystem-api yourself.' . $quoted;
+            . 'custom field. Never change kanvas-ecosystem-api yourself. When the Kanvas the app points at lacks '
+            . 'something the ticket needs (an API change not deployed yet, a message type an admin has to create), '
+            . 'that is a backend gap, not a reason to stop: build everything else, keep the screen in its '
+            . 'unavailable state, land the work, and end your reply with a "Waiting on backend" list naming each '
+            . 'gap and exactly what a person has to do about it. Reply BLOCKED only when the app itself cannot be '
+            . 'built or tested.' . $quoted;
 
         $shipStep = new FactoryStep('Ticket ' . $number . ' logic and landing: ' . $shortName, $ship, $builder);
 
@@ -201,8 +205,10 @@ final readonly class FactoryStage
             '3. ' . self::APP_QA . ' Here "your change" is every ticket in this release.',
             '4. Push the branch and open the pull request into `develop` following the app\'s specs: Conventional Commits '
                 . 'from `CLAUDE.md`, `specs/workflows/pull-request.spec.md` and the PR Description Format of '
-                . '`specs/workflows/multi-app-pipeline.spec.md`. List every ticket with its QA report and screenshots. '
-                . 'Wait for CI, fix what you broke, and mark it ready only when every check is green. A person merges it.',
+                . '`specs/workflows/multi-app-pipeline.spec.md`. List every ticket with its QA report and screenshots, '
+                . 'and under a "Waiting on backend" heading every gap the tickets reported (read the landing commits '
+                . 'and `specs/qa/reports/`), each with what a person has to do. Wait for CI, fix what you broke, and '
+                . 'mark it ready only when every check is green. A person merges it.',
             '5. Reply with the pull request link, its CI state and whether it is draft or ready.',
         ], fn (?string $line): bool => $line !== null));
 
