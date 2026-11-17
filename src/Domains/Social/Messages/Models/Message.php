@@ -580,6 +580,24 @@ class Message extends BaseModel
         return $query;
     }
 
+    /**
+     * A message belongs to the person who wrote it: `myMessages` uses this so a coworker in the
+     * same company can never read it by widening a `where`. Fails closed when no user is
+     * authenticated, so no caller can turn a missing user into an app-wide list.
+     *
+     * Overrides the shared `KanvasUsersScopesTrait::scopeFromUser`, which ignores its argument and
+     * throws with no user; `UserManagementMutation` relies on it ignoring the argument, so it is not
+     * changed there (same reason `ScheduledAction` keeps its own).
+     */
+    public function scopeFromUser(Builder $query, mixed $user = null): Builder
+    {
+        $userId = $user instanceof Users ? $user->getId() : auth()->id();
+
+        return $userId !== null
+            ? $query->where($this->getTable() . '.users_id', (int) $userId)
+            : $query->whereRaw('1 = 0');
+    }
+
     public function setLock(): void
     {
         $this->is_locked = 1;
