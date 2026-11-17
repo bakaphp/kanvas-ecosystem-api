@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -107,11 +108,11 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
             return ['error' => 'A wait needs its wake: use snooze_task with the date, not a status change.'];
         }
 
-        // A run's task closes when its run does. A PM that read a pending ask as "blocked" marked a live
-        // factory run blocked, and the steps above it followed while the run kept working.
-        if (AgentTaskSession::query()->forTask($task->getId())->live()->exists()) {
+        // A run's task, and the step it runs for, close when the run does. A PM that read a pending ask as
+        // "blocked" marked a live factory run blocked, and the steps above it followed while it kept working.
+        if ($this->hasALiveRun($task)) {
             return ['error' => sprintf(
-                'Task #%d is a coding run that is still going; it reports its own outcome. Nothing changed. '
+                'Task #%d has a coding run that is still going; it reports its own outcome. Nothing changed. '
                     . 'To stop it, use cancel_self_hosted_coding_job.',
                 $task->getId()
             )];
@@ -163,5 +164,12 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
             'plan_id' => $updated->plan_id,
             'description_replaced' => $description !== null,
         ];
+    }
+
+    private function hasALiveRun(Task $task): bool
+    {
+        $ids = [$task->getId(), ...$task->children()->pluck('id')->all()];
+
+        return AgentTaskSession::query()->whereIn('task_id', $ids)->live()->exists();
     }
 }

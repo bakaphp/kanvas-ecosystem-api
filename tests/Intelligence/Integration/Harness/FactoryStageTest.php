@@ -247,24 +247,34 @@ final class FactoryStageTest extends TestCase
         $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
         [$create] = $this->stepsOf((int) $result['plan_id']);
 
+        // The factory run is a sub-task of the step; the step waits on it.
+        $runTask = $this->makeTask($create->plan, TaskStatusEnum::IN_PROGRESS);
+        $runTask->parent_task_id = $create->getId();
+        $runTask->saveOrFail();
+
         $run = new AgentTaskSession();
         $run->apps_id = $create->apps_id;
         $run->companies_id = $create->companies_id;
         $run->agent_id = $create->agent_id;
         $run->plan_id = $create->plan_id;
-        $run->task_id = $create->getId();
+        $run->task_id = $runTask->getId();
         $run->harness = HarnessEnum::OPENCODE->value;
         $run->status = HarnessStatusEnum::AWAITING_PERMISSION->value;
         $run->saveOrFail();
 
         $user = static::$cachedUser;
         $status = new UpdateNervousSystemTaskStatusTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
-        $before = $create->refresh()->status;
 
-        $answer = $status($create->getId(), 'blocked', blocked_reason: 'Waiting on a permission.');
+        foreach ([$runTask, $create] as $task) {
+            $before = $task->refresh()->status;
 
-        $this->assertStringContainsString('still going', (string) ($answer['error'] ?? ''));
-        $this->assertSame($before, $create->refresh()->status);
+            $answer = $status($task->getId(), 'blocked', blocked_reason: 'Waiting on a permission.');
+
+            $this->assertStringContainsString('still going', (string) ($answer['error'] ?? ''));
+            $this->assertSame($before, $task->refresh()->status);
+        }
+
+        $this->assertStringContainsString('still going', (string) ($status($create->getId(), 'pending')['error'] ?? ''));
     }
 
     /** The orchestrator passes on a person's decision about a teammate's run; it never makes one. */
