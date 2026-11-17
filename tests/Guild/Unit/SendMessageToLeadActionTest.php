@@ -121,12 +121,72 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         );
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testHumanSentEmailAppendsTheSendersOwnSignature(): void
+    {
+        $sender = Mockery::mock(Users::class);
+        $sender->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn(null);
+        $sender->shouldReceive('get')->with('email_signature')->once()->andReturn([
+            'append' => true,
+            'text' => "Sales Rep\nInternet Sales",
+        ]);
+        $sender->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
+        $this->sendSignatureTestEmail(
+            false,
+            $sender,
+            function (array $data): bool {
+                $this->assertFalse($data['signature']);
+
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature?->text === "Sales Rep\nInternet Sales",
+            human: true
+        );
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testHumanSenderWithoutAnEnabledSignatureSendsNone(): void
+    {
+        $sender = Mockery::mock(Users::class);
+        $sender->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn(null);
+        $sender->shouldReceive('get')->with('email_signature')->once()->andReturn([
+            'append' => false,
+            'text' => 'Sales Rep',
+        ]);
+        $this->sendSignatureTestEmail(
+            false,
+            $sender,
+            fn (array $data): bool => $data['signature'] === false,
+            fn (?UserEmailSignature $signature): bool => $signature === null,
+            human: true
+        );
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testSignatureOwnerWithoutAnAgentStillSendsNoOwnerSignature(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldNotReceive('get');
+        $this->sendSignatureTestEmail(
+            false,
+            $owner,
+            fn (array $data): bool => $data['signature'] === true,
+            fn (?UserEmailSignature $signature): bool => $signature === null,
+            withAgent: false
+        );
+    }
+
     private function sendSignatureTestEmail(
         bool $internal,
         Users $owner,
         callable $assertContent,
         callable $assertSignature,
-        ?bool $signs = null
+        ?bool $signs = null,
+        bool $human = false,
+        bool $withAgent = true
     ): void {
         // CI's SMTP host may be Mailgun's, which files a delivery; that lane has its own suite.
         config(['mail.mailers.smtp.host' => 'smtp.example.com']);
@@ -158,12 +218,14 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $agent->shouldReceive('signsEmailsAsOwner')->andReturn($signs ?? $internal);
         $agent->shouldReceive('get')->andReturn(null);
 
-        $result = new SendMessageToLeadAction($lead)->withSignatureOwner($owner)->execute(
+        $action = new SendMessageToLeadAction($lead);
+        $result = ($human ? $action->sentByUser($owner) : $action->withSignatureOwner($owner))->execute(
             channel: 'email',
             message: 'Here is your **quote**.',
             title: 'Your quote',
+            signature: ! $human,
             to: 'prospect@example.com',
-            fromAgent: $agent,
+            fromAgent: $human || ! $withAgent ? null : $agent,
         );
         $this->assertSame('first-time-agent-engagement', $result['template']);
     }
