@@ -12,7 +12,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Current Time', category: 'ecosystem')]
+#[AgentTool(name: 'Current Time', category: 'ecosystem', readOnly: true)]
 class CurrentTimeTool extends Tool
 {
     protected string $name = 'get_current_time';

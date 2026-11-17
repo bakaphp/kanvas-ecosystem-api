@@ -14,7 +14,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Variant Detail', category: 'inventory')]
+#[AgentTool(name: 'Variant Detail', category: 'inventory', readOnly: true)]
 class VariantDetailTool extends Tool
 {
     protected string $name = 'variant_detail';
@@ -43,7 +43,7 @@ class VariantDetailTool extends Tool
             /** @var Variants $variant */
             $variant = Variants::getById($variant_id, app(Apps::class));
         } catch (Throwable $e) {
-            return ['message' => "Variant #{$variant_id} not found."];
+            return ['status' => 'not_found', 'message' => "Variant #{$variant_id} not found."];
         }
 
         $variant->load([

@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 use NeuronAI\Tools\Tool as NeuronTool;
+use ReflectionClass;
 use Throwable;
 
 /**
@@ -95,13 +96,21 @@ class RunVoiceAgentToolAction
      * (e.g. `Inventory Search`) and does NOT match; keying off it made every tool
      * whose display name differs from its handler name uncallable mid-call. The
      * catalog name is kept only as a fallback for tools whose two names coincide.
+     *
+     * Fast path: a handler's name is almost always a literal `$name` default, read
+     * by reflection without building the tool, so only the match is instantiated
+     * (an agent can carry dozens of tools, each with its own constructor
+     * dependencies). Slow path, only when that finds nothing: build the remaining
+     * handlers and ask each for getName(), as before — this keeps a tool whose name
+     * is set at construction time (no literal default) callable, so run-time
+     * selection still matches what VoiceAgentSpecService advertised.
      */
     private function resolveHandler(): NeuronTool
     {
         $tools = new CapabilityProvider()
             ->getActiveTools($this->agent, CapabilityFrameworkEnum::NEURON->value);
 
-        $fallback = null;
+        $remaining = [];
 
         foreach ($tools as $catalogTool) {
             $handlerClass = $catalogTool->handlerClass();
@@ -109,15 +118,23 @@ class RunVoiceAgentToolAction
                 continue;
             }
 
-            try {
-                $handler = app($handlerClass);
-            } catch (Throwable) {
-                // A handler that can't be built is skipped, not fatal — mirrors
-                // VoiceAgentSpecService, so run-time selection matches advertise-time.
+            if (self::declaredToolName($handlerClass) !== $this->toolName) {
+                $remaining[] = [$catalogTool, $handlerClass];
+
                 continue;
             }
 
-            if (! $handler instanceof NeuronTool) {
+            $handler = $this->buildHandler($handlerClass);
+            if ($handler !== null && $handler->getName() === $this->toolName) {
+                return $handler;
+            }
+        }
+
+        $fallback = null;
+
+        foreach ($remaining as [$catalogTool, $handlerClass]) {
+            $handler = $this->buildHandler($handlerClass);
+            if ($handler === null) {
                 continue;
             }
 
@@ -135,5 +152,36 @@ class RunVoiceAgentToolAction
         }
 
         throw new ValidationException("Agent has no active tool named '{$this->toolName}'.");
+    }
+
+    /**
+     * The literal `$name` default a NeuronAI tool class declares, read without
+     * instantiating it; null when the class isn't a Neuron tool or sets its name at
+     * construction time.
+     */
+    public static function declaredToolName(string $handlerClass): ?string
+    {
+        if (! is_subclass_of($handlerClass, NeuronTool::class)) {
+            return null;
+        }
+
+        $name = new ReflectionClass($handlerClass)->getDefaultProperties()['name'] ?? null;
+
+        return is_string($name) && $name !== '' ? $name : null;
+    }
+
+    /**
+     * A handler that can't be built is skipped, not fatal — mirrors
+     * VoiceAgentSpecService, so run-time selection matches advertise-time.
+     */
+    private function buildHandler(string $handlerClass): ?NeuronTool
+    {
+        try {
+            $handler = app($handlerClass);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $handler instanceof NeuronTool ? $handler : null;
     }
 }
