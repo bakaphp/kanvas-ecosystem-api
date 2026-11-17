@@ -9,18 +9,17 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Actions\CreateRefundAction;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
-use Kanvas\Souk\Payments\DataTransferObject\RefundPayment;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\CurrencyEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Infrastructure\Processors\Concerns\OpensProcessorRefunds;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Payments\Models\Payments;
 use Stripe\Exception\ApiErrorException;
@@ -29,6 +28,8 @@ use Stripe\StripeClient;
 
 final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcessorInterface
 {
+    use OpensProcessorRefunds;
+
     public function __construct(
         protected Apps $app,
         protected Companies $company,
@@ -152,31 +153,10 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        try {
-            $refund = new CreateRefundAction(
-                RefundPayment::forProcessor(
-                    $this->app,
-                    $this->company,
-                    $payment,
-                    $amount,
-                    $context
-                )
-            )->execute();
-        } catch (ValidationException $e) {
-            return new RefundResult(
-                success: false,
-                message: $e->getMessage(),
-                transactionId: '',
-            );
-        }
+        $refund = $this->openRefund($payment, $amount, $context);
 
-        if ($refund->isCompleted()) {
-            return new RefundResult(
-                success: true,
-                message: 'Refund already completed',
-                transactionId: (string) $refund->processor_refund_id,
-                raw: $refund->metadata ?? [],
-            );
+        if ($refund instanceof RefundResult) {
+            return $refund;
         }
 
         $refundAmount = (float) $refund->amount;
