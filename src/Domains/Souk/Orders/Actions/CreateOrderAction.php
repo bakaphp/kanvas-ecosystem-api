@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Event\Events\Actions\ResourceScheduleValidator;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
@@ -32,6 +34,7 @@ class CreateOrderAction
 
     private ?OrderTypes $resolvedOrderType = null;
     public bool $sendNotifications = true;
+    private bool $enforceVariantCapacity = true;
 
     public function __construct(
         protected Order $orderData
@@ -47,7 +50,7 @@ class CreateOrderAction
         )->lockKey($this->orderData->metadata);
 
         if ($lockKey === null) {
-            return $this->createOrder();
+            return $this->createOrderHoldingSlotLocks();
         }
 
         $lock = Cache::lock($lockKey, 30);
@@ -59,7 +62,7 @@ class CreateOrderAction
         }
 
         try {
-            return $this->createOrder();
+            return $this->createOrderHoldingSlotLocks();
         } finally {
             $lock->release();
         }
@@ -67,8 +70,6 @@ class CreateOrderAction
 
     private function createOrder(): ModelsOrder
     {
-        $this->validateSlotAvailability();
-
         $orderId = DB::connection('commerce')->transaction(function () {
             // Lock the table for uniqueness check
             $existingOrder = ModelsOrder::where([
@@ -218,6 +219,13 @@ class CreateOrderAction
         return $this;
     }
 
+    public function skipVariantCapacityCheck(): self
+    {
+        $this->enforceVariantCapacity = false;
+
+        return $this;
+    }
+
     public function disableNotifications(): self
     {
         $this->sendNotifications = false;
@@ -256,13 +264,32 @@ class CreateOrderAction
             ->first();
     }
 
-    private function validateSlotAvailability(): void
+    private function createOrderHoldingSlotLocks(): ModelsOrder
     {
-        $orderType = $this->resolveOrderType();
+        $capacityLimitedVariants = $this->resolveCapacityLimitedVariants();
+        $heldLocks = [];
 
-        if (! $orderType?->isExpirable()) {
-            return;
+        try {
+            foreach ($capacityLimitedVariants as $variant) {
+                $heldLocks[] = $this->acquireSlotLock($variant);
+                $this->assertSlotAvailable($variant);
+            }
+
+            return $this->createOrder();
+        } finally {
+            foreach ($heldLocks as $heldLock) {
+                $heldLock->release();
+            }
         }
+    }
+
+    private function resolveCapacityLimitedVariants(): array
+    {
+        if (! $this->enforceVariantCapacity || ! $this->resolveOrderType()?->isExpirable()) {
+            return [];
+        }
+
+        $variants = [];
 
         foreach ($this->orderData->items as $item) {
             $variant = $item->variant;
@@ -271,34 +298,41 @@ class CreateOrderAction
                 continue;
             }
 
-            $rawMaxCapacity = $variant->variantWarehouses()->first()?->max_capacity;
-
-            // 0 is the DTO default (unconfigured); null means no warehouse record — both = unlimited
-            if (! ($rawMaxCapacity > 0)) {
+            if (! ($variant->variantWarehouses()->first()?->max_capacity > 0)) {
                 continue;
             }
 
-            $lock = Cache::lock('slot_availability:' . $variant->getId(), 10);
+            $variants[$variant->getId()] = $variant;
+        }
 
-            try {
-                try {
-                    $lock->block(5);
-                } catch (LockTimeoutException) {
-                    throw new ValidationException(
-                        "Could not verify slot availability for {$variant->name}. Please try again."
-                    );
-                }
+        ksort($variants);
 
-                $slotData = new GetSlotAvailabilityAction($variant, $this->orderData->app)->execute();
+        return array_values($variants);
+    }
 
-                if ($slotData->availableCapacity <= 0) {
-                    throw new ValidationException(
-                        "No available slots for {$variant->name}. Current availability: 0."
-                    );
-                }
-            } finally {
-                $lock->release();
-            }
+    private function acquireSlotLock(Variants $variant): Lock
+    {
+        $lock = Cache::lock('slot_availability:' . $variant->getId(), 30);
+
+        try {
+            $lock->block(5);
+        } catch (LockTimeoutException) {
+            throw new ValidationException(
+                "Could not verify slot availability for {$variant->name}. Please try again."
+            );
+        }
+
+        return $lock;
+    }
+
+    private function assertSlotAvailable(Variants $variant): void
+    {
+        $slotData = new GetSlotAvailabilityAction($variant, $this->orderData->app)->execute();
+
+        if ($slotData->availableCapacity <= 0) {
+            throw new ValidationException(
+                "No available slots for {$variant->name}. Current availability: 0."
+            );
         }
     }
 }

@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Testing\TestResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\GetSlotAvailabilityAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use RuntimeException;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
+use Tests\GraphQL\Souk\Concerns\BuildsSellableVariants;
 use Tests\TestCase;
 
 class ProductSlotAvailabilityTest extends TestCase
 {
+    use BuildsSellableVariants;
     use InventoryCases;
 
     protected Apps $apps;
@@ -214,36 +220,145 @@ class ProductSlotAvailabilityTest extends TestCase
         $this->assertEquals($billableMinutes, (int) $orderItem->quantity);
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers — mirror the pattern in OrderExpirableTest
-    // -------------------------------------------------------------------------
+    public function testSlotLockIsHeldWhileOrderIsInserted(): void
+    {
+        $variant = $this->buildMovipassVariantWithCapacity(5);
+        $lockWasBusyAtInsert = null;
+
+        $this->listenForOrderInsert(function () use ($variant, &$lockWasBusyAtInsert) {
+            $probe = Cache::lock('slot_availability:' . $variant->getId(), 5);
+            $lockWasBusyAtInsert = ! $probe->get();
+
+            if (! $lockWasBusyAtInsert) {
+                $probe->release();
+            }
+        });
+
+        $response = $this->createOrderFromCartResponse($variant);
+
+        $this->assertNull($response->json('errors'));
+        $this->assertNotNull($response->json('data.createOrderFromCart.order.id'));
+        $this->assertTrue($lockWasBusyAtInsert);
+        $this->assertSlotLockIsFree($variant);
+    }
+
+    public function testSlotLockIsReleasedWhenOrderInsertFails(): void
+    {
+        $variant = $this->buildMovipassVariantWithCapacity(5);
+
+        $this->listenForOrderInsert(function () {
+            throw new RuntimeException('insert failed');
+        });
+
+        $response = $this->createOrderFromCartResponse($variant);
+
+        $this->assertArrayHasKey('errors', $response->json());
+        $this->assertSlotLockIsFree($variant);
+    }
+
+    public function testSlotLockIsReleasedWhenCapacityIsFull(): void
+    {
+        $variant = $this->buildMovipassVariantWithCapacity(1);
+        $this->createMovipassOrder($variant, ['data' => ['end_at' => now()->addHours(2)->toDateTimeString()]]);
+
+        $response = $this->createOrderFromCartResponse($variant);
+
+        $this->assertStringContainsString('No available slots', $response->json('errors.0.message'));
+        $this->assertSlotLockIsFree($variant);
+    }
+
+    public function testUnlimitedVariantTakesNoSlotLock(): void
+    {
+        $variant = $this->buildMovipassVariantWithCapacity(0);
+        $lockWasFreeAtInsert = null;
+
+        $this->listenForOrderInsert(function () use ($variant, &$lockWasFreeAtInsert) {
+            $probe = Cache::lock('slot_availability:' . $variant->getId(), 5);
+            $lockWasFreeAtInsert = $probe->get();
+
+            if ($lockWasFreeAtInsert) {
+                $probe->release();
+            }
+        });
+
+        $response = $this->createOrderFromCartResponse($variant);
+
+        $this->assertNull($response->json('errors'));
+        $this->assertTrue($lockWasFreeAtInsert);
+    }
+
+    public function testSecondSlotLockTimeoutReleasesTheFirstLock(): void
+    {
+        $firstVariant = $this->buildMovipassVariantWithCapacity(5);
+        $secondVariant = $this->buildMovipassVariantWithCapacity(5);
+        $heldLock = Cache::lock('slot_availability:' . $secondVariant->getId(), 60);
+        $this->assertTrue($heldLock->get());
+
+        $response = $this->createOrderFromCartResponse($secondVariant, $firstVariant);
+
+        $heldLock->release();
+
+        $this->assertStringContainsString('Could not verify slot availability', $response->json('errors.0.message'));
+        $this->assertSlotLockIsFree($firstVariant);
+        $this->assertSlotLockIsFree($secondVariant);
+    }
+
+    private function listenForOrderInsert(callable $listener): void
+    {
+        $event = 'eloquent.creating: ' . Order::class;
+
+        Event::listen($event, function () use ($listener) {
+            $listener();
+        });
+
+        $this->beforeApplicationDestroyed(fn () => Event::forget($event));
+    }
+
+    private function assertSlotLockIsFree(Variants $variant): void
+    {
+        $probe = Cache::lock('slot_availability:' . $variant->getId(), 5);
+
+        $this->assertTrue($probe->get());
+        $probe->release();
+    }
+
+    private function createOrderFromCartResponse(Variants ...$variants): TestResponse
+    {
+        return $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order { id }
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 0,
+                'customer' => ['email' => fake()->email()],
+                'order_type' => 'movipass',
+                'items' => array_map(
+                    fn (Variants $variant) => ['variant_id' => $variant->getId(), 'quantity' => 60],
+                    $variants
+                ),
+                'metadata' => [
+                    'data' => [
+                        'start_at' => now()->addHour()->toDateTimeString(),
+                        'end_at' => now()->addHours(2)->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+    }
 
     private function buildMovipassVariantWithCapacity(int $maxCapacity): Variants
     {
-        $response = $this->createProduct(attributes: [
-            ['name' => 'slots', 'value' => $maxCapacity],
-        ]);
-        $response->assertSuccessful();
-        $productResponse = $response->json('data.createProduct');
-
-        $variantResponse = $this->createVariant(
-            productId: $productResponse['id'],
-            warehouseData: ['id' => $this->warehouseResponse['id']],
-        )->json()['data']['createVariant'];
-
-        $this->addVariantToChannel(
-            variantId: $variantResponse['id'],
-            channelId: $this->channelResponse['id'],
-            warehouseData: ['id' => $this->warehouseResponse['id']],
+        $variant = $this->buildSellableVariant(
+            stock: $maxCapacity,
+            productAttributes: [['name' => 'slots', 'value' => $maxCapacity]]
         );
-
-        $this->addVariantToWarehouse(
-            variantId: $variantResponse['id'],
-            warehouseId: $this->warehouseResponse['id'],
-            amount: $maxCapacity,
-        );
-
-        $variant = Variants::find($variantResponse['id']);
         $variantWarehouse = $variant->variantWarehouses()->first();
         $variantWarehouse->max_capacity = $maxCapacity;
         $variantWarehouse->save();

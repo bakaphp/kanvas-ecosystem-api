@@ -18,7 +18,8 @@ use Override;
 
 #[WorkflowAction(
     name: 'DHL Order Status Notice',
-    description: 'Emails the customer at every DHL order status except dispatched (sent by the booking with the tracking number), '
+    description: 'Emails the customer at every DHL order status except dispatched (sent by the booking with the tracking number) '
+        . 'and ready-for-dispatch once the shipment is booked, '
         . 'emails the owner when an order is placed, delivered, returned or cancelled, '
         . 'and flags a cancelled order whose DHL shipment was already booked for manual review, since DHL cannot void a booking.',
     integration: IntegrationsEnum::DHL,
@@ -59,6 +60,11 @@ class NotifyOrderStatusActivity extends KanvasActivity implements WorkflowActivi
 
                 if ($status === null || ! in_array($status, self::NOTIFIED_STATUSES, true)) {
                     return ['order' => $order->getId(), 'status' => 'skipped', 'message' => 'Status is not notified'];
+                }
+
+                if ($status === OrderStatusEnum::READY_FOR_DISPATCH
+                    && $order->get(CustomFieldEnum::BOOKING_STATE->value) === BookingStateEnum::BOOKED->value) {
+                    return ['order' => $order->getId(), 'status' => 'skipped', 'message' => 'The shipment is already booked and the customer told it is on its way'];
                 }
 
                 new SendOrderEmailsAction(

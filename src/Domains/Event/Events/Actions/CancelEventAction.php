@@ -8,7 +8,9 @@ use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Event\Passes\Actions\ReleasePassAction;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Orders\Actions\CancelOrderAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CancelEventAction
@@ -59,6 +61,9 @@ class CancelEventAction
         ]]);
 
         $this->eventVersion->refresh();
+        new ReleasePassAction($this->eventVersion->app, $this->eventVersion->getId())->execute();
+        $this->cancelBookingOrders();
+        $this->eventVersion->timeSlot?->autoUpdateStatus();
         new ScheduleEventReminderAction($this->eventVersion)->execute();
 
         if ($this->sendNotifications) {
@@ -79,6 +84,15 @@ class CancelEventAction
         }
 
         return $this->eventVersion;
+    }
+
+    private function cancelBookingOrders(): void
+    {
+        foreach ($this->eventVersion->event->orders as $order) {
+            if ($order->orderType?->isEventBooking()) {
+                new CancelOrderAction($order, $this->eventVersion->user)->execute();
+            }
+        }
     }
 
     private function validateEventNotAlreadyCancelled(): void

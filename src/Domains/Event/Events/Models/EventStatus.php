@@ -6,9 +6,11 @@ namespace Kanvas\Event\Events\Models;
 
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Support\LocationContext;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Models\BaseModel;
 use Override;
 
@@ -23,6 +25,16 @@ class EventStatus extends BaseModel implements ReadableAtLocation
         'valid_transitions' => 'array',
         'transition_validations' => 'array',
     ];
+
+    public function scopeCancelled(Builder $query): Builder
+    {
+        $table = $this->getTable();
+
+        return $query->whereRaw(
+            "LOWER(COALESCE(NULLIF({$table}.slug, ''), {$table}.name)) = ?",
+            [strtolower(EventStatusEnum::CANCELLED->value)]
+        );
+    }
 
     /**
      * Check if transition to another status is valid

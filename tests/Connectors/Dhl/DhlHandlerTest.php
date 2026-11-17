@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Client;
+use Kanvas\Connectors\Dhl\DataTransferObject\Dhl;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Dhl\Handlers\DhlHandler;
@@ -89,6 +90,20 @@ final class DhlHandlerTest extends TestCase
 
         Http::assertSent(fn (Request $request): bool => $request->url() === self::DHL_HOST . '/rates'
             && $request['customerDetails']['shipperDetails']['postalCode'] === '');
+    }
+
+    public function testSetupAcceptsTheFlatOriginFieldsTheAdminFormSends(): void
+    {
+        $this->fakeDhl([self::DHL_HOST . '/rates' => Http::response($this->dhlRatesResponse())]);
+        $data = $this->setupData();
+        unset($data['origin']);
+
+        foreach ($this->dhlOrigin() as $field => $value) {
+            $data[Dhl::ORIGIN_FIELD_PREFIX . $field] = $value;
+        }
+
+        $this->assertTrue($this->handler($data)->setup());
+        $this->assertEquals($this->dhlOrigin(), $this->company->get(ConfigurationEnum::ORIGIN->value));
     }
 
     public function testTeardownRemovesEveryStoredSetting(): void

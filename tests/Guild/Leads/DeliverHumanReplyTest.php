@@ -14,8 +14,10 @@ use Kanvas\Guild\Leads\Activities\DeliverHumanReplyActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
@@ -191,6 +193,33 @@ final class DeliverHumanReplyTest extends TestCase
             (int) Delivery::query()->where('message_id', $second->getId())->sole()->connection_id,
             'a number that can no longer send falls back to the default'
         );
+    }
+
+    public function testAColleagueWhoseReplyLeftFollowsTheLeadAndAnotherAiDoesNot(): void
+    {
+        $this->defaultSmsConnection(number: '+18095550713');
+        $lead = $this->leadOf($this->personWithCellphone('+18095550714'));
+        $owner = Users::factory()->create();
+        $lead->forceFill(['leads_owner_id' => $owner->getId(), 'users_id' => $owner->getId()])->saveOrFail();
+        $channel = $this->conversationChannel($lead);
+        $follows = fn (): int => UsersFollows::query()
+            ->where('entity_namespace', Lead::class)
+            ->where('entity_id', $lead->getId())
+            ->where('users_id', auth()->user()->getId())
+            ->where('is_deleted', 0)
+            ->count();
+
+        new DeliverConversationMessageAction(
+            $channel,
+            $this->written($channel, $lead, 'From the other AI'),
+            writtenByPerson: false
+        )->execute();
+
+        $this->assertSame(0, $follows());
+
+        $this->deliver($channel, $this->written($channel, $lead, 'On my way'));
+
+        $this->assertSame(1, $follows());
     }
 
     public function testAReplyTheProviderRefusedIsNotedOnTheLeadAndAnswersNothing(): void

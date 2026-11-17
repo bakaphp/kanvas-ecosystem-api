@@ -9,6 +9,7 @@ use Baka\Helpers\GenerateQrCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\ActivateEventBookingOrderAction;
 use Kanvas\Connectors\Movipass\Actions\ApplyFreeParkingTierAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -54,7 +55,9 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
                 $toStatus = $params['to_status'] ?? null;
 
-                if ($eventName === WorkflowEnum::CREATED->value) {
+                if ($eventName === WorkflowEnum::CREATED->value && $order->isEventBacked()) {
+                    new ActivateEventBookingOrderAction($order)->execute();
+                } elseif ($eventName === WorkflowEnum::CREATED->value) {
                     if ($order->reference && ! str_contains($order->reference, '#' . $order->order_number)) {
                         $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
                         $referenceParts = array_filter([$vehiclePlate, '#' . $order->order_number]);

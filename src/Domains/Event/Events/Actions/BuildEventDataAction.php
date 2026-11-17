@@ -96,6 +96,7 @@ class BuildEventDataAction
             'resources_type' => $resource->getMorphClass(),
             'participants' => $input['participants'],
             'resources' => $input['resources'] ?? [],
+            'order_items' => $input['order_items'] ?? [],
             'time_slot_id' => $input['time_slot_id'] ?? null,
             'dates' => [
                 [

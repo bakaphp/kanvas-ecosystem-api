@@ -278,4 +278,26 @@ class UsersRepository
             ->whereNotNull('users.email')
             ->where('users.email', '!=', '');
     }
+
+    /**
+     * @param array<int> $userIds
+     * @return array<int> the users among `$userIds` who belong to more than one company of the app
+     */
+    public static function getMultiCompanyUserIds(array $userIds, AppInterface $app): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        return UsersAssociatedApps::query()
+            ->whereIn('users_id', $userIds)
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', '>', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->groupBy('users_id')
+            ->havingRaw('COUNT(DISTINCT companies_id) > 1')
+            ->pluck('users_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
 }

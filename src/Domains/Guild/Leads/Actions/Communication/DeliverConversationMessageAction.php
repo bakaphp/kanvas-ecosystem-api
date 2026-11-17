@@ -8,6 +8,7 @@ use Kanvas\Communication\Communication;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Guild\Leads\Actions\FollowLeadOnMessageAction;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -20,6 +21,7 @@ use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
@@ -142,6 +144,10 @@ final class DeliverConversationMessageAction
         new LeadChannelService()->recordOnLeadAndPerson($this->message, $lead, $this->message->user);
         new MarkLeadMessagesAsRespondedAction($lead, $this->message)->execute();
         new NotifyLeadStakeholdersService($lead)->onAgentReply($this->message, isHuman: $this->writtenByPerson);
+
+        if ($this->writtenByPerson && $this->message->user instanceof Users) {
+            new FollowLeadOnMessageAction($lead, $this->message->user)->execute();
+        }
 
         return [
             'message' => 'Message sent to lead via ' . $medium,

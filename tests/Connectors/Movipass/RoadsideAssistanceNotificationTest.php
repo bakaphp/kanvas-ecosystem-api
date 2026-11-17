@@ -38,7 +38,7 @@ final class RoadsideAssistanceNotificationTest extends TestCase
         $this->authUser = auth()->user();
     }
 
-    public function testStatusNotificationShipsOnPushExpoAndDatabase(): void
+    public function testStatusNotificationShipsOnTheAppPushProviderAndDatabase(): void
     {
         $order = $this->createRoadsideOrder();
 
@@ -54,7 +54,7 @@ final class RoadsideAssistanceNotificationTest extends TestCase
         $resolved = $notification->via($this->authUser);
         $this->assertContains(MovipassOneSignalChannel::class, $resolved);
         $this->assertNotContains(OneSignalNotificationChannel::class, $resolved);
-        $this->assertContains(ExpoChannel::class, $resolved);
+        $this->assertNotContains(ExpoChannel::class, $resolved);
         $this->assertContains(KanvasDatabase::class, $resolved);
     }
 
@@ -95,7 +95,6 @@ final class RoadsideAssistanceNotificationTest extends TestCase
         $resolved = $notification->via($this->authUser);
         $this->assertContains(MovipassOneSignalChannel::class, $resolved);
         $this->assertNotContains(OneSignalNotificationChannel::class, $resolved);
-        $this->assertContains(ExpoChannel::class, $resolved);
     }
 
     public function testStatusNotificationBuildsExpoMessageWithoutStoredTemplate(): void

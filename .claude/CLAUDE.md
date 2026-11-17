@@ -71,6 +71,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
 - `src/Domains/Communication/CLAUDE.md` — messaging as a first-party domain: sending from any domain through `Communication::for($app, $company)->send()/reply()`, what stays in the domain vs in a connector, `config/communication.php` as the only join (providers, opt-in, default rules), how to add a provider without touching the core, and the inbound → auto-reply flow.
 - `src/Domains/Connectors/Microsoft/CLAUDE.md` — Outlook + OneDrive: a company's own account (Outlook + its drive) vs the app's shared OneDrive (`MicrosoftTokenStore`), the tools' `drive` choice, the `microsoft`/`onedrive` OAuth integrations and their `oauth_url`, App Registration for personal accounts, granted-scopes refresh, Word-by-XML / Excel write limits, eTag and delete rules, native tools vs `microsoft365_mcp`.
+- `src/Domains/Connectors/Salesforce/CLAUDE.md` — the generic half (standard objects, per-company field maps) vs GAGroup's hardcoded property model (`Project__c`/`Location__c`), what a second tenant with properties needs, and why a location is a variant of its project's product.
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
 - `src/Domains/Intelligence/Agents/Neuron/CLAUDE.md` — Neuron 4 as Kanvas runs it: tool identity as property defaults (and why `$description` must stay a literal), the mandatory thread id and who picks it, `resources()` as the only history seam (`KanvasHistoryTrimmer` + the three message stores, `getChatHistory()` is final), why tool-budget refusal swaps the tool in the registry instead of skipping the call, the two halves of unknown-tool recovery, and the Anthropic cached-token pricing trap.
@@ -143,6 +144,7 @@ class MyNotification extends Notification
 **Key points:**
 - `Kanvas\Notifications\Notification` implements `ShouldQueue`, includes SMTP config, OneSignal, Expo, SMS, and storage traits
 - Set `$this->channels` with slug strings (`'mail'`, `'sms'`, `'push'`, `'expo'`, `'database'`) — the base `via()` maps them to channel classes automatically via `Kanvas\Notifications\Enums\NotificationChannelEnum::getNotificationChannelBySlug()`
+- An app pushes through **one** provider: the `push_provider` app setting (`onesignal` | `expo`, default `onesignal`). The `'push'` and `'expo'` slugs both resolve to it (`PushProviderEnum`), so new notifications just list `'push'`
 - Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
 - Never use `\Illuminate\Notifications\Notification` directly
 

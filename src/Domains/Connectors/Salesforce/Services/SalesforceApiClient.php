@@ -52,6 +52,17 @@ final class SalesforceApiClient
     ) {
     }
 
+    /**
+     * Ids get interpolated into SOQL, which has no bind parameters — this shape check is what rules
+     * injection out for an id that arrived from outside (a webhook payload, a stored custom field).
+     */
+    public static function assertValidId(string $id): void
+    {
+        if (! preg_match('/^[a-zA-Z0-9]{15,18}$/', $id)) {
+            throw new ValidationException("Invalid Salesforce id: {$id}");
+        }
+    }
+
     public function create(string $sobject, array $data): string
     {
         $response = $this->send('post', "/services/data/{$this->apiVersion}/sobjects/{$sobject}", $data);

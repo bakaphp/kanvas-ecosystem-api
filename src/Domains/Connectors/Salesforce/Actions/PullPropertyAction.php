@@ -7,72 +7,92 @@ namespace Kanvas\Connectors\Salesforce\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
-use Kanvas\Inventory\Products\Actions\CreateProductAction;
-use Kanvas\Inventory\Products\DataTransferObject\Product as ProductData;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
-use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesData;
-use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Connectors\Salesforce\Client;
+use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
+use Kanvas\Inventory\Variants\Models\Variants;
 
+/**
+ * Pulls one Location__c into Kanvas as a Variant of its Project__c's Product — the same shape the
+ * bulk import produces (see ImportSalesforcePropertiesCommand). Never as a Product of its own: a SKU
+ * is looked up company-wide, so a location's variant living anywhere else captures every later
+ * import of that location and it never reaches its project.
+ */
 class PullPropertyAction
 {
-    private const string PRODUCT_TYPE_SLUG = 'property';
+    public const string LOCATION_FIELDS = 'Id, Name, Parent_Deal__c, Property_Name__c, Deal_Status__c, '
+        . 'Marketing_Status__c, Store__c, Street__c, City__c, State_Province__c, Zip_Code__c, Brand__c, '
+        . 'Ask_Deal_Type__c, Location_Type__c, Gross_SF__c, Property_Acreage__c, Year_Built__c, Zoning__c, '
+        . 'Latitude__c, Longitude__c';
+
+    private const string SKU_PREFIX = 'sf-location-';
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected UserInterface $user,
-        protected array $payload,
         protected string $salesforceId,
     ) {
     }
 
-    public function execute(): Products
+    /**
+     * An Outbound Message carries only the fields picked in Salesforce Setup, which need not include
+     * Parent_Deal__c — so the row is re-read here, giving the webhook the same fields as the import.
+     */
+    public function execute(): ?Variants
     {
-        $productType = $this->resolveProductType();
+        SalesforceApiClient::assertValidId($this->salesforceId);
 
-        $productData = new ProductData(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            name: (string) ($this->payload['Property_Name__c'] ?? $this->payload['Name'] ?? 'Unknown Property'),
-            description: (string) ($this->payload['Brand__c'] ?? ''),
-            productsType: $productType,
-            slug: 'sf-location-' . $this->salesforceId,
-            sku: 'sf-location-' . $this->salesforceId,
-            attributes: $this->mapAttributes(),
-        );
+        $location = Client::getInstance($this->app, $this->company)->query(
+            'SELECT ' . self::LOCATION_FIELDS . ', Parent_Deal__r.Name FROM Location__c '
+            . "WHERE Id = '{$this->salesforceId}' LIMIT 1"
+        )['records'][0] ?? null;
 
-        $product = new CreateProductAction($productData, $this->user)->execute();
-        $product->set(CustomFieldEnum::SALESFORCE_LOCATION_ID->value, $this->salesforceId);
+        $projectSalesforceId = (string) ($location['Parent_Deal__c'] ?? '');
 
-        return $product;
-    }
+        if ($projectSalesforceId === '') {
+            return null;
+        }
 
-    private function resolveProductType(): ProductsTypes
-    {
-        return new CreateProductTypeAction(
-            new ProductsTypesData(
-                company: $this->company,
-                user: $this->user,
-                name: 'Property',
-                slug: self::PRODUCT_TYPE_SLUG,
-            ),
+        $product = new PullProjectAction(
+            $this->app,
+            $this->company,
             $this->user,
-        )->execute();
+            ['Name' => $location['Parent_Deal__r']['Name'] ?? null],
+            $projectSalesforceId,
+        )->execute([self::variantFromPayload($location)]);
+
+        return Variants::query()
+            ->where('products_id', $product->getId())
+            ->where('sku', self::skuFor((string) $location['Id']))
+            ->first();
     }
 
-    private function mapAttributes(): array
+    public static function skuFor(string $salesforceId): string
     {
-        return self::attributesFromPayload($this->payload);
+        return self::SKU_PREFIX . $salesforceId;
+    }
+
+    public static function salesforceIdFromSku(?string $sku): ?string
+    {
+        return $sku !== null && str_starts_with($sku, self::SKU_PREFIX)
+            ? substr($sku, strlen(self::SKU_PREFIX))
+            : null;
     }
 
     /**
-     * Shared with ImportSalesforcePropertiesCommand, which maps a Location__c row into a Product
-     * Variant's attributes instead of a standalone Product's — same Location__c field names either
-     * way, so the map lives here once.
-     *
+     * @return array{name: string, description: string, sku: string, attributes: array<int, array{name: string, value: mixed}>}
+     */
+    public static function variantFromPayload(array $location): array
+    {
+        return [
+            'name' => (string) ($location['Property_Name__c'] ?? $location['Name'] ?? 'Unknown Property'),
+            'description' => (string) ($location['Brand__c'] ?? ''),
+            'sku' => self::skuFor((string) $location['Id']),
+            'attributes' => self::attributesFromPayload($location),
+        ];
+    }
+
+    /**
      * @return array<int, array{name: string, value: mixed}>
      */
     public static function attributesFromPayload(array $payload): array
