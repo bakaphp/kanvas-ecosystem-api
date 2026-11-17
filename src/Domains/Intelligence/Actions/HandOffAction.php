@@ -14,11 +14,11 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadHandOffNotification;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Notifications\Services\CompanyNameNotificationService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -78,7 +78,7 @@ class HandOffAction
         );
         $managers = $this->handOffManagers($leadOwner, $handOffUserRole);
 
-        new NotifyLeadStakeholdersService($this->lead)->sendWithCompanyName(
+        new CompanyNameNotificationService($this->lead->company, $this->lead->app)->send(
             collect([$leadOwner])->merge($managers),
             $handOffNotification,
             fn (string $fromCompany) => $handOffNotification->getSubject() . $fromCompany

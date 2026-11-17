@@ -11,12 +11,12 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Notifications\Notification as NotificationsNotification;
+use Kanvas\Notifications\Services\CompanyNameNotificationService;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class NotifyLeadStakeholdersService
 {
@@ -186,7 +186,7 @@ class NotifyLeadStakeholdersService
             return ['skipped' => 'no_recipients'];
         }
 
-        $this->sendWithCompanyName(
+        new CompanyNameNotificationService($this->lead->company, $this->lead->app)->send(
             $recipients,
             $notification,
             fn (string $fromCompany) => $peopleName . $fromCompany . ' Engaged with Sally'
@@ -264,7 +264,7 @@ class NotifyLeadStakeholdersService
             return ['skipped' => 'no_recipients'];
         }
 
-        $this->sendWithCompanyName(
+        new CompanyNameNotificationService($this->lead->company, $this->lead->app)->send(
             $recipients,
             $notification,
             fn (string $fromCompany) => $sender . 'replied to ' . $peopleName . $fromCompany
@@ -283,34 +283,6 @@ class NotifyLeadStakeholdersService
             'manager_count' => $recipients->count(),
             'manager_ids' => $recipients->pluck('id')->toArray(),
         ];
-    }
-
-    /**
-     * Recipients in more than one company of the app cannot tell which one a lead belongs to, so only
-     * they get `company_name` in the template data and the subject; everyone else gets it empty.
-     *
-     * @param callable(string): string $subject receives " from <company>" or an empty string
-     */
-    public function sendWithCompanyName(
-        Collection $recipients,
-        NotificationsNotification $notification,
-        callable $subject
-    ): void {
-        $multiCompanyIds = UsersRepository::getMultiCompanyUserIds(
-            $recipients->pluck('id')->all(),
-            $this->lead->app
-        );
-
-        foreach ($recipients as $recipient) {
-            $inSeveralCompanies = in_array((int) $recipient->getId(), $multiCompanyIds, true);
-            $companyName = $inSeveralCompanies ? (string) $this->lead->company->name : '';
-
-            $copy = clone $notification;
-            $copy->setData(['company_name' => $companyName]);
-            $copy->setSubject($subject($inSeveralCompanies ? ' from ' . $companyName : ''));
-
-            $recipient->notify($copy);
-        }
     }
 
     protected function isWithinAgentReplyDedupeWindow(Channel $channel): bool
