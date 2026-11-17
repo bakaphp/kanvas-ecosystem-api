@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Alanube\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Baka\Support\Str;
 use Kanvas\Connectors\Alanube\Actions\ConnectAlanubeCompanyAction;
 use Kanvas\Connectors\Alanube\Enums\AccountModeEnum;
 use Kanvas\Connectors\Alanube\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 

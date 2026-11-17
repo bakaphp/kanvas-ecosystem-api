@@ -383,11 +383,7 @@ class SyncCrmLeadAction
             }
 
             $lead->enableWorkflows();
-            $lead->fireWorkflow(
-                WorkflowEnum::TRIGGER_AI->value,
-                true,
-                $params + ['trigger_type' => TriggersEnum::NEW_LEAD->value]
-            );
+            $lead->announceAiTrigger(TriggersEnum::NEW_LEAD->value);
         } catch (Throwable $exception) {
             report($exception);
         }

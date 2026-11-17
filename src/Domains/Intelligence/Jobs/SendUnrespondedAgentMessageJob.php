@@ -15,20 +15,23 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Actions\RespondToInboundMessageAction;
+use Kanvas\Communication\Messages\Exceptions\InboundNotAnsweredException;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
+use Throwable;
 
 class SendUnrespondedAgentMessageJob implements ShouldQueue
 {
@@ -103,6 +106,64 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         return false;
     }
 
+    /**
+     * @return array<string, mixed>|null null when nothing that follows a reply should run
+     */
+    private function answerAsQueued(): ?array
+    {
+        try {
+            return new $this->actionClass(
+                $this->channel,
+                $this->message,
+                $this->agent,
+                $this->session
+            )->execute($this->params);
+        } catch (AgentReplySkippedException $skipped) {
+            // The delay ran out on a turn this agent no longer answers: the connection was switched
+            // off or the agent deactivated. Expected, so nothing fails and nothing that follows a
+            // reply runs.
+            $this->updateIntegrationHistoryResult(['message' => $skipped->getMessage(), 'entity' => null]);
+
+            // Handed to another agent while it waited: the message is the new owner's to answer, now,
+            // since the wait for a person is already over. That is a turn of its own, so a fault in it
+            // is reported and never re-runs this one.
+            if ($skipped instanceof InboundNotAnsweredException && $skipped->reason === 'owner_changed') {
+                try {
+                    new RespondToInboundMessageAction($this->channel, $this->message, $this->params)
+                        ->executeIfOwned(waitForPerson: false);
+                } catch (Throwable $handOffFault) {
+                    report($handOffFault);
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /**
+     * For a turn queued before a deploy that removed its responder class. The wait is over, so the
+     * message is answered the way every inbound is, by the agent that owns the connection it
+     * arrived on; with no connection yet it stays as filed.
+     *
+     * @return array<string, mixed>|null null when nobody answered
+     */
+    private function answerAsOwner(): ?array
+    {
+        $result = new RespondToInboundMessageAction($this->channel, $this->message, $this->params)
+            ->executeIfOwned(waitForPerson: false);
+
+        if (isset($result['response'])) {
+            return $result;
+        }
+
+        $this->updateIntegrationHistoryResult($result ?? [
+            'message' => 'The responder this turn was queued with no longer exists and no agent owns the connection',
+            'entity' => null,
+        ]);
+
+        return null;
+    }
+
     private function respond(): void
     {
         $this->message->refresh();
@@ -117,23 +178,15 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             return;
         }
 
-        try {
-            $action = new $this->actionClass(
-                $this->channel,
-                $this->message,
-                $this->agent,
-                $this->session
-            );
+        $actionResult = class_exists($this->actionClass) ? $this->answerAsQueued() : $this->answerAsOwner();
 
-            $actionResult = $action->execute($this->params);
+        if ($actionResult === null) {
+            return;
+        }
+
+        try {
             $this->updateIntegrationHistoryResult($actionResult);
-            $lead->fireWorkflow(
-                WorkflowEnum::TRIGGER_AI->value,
-                true,
-                [
-                    'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
-                ]
-            );
+            $lead->announceAiTrigger(TriggersEnum::AI_TAKEOVER->value);
 
             DailyReportService::track(
                 $lead->app,

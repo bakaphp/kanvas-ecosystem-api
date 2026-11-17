@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VentaMobile\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\VentaMobile\Client;
 use Kanvas\Connectors\VentaMobile\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

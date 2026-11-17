@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WaSender\Enums;
 
 use Kanvas\Connectors\WaSender\Traits\ReadsReceiverConfigurationTrait;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
 /**
@@ -33,5 +34,16 @@ enum GroupConfigEnum: string
             self::GROUP_AGENT_ID => null,
             self::GROUP_REPLY_MODE => GroupReplyModeEnum::MENTION->value,
         };
+    }
+
+    /**
+     * Who works the company's groups: the agent assigned to them, else the one that linked the
+     * number (`agent_id`).
+     */
+    public static function agentId(ReceiverWebhook $receiver): ?int
+    {
+        $agentId = (int) (self::GROUP_AGENT_ID->get($receiver) ?? $receiver->configuration['agent_id'] ?? 0);
+
+        return $agentId > 0 ? $agentId : null;
     }
 }

@@ -67,10 +67,7 @@ class ImportSalesforcePropertiesCommand extends Command
 
         $client = Client::getInstance($app, $company);
 
-        $locationSoql = 'SELECT Id, Name, Parent_Deal__c, Property_Name__c, Deal_Status__c, Marketing_Status__c, '
-            . 'Store__c, Street__c, City__c, State_Province__c, Zip_Code__c, Brand__c, Ask_Deal_Type__c, '
-            . 'Location_Type__c, Gross_SF__c, Property_Acreage__c, Year_Built__c, Zoning__c, Latitude__c, '
-            . 'Longitude__c FROM Location__c';
+        $locationSoql = 'SELECT ' . PullPropertyAction::LOCATION_FIELDS . ' FROM Location__c';
 
         $projectId = $this->option('project_id');
         if ($projectId) {
@@ -268,19 +265,10 @@ class ImportSalesforcePropertiesCommand extends Command
                 continue;
             }
 
-            $sku = 'sf-location-' . $locationSalesforceId;
-            $variantsByLocationSku[$sku] = $location;
+            $variantsByLocationSku[PullPropertyAction::skuFor($locationSalesforceId)] = $location;
         }
 
-        $variants = [];
-        foreach ($variantsByLocationSku as $sku => $location) {
-            $variants[] = [
-                'name' => (string) ($location['Property_Name__c'] ?? $location['Name'] ?? 'Unknown Property'),
-                'description' => (string) ($location['Brand__c'] ?? ''),
-                'sku' => $sku,
-                'attributes' => PullPropertyAction::attributesFromPayload($location),
-            ];
-        }
+        $variants = array_map(PullPropertyAction::variantFromPayload(...), array_values($variantsByLocationSku));
 
         $product = new PullProjectAction(
             $app,

@@ -74,6 +74,17 @@ class LeadConfigurationService
         return $this->findConfigKeyBySuffix($lead, 'first_fu_active_default');
     }
 
+    /**
+     * A lead type switches the first message off only by saying so; one that never set the key sends.
+     */
+    public function isFirstMessageEnabled(Lead $lead): bool
+    {
+        $leadTypeConfig = $lead->type()->first()?->config ?? [];
+        $key = $this->configKeyBySuffix($leadTypeConfig, 'first_fu_active_default');
+
+        return ! array_key_exists($key, $leadTypeConfig) || (bool) $leadTypeConfig[$key];
+    }
+
     public function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
     {
         $suffix = $isOpen ? 'ai_mode_open_default' : 'ai_mode_closed_default';

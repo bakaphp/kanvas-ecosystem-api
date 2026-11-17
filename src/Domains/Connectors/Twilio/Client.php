@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio;
 
 use Baka\Contracts\AppInterface;
-use DateTimeInterface;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
@@ -32,9 +31,30 @@ final class Client
         return new TwilioClient($sid, $token);
     }
 
+    public static function getInstanceByCompanyOrApp(Companies $company, AppInterface $app): TwilioClient
+    {
+        [$sid, $token] = self::getKeysFromCompanyOrApp($company, $app);
+
+        return new TwilioClient($sid, $token);
+    }
+
     /**
-     * Validate Twilio credentials.
+     * The account a company's texts go through: its own when it has one, so a dealer with its own
+     * account keeps sending from it, the app's otherwise. Sending, the number's webhook and the
+     * signature on what Twilio posts back all have to name the same account.
+     *
+     * @throws ValidationException when neither has credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
+    public static function getKeysFromCompanyOrApp(Companies $company, AppInterface $app): array
+    {
+        try {
+            return self::getKeysFromCompany($company);
+        } catch (ValidationException) {
+            return self::getKeysFromApp($app);
+        }
+    }
+
     public static function validateCredentials(string $sid, string $token): bool
     {
         try {
@@ -55,37 +75,8 @@ final class Client
     }
 
     /**
-     * The shape StoreMessageSidAction and RecordMessageAttemptAction read from a send result's `messages`.
-     */
-    public static function describeMessage(object $twilioMessage): array
-    {
-        return [
-            'sid' => $twilioMessage->sid,
-            'account_sid' => $twilioMessage->accountSid,
-            'messaging_service_sid' => $twilioMessage->messagingServiceSid,
-            'status' => $twilioMessage->status,
-            'direction' => $twilioMessage->direction,
-            'from' => $twilioMessage->from,
-            'to' => $twilioMessage->to,
-            'body' => $twilioMessage->body,
-            'num_segments' => $twilioMessage->numSegments,
-            'num_media' => $twilioMessage->numMedia,
-            'error_code' => $twilioMessage->errorCode,
-            'error_message' => $twilioMessage->errorMessage,
-            'price' => $twilioMessage->price,
-            'price_unit' => $twilioMessage->priceUnit,
-            'date_created' => $twilioMessage->dateCreated?->format(DateTimeInterface::ATOM),
-            'date_sent' => $twilioMessage->dateSent?->format(DateTimeInterface::ATOM),
-            'date_updated' => $twilioMessage->dateUpdated?->format(DateTimeInterface::ATOM),
-            'uri' => $twilioMessage->uri,
-        ];
-    }
-
-    /**
-     * Get Twilio API credentials from app configuration.
-     *
-     * @throws ValidationException If credentials are not properly set
-     * @return array{0: string, 1: string} Array containing [Account SID, Auth Token]
+     * @throws ValidationException when the app has no credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
     public static function getKeysFromApp(AppInterface $app): array
     {
@@ -108,10 +99,8 @@ final class Client
     }
 
     /**
-     * Get Twilio API credentials from company configuration.
-     *
-     * @throws ValidationException If credentials are not properly set
-     * @return array{0: string, 1: string} Array containing [Account SID, Auth Token]
+     * @throws ValidationException when the company has no credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
     public static function getKeysFromCompany(Companies $company): array
     {

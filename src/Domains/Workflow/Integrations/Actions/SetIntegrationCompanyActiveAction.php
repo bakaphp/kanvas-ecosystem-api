@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Actions;
 
+use Baka\Contracts\BaseIntegration;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 /**

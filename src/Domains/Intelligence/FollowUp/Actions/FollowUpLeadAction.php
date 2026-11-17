@@ -8,13 +8,13 @@ use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
@@ -197,7 +197,10 @@ final class FollowUpLeadAction
 
         $missingLinks = implode(', ', $this->missingLinks($template));
         if ($missingLinks !== '') {
-            return $this->skipWithNote(FollowUpFailureReasonEnum::LINK_MISSING->value . ': ' . $missingLinks, 'Follow-up not sent: this step needs a link the lead does not have (' . $missingLinks . ').');
+            return $this->skipWithNote(
+                FollowUpFailureReasonEnum::LINK_MISSING->value . ': ' . $missingLinks,
+                'Follow-up not sent: this step needs a link the lead does not have (' . $missingLinks . ').'
+            );
         }
 
         // Every free gate has passed; this is the last stop before money is spent (a CRM call,
@@ -728,12 +731,10 @@ final class FollowUpLeadAction
         $message->addTag('followup');
 
         try {
-            new LeadChannelService()->attachMessageToLeadChannel(
+            new LeadChannelService()->recordOnLeadAndPerson(
                 $message,
                 $this->lead,
-                $this->app,
-                $this->company,
-                $this->company->getAiAgentUserOrFail(),
+                $this->company->getAiAgentUserOrFail()
             );
         } catch (Throwable $e) {
             report($e);
@@ -877,7 +878,7 @@ final class FollowUpLeadAction
                 to: (string) $outboundContact->value,
                 fromAgent: $this->agent,
             );
-            new StoreMessageSidAction($message)->execute($providerResponse);
+            new LinkDeliveryMessageAction($message)->execute($providerResponse);
         } catch (Throwable $e) {
             // Keep the persisted attempt for auditing even when outbound delivery fails.
             report($e);
@@ -899,18 +900,10 @@ final class FollowUpLeadAction
         return true;
     }
 
-    // Reuse the original outreach subject (anchored on the lead by
-    // AgentReachOutOnChannelAction) so the follow-up threads under the same
-    // email as a reply. Falls back to the company name for leads with no
-    // anchored subject (legacy / non-email-originated).
+    // A lead with no email thread yet (legacy, or never emailed) starts one under the company name.
     private function resolveEmailTitle(): string
     {
-        $anchor = $this->lead->get('title_email_follow_up');
-        if (! is_string($anchor) || $anchor === '') {
-            return $this->company->name;
-        }
-
-        return str_starts_with(mb_strtolower($anchor), 're:') ? $anchor : 'Re: ' . $anchor;
+        return $this->lead->emailThreadReplySubject() ?? $this->company->name;
     }
 
     private function messageTypeVerbFor(string $channelType): string

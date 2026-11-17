@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Actions;
 
+use Baka\Contracts\BaseIntegration;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as IntegrationsCompanyModel;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Messages\DataTransferObject;
 
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
+
 final readonly class Attachment
 {
     public function __construct(
@@ -11,6 +13,34 @@ final readonly class Attachment
         public ?string $name = null,
         public ?string $mimeType = null
     ) {
+    }
+
+    /**
+     * What kind of media this is: what the sender declared, else the file name, else the URL. No
+     * one of them is enough: a lead's files arrive as bare URLs, and a signed URL has no extension.
+     */
+    public function mediaType(): MediaTypeEnum
+    {
+        $extensions = [
+            $this->mimeType !== null ? MediaTypeEnum::extensionForMime($this->mimeType) : '',
+            self::extensionOf($this->name),
+            self::extensionOf($this->url),
+        ];
+
+        foreach ($extensions as $extension) {
+            $type = MediaTypeEnum::fromExtension($extension);
+
+            if ($type !== MediaTypeEnum::UNKNOWN) {
+                return $type;
+            }
+        }
+
+        return MediaTypeEnum::UNKNOWN;
+    }
+
+    private static function extensionOf(?string $path): string
+    {
+        return strtolower(pathinfo((string) parse_url((string) $path, PHP_URL_PATH), PATHINFO_EXTENSION));
     }
 
     /**

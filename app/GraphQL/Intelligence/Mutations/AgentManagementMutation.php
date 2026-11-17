@@ -9,10 +9,12 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Actions\RefreshAgentConnectionsAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\ConfigureAgentInboundWebhookAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\ReleaseInboundWebhookForNumberAction;
+use Kanvas\Intelligence\Agents\Actions\Phone\ReportAgentTextConnectionAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\SetAgentPhoneNumberAction;
 use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
@@ -46,6 +48,8 @@ class AgentManagementMutation
 
         $voiceConfig = $this->normalizeConfigPhone($input['voice_config'] ?? null);
         $smsConfig = $this->normalizeConfigPhone($input['sms_config'] ?? null);
+        $whatsappConfig = $this->normalizeConfigPhone($input['whatsapp_config'] ?? null);
+        $reachOutConfig = $this->normalizeReachOutConfig($input['reach_out_config'] ?? null);
         $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig);
         $this->resolveLlmConfig($voiceConfig['llm_config_id'] ?? null, $company, $app);
 
@@ -74,6 +78,8 @@ class AgentManagementMutation
             toolsConfig: $input['tools_config'] ?? null,
             voiceConfig: $voiceConfig,
             smsConfig: $smsConfig,
+            whatsappConfig: $whatsappConfig,
+            reachOutConfig: $reachOutConfig,
             tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
@@ -93,10 +99,13 @@ class AgentManagementMutation
 
         new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
-        // Best-effort: point the agent's Twilio number at the inbound webhook.
+        // Best-effort: point the agent's Twilio voice number at the inbound webhook.
         // Never throws — inbound wiring must not block creating the agent.
         new ConfigureAgentInboundWebhookAction($agent)->execute();
-        new ConfigureAgentInboundWebhookAction($agent, AgentPhoneChannelEnum::SMS)->execute();
+        // Whichever number or mailbox the agent now owns, the company's connections follow it,
+        // and the text number's status is read from the connection it became.
+        new RefreshAgentConnectionsAction($agent)->execute();
+        new ReportAgentTextConnectionAction($agent)->execute();
 
         return $agent;
     }
@@ -142,6 +151,13 @@ class AgentManagementMutation
         $smsConfig = array_key_exists('sms_config', $input)
             ? $this->normalizeConfigPhone($input['sms_config'])
             : $agent->sms_config;
+        $whatsappConfig = array_key_exists('whatsapp_config', $input)
+            ? $this->normalizeConfigPhone($input['whatsapp_config'])
+            : $agent->whatsapp_config;
+        // An edit that does not mention the reach-out must never switch it off.
+        $reachOutConfig = array_key_exists('reach_out_config', $input)
+            ? $this->normalizeReachOutConfig($input['reach_out_config'])
+            : $agent->reach_out_config;
         $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig, $agent);
         $this->resolveLlmConfig($voiceConfig['llm_config_id'] ?? null, $company, $app);
 
@@ -170,6 +186,8 @@ class AgentManagementMutation
             toolsConfig: $input['tools_config'] ?? null,
             voiceConfig: $voiceConfig,
             smsConfig: $smsConfig,
+            whatsappConfig: $whatsappConfig,
+            reachOutConfig: $reachOutConfig,
             parentAgent: $parentAgent,
             isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
             agentLlmConfig: $llmConfig,
@@ -187,10 +205,13 @@ class AgentManagementMutation
 
         new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
-        // Best-effort: (re)point the agent's Twilio number at the inbound webhook
+        // Best-effort: (re)point the agent's Twilio voice number at the inbound webhook
         // when its number changes. Never throws — must not block the update.
         new ConfigureAgentInboundWebhookAction($agent)->execute();
-        new ConfigureAgentInboundWebhookAction($agent, AgentPhoneChannelEnum::SMS)->execute();
+        // Whichever number or mailbox the agent now owns, the company's connections follow it,
+        // and the text number's status is read from the connection it became.
+        new RefreshAgentConnectionsAction($agent)->execute();
+        new ReportAgentTextConnectionAction($agent)->execute();
 
         // If the number actually changed (or was cleared), release the OLD number's
         // webhook — but only when no agent anywhere still owns it (account-wide, in
@@ -238,6 +259,29 @@ class AgentManagementMutation
     }
 
     /**
+     * @return array{new_leads: bool, lead_source_allowlist: list<string>}|null
+     */
+    private function normalizeReachOutConfig(mixed $config): ?array
+    {
+        $decoded = Str::jsonToArray($config);
+        if ($decoded === null) {
+            return null;
+        }
+
+        if (! is_array($decoded)) {
+            throw new ValidationException('reach_out_config must be an object.');
+        }
+
+        return [
+            'new_leads' => (bool) ($decoded['new_leads'] ?? false),
+            'lead_source_allowlist' => array_values(array_filter(
+                (array) ($decoded['lead_source_allowlist'] ?? []),
+                is_string(...)
+            )),
+        ];
+    }
+
+    /**
      * Decode JSON strings as the model cast does so they cannot bypass number validation.
      */
     private function normalizeConfigPhone(mixed $config): ?array
@@ -249,7 +293,7 @@ class AgentManagementMutation
 
         // The input is Mixed and these are JSON columns, so anything else fails as a SQL error.
         if (! is_array($decoded)) {
-            throw new ValidationException('voice_config and sms_config must be objects.');
+            throw new ValidationException('voice_config, sms_config and whatsapp_config must be objects.');
         }
 
         $number = $decoded['phone_number'] ?? null;

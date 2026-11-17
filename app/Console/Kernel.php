@@ -40,6 +40,7 @@ use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\CheckoutReconcileCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
+use App\Console\Commands\Workflow\PruneIntegrationHistoryCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Kanvas\Workflow\Models\StoredWorkflow;
@@ -75,6 +76,10 @@ class Kernel extends ConsoleKernel
         // never one statement.
         $schedule->command('model:prune', ['--model' => [StoredWorkflow::class]])->dailyAt('03:30')
             ->withoutOverlapping(1380)->onOneServer();
+        // Every workflow run that fails or is skipped leaves a history row; without this the table only
+        // grows. Time-boxed per run, so it finishes before the business day and never overlaps.
+        $schedule->command(PruneIntegrationHistoryCommand::class)->dailyAt('04:00')
+            ->withoutOverlapping(60)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(AlertUnverifiedOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(PollDhlTrackingCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();

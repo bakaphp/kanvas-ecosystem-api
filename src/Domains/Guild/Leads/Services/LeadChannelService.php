@@ -7,11 +7,11 @@ namespace Kanvas\Guild\Leads\Services;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
@@ -69,14 +69,26 @@ class LeadChannelService
             ]);
         }
 
-        $alreadyLinked = AppModuleMessage::query()
-            ->where('message_id', $message->getId())
-            ->where('system_modules', Lead::class)
-            ->where('entity_id', $lead->getId())
-            ->exists();
+        $message->addEntity($lead);
+    }
 
-        if (! $alreadyLinked) {
-            $message->addEntity($lead);
+    /**
+     * A message of the lead's customer conversation, on both of its histories: the lead's channel
+     * (what happened during this lead) and the person's (the whole conversation, across every lead
+     * they ever had). Attached, not posted: nothing is delivered or announced again.
+     */
+    public function recordOnLeadAndPerson(Message $message, Lead $lead, ?Users $user = null): void
+    {
+        $this->attachMessageToLeadChannel(
+            $message,
+            $lead,
+            $lead->app,
+            $lead->company,
+            $user
+        );
+
+        if ($lead->people !== null) {
+            new PeopleChannelService()->recordOnPerson($message, $lead->people, $user);
         }
     }
 

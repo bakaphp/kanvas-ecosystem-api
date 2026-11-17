@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Communication\Channels\Email\Mail\MailCarrier;
 use Kanvas\Communication\Messages\Actions\RecordDeliveryEventAction;
-use Kanvas\Communication\Messages\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\MailgunEngagementPayloadService;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 
 /**
- * Shared by both Mailgun event receivers: the delivery one and the opened one, which stays on its own
- * URL because Mailgun keeps one URL per domain and event.
+ * One Mailgun domain event written on its delivery, whichever kind it is: a delivery event or an open.
  */
 final class RecordEmailEventOnDeliveryAction
 {
@@ -27,7 +26,7 @@ final class RecordEmailEventOnDeliveryAction
 
     /**
      * Within the receiver's app only; the tenant comes from the delivery, since one sending domain can
-     * serve several companies.
+     * serve several companies. Mail the Kanvas mailer relayed through Mailgun is reported on too.
      */
     public static function findDelivery(AppInterface $app, MailgunEngagementPayloadService $payload): ?Delivery
     {
@@ -35,8 +34,7 @@ final class RecordEmailEventOnDeliveryAction
 
         return $messageId === '' ? null : Delivery::query()
             ->fromApp($app)
-            ->where('provider', IntegrationsEnum::MAILGUN->value)
-            ->where('external_id', $messageId)
+            ->reportedBy([IntegrationsEnum::MAILGUN->value, MailCarrier::slug()], $messageId)
             ->first();
     }
 
@@ -45,10 +43,9 @@ final class RecordEmailEventOnDeliveryAction
      */
     public function execute(): bool
     {
-        $statusBefore = $this->delivery->status;
         $errorCode = $this->event->isFailure() ? $this->payload->deliveryStatusCode() : null;
 
-        $recorded = new RecordDeliveryEventAction(
+        return new RecordDeliveryEventAction(
             delivery: $this->delivery,
             status: $this->event->toDeliveryStatus(),
             providerStatus: $this->event->value,
@@ -57,11 +54,5 @@ final class RecordEmailEventOnDeliveryAction
             errorCode: $errorCode !== null ? (string) $errorCode : null,
             error: $this->event->isFailure() ? $this->payload->deliveryStatusMessage() : null,
         )->execute();
-
-        if ($recorded && $this->delivery->status !== $statusBefore) {
-            new RecordDeliveryOnMessageAction($this->delivery)->execute();
-        }
-
-        return $recorded;
     }
 }

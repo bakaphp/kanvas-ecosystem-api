@@ -77,7 +77,11 @@ class UsersFollowsRepository
             ->where('users_follows.apps_id', $app->getId())
             ->where('users_follows.is_deleted', 0)
             ->where('users_follows.entity_id', $entity->id)
-            ->where('users_follows.users_id', '!=', $entity->id)
+            // A self-follow only exists between users; on any other entity the ids are unrelated.
+            ->when(
+                $entityNamespace === Users::class,
+                fn (Builder $query) => $query->where('users_follows.users_id', '!=', $entity->id)
+            )
             // ->where('users_follows.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->where('users_follows.entity_namespace', $entityNamespace)
             ->select('users.*');

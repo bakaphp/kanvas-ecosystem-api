@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Humano\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Humano\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Humano\Enums\EnvironmentEnum;
 use Kanvas\Connectors\Humano\Providers\HumanoProvider;

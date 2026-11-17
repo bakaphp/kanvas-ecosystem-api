@@ -11,12 +11,9 @@ use Kanvas\Social\Messages\Events\MessageDeliveryStatusEvent;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * Writes a delivery's state into its message body under `delivery`, in the shape Twilio SMS already
- * uses (Connectors\Twilio\Actions\RecordDeliveryOnMessageAction), so a client reads email and SMS the
- * same way; `message_sid` holds the provider's id. The outcome is pushed to the message's channels.
- *
- * Kept apart from the Twilio one until Twilio moves onto deliveries: that one is fed by Twilio's own
- * status enum and attempt table.
+ * Writes a delivery's state into its message body under `delivery`, the one shape a client reads
+ * for every channel; `message_sid` holds the provider's id, a name kept from when only SMS had one.
+ * The outcome is pushed to the message's channels.
  *
  * Saved quietly: a delivery event is bookkeeping, not an edit that should fire the message's rules.
  */
@@ -56,7 +53,9 @@ final class RecordDeliveryOnMessageAction
             $message->clearLightHouseCacheJob();
         }
 
-        if (in_array($this->delivery->status, [DeliveryStatusEnum::DELIVERED, DeliveryStatusEnum::READ, DeliveryStatusEnum::FAILED], true)) {
+        $pushed = [DeliveryStatusEnum::DELIVERED, DeliveryStatusEnum::READ, DeliveryStatusEnum::FAILED];
+
+        if (in_array($this->delivery->status, $pushed, true)) {
             $message->channels->each(
                 fn (Channel $channel) => MessageDeliveryStatusEvent::dispatch($channel, $message, $delivery)
             );

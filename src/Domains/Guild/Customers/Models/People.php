@@ -535,12 +535,25 @@ class People extends BaseModel implements ExposesTemplateData
      * that was already opted out counts as changed whenever the clock has moved a second, and the
      * callers that act on `> 0` (the Reynolds consent note) would fire again.
      *
-     * @param list<int> $types
+     * Updated by primary key: filtering the UPDATE itself lets MySQL pick the low-cardinality
+     * is_opt_out / is_deleted indexes (or merge them), locking contacts of every other person that
+     * share those values — which deadlocks against any concurrent contact insert.
+     *
+     * @param list<int>|null $types null opts out every contact
      */
-    private function optOutContactsOfTypes(array $types): int
+    public function optOutContactsOfTypes(?array $types = null): int
     {
-        return $this->contacts()
-            ->whereIn('contacts_types_id', $types)
+        $contactIds = $this->contacts()
+            ->when($types !== null, fn ($query) => $query->whereIn('contacts_types_id', $types))
+            ->where('is_opt_out', 0)
+            ->pluck('id');
+
+        if ($contactIds->isEmpty()) {
+            return 0;
+        }
+
+        return Contact::query()
+            ->whereKey($contactIds)
             ->where('is_opt_out', 0)
             ->update(['is_opt_out' => 1]);
     }
@@ -562,6 +575,11 @@ class People extends BaseModel implements ExposesTemplateData
                 $contact->set(ContactCustomFieldEnum::IS_LANDLINE->value, $isLandline);
             })
             ->count();
+    }
+
+    public function isPhoneLandline(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(fn (Contact $contact): bool => $contact->isLandline() === true);
     }
 
     public function markEmailBounced(string $email): int

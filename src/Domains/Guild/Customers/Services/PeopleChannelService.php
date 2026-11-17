@@ -11,7 +11,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
@@ -69,15 +68,23 @@ class PeopleChannelService
             ]);
         }
 
-        $alreadyLinked = AppModuleMessage::query()
-            ->where('message_id', $message->getId())
-            ->where('system_modules', People::class)
-            ->where('entity_id', $people->getId())
-            ->exists();
+        $message->addEntity($people);
+    }
 
-        if (! $alreadyLinked) {
-            $message->addEntity($people);
-        }
+    /**
+     * A message of the person's customer conversation, on their channel: the whole conversation
+     * across every lead they ever had. The tenant is the message's: it is filed already, and a
+     * person imported before apps existed carries none of their own.
+     */
+    public function recordOnPerson(Message $message, People $people, ?Users $user = null): void
+    {
+        $this->attachMessageToPeopleChannel(
+            $message,
+            $people,
+            $message->app,
+            $message->company,
+            $user
+        );
     }
 
     public function slugFor(People $people): string

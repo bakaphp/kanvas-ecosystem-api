@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SuperCarros\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Exception;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\SuperCarros\Client;
 use Kanvas\Connectors\SuperCarros\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

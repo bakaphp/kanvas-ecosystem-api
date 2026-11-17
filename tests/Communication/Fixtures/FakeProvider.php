@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Communication\Fixtures;
 
+use Baka\Contracts\BaseIntegration;
 use Carbon\CarbonInterval;
 use Kanvas\Communication\Connections\Concerns\ProvisionsConnections;
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\DataTransferObject\Retention;
 use Kanvas\Communication\Contracts\CommunicationProvider;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
@@ -39,7 +39,10 @@ final class FakeProvider extends BaseIntegration implements CommunicationProvide
 
     public static function transports(): array
     {
-        return [ChannelTypeEnum::SMS->value => FakeTransport::class];
+        return [
+            ChannelTypeEnum::SMS->value => FakeTransport::class,
+            ChannelTypeEnum::EMAIL->value => FakeTransport::class,
+        ];
     }
 
     /**
@@ -52,6 +55,7 @@ final class FakeProvider extends BaseIntegration implements CommunicationProvide
                 key: $number['phone_number'],
                 label: $number['phone_number'],
                 isDefault: (bool) ($number['is_default'] ?? false),
+                attributes: (array) ($number['attributes'] ?? []),
             ),
             $integrationCompany->config['phone_numbers'] ?? []
         );

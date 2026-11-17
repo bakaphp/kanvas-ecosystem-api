@@ -14,7 +14,8 @@ use Kanvas\Communication\Support\ProviderRegistry;
 
 /**
  * Records what a provider reported about a delivery. Providers repeat and reorder their callbacks,
- * so the same event is stored once and the delivery's status only ever moves forward.
+ * so the same event is stored once and the delivery's status only ever moves forward. A status that
+ * did move is written on the message and pushed to its channels.
  */
 final class RecordDeliveryEventAction
 {
@@ -33,23 +34,39 @@ final class RecordDeliveryEventAction
     }
 
     /**
-     * @return bool false when this exact event was already recorded
+     * @return bool false when this exact event was already recorded, or is about an attempt the
+     *              delivery has since been retried past
      */
     public function execute(): bool
     {
+        $statusBefore = $this->delivery->status;
+
         try {
-            return DB::connection('workflow')->transaction(fn (): bool => $this->record());
+            $recorded = DB::connection('workflow')->transaction(fn (): bool => $this->record());
         } catch (UniqueConstraintViolationException) {
             return false;
         }
+
+        // After the commit, so a client told about the new status reads it back.
+        if ($recorded && $this->delivery->status !== $statusBefore) {
+            new RecordDeliveryOnMessageAction($this->delivery)->execute();
+        }
+
+        return $recorded;
     }
 
     private function record(): bool
     {
         $delivery = Delivery::query()->lockForUpdate()->findOrFail($this->delivery->getKey());
 
+        // The caller found the delivery by an attempt's id. A retry that got in before this lock
+        // gave the row a new one, and what is being reported is the attempt before it.
+        if ($delivery->external_id !== $this->delivery->external_id) {
+            return false;
+        }
+
         $event = DeliveryEvent::firstOrCreate(
-            ['event_key' => $this->eventKey()],
+            ['event_key' => $this->eventKey($delivery)],
             [
                 'apps_id' => $delivery->apps_id,
                 'companies_id' => $delivery->companies_id,
@@ -71,8 +88,9 @@ final class RecordDeliveryEventAction
         if ($delivery->status->canAdvanceTo($this->status)) {
             $changes += [
                 'status' => $this->status,
-                'error_code' => $this->status === DeliveryStatusEnum::FAILED ? $this->errorCode : $delivery->error_code,
-                'error' => $this->status === DeliveryStatusEnum::FAILED ? $this->error : $delivery->error,
+                // A delivery whose outcome was lost and then reported keeps no trace of the loss.
+                'error_code' => $this->status === DeliveryStatusEnum::FAILED ? $this->errorCode : null,
+                'error' => $this->status === DeliveryStatusEnum::FAILED ? $this->error : null,
             ];
         }
 
@@ -88,8 +106,8 @@ final class RecordDeliveryEventAction
 
     /**
      * Terminal is the provider's call, not ours: after `delivered` Twilio says nothing more, while
-     * WhatsApp can still report `read`. A provider that only reports on deliveries (Mailgun email) is
-     * not registered, so its deliveries stay open; none of them holds a connection.
+     * WhatsApp can still report `read`. A provider that is no longer registered names no terminal
+     * events, so this never closes its deliveries.
      */
     private function isTerminal(Delivery $delivery): bool
     {
@@ -102,10 +120,16 @@ final class RecordDeliveryEventAction
         return in_array($this->providerStatus, $provider::eventRetention()->terminalEvents, true);
     }
 
-    private function eventKey(): string
+    /**
+     * The provider's id is part of the key because a retried delivery is the same row with a new
+     * one: without it the second attempt's `failed` reads as the first one's, repeated, and the
+     * delivery stays accepted. Twilio and WaSender send no event time to tell them apart.
+     */
+    private function eventKey(Delivery $delivery): string
     {
         return hash('sha256', implode('|', [
-            $this->delivery->getKey(),
+            $delivery->getKey(),
+            $delivery->external_id ?? '',
             $this->providerStatus,
             $this->occurredAt?->getTimestamp() ?? '',
         ]));

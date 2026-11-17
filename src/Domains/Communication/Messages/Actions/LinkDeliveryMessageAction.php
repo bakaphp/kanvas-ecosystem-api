@@ -49,7 +49,7 @@ final class LinkDeliveryMessageAction
 
         return Delivery::query()
             ->fromApp($this->message->app)
-            ->fromCompany($this->message->company)
+            ->fromCompany($this->message->company->getId())
             ->where('provider', $provider)
             ->when(
                 $externalId !== null,

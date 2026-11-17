@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\QuickBooks\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\QuickBooks\Client;
 use Kanvas\Connectors\QuickBooks\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;

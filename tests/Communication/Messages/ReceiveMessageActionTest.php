@@ -5,27 +5,35 @@ declare(strict_types=1);
 namespace Tests\Communication\Messages;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Communication\Messages\Actions\FlushInboundBurstAction;
 use Kanvas\Communication\Messages\Actions\ReceiveMessageAction;
 use Kanvas\Communication\Messages\DataTransferObject\InboundAttachment;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
+use Kanvas\Communication\Messages\DataTransferObject\InboundSenderPolicy;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
+use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 use LogicException;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Fixtures\FakeInbound;
 use Tests\TestCase;
+use Tests\Workflow\Support\WatchesWorkflowEvents;
 
 /**
  * The shared inbound pipeline, driven by a provider that is not Twilio on a medium that is not SMS:
@@ -35,6 +43,7 @@ final class ReceiveMessageActionTest extends TestCase
 {
     use BuildsCommunicationFixtures;
     use DatabaseTransactions;
+    use WatchesWorkflowEvents;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm', 'social'];
 
@@ -71,8 +80,8 @@ final class ReceiveMessageActionTest extends TestCase
 
         $result = $this->receive($this->inbound('+18095550701', 'wamid.1', 'Hola, sigue disponible?'));
 
-        $message = Message::query()->findOrFail($result[0]['message_id']);
-        $channel = Channel::query()->findOrFail($result[0]['channel_id']);
+        $message = Message::query()->findOrFail($result['message_id']);
+        $channel = Channel::query()->findOrFail($result['channel_id']);
         $person = $message->entity();
         $lead = $message->entity(Lead::class);
 
@@ -87,6 +96,24 @@ final class ReceiveMessageActionTest extends TestCase
         $this->assertSame('fake-whatsapp', $message->messageType->verb);
         $this->assertInstanceOf(Lead::class, $lead);
         $this->assertSame('whatsapp', $lead->get(LeadConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value));
+        $this->assertTrue(
+            Channel::query()
+                ->where('slug', 'lead-channel-' . $lead->getId())
+                ->sole()
+                ->messages()
+                ->whereKey($message->getId())
+                ->exists(),
+            'on the lead\'s history'
+        );
+        $this->assertTrue(
+            Channel::query()
+                ->where('slug', 'people-channel-' . $person->getId())
+                ->sole()
+                ->messages()
+                ->whereKey($message->getId())
+                ->exists(),
+            'on the person\'s whole conversation'
+        );
 
         Queue::assertPushed(
             FlushMessageBurstJob::class,
@@ -95,14 +122,37 @@ final class ReceiveMessageActionTest extends TestCase
         );
     }
 
+    /**
+     * A closed burst is one turn: announced once, on its first message, with the whole flurry as the
+     * text the agent answers. Who answers is the activity's to decide (RespondToInboundMessageActionTest).
+     */
+    public function testAClosedBurstIsAnnouncedOnItsFirstMessageWithTheFlurryAsTheTurn(): void
+    {
+        $turns = $this->watchWorkflowEvent(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value, Channel::class);
+        $connection = $this->connection('fake', '+18095550700');
+        $this->claim($connection);
+        $connection->forceFill(['config' => ['agent_id' => $this->agent()->getId()]])->saveOrFail();
+        $result = $this->receive($this->inbound('+18095550711', 'wamid.20', 'Hola'));
+        $channel = Channel::query()->findOrFail($result['channel_id']);
+        $messages = Message::query()->whereKey($result['message_id'])->get();
+
+        $this->assertCount(0, $this->firedWith($turns), 'a burst part waits for the burst to close');
+
+        new FlushInboundBurstAction($this->currentApp(), $channel, $messages)->execute();
+
+        $turn = $this->firedWith($turns)->sole();
+        $this->assertTrue($turn['message']->is($messages->first()));
+        $this->assertSame('Hola', $turn['burst_text']);
+    }
+
     public function testANumberAnotherWorkspaceClaimsFilesNothingHere(): void
     {
         $this->claim($this->connection('fake', '+18095550700'), $this->otherCompany()->getId());
 
         $result = $this->receive($this->inbound('+18095550705', 'wamid.5', 'Hola'));
 
-        $this->assertFalse($result[0]['filed']);
-        $this->assertSame('claimed_by_another_workspace', $result[0]['reason']);
+        $this->assertFalse($result['filed']);
+        $this->assertSame('claimed_by_another_workspace', $result['reason']);
         $this->assertNothingFiledFor('+18095550705');
     }
 
@@ -115,7 +165,7 @@ final class ReceiveMessageActionTest extends TestCase
 
         $result = $this->receive($this->inbound('+18095550706', 'wamid.6', 'Hola'));
 
-        $message = Message::query()->findOrFail($result[0]['message_id']);
+        $message = Message::query()->findOrFail($result['message_id']);
         $this->assertSame($this->currentCompany()->getId(), (int) $message->companies_id);
         $this->assertSame($this->currentCompany()->getId(), (int) $message->entity()->companies_id);
         $this->assertSame($connection->getId(), $message->message['communication']['connection_id']);
@@ -127,25 +177,95 @@ final class ReceiveMessageActionTest extends TestCase
 
         $result = $this->receive($this->inbound('+18095550707', 'wamid.7', 'Hola'));
 
-        $this->assertFalse($result[0]['filed']);
-        $this->assertSame('identity_not_connected', $result[0]['reason']);
+        $this->assertFalse($result['filed']);
+        $this->assertSame('identity_not_connected', $result['reason']);
         $this->assertNothingFiledFor('+18095550707');
     }
 
-    public function testARedeliveryUpdatesRatherThanFilesASecondCopy(): void
+    public function testARedeliveryFilesNothingAndStartsNoSecondAnswer(): void
     {
         $first = $this->receive($this->inbound('+18095550702', 'wamid.2', 'Hola'));
+        $channel = Channel::query()->findOrFail($first['channel_id']);
+        $messagesBefore = $channel->messages()->count();
+        Queue::fake();
+
         $second = $this->receive($this->inbound('+18095550702', 'wamid.2', 'Hola'));
 
-        $this->assertSame($first[0]['message_id'], $second[0]['message_id']);
+        $this->assertSame($first['message_id'], $second['message_id']);
+        $this->assertTrue($second['redelivery']);
+        $this->assertSame($messagesBefore, $channel->messages()->count());
+        Queue::assertNothingPushed();
+    }
+
+    /**
+     * A delivery that stopped after linking the message and before it reached the conversation is
+     * retried from the top. The agent's history and the lead summary read those links, so a second
+     * one would read as a second message.
+     */
+    public function testARetryOfAHalfFiledMessageLinksItOnce(): void
+    {
+        $first = $this->receive($this->inbound('+18095550712', 'wamid.12', 'Hola'));
+        $message = Message::query()->findOrFail($first['message_id']);
+        $message->channels()->detach();
+
+        $second = $this->receive($this->inbound('+18095550712', 'wamid.12', 'Hola'));
+
+        $this->assertSame($first['message_id'], $second['message_id']);
+        $this->assertArrayNotHasKey('redelivery', $second, 'filed again, not skipped');
+
+        foreach ([People::class, Lead::class] as $record) {
+            $this->assertSame(
+                1,
+                AppModuleMessage::query()
+                    ->where('message_id', $message->getId())
+                    ->where('system_modules', $record)
+                    ->count(),
+                'one link to its ' . class_basename($record)
+            );
+        }
+    }
+
+    /**
+     * A vendor can hand the same message over twice at once, and the redelivery check and the
+     * filing are several writes apart: the second delivery waits for the first.
+     */
+    public function testAMessageIsFiledUnderALockOnItsVendorId(): void
+    {
+        $inbound = $this->inbound('+18095550713', 'wamid.13', 'Hola');
+        $key = ReceiveMessageAction::filingLockKey(
+            $this->currentApp()->getId(),
+            $this->currentCompany()->getId(),
+            (string) $inbound->messageSlug
+        );
+        $heldWhileFiling = null;
+        Message::created(function (Message $message) use ($inbound, $key, &$heldWhileFiling): void {
+            if ($message->slug === $inbound->messageSlug) {
+                $heldWhileFiling = ! Cache::lock($key, 5)->get();
+            }
+        });
+
+        $this->receive($inbound);
+
+        $this->assertTrue($heldWhileFiling, 'another delivery of this message could not start filing');
+        $free = Cache::lock($key, 5);
+        $this->assertTrue($free->get(), 'released once the message is in its conversation');
+        $free->release();
     }
 
     public function testAStopIsFiledButNeverAnswered(): void
     {
         $result = $this->receive($this->inbound('+18095550703', 'wamid.3', 'STOP'));
 
-        $this->assertTrue($result[0]['automated_response_suppressed']);
+        $this->assertTrue($result['automated_response_suppressed']);
         Queue::assertNotPushed(FlushMessageBurstJob::class);
+    }
+
+    public function testAStopWordThatCouldMeanSomethingElseIsFlaggedForReview(): void
+    {
+        $result = $this->receive($this->inbound('+18095550713', 'wamid.13', 'Cancel'));
+
+        $this->assertTrue($result['automated_response_suppressed']);
+        $this->assertSame('ambiguous_keyword', $result['consent_match']);
     }
 
     public function testAFileTheProviderHoldsIsDownloadedWithItsCredentials(): void
@@ -158,22 +278,235 @@ final class ReceiveMessageActionTest extends TestCase
         ));
 
         $this->assertSame(['https://vendor.test/media/1'], $this->source->downloaded);
-        $this->assertSame(1, Message::query()->findOrFail($result[0]['message_id'])->files()->count());
+        $this->assertSame(1, Message::query()->findOrFail($result['message_id'])->files()->count());
     }
 
-    public function testEmailIsNotReceivedHereYet(): void
+    /**
+     * A download takes seconds. A part still unparented while it runs is adopted as head by the
+     * next part, so it joins its burst first and the close is only armed once its files are in.
+     */
+    public function testAMessageJoinsItsBurstBeforeItsMediaIsFetched(): void
+    {
+        $source = new RecordingInbound($this->source);
+        $first = new ReceiveMessageAction(
+            $this->receiver,
+            $this->inbound('+18095550714', 'wamid.14', 'Mira esto'),
+            $source
+        )->execute();
+
+        $second = new ReceiveMessageAction(
+            $this->receiver,
+            $this->inbound(
+                '+18095550714',
+                'wamid.15',
+                'Y esto',
+                [new InboundAttachment('https://vendor.test/media/15', 'image/jpeg')]
+            ),
+            $source
+        )->execute();
+
+        $this->assertSame(
+            [['parent_id' => $first['message_id'], 'closes_armed' => 1]],
+            $source->atDownload,
+            'chained onto the first part, with only that part\'s close armed, when the download ran'
+        );
+        $this->assertSame(1, Message::query()->findOrFail($second['message_id'])->files()->count());
+        $this->assertCount(2, Queue::pushed(
+            FlushMessageBurstJob::class,
+            fn (FlushMessageBurstJob $job): bool => $job->burstHeadId === $first['message_id']
+        ));
+    }
+
+    /**
+     * A medium with real threading has no flurry to collapse: the turn is announced as it arrives.
+     */
+    public function testAMediumWithoutBurstsIsAnnouncedAsItArrives(): void
+    {
+        $turns = $this->watchWorkflowEvent(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value, Channel::class);
+        $connection = $this->connection('fake', '+18095550700');
+        $this->claim($connection);
+        $connection->forceFill(['config' => ['agent_id' => $this->agent()->getId()]])->saveOrFail();
+        $source = new RecordingInbound($this->source, bursts: false);
+
+        $result = new ReceiveMessageAction(
+            $this->receiver,
+            $this->inbound('+18095550715', 'wamid.16', 'Hola'),
+            $source
+        )->execute();
+
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
+        $turn = $this->firedWith($turns)->sole();
+        $this->assertSame($result['message_id'], $turn['message']->getId());
+        $this->assertArrayNotHasKey('burst_text', $turn);
+    }
+
+    public function testOurOwnSideOfAConversationIsNeverAnswered(): void
+    {
+        $connection = $this->connection('fake', '+18095550700');
+        $this->claim($connection);
+        $connection->forceFill(['config' => ['agent_id' => $this->agent()->getId()]])->saveOrFail();
+
+        $result = $this->receive(new InboundMessage(
+            provider: 'fake',
+            channel: ChannelTypeEnum::WHATSAPP,
+            inboundIdentity: '+18095550700',
+            from: '+18095550716',
+            providerMessageId: 'wamid.17',
+            conversationSlug: 'fake-whatsapp-18095550716',
+            messageVerb: 'fake-whatsapp',
+            messageSlug: 'fake-wamid-17',
+            text: 'Typed on the phone',
+            fromUs: true
+        ));
+
+        $this->assertTrue($result['is_from_me']);
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
+    }
+
+    public function testEveryMessageOfACounterpartLandsInOneConversation(): void
+    {
+        $first = $this->receive($this->inbound('+18095550717', 'wamid.18', 'Hola'));
+        $second = $this->receive($this->inbound('+18095550717', 'wamid.19', 'Sigue disponible?'));
+
+        $this->assertSame($first['channel_id'], $second['channel_id']);
+        $this->assertSame(1, Channel::query()->where('slug', 'fake-whatsapp-18095550717')->count());
+    }
+
+    /**
+     * A session that stands in for someone else's number says nothing about the person filed: who
+     * they are stays as it is on file.
+     */
+    public function testAPersonKeptAsFoundTakesNothingFromTheMessage(): void
+    {
+        $kept = $this->personWithCellphone('+18095550718');
+        $updated = $this->personWithCellphone('+18095550719');
+
+        $this->receive($this->standIn('+18095550718', 'wamid.21', keepsPersonAsFound: true));
+        $this->receive($this->standIn('+18095550719', 'wamid.22', keepsPersonAsFound: false));
+
+        $this->assertNull($kept->fresh()->get('fake_session'));
+        $this->assertSame('wamid.22', $updated->fresh()->get('fake_session'));
+    }
+
+    /**
+     * Email names its sender: the person behind the address is found by it, and a new one is
+     * created with the address as an email contact and the name the mail carried.
+     */
+    public function testEmailIsFiledOnThePersonBehindTheAddress(): void
+    {
+        $known = People::factory()
+            ->withAppId($this->currentApp()->getId())
+            ->withCompanyId($this->currentCompany()->getId())
+            ->create(['firstname' => 'Ana']);
+        $known->contacts()->create(['contacts_types_id' => ContactTypeEnum::EMAIL->value, 'value' => 'ana@example.com', 'weight' => 0]);
+
+        $onFile = $this->receive($this->email('Ana@Example.com', 'e-1', 'Hello'));
+        $new = $this->receive($this->email(
+            'bob@example.com',
+            'e-2',
+            'Hi there',
+            name: 'Bob Ruiz'
+        ));
+
+        $this->assertSame($known->getId(), Message::query()->findOrFail($onFile['message_id'])->entity(People::class)->getId());
+
+        $person = Message::query()->findOrFail($new['message_id'])->entity(People::class);
+
+        $this->assertInstanceOf(People::class, $person);
+        $this->assertSame('Bob Ruiz', $person->firstname);
+        $this->assertSame('bob@example.com', $person->contacts()->where('contacts_types_id', ContactTypeEnum::EMAIL->value)->value('value'));
+        $this->assertInstanceOf(Lead::class, Message::query()->findOrFail($new['message_id'])->entity(Lead::class));
+    }
+
+    /**
+     * An agent's own mailbox: a colleague writes as themselves, which makes no person and no lead.
+     */
+    public function testAColleagueWritingToAnAgentsMailboxIsFiledAsThemselves(): void
+    {
+        $result = $this->receive($this->email(
+            auth()->user()->email,
+            'e-10',
+            'Can you pull last month\'s invoices?',
+            policy: InboundSenderPolicy::assistant(acceptsStrangers: false)
+        ));
+
+        $message = Message::query()->findOrFail($result['message_id']);
+        $channel = Channel::query()->findOrFail($result['channel_id']);
+
+        $this->assertSame(auth()->user()->getId(), $message->entity(Users::class)?->getId());
+        $this->assertNull($message->entity(People::class));
+        $this->assertNull($message->entity(Lead::class));
+        $this->assertSame(Users::class, $channel->entity_namespace);
+    }
+
+    public function testAStrangerIsTurnedAwayFromAMailboxThatOnlyTakesKnownSenders(): void
+    {
+        $result = $this->receive($this->email(
+            'stranger@nowhere.test',
+            'e-11',
+            'Hello',
+            policy: InboundSenderPolicy::assistant(acceptsStrangers: false)
+        ));
+
+        $this->assertFalse($result['filed']);
+        $this->assertSame('unknown_sender', $result['reason']);
+        $this->assertFalse(PeoplesRepository::getByAnyContact($this->currentApp(), $this->currentCompany(), emails: ['stranger@nowhere.test'])->exists());
+    }
+
+    /**
+     * An open mailbox lets a stranger in as a person; an agent's address is not a lead form.
+     */
+    public function testAnOpenMailboxFilesAStrangerAsAPersonWithoutALead(): void
+    {
+        $result = $this->receive($this->email(
+            'newcomer@nowhere.test',
+            'e-12',
+            'Hello',
+            policy: InboundSenderPolicy::assistant(acceptsStrangers: true)
+        ));
+
+        $message = Message::query()->findOrFail($result['message_id']);
+
+        $this->assertInstanceOf(People::class, $message->entity(People::class));
+        $this->assertNull($message->entity(Lead::class));
+    }
+
+    public function testAChannelWithoutAnAddressBookIsNotReceivedHereYet(): void
     {
         $this->expectException(LogicException::class);
 
         $this->receive(new InboundMessage(
             provider: 'fake',
-            channel: ChannelTypeEnum::EMAIL,
-            inboundIdentity: 'inbox@example.com',
-            from: 'customer@example.com',
-            conversationSlug: 'fake-email-customer',
-            messageVerb: 'fake-email',
+            channel: ChannelTypeEnum::SLACK,
+            inboundIdentity: 'C123',
+            from: 'U456',
+            conversationSlug: 'fake-slack-u456',
+            messageVerb: 'fake-slack',
             text: 'Hello'
         ));
+    }
+
+    private function email(
+        string $from,
+        string $id,
+        string $text,
+        ?string $name = null,
+        ?InboundSenderPolicy $policy = null
+    ): InboundMessage {
+        return new InboundMessage(
+            provider: 'fake',
+            channel: ChannelTypeEnum::EMAIL,
+            inboundIdentity: 'inbox@example.com',
+            from: $from,
+            providerMessageId: $id,
+            conversationSlug: 'fake-email-' . Str::slug($from),
+            messageVerb: 'fake-email',
+            messageSlug: 'fake-' . $id,
+            text: $text,
+            raw: ['id' => $id],
+            senderPolicy: $policy,
+            fromName: $name
+        );
     }
 
     /**
@@ -198,6 +531,31 @@ final class ReceiveMessageActionTest extends TestCase
             raw: ['id' => $id],
             attachments: $attachments
         );
+    }
+
+    private function standIn(string $from, string $id, bool $keepsPersonAsFound): InboundMessage
+    {
+        return new InboundMessage(
+            provider: 'fake',
+            channel: ChannelTypeEnum::WHATSAPP,
+            inboundIdentity: '+18095550700',
+            from: $from,
+            providerMessageId: $id,
+            conversationSlug: 'fake-whatsapp-' . preg_replace('/\D/', '', $from),
+            messageVerb: 'fake-whatsapp',
+            messageSlug: 'fake-' . Str::slug($id . '-' . $from),
+            text: 'Hola',
+            personCustomFields: ['fake_session' => $id],
+            senderPolicy: InboundSenderPolicy::customers(keepsPersonAsFound: $keepsPersonAsFound)
+        );
+    }
+
+    private function agent(): Agent
+    {
+        return Agent::factory()
+            ->withAppId($this->currentApp()->getId())
+            ->withCompanyId($this->currentCompany()->getId())
+            ->create();
     }
 
     private function assertNothingFiledFor(string $from): void

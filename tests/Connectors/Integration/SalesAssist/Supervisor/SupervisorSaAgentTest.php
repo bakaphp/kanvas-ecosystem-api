@@ -32,6 +32,7 @@ use Kanvas\Intelligence\FollowUp\Actions\SetLeadFollowUpPlanAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Kanvas\Workflow\Rules\Enums\ActionKindEnum;
 use Kanvas\Workflow\Rules\Models\Rule;
@@ -198,30 +199,45 @@ final class SupervisorSaAgentTest extends TestCase
         $this->assertNotContains(SupervisorFindingLedger::EVENT_REVIEW_COMPLETED, $types);
     }
 
-    public function testAReachOutRuleWithAnInactiveAgentIsCritical(): void
+    public function testAReachOutRuleWithNoAgentSwitchedOnIsCritical(): void
     {
-        $this->company->del('agent_reach_out_default_agent_id');
-        $rule = Rule::factory()->create([
-            'apps_id' => $this->kanvasApp->getId(),
-            'companies_id' => $this->company->getId(),
-        ]);
-        $action = WorkflowAction::factory()->create([
-            'name' => 'SalesAssistAgentReachOutActivity',
-            'model_name' => SalesAssistAgentReachOutActivity::class,
-            'kind' => ActionKindEnum::WORKFLOW->value,
-        ]);
-        $step = RuleWorkflowAction::factory()->create(['actions_id' => $action->getId()]);
-        RuleAction::factory()->create([
-            'rules_id' => $rule->getId(),
-            'rules_workflow_actions_id' => $step->getId(),
-            'weight' => 0,
-        ]);
+        $rule = $this->reachOutRule();
+        $withItsOwnAgent = $this->reachOutRule(['agent_id' => 1]);
 
         $finding = collect(new SupervisorConfigurationAuditService($this->kanvasApp, $this->company)->execute())
             ->firstWhere('code', 'rule.reach_out_without_active_agent');
 
         $this->assertSame('critical', $finding['severity'] ?? null);
         $this->assertContains($rule->getId(), $finding['evidence']['rule_ids']);
+        $this->assertNotContains(
+            $withItsOwnAgent->getId(),
+            $finding['evidence']['rule_ids'],
+            'a rule that names its agent does not wait for the switch'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private function reachOutRule(array $params = []): Rule
+    {
+        $rule = Rule::factory()->create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'params' => $params,
+        ]);
+        $action = WorkflowAction::factory()->create([
+            'name' => 'SalesAssistAgentReachOutActivity ' . uniqid(),
+            'model_name' => SalesAssistAgentReachOutActivity::class,
+            'kind' => ActionKindEnum::WORKFLOW->value,
+        ]);
+        RuleAction::factory()->create([
+            'rules_id' => $rule->getId(),
+            'rules_workflow_actions_id' => RuleWorkflowAction::factory()->create(['actions_id' => $action->getId()])->getId(),
+            'weight' => 0,
+        ]);
+
+        return $rule;
     }
 
     public function testRuntimeToolsAreTheReadOnlySet(): void
@@ -400,6 +416,7 @@ final class SupervisorSaAgentTest extends TestCase
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
             'users_id' => auth()->user()->getId(),
+            'system_modules_id' => SystemModulesRepository::getByModelName(Lead::class, $this->kanvasApp)->getId(),
             'name' => 'Supervisor ' . uniqid(),
             'slug' => 'supervisor-' . uniqid(),
             'weight' => 0,

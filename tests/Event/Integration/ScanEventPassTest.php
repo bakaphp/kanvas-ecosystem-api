@@ -347,6 +347,7 @@ class ScanEventPassTest extends TestCase
         Bouncer::scope()->to(RolesEnums::getScope($this->apps, global: true));
         Bouncer::assign('Admins')->to($this->user);
         Bouncer::allow('Admins')->to('validate-pass');
+        Bouncer::refreshFor($this->user);
     }
 
     private function scanMutation(string $code, string $productId)

@@ -93,7 +93,7 @@ Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows av
 
 ## The agent never terminally exhausts a lead
 
-The lead's `ai_follow_up` custom field (set by `TriggerIntelligenceActivity` via
+The lead's `ai_follow_up` custom field (set by `TriggerLeadIntelligenceAction` via
 `ApplyLeadAiModeAction`) gates only once it exists. An absent value means the triggers
 never configured the lead, so the remaining gates run. Once present it must be explicitly
 on per `Lead::isAiFollowUpEnabled()` — the shapes the legacy engine accepted — so OFF (`0`)
@@ -421,18 +421,27 @@ Inbound agent **replies** are intentionally NOT gated on status — if a custome
 
 ## Email follow-ups thread under the original outreach (`title_email_follow_up`)
 
-Email follow-ups must land in the **same thread** as the agent's first outreach, not start a fresh one. The mechanism is a single lead custom field, `title_email_follow_up`, that all three email send-paths agree on:
+Every email of a lead lands in **one thread**. The mechanism is a single lead custom field,
+`title_email_follow_up` (`ConfigurationEnum::EMAIL_THREAD_SUBJECT`), read and written only through
+three methods on `Lead`:
+
+| Method | Does |
+|---|---|
+| `anchorEmailThread($subject)` | Writes the subject when the lead has none. First touch wins; a blank subject is ignored. |
+| `emailThreadSubject()` | The anchored subject, or null. |
+| `emailThreadReplySubject()` | The same with `Re: ` in front (never doubled), or null. |
 
 | Path | File | Role |
 |---|---|---|
-| Outreach (first touch) | [`AgentReachOutOnChannelAction`](../Agents/Actions/Outreach/AgentReachOutOnChannelAction.php) | **Writes** the anchor — persists the agent's email subject to `title_email_follow_up`. First touch wins (guarded by `! $lead->get(...)`) so later reach-outs don't clobber it. |
-| Inbound auto-reply | [`Mailgun/AgentChannelResponderAction`](../../Connectors/Mailgun/Actions/AgentChannelResponderAction.php) | **Reads** it as the outbound subject (falls back to `Re: <incoming subject>`). Read-only — never overwrites the anchor. |
-| Follow-up (cron, days later) | [`FollowUpLeadAction::resolveEmailTitle()`](Actions/FollowUpLeadAction.php) | **Reads** it, prefixes `Re: ` (idempotent — won't double-prefix). Falls back to the company name when no anchor exists. |
+| Outreach (first touch) | [`AgentReachOutOnChannelAction`](../Agents/Actions/Outreach/AgentReachOutOnChannelAction.php), `LeadAgentFirstMessageOutreachActivity`, `send_lead_email` | Anchor the subject they sent. |
+| Inbound auto-reply | [`DeliverAgentReplyAction`](../../Communication/Messages/Actions/DeliverAgentReplyAction.php) | Replies under the anchor; a lead that wrote in cold gets its own subject as the anchor. |
+| Follow-up (cron, days later) | [`FollowUpLeadAction::resolveEmailTitle()`](Actions/FollowUpLeadAction.php) | Reads the reply subject; falls back to the company name when no anchor exists. |
 
-Because all three read the same persisted field, the subject stays constant across outreach → customer reply → follow-up, and Gmail/Apple Mail group them into one thread (they strip `Re:` when threading). The anchor is a lead custom field, so it survives the multi-day gap between touches.
+Gmail and Apple Mail strip `Re:` when threading, so the constant subject keeps outreach, customer
+reply and follow-up together. The anchor is a lead custom field, so it survives the days between
+touches. Never read or write the field by name; a fourth spelling is how the copies drifted.
 
-**Known limitations (deferred, by decision):**
-- **Inbound-first leads have no anchor.** If a lead is created from a cold *inbound* email (no agent outreach ran), `AgentReachOutOnChannelAction` never fires, so `title_email_follow_up` is never persisted — the inbound responder uses `Re: <incoming subject>` but doesn't save it, so a later follow-up falls back to the company name and starts a new thread. Fix when cold-inbound becomes a real path: have the Mailgun inbound responder persist the anchor when it's not already set.
+**Known limitation (deferred, by decision):**
 - **No RFC threading headers.** Threading is subject-based only; `In-Reply-To` / `References` aren't emitted because the outbound `message_id` is hardcoded `'--'`. Works in Gmail/Apple Mail; strict header-only clients (some Outlook configs) may not thread. Capturing the real Mailgun Message-ID on send is a separate task.
 
 ## Channel resolution lives on the Lead, NOT the Session

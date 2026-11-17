@@ -12,14 +12,12 @@ use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
-use Kanvas\Connectors\Mailgun\Webhooks\AgentInboxWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ProvisionMyEmailInboxTool;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\TestCase;
 
 /**
@@ -47,11 +45,6 @@ final class AgentMailboxAutoProvisionTest extends TestCase
         $this->kanvasApp = $this->dedicatedApp();
 
         $this->configureMailgun();
-
-        WorkflowAction::firstOrCreate(
-            ['model_name' => AgentInboxWebhookJob::class],
-            ['name' => 'AgentInboxWebhookJob']
-        );
     }
 
     private function dedicatedApp(): Apps

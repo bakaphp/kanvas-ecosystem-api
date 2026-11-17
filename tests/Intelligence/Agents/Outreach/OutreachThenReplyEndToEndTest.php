@@ -8,8 +8,8 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Actions\AgentChannelResponderAction;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -29,6 +29,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Throwable;
@@ -37,18 +38,21 @@ use Throwable;
  * Three-phase end-to-end for the new Neuron flow on Twilio (SMS):
  *
  *   1. Outreach   — AgentReachOutOnChannelAction sends a first-touch SMS
- *   2. Inbound    — Customer texts back; we simulate the persisted state
- *                   ProcessTwilioWebhookJob would produce (faithful to its
- *                   webhook payload: From, To, Body, SmsMessageSid)
- *   3. Responder  — Twilio\AgentChannelResponderAction processes the inbound
- *                   message and the agent replies
+ *   2. Inbound    — Customer texts back; we simulate the persisted state the
+ *                   inbound pipeline produces for a Twilio payload (From, To,
+ *                   Body, SmsMessageSid)
+ *   3. Responder  — the conversation responder processes the inbound message
+ *                   and the agent replies through the connection
  *
  * Asserts the final channel + entity attachment picture so the cross-cycle
  * + cross-channel conversation continuity contract is locked in.
  */
 class OutreachThenReplyEndToEndTest extends TestCase
 {
+    use BuildsCommunicationFixtures;
     use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
     private const string CUSTOMER_PHONE = '+15551234567';
     private const string TWILIO_FROM = '+19998887777';
@@ -78,6 +82,11 @@ class OutreachThenReplyEndToEndTest extends TestCase
         ]);
 
         $agent = $this->makeNeuronAgent($app, $company);
+        $this->useFakeProvider();
+        $connection = $this->defaultSmsConnection(
+            number: self::TWILIO_FROM,
+            attributes: ['config' => ['agent_id' => $agent->getId()]]
+        );
 
         // ─── PHASE 1: Outreach ────────────────────────────────────────────────
         try {
@@ -88,8 +97,7 @@ class OutreachThenReplyEndToEndTest extends TestCase
                 recipient: self::CUSTOMER_PHONE,
             )->execute();
         } catch (Throwable) {
-            // SendMessageToLeadAction's Twilio SDK call fails in test (no real creds)
-            // — persistence ran before that point.
+            // Persistence ran before the send; a send that fails here is not what this asserts.
         }
 
         $peopleChannel = Channel::query()
@@ -102,7 +110,7 @@ class OutreachThenReplyEndToEndTest extends TestCase
         $this->assertStringContainsString('Hola Mundo', (string) ($outreachMessage->message['content'] ?? ''));
 
         // ─── PHASE 2: Customer reply via Twilio webhook (simulated) ───────────
-        // Faithful to ProcessTwilioWebhookJob's persisted state given a payload of:
+        // The persisted state of an inbound text with a payload of:
         //   ['From' => +15551234567, 'To' => +19998887777, 'Body' => 'Yes I am interested',
         //    'SmsMessageSid' => 'SMxxxx']
         $twilioChannel = $this->getOrCreateTwilioChannel($app, $company, $lead, self::CUSTOMER_PHONE);
@@ -128,7 +136,6 @@ class OutreachThenReplyEndToEndTest extends TestCase
         $this->assertContains(People::class, $inboundEntityModules, 'PHASE 2: Tier 1 — inbound must be People-attached');
 
         // ─── PHASE 3: Responder action handles the inbound + agent replies ────
-        // Faithful to Twilio\AgentChannelResponderActivity's Lead-keyed session creation.
         $inboundSession = new CreateSessionAction(
             SessionDto::from([
                 'app' => $app,
@@ -146,16 +153,24 @@ class OutreachThenReplyEndToEndTest extends TestCase
             ])
         )->execute();
 
-        try {
-            new AgentChannelResponderAction(
-                $twilioChannel,
-                $inboundMessage,
-                $agent,
-                $inboundSession,
-            )->execute(['from' => self::TWILIO_FROM]);
-        } catch (Throwable) {
-            // Outbound Twilio SDK call fails without real creds — persistence ran first.
-        }
+        // What the inbound pipeline stamps on a message that arrived on a connection.
+        $inboundMessage->message = [
+            ...$inboundMessage->message,
+            'communication' => [
+                'connection_id' => $connection->getId(),
+                'channel' => 'sms',
+                'thread' => self::CUSTOMER_PHONE,
+                'activation_version' => $connection->activation_version,
+            ],
+        ];
+        $inboundMessage->saveQuietly();
+
+        new AgentChannelResponderAction(
+            $twilioChannel,
+            $inboundMessage,
+            $agent,
+            $inboundSession
+        )->execute();
 
         // ─── Final picture ────────────────────────────────────────────────────
         $agentReply = Message::query()

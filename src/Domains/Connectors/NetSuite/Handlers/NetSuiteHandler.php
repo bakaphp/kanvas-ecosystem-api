@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\NetSuite\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Baka\Support\Str;
 use Exception;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite as NetSuiteDto;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;

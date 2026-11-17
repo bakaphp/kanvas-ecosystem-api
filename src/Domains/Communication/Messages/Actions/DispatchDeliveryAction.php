@@ -20,8 +20,14 @@ use Throwable;
  */
 final class DispatchDeliveryAction
 {
+    /**
+     * @param bool $fileMessage false when the caller files the message and links the delivery to it
+     * @param bool $honorsConsent false only for the confirmation of a stop request
+     */
     public function __construct(
-        private readonly Delivery $delivery
+        private readonly Delivery $delivery,
+        private readonly bool $fileMessage = true,
+        private readonly bool $honorsConsent = true
     ) {
     }
 
@@ -33,16 +39,9 @@ final class DispatchDeliveryAction
 
         $this->delivery->refresh();
         $connection = $this->delivery->connection;
-        $unavailable = $connection?->unavailableReason();
-
-        $staleReason = match (true) {
-            $connection === null => 'no_connection',
-            $unavailable !== null => $unavailable,
-            // Queued before the connection was switched off and on again: the switch-off cancelled
-            // this work, and switching back on must not quietly release it.
-            $connection->activation_version !== $this->delivery->activation_version => 'stale_activation',
-            default => null,
-        };
+        $staleReason = $connection === null
+            ? 'no_connection'
+            : $connection->refusalAt($this->delivery->activation_version);
 
         if ($staleReason !== null) {
             $this->delivery->finishWithoutSending(DeliveryStatusEnum::SKIPPED, $staleReason);
@@ -53,7 +52,13 @@ final class DispatchDeliveryAction
         $request = $this->delivery->request;
         $recipient = Recipient::inConversation($request->people, (string) $this->delivery->to_address);
 
-        $refusal = new EligibilityResolver()->reasonNotToContact($recipient, $this->delivery->channel, (string) $this->delivery->to_address);
+        $refusal = $this->honorsConsent
+            ? new EligibilityResolver()->reasonNotToContact(
+                $recipient,
+                $this->delivery->channel,
+                (string) $this->delivery->to_address
+            )
+            : null;
 
         if ($refusal !== null) {
             $this->delivery->finishWithoutSending(DeliveryStatusEnum::SKIPPED, $refusal);
@@ -75,6 +80,7 @@ final class DispatchDeliveryAction
                 'error_code' => 'outcome_lost',
                 'error' => $exception->getMessage(),
             ])->saveOrFail();
+            new RecordDeliveryOnMessageAction($this->delivery)->execute();
 
             return $this->delivery;
         }
@@ -95,7 +101,10 @@ final class DispatchDeliveryAction
         return Delivery::query()
             ->whereKey($this->delivery->getKey())
             ->where('status', DeliveryStatusEnum::PENDING->value)
-            ->update(['status' => DeliveryStatusEnum::SENDING->value, 'attempts' => $this->delivery->attempts + 1]) === 1;
+            ->update([
+                'status' => DeliveryStatusEnum::SENDING->value,
+                'attempts' => $this->delivery->attempts + 1,
+            ]) === 1;
     }
 
     private function accept(TransportResult $result, Content $content): void
@@ -108,10 +117,14 @@ final class DispatchDeliveryAction
             'last_event_at' => now(),
         ])->saveOrFail();
 
+        if (! $this->fileMessage) {
+            return;
+        }
+
         // The message is out. Failing to file it is a history problem to report, never a reason to
         // tell the caller a sent message was not sent.
         try {
-            new FileDeliveryMessageAction($this->delivery, $content)->execute();
+            new RecordSentMessageAction($this->delivery, $content)->execute();
         } catch (Throwable $exception) {
             report($exception);
         }

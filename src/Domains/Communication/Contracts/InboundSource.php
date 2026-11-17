@@ -11,7 +11,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Support\BurstHandler;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 
 /**
@@ -46,11 +45,6 @@ interface InboundSource
      * (email), which is announced as it arrives.
      */
     public function burstPolicy(InboundMessage $inbound, Companies $company): ?BurstPolicy;
-
-    /**
-     * @return class-string<BurstHandler>
-     */
-    public function burstHandler(): string;
 
     /**
      * The provider answers a HELP itself with the carrier's advisory, so an agent turn on top would

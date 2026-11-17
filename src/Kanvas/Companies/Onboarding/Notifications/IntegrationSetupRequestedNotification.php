@@ -43,11 +43,6 @@ class IntegrationSetupRequestedNotification extends Notification
         $this->channels = ['mail', 'database'];
     }
 
-    public function getSubject(): ?string
-    {
-        return $this->subject;
-    }
-
     #[Override]
     public function getEmailContent(): string
     {

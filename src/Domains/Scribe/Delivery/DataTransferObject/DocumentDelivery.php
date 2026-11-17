@@ -27,6 +27,25 @@ final class DocumentDelivery
             'link' => $this->link,
             'channel' => $this->target->channel->value,
             'sent_to' => $this->target->destination,
+            ...($this->leftTheFilesOut() ? [
+                'pdf_attached' => false,
+                'note' => 'The link was sent, but this channel could not carry the PDF. Say so: the '
+                    . 'customer opens the document from the link.',
+            ] : []),
         ];
+    }
+
+    /**
+     * A vendor that cannot carry a file sends the text and reports it (`attachments_dropped`,
+     * `attachments_truncated`) on the send, which is kept on the filed message.
+     */
+    private function leftTheFilesOut(): bool
+    {
+        $warnings = (array) ($this->message->message['raw_data']['warnings'] ?? []);
+
+        return array_any(
+            $warnings,
+            fn (mixed $warning): bool => str_starts_with((string) $warning, 'attachments_')
+        );
     }
 }

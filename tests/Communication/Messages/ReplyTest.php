@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Communication\Messages;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Kanvas\Communication\Messages\Actions\FileDeliveryMessageAction;
+use Kanvas\Communication\Messages\Actions\RecordSentMessageAction;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
@@ -114,6 +114,6 @@ final class ReplyTest extends TestCase
 
         $this->expectException(ModelNotFoundException::class);
 
-        new FileDeliveryMessageAction($delivery, Content::text('Hello'))->execute();
+        new RecordSentMessageAction($delivery, Content::text('Hello'))->execute();
     }
 }

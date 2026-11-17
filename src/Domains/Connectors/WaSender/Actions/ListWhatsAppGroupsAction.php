@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
-use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Connectors\WaSender\Services\GroupService;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Workflow\Models\ReceiverWebhook;
 
 /**
  * Every group the connected number belongs to, flagged with whether the agent currently listens.
@@ -77,11 +76,10 @@ class ListWhatsAppGroupsAction
      */
     private function allowedJids(): array
     {
-        $receiverId = (int) $this->agent->get(ConnectionFieldEnum::RECEIVER_ID->value);
-        $receiver = $receiverId > 0 ? ReceiverWebhook::find($receiverId) : null;
+        $receiver = WaSenderHandler::receiverFor($this->agent->app, $this->agent->company);
 
-        // An agent with no connection yet simply has nothing allow-listed.
-        return $receiver instanceof ReceiverWebhook
+        // A company with no connection yet simply has nothing allow-listed.
+        return $receiver !== null
             ? GroupConfigEnum::ALLOWED_GROUP_JIDS->getList($receiver)
             : [];
     }

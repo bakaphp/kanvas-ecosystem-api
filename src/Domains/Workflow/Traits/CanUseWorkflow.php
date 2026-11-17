@@ -44,8 +44,22 @@ trait CanUseWorkflow
      */
     public function withoutWorkflows(callable $callback): mixed
     {
+        return $this->withWorkflowsSetTo(false, $callback);
+    }
+
+    /**
+     * For an announcement that must reach its rules even on a record whose own writes were switched
+     * off (an import that still says the lead is new), then restore whatever state the model was in.
+     */
+    public function withWorkflows(callable $callback): mixed
+    {
+        return $this->withWorkflowsSetTo(true, $callback);
+    }
+
+    private function withWorkflowsSetTo(bool $enabled, callable $callback): mixed
+    {
         $wasEnabled = $this->enableWorkflows;
-        $this->enableWorkflows = false;
+        $this->enableWorkflows = $enabled;
 
         try {
             return $callback();
