@@ -272,6 +272,12 @@ Things that bite:
   runbook, BLOCKED rather than untested) and the Kanvas-first data rule. Starting a stage that is open
   returns it. A model left to type those lines leaves them out, and a task without `Repo:` runs in the
   default checkout.
+- **No stage waits on a person to merge.** A kickoff or ticket merges `factory/integration`
+  (`FactoryStage::INTEGRATION_BRANCH`) into its branch first and lands with a fast-forward
+  `git push origin HEAD:factory/integration`, never a pull request; the orchestrator starts the next
+  ticket when one finishes. After the last, `start_factory_release` cuts `release/<date>` from `develop`,
+  merges the integration branch, adds the dated changelog and opens the one pull request a person reviews.
+  The branching lives in the task text, not in `serve.sh`, so the Mac needs no change for it.
 - **Mixed plans: a Kanvas step waits for the factory step ahead of it** (`Task::waitsOnEarlierFactoryWork()`),
   and the factory worker that finishes starts it. A reopened task on a factory-owned plan, or one that runs
   on the Mac, is woken as a task; its blocked plan unblocks itself (`Plan::resumeIfNothingBlocks()`), only

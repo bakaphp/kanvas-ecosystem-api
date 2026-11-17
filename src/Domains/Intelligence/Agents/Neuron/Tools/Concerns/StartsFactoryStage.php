@@ -74,8 +74,10 @@ trait StartsFactoryStage
                 ? 'This stage is already on the board as plan ' . $plan->getId() . '. Nothing new was started: tell '
                     . 'the person where it stands.'
                 : 'Started. The steps run on the factory Mac in this order, already assigned: create, assign or '
-                    . 'edit nothing more for them. You are woken when the last step finishes; then give the person '
-                    . 'the pull request link and ask them to merge it.'
+                    . 'edit nothing more for them. You are woken when the last step finishes. A kickoff or a ticket '
+                    . 'lands on the integration branch: start the next ticket of the approved plan without asking, '
+                    . 'or start_factory_release after the last one. A release ends with a pull request into develop: '
+                    . 'give the person its link, the one thing they review and merge.'
         );
     }
 }

@@ -21,17 +21,23 @@ use Kanvas\NervousSystem\Project\Models\Project;
 final readonly class FactoryStage
 {
     /**
+     * Every finished ticket lands here, so no stage stops for a person to merge; the person reviews the
+     * whole stage once, in the release pull request into `develop`.
+     */
+    public const string INTEGRATION_BRANCH = 'factory/integration';
+
+    /**
      * The app's own `CLAUDE.md` makes this mandatory after every change, and a builder follows the specs
      * its task names: left out of the task, it was skipped.
      */
-    private const string APP_QA = 'Before the pull request, get the app running your change from Metro on BOTH the '
+    private const string APP_QA = 'Before the work leaves this branch, get the app running your change from Metro on BOTH the '
         . 'iOS simulator and the Android emulator, with the app\'s own run scripts (`yarn ios` / `yarn android`). A '
         . 'Metro, simulator, emulator or adb problem is yours to fix, not to report: repair devices with the '
         . 'factory\'s `.kanvas/device`, and remember Android reaches Metro only through `adb reverse` on the port your '
         . 'Metro uses. Then run the post-change QA the app\'s `CLAUDE.md` and `specs/` require, scoped to what you '
         . 'changed, on both platforms, asserting real outcomes and not only that a screen rendered (in apps from the '
         . 'mobile template that is the Argent sweep, `specs/qa/app-test.runbook.md`). Save the report where the specs '
-        . 'say (`specs/qa/reports/` in the template) and link it in the pull request. If the QA tool is not available, '
+        . 'say (`specs/qa/reports/` in the template) and name it in your reply. If the QA tool is not available, '
         . 'run the same checks by hand on both platforms and say so. If either platform still cannot run your change '
         . 'after you tried to fix it, reply BLOCKED with what you tried and what stops it: work is never finished with '
         . 'a platform untested, and a check that did not run is never marked passed.';
@@ -90,12 +96,11 @@ final readonly class FactoryStage
             $notes !== null ? "- From the approved plan:\n" . TaskDirectives::neutralize($notes) : null,
             '',
             'Steps:',
-            '1. Read `CLAUDE.md` and all of `specs/`.',
+            '1. Read `CLAUDE.md` and all of `specs/`. ' . self::startFromIntegration(),
             '2. Run `.kanvas/new-app identity --name "' . $displayName . '" --bundle ' . $bundleId . '`.',
             '3. Follow `specs/workflows/new-project-kickoff.spec.md` from "Re-theme" on.',
             '4. ' . self::APP_QA,
-            '5. Push the branch and open the pull request into `develop` following the app\'s commit and pull request '
-                . 'specs. Reply with the pull request link, its CI state and the QA report.',
+            '5. ' . self::landOnIntegration(),
         ], fn (?string $line): bool => $line !== null));
 
         return new self(
@@ -137,39 +142,96 @@ final readonly class FactoryStage
         $quoted = "\n\nTicket " . $number . ":\n" . $ticket;
 
         $design = $lines . "\n\n"
-            . 'Design ticket ' . $number . ' in code: screens, components, theme tokens, the loading/empty/error '
+            . self::startFromIntegration() . ' Then design ticket ' . $number . ' in code: screens, components, theme tokens, the loading/empty/error '
             . 'states, en/es copy and accessibility. Check it on iOS and Android screenshots. Commit only: do not '
             . 'push and do not open a pull request.' . $quoted;
 
-        $build = $needsDesign
-            ? 'Build the logic of ticket ' . $number . ' on top of the design already committed on this branch: '
-                . 'interfaces, services, hooks, data wiring, and tests for hooks and utils. Do not redo the design. Then '
-            : 'Build ticket ' . $number . ': interfaces, services, hooks, data wiring, and tests for hooks and utils. '
-                . 'It has nothing on screen. Then ';
+        $build = self::startFromIntegration() . ' '
+            . ($needsDesign
+                ? 'Build the logic of ticket ' . $number . ' on top of the design already committed on this branch: '
+                    . 'interfaces, services, hooks, data wiring, and tests for hooks and utils. Do not redo the design. Then '
+                : 'Build ticket ' . $number . ': interfaces, services, hooks, data wiring, and tests for hooks and utils. '
+                    . 'It has nothing on screen. Then ');
 
         $ship = $lines . "\n\n" . $build
-            . self::APP_QA . ' Then '
-            . 'push the branch and open the pull request into `develop` following the app\'s specs: Conventional '
-            . 'Commits from `CLAUDE.md`, `specs/workflows/pull-request.spec.md`, and the PR Description Format of '
-            . '`specs/workflows/multi-app-pipeline.spec.md`, with '
-            . ($needsDesign ? 'iOS and Android screenshots' : 'the test output') . ' as evidence. Wait for '
-            . 'CI, fix what you broke, and mark it ready only when every check is green. Reply with the pull '
-            . 'request link, its CI state and whether it is draft or ready. The data comes from Kanvas, never '
+            . self::APP_QA . ' Save ' . ($needsDesign ? 'iOS and Android screenshots' : 'the test output')
+            . ' with the QA report: the release pull request shows them. ' . self::landOnIntegration()
+            . ' The data comes from Kanvas, never '
             . 'hard-coded or dummy data: a new kind of thing the app keeps is a Kanvas message with its own '
             . 'message type (createMessage, the messages query, attachFileToMessage, tags), a single value is a '
             . 'custom field. Only if none of that can serve the ticket, say exactly what is missing in your reply '
             . 'and stop: never change kanvas-ecosystem-api yourself.' . $quoted;
 
-        $shipStep = new FactoryStep('Ticket ' . $number . ' logic and pull request: ' . $shortName, $ship, $builder);
+        $shipStep = new FactoryStep('Ticket ' . $number . ' logic and landing: ' . $shortName, $ship, $builder);
 
         return new self(
             $project,
             'Ticket ' . $number . ': ' . $shortName . ' (' . $repository . ')',
-            ($needsDesign ? 'Design, then logic and pull request' : 'Logic and pull request') . ', on ' . $branch . '.',
+            ($needsDesign ? 'Design, then logic' : 'Logic') . ' on ' . $branch . ', landed on `' . self::INTEGRATION_BRANCH . '`.',
             $needsDesign
                 ? [new FactoryStep('Ticket ' . $number . ' design: ' . $shortName, $design, $designer), $shipStep]
                 : [$shipStep],
         );
+    }
+
+    /**
+     * The stage's one pull request: everything that landed on the integration branch, with the dated
+     * changelog, into `develop`. Cut from `develop` so the pull request carries only what is new.
+     */
+    public static function release(Project $project, string $repository, ?string $notes = null): self
+    {
+        $repository = self::folder($repository);
+        $builder = self::builder($project);
+        $date = now()->toDateString();
+        $notes = Str::trimToNull($notes);
+
+        $text = implode("\n", array_filter([
+            'Repo: ' . $repository,
+            'Branch: release/' . $date,
+            '',
+            'Release: open the one pull request of this stage, everything on `' . self::INTEGRATION_BRANCH . '` into `develop`.',
+            $notes !== null ? "From the orchestrator:\n" . TaskDirectives::neutralize($notes) : null,
+            '',
+            'Steps:',
+            '1. Read `CLAUDE.md` and the specs on commits, pull requests and the changelog. Run `git fetch origin` and merge '
+                . '`origin/' . self::INTEGRATION_BRANCH . '` into this branch, which starts from `develop`. If that adds '
+                . 'nothing, reply that there is nothing to release and stop.',
+            '2. Add a changelog entry dated ' . $date . ' where the specs say (otherwise `CHANGELOG.md`, newest first): '
+                . 'one line per ticket that landed, read from the merge history.',
+            '3. ' . self::APP_QA . ' Here "your change" is every ticket in this release.',
+            '4. Push the branch and open the pull request into `develop` following the app\'s specs: Conventional Commits '
+                . 'from `CLAUDE.md`, `specs/workflows/pull-request.spec.md` and the PR Description Format of '
+                . '`specs/workflows/multi-app-pipeline.spec.md`. List every ticket with its QA report and screenshots. '
+                . 'Wait for CI, fix what you broke, and mark it ready only when every check is green. A person merges it.',
+            '5. Reply with the pull request link, its CI state and whether it is draft or ready.',
+        ], fn (?string $line): bool => $line !== null));
+
+        return new self(
+            $project,
+            'Release: ' . $repository . ' into develop (' . $date . ')',
+            'One pull request from `' . self::INTEGRATION_BRANCH . '` into `develop`, with the dated changelog.',
+            [new FactoryStep('Release ' . $date . ': pull request into develop', $text, $builder)],
+        );
+    }
+
+    private static function startFromIntegration(): string
+    {
+        return 'Start from the integration branch: run `git fetch origin`; if `origin/' . self::INTEGRATION_BRANCH
+            . '` exists, merge it into this branch, otherwise create it from `origin/develop` with `git push origin '
+            . 'origin/develop:refs/heads/' . self::INTEGRATION_BRANCH . '`.';
+    }
+
+    /** A fast-forward push of the ticket branch: no checkout, no pull request, no person in the loop. */
+    private static function landOnIntegration(): string
+    {
+        return 'Land the work on the integration branch, not in a pull request: commit following the app\'s '
+            . 'Conventional Commits, run `git fetch origin` and merge `origin/' . self::INTEGRATION_BRANCH . '` into '
+            . 'this branch again (another ticket may have landed), fix any conflict, re-run the app\'s type check, lint '
+            . 'and unit tests, then push this branch and move the integration branch to it with `git push origin '
+            . 'HEAD:' . self::INTEGRATION_BRANCH . '`. If that push is rejected, fetch, merge and push again. Never push '
+            . 'to `develop` and never open a pull request: the stage ends with one release pull request into '
+            . '`develop`. Reply with the commit now at the tip of `' . self::INTEGRATION_BRANCH . '`, the checks you '
+            . 'ran and the QA report.';
     }
 
     private static function builder(Project $project): Agent

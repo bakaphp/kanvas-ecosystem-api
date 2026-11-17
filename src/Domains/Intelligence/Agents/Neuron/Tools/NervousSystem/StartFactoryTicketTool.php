@@ -31,11 +31,12 @@ class StartFactoryTicketTool extends Tool implements RequiresSystemAgent
     protected string $name = 'start_factory_ticket';
 
     protected ?string $description = 'Start one ticket of an app\'s approved technical plan on the factory Mac: the '
-        . 'designer designs it on the ticket\'s branch, then the builder adds the logic and opens the pull request into '
-        . 'develop; a ticket with nothing on screen (has_screens=false) goes to the builder alone. The steps are '
-        . 'written and assigned for you; use this instead of writing ticket tasks yourself. '
-        . 'Start tickets in the plan\'s order, and a ticket that depends on another only after that one\'s pull '
-        . 'request is merged. Calling it again for the same ticket returns the one already on the board.';
+        . 'designer designs it on the ticket\'s branch, then the builder adds the logic and lands it on the app\'s '
+        . 'factory/integration branch, with no pull request and nobody to wait for; a ticket with nothing on screen '
+        . '(has_screens=false) goes to the builder alone. The steps are written and assigned for you; use this '
+        . 'instead of writing ticket tasks yourself. Start the tickets in the plan\'s order, each one when the one '
+        . 'before it has finished, without asking anyone; after the last, call start_factory_release. Calling it '
+        . 'again for the same ticket returns the one already on the board.';
 
     public function __construct(
         private readonly ?Session $session = null,

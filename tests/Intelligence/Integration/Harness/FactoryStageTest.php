@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryReleaseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
@@ -111,7 +112,10 @@ final class FactoryStageTest extends TestCase
         }
 
         $this->assertStringContainsString('Commit only', (string) $design->description);
-        $this->assertStringContainsString('open the pull request into `develop`', (string) $ship->description);
+        // Both steps start from where earlier tickets landed, and the ticket lands there with no one to wait for.
+        $this->assertStringContainsString('merge it into this branch', (string) $design->description);
+        $this->assertStringContainsString('git push origin HEAD:factory/integration', (string) $ship->description);
+        $this->assertStringContainsString('never open a pull request', (string) $ship->description);
         // The app's mandatory Argent QA run is skipped when the task does not name it.
         $this->assertStringContainsString('specs/qa/app-test.runbook.md', (string) $ship->description);
         // A ticket must not be reported done while a simulator cannot run it.
@@ -120,6 +124,33 @@ final class FactoryStageTest extends TestCase
         // App data comes from Kanvas (messages, custom fields), never a new table or dummy data.
         $this->assertStringContainsString('Kanvas message with its own message type', (string) $ship->description);
         $this->assertStringNotContainsString('app-test.runbook', (string) $design->description);
+    }
+
+    /** The stage's one pull request: the integration branch into develop, from a branch cut off develop. */
+    public function testAReleaseOpensTheOnePullRequestIntoDevelop(): void
+    {
+        Queue::fake();
+        [$project, $builder] = $this->factoryProject();
+        $user = static::$cachedUser;
+        $release = new StartFactoryReleaseTool()->withContext(
+            app(Apps::class),
+            $user->getCurrentCompany(),
+            $user,
+            $this->orchestrator,
+        );
+
+        $result = $release($project->getId(), 'example-app');
+        $again = $release($project->getId(), 'example-app');
+
+        $steps = $this->stepsOf((int) $result['plan_id']);
+        $this->assertCount(1, $steps);
+        $this->assertTrue($steps[0]->agent?->is($builder));
+        $this->assertSame('example-app', TaskDirectives::repo($steps[0]->fullText()));
+        $this->assertSame('release/' . now()->toDateString(), TaskDirectives::branch($steps[0]->fullText()));
+        $this->assertStringContainsString('merge `origin/factory/integration`', (string) $steps[0]->description);
+        $this->assertStringContainsString('changelog entry dated ' . now()->toDateString(), (string) $steps[0]->description);
+        $this->assertStringContainsString('open the pull request into `develop`', (string) $steps[0]->description);
+        $this->assertTrue($again['reused']);
     }
 
     /** A factory task sent back to pending must run again: a plan wake alone is ignored by a factory agent. */
@@ -203,6 +234,7 @@ final class FactoryStageTest extends TestCase
         $tools = $this->toolNamesOf($pm);
         $this->assertContains('start_app_kickoff', $tools);
         $this->assertContains('start_factory_ticket', $tools);
+        $this->assertContains('start_factory_release', $tools);
         $this->assertContains('answer_self_hosted_coding_permission', $tools);
         $this->assertContains('answer_self_hosted_coding_question', $tools);
     }

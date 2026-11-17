@@ -39,6 +39,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryReleaseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
@@ -467,6 +468,7 @@ class ProjectManagerAgent extends SystemUserAgent
             array_push($core, ...$this->addToolContext([
                 new StartAppKickoffTool($this->session),
                 new StartFactoryTicketTool($this->session),
+                new StartFactoryReleaseTool($this->session),
             ]));
             // A factory step that stops on a permission or a question is asked in this conversation.
             $core[] = new AnswerHarnessCodingPermissionTool($agent, onlyRelays: true);

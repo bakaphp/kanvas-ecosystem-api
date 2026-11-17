@@ -33,8 +33,9 @@ class StartAppKickoffTool extends Tool implements RequiresSystemAgent
     protected ?string $description = 'Start the kickoff of a new mobile app on the factory Mac, once a person has approved '
         . 'the technical plan and confirmed the repository name, display name and bundle id. Creates the kickoff plan '
         . 'with both steps already written and assigned: the app is created from the template, then given its '
-        . 'identity, and its pull request opened. Use this instead of writing kickoff tasks yourself. Calling it '
-        . 'again for the same app returns the kickoff already on the board.';
+        . 'identity, landed on its factory/integration branch. When it finishes, start the first ticket without '
+        . 'asking anyone. Use this instead of writing kickoff tasks yourself. Calling it again for the same app '
+        . 'returns the kickoff already on the board.';
 
     public function __construct(
         private readonly ?Session $session = null,
