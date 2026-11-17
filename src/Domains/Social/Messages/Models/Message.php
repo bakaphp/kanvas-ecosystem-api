@@ -595,7 +595,7 @@ class Message extends BaseModel
     }
 
     /**
-     * A record belongs to the person who wrote it: `myMessages` uses this so a coworker in the
+     * A message belongs to the person who wrote it: `myMessages` uses this so a coworker in the
      * same company can never read it by widening a `where`. Fails closed when no user is
      * authenticated, so no caller can turn a missing user into an app-wide list.
      */

@@ -19,20 +19,20 @@ class MyMessagesTest extends TestCase
 
     protected $connectionsToTransact = [null, 'social'];
 
-    public function testOnlyReturnsRecordsWrittenByTheSignedInUser()
+    public function testOnlyReturnsMessagesWrittenByTheSignedInUser()
     {
         $app = app(Apps::class);
         $me = auth()->user();
-        $recordType = MessageType::factory()->create();
+        $messageType = MessageType::factory()->create();
 
         $coworker = Users::factory()->create();
         (new RegisterUsersAppAction($coworker, $app))->execute($coworker->password);
 
-        $mine = Message::factory()->withMessageType($recordType)->create(
-            $this->recordAttributes($app, $me->getId())
+        $mine = Message::factory()->withMessageType($messageType)->create(
+            $this->messageAttributes($app, $me->getId())
         );
-        $coworkerRecord = Message::factory()->withMessageType($recordType)->create(
-            $this->recordAttributes($app, $coworker->getId())
+        $coworkerMessage = Message::factory()->withMessageType($messageType)->create(
+            $this->messageAttributes($app, $coworker->getId())
         );
 
         $response = $this->graphQL(
@@ -55,26 +55,26 @@ class MyMessagesTest extends TestCase
         $ids = $data->pluck('id')->all();
 
         $this->assertContains((string) $mine->getId(), $ids);
-        $this->assertNotContains((string) $coworkerRecord->getId(), $ids);
+        $this->assertNotContains((string) $coworkerMessage->getId(), $ids);
         $this->assertCount(
             0,
             $data->reject(fn (array $row) => (string) $row['users_id'] === (string) $me->getId()),
-            'myMessages returned a record written by someone else'
+            'myMessages returned a message written by someone else'
         );
     }
 
-    public function testFiltersVisitPreparationQuestionsByMessageType()
+    public function testFiltersByMessageType()
     {
         $app = app(Apps::class);
         $me = auth()->user();
-        $recordType = MessageType::factory()->create();
-        $questionType = MessageType::factory()->create();
+        $askedType = MessageType::factory()->create();
+        $otherType = MessageType::factory()->create();
 
-        $record = Message::factory()->withMessageType($recordType)->create(
-            $this->recordAttributes($app, $me->getId())
+        $asked = Message::factory()->withMessageType($askedType)->create(
+            $this->messageAttributes($app, $me->getId())
         );
-        $question = Message::factory()->withMessageType($questionType)->create(
-            $this->recordAttributes($app, $me->getId())
+        $other = Message::factory()->withMessageType($otherType)->create(
+            $this->messageAttributes($app, $me->getId())
         );
 
         $response = $this->graphQL(
@@ -91,7 +91,7 @@ class MyMessagesTest extends TestCase
                 }
             ',
             [
-                'verb' => $questionType->verb,
+                'verb' => $askedType->verb,
             ]
         );
 
@@ -100,8 +100,8 @@ class MyMessagesTest extends TestCase
 
         $ids = collect($response->json('data.myMessages.data'))->pluck('id')->all();
 
-        $this->assertContains((string) $question->getId(), $ids);
-        $this->assertNotContains((string) $record->getId(), $ids);
+        $this->assertContains((string) $asked->getId(), $ids);
+        $this->assertNotContains((string) $other->getId(), $ids);
     }
 
     private function assertNoGraphQLErrors(TestResponse $response): void
@@ -111,7 +111,7 @@ class MyMessagesTest extends TestCase
         }
     }
 
-    private function recordAttributes(Apps $app, int $usersId): array
+    private function messageAttributes(Apps $app, int $usersId): array
     {
         return [
             'apps_id' => $app->getId(),
