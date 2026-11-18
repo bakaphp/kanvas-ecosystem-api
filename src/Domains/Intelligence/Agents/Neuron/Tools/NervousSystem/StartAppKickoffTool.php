@@ -32,8 +32,10 @@ class StartAppKickoffTool extends Tool implements RequiresSystemAgent
 
     protected ?string $description = 'Start the kickoff of a new mobile app on the factory Mac, once a person has approved '
         . 'the technical plan and confirmed the repository name, display name and bundle id. Creates the kickoff plan '
-        . 'with both steps already written and assigned: the app is created from the template, then given its '
-        . 'identity, landed on its factory/integration branch. When it finishes, start the first ticket without '
+        . 'with its steps already written and assigned: the app is created from the template, given its identity '
+        . 'and, with brief_url and plan_url, designed ticket by ticket from the approved plan (brand and theme from '
+        . 'the brief, a mockup of every screen each ticket builds, which that ticket is then built and checked '
+        . 'against), landed on its factory/integration branch. When it finishes, start the first ticket without '
         . 'asking anyone. Use this instead of writing kickoff tasks yourself. Calling it again for the same app '
         . 'returns the kickoff already on the board.';
 
@@ -79,6 +81,27 @@ class StartAppKickoffTool extends Tool implements RequiresSystemAgent
                 description: 'Optional: brand colours, fonts and the MVP feature list from the approved plan.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'brief_url',
+                type: PropertyType::STRING,
+                description: 'The URL of the approved Business Brief file, exactly as list_task_files shows it on the '
+                    . 'research task. Pass it with plan_url so the kickoff designs the app.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'plan_url',
+                type: PropertyType::STRING,
+                description: 'The URL of the approved technical plan file (the tickets), exactly as list_task_files '
+                    . 'shows it on the planning task. The design draws exactly the screens its tickets build.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'design_files',
+                type: PropertyType::STRING,
+                description: 'Optional: the URLs of design files the person gave (mockups, brand, palette), one per '
+                    . 'line. The design matches them. Needs brief_url and plan_url.',
+                required: false,
+            ),
         ];
     }
 
@@ -90,8 +113,16 @@ class StartAppKickoffTool extends Tool implements RequiresSystemAgent
         string $repository,
         string $display_name,
         string $bundle_id,
-        ?string $notes = null
+        ?string $notes = null,
+        ?string $brief_url = null,
+        ?string $plan_url = null,
+        ?string $design_files = null
     ): array {
+        $designFiles = array_values(array_filter(
+            array_map(trim(...), preg_split('/\R/', (string) $design_files) ?: []),
+            fn (string $line): bool => $line !== '',
+        ));
+
         return $this->startStage(
             $project_id,
             fn (Project $project): FactoryStage => FactoryStage::kickoff(
@@ -99,7 +130,10 @@ class StartAppKickoffTool extends Tool implements RequiresSystemAgent
                 $repository,
                 $display_name,
                 $bundle_id,
-                $notes
+                notes: $notes,
+                briefUrl: $brief_url,
+                planUrl: $plan_url,
+                designFiles: $designFiles,
             ),
         );
     }

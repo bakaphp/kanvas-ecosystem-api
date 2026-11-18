@@ -74,6 +74,113 @@ final class FactoryStageTest extends TestCase
         Queue::assertPushed(WakeAgentForTaskJob::class, 2);
     }
 
+    /** Designed ticket by ticket from ticket text alone, the app kept the template's look and no ticket had a whole-app design to match. */
+    public function testAKickoffGivenTheBriefAndPlanDesignsEveryTicketsScreens(): void
+    {
+        Queue::fake();
+        [$project, $builder, $designer] = $this->factoryProject();
+
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+            brief_url: 'https://files.example.com/business-brief.md',
+            plan_url: 'https://files.example.com/technical-plan.md',
+            design_files: "https://files.example.com/home.png\n\n https://files.example.com/brand.png ",
+        );
+
+        $this->assertTrue($result['success'], json_encode($result));
+        [, $configure, $design] = $this->stepsOf((int) $result['plan_id']);
+
+        $this->assertTrue($configure->agent?->is($builder));
+        $this->assertTrue($design->agent?->is($designer));
+        $this->assertSame('example-app', TaskDirectives::repo($design->fullText()));
+        $this->assertSame('kickoff/design', TaskDirectives::branch($design->fullText()));
+
+        $text = (string) $design->description;
+        $this->assertStringContainsString('The approved technical plan, the contract: https://files.example.com/technical-plan.md', $text);
+        $this->assertStringContainsString('https://files.example.com/business-brief.md', $text);
+        $this->assertStringContainsString("  - https://files.example.com/home.png\n  - https://files.example.com/brand.png", $text);
+        // A mockup that shows what no ticket builds, or data no ticket loads, cannot be matched by the build.
+        $this->assertStringContainsString('Design exactly the screens the plan\'s tickets build, and nothing else', $text);
+        $this->assertStringContainsString('never a value the ticket cannot load', $text);
+        $this->assertStringContainsString('`## Ticket <number>: <short name>`', $text);
+        $this->assertStringContainsString('git push origin HEAD:factory/integration', $text);
+    }
+
+    /** The design is only worth having if each ticket is built against its own part of it and checked against it. */
+    public function testATicketIsBuiltAndCheckedAgainstItsOwnMockups(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+
+        $ticket = $this->ticket()($project->getId(), 'example-app', 2, 'Home', 'As a user I see my items.');
+        [$design, $ship] = $this->stepsOf((int) $ticket['plan_id']);
+        $section = 'the section `## Ticket 2:` in `specs/design/README.md`';
+
+        $this->assertStringContainsString($section . ', that section is the design of this ticket', (string) $design->description);
+        $this->assertStringContainsString('add nothing it does not show', (string) $design->description);
+        $this->assertStringContainsString('wire each piece of data to the operation and field that section names', (string) $ship->description);
+        $this->assertStringContainsString('the QA also compares each screen and state of this ticket', (string) $ship->description);
+
+        $logicOnly = $this->ticket()(
+            $project->getId(),
+            'example-app',
+            3,
+            'Records service',
+            'A service.',
+            has_screens: false,
+        );
+        [$onlyStep] = $this->stepsOf((int) $logicOnly['plan_id']);
+        $this->assertStringNotContainsString('specs/design/README.md', (string) $onlyStep->description);
+    }
+
+    public function testADesignWithoutThePlanStartsNothing(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+            brief_url: 'https://files.example.com/business-brief.md',
+        );
+
+        $this->assertStringContainsString('plan_url', (string) ($result['error'] ?? ''));
+        $this->assertSame(0, Plan::query()->where('project_id', $project->getId())->count());
+    }
+
+    public function testAKickoffWithoutTheBriefKeepsItsTwoSteps(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+
+        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
+
+        $this->assertCount(2, $this->stepsOf((int) $result['plan_id']));
+    }
+
+    public function testABriefThatIsNotALinkStartsNothing(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+            brief_url: 'the brief on the research task',
+            plan_url: 'https://files.example.com/technical-plan.md',
+        );
+
+        $this->assertStringContainsString('list_task_files', (string) ($result['error'] ?? ''));
+        $this->assertSame(0, Plan::query()->where('project_id', $project->getId())->count());
+    }
+
     /** A kickoff started again, after an interrupted run, must not create the app twice. */
     public function testStartingTheSameKickoffAgainReturnsTheOneOnTheBoard(): void
     {

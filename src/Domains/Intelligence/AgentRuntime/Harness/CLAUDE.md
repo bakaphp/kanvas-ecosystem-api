@@ -270,7 +270,15 @@ Things that bite:
   project (`FactoryProjectSettingEnum`: `factory_builder_agent_id`, `factory_designer_agent_id`,
   `factory_template_repo`). The ticket text also carries the post-change QA (both platforms, the app's
   runbook, BLOCKED rather than untested) and the Kanvas-first data rule. Starting a stage that is open
-  returns it. A model left to type those lines leaves them out, and a task without `Repo:` runs in the
+  returns it. A kickoff given `brief_url` and `plan_url` (the approved brief's and technical plan's file
+  URLs) adds a third step for the designer: brand and theme from the brief, and an HTML mockup, rendered
+  to PNG by headless Chrome, of exactly the screens, states and data the plan's tickets name, filed in the
+  app's `specs/design/README.md` under `## Ticket <n>:`. The plan is the contract on both sides: a mockup
+  shows only data its ticket's query returns, the ticket's design step builds its own section and nothing
+  more, the build wires each value to the field the section names, and the ticket's QA compares the
+  screens with the mockups. What the brief shows and no ticket builds is a reported "Plan gap", in neither
+  the design nor the build. The person's own `design_files` win over the designer's choices. Without both
+  URLs the kickoff keeps its two steps and the app keeps the template's look. A model left to type those lines leaves them out, and a task without `Repo:` runs in the
   default checkout.
 - **No stage waits on a person to merge.** A kickoff or ticket merges `factory/integration`
   (`FactoryStage::INTEGRATION_BRANCH`) into its branch first and lands with a fast-forward

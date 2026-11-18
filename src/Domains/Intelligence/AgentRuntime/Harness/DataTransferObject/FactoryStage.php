@@ -73,15 +73,25 @@ final readonly class FactoryStage
     }
 
     /**
-     * Create the app from the template, then give it its identity. Safe to start again after a stopped
-     * run: step 1 skips a repository that already exists.
+     * Create the app from the template, then give it its identity, then, given the approved brief, design
+     * the whole app from it. Safe to start again after a stopped run: step 1 skips a repository that
+     * already exists.
+     *
+     * A ticket designed only from its own text has no whole-app design to follow, and the app keeps the
+     * template's look. The design is drawn from the approved technical plan, not from the brief alone, so
+     * the mockups and the tickets describe the same screens with the same data.
+     *
+     * @param list<string> $designFiles the person's own design files, which win over the designer's choices
      */
     public static function kickoff(
         Project $project,
         string $repository,
         string $displayName,
         string $bundleId,
-        ?string $notes = null
+        ?string $notes = null,
+        ?string $briefUrl = null,
+        ?string $planUrl = null,
+        array $designFiles = []
     ): self {
         $repository = self::folder($repository);
         $displayName = self::required($displayName, 'display name');
@@ -89,6 +99,19 @@ final readonly class FactoryStage
         $builder = self::builder($project);
         $template = FactoryProjectSettingEnum::templateFor($project);
         $notes = Str::trimToNull($notes);
+        $briefUrl = Str::trimToNull($briefUrl);
+        $planUrl = Str::trimToNull($planUrl);
+        $designFiles = array_map(fn (string $file): string => self::url($file, 'design file'), $designFiles);
+
+        if (($briefUrl === null) !== ($planUrl === null) || ($briefUrl === null && $designFiles !== [])) {
+            throw new ValidationException(
+                'The design needs both the approved brief (brief_url) and the approved technical plan (plan_url): '
+                . 'it draws exactly the screens the plan\'s tickets build. Pass both, or neither to skip the design.'
+            );
+        }
+
+        $briefUrl = $briefUrl !== null ? self::url($briefUrl, 'brief') : null;
+        $planUrl = $planUrl !== null ? self::url($planUrl, 'technical plan') : null;
 
         $create = implode("\n", [
             'Repo: ' . $template,
@@ -122,16 +145,95 @@ final readonly class FactoryStage
             '5. ' . self::landOnIntegration(),
         ], fn (?string $line): bool => $line !== null));
 
+        $steps = [
+            new FactoryStep('Kickoff 1: create ' . $repository, $create, $builder),
+            new FactoryStep('Kickoff 2: configure ' . $displayName, $configure, $builder),
+        ];
+
+        if ($briefUrl !== null && $planUrl !== null) {
+            $steps[] = new FactoryStep(
+                'Kickoff 3: design ' . $displayName . ' from its plan',
+                self::design(
+                    $repository,
+                    $displayName,
+                    $briefUrl,
+                    $planUrl,
+                    $designFiles
+                ),
+                FactoryProjectSettingEnum::designerFor($project) ?? $builder,
+            );
+        }
+
         return new self(
             $project,
             'Kickoff: ' . $displayName . ' (' . $repository . ')',
-            'Create ' . $repository . ' from ' . $template . ' and give it its identity (' . $bundleId . ').',
-            [
-                new FactoryStep('Kickoff 1: create ' . $repository, $create, $builder),
-                new FactoryStep('Kickoff 2: configure ' . $displayName, $configure, $builder),
-            ],
+            'Create ' . $repository . ' from ' . $template . ' and give it its identity (' . $bundleId . ')'
+                . ($planUrl !== null ? ', then design every ticket of its approved plan.' : '.'),
+            $steps,
             'Kickoff: %(' . self::likeLiteral($repository) . ')',
         );
+    }
+
+    /**
+     * The whole app designed once, the way a product designer works from a product definition: brand and
+     * theme from the brief, and a mockup of every screen the plan's tickets build, filed by ticket. A
+     * mockup only shows data its ticket's Kanvas query returns, so the build can always match it. Mockups
+     * are HTML rendered by headless Chrome, so they need no design tool on the Mac.
+     *
+     * @param list<string> $designFiles
+     */
+    private static function design(
+        string $repository,
+        string $displayName,
+        string $briefUrl,
+        string $planUrl,
+        array $designFiles
+    ): string {
+        return implode("\n", array_filter([
+            'Repo: ' . $repository,
+            'Branch: kickoff/design',
+            '',
+            'Kickoff 3: design ' . $displayName . ' ticket by ticket from its approved technical plan: the one design '
+                . 'every ticket is built and checked against.',
+            '- The approved technical plan, the contract: ' . $planUrl,
+            '- The approved brief, for the product, its users and its positioning: ' . $briefUrl,
+            $designFiles !== []
+                ? "- Design files the person gave. They win over your own choices: match them, and design only what they do not cover:\n"
+                    . implode("\n", array_map(fn (string $file): string => '  - ' . $file, $designFiles))
+                : null,
+            '',
+            'Steps:',
+            '1. Read `CLAUDE.md`, `specs/README.md`, `specs/design-system.spec.md` and `specs/workflows/foldable.spec.md`. '
+                . self::startFromIntegration(),
+            '2. Download and read the whole plan, the brief and every design file with `curl -fsSL`. Design exactly the '
+                . 'screens the plan\'s tickets build, and nothing else: every screen a ticket names, every state it lists '
+                . '(loading, empty, error, and whatever its acceptance criteria put on screen: consent, disclaimers, '
+                . 'warnings, a confirmation before a step runs, export and delete). A screen shows only the data its '
+                . 'ticket\'s Kanvas query or mutation returns, under the same field names: never a value the ticket '
+                . 'cannot load. When the brief has something on screen that no ticket builds, or a ticket\'s screen would '
+                . 'need data its query does not return, do not design around it: list it under "Plan gaps" in the README '
+                . 'and in your reply.',
+            '3. The brand, from the brief\'s product, users and positioning: the palette for light and dark, typography, '
+                . 'the app icon and the splash. Set them in the app the way the design-system spec says (role tokens, raw '
+                . 'colours only in the colours file), and write them down in `specs/design/brand.md` with the palette in '
+                . '`specs/design/theme-colors.json`.',
+            '4. The screens: one mockup per screen and state for iOS and one for Android (they are different designs), '
+                . 'plus the wide and foldable layouts the foldable spec asks for, built only from components the template '
+                . 'has or a ticket creates. Write each as a standalone HTML page in `specs/design/src/` using the brand\'s '
+                . 'tokens and fonts, with realistic content of the shape its ticket\'s data has, never lorem ipsum, and the '
+                . 'screen\'s English copy. Render each at phone size with headless Chrome: '
+                . '`"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars '
+                . '--window-size=<width>,<height> --screenshot=<file>.png <file>.html`, into '
+                . '`specs/design/{ios,android,foldables}/T<ticket>-<NN>-<screen>.png`. Open every PNG, look at it, and fix '
+                . 'what is wrong before you go on.',
+            '5. Write `specs/design/README.md` with one section per ticket that has screens, headed exactly '
+                . '`## Ticket <number>: <short name>` in the plan\'s numbering. For each screen: its PNGs, its states, '
+                . 'every piece of data it shows with the operation and field it comes from, and its copy in en and es. '
+                . 'That section is what the ticket is built and checked against. End with "Plan gaps" (or "None"). Point '
+                . '`specs/README.md` to it.',
+            '6. ' . self::APP_QA,
+            '7. ' . self::landOnIntegration(),
+        ], fn (?string $line): bool => $line !== null));
     }
 
     /**
@@ -161,20 +263,35 @@ final readonly class FactoryStage
         $lines = 'Repo: ' . $repository . "\nBranch: " . $branch;
         $quoted = "\n\nTicket " . $number . ":\n" . $ticket;
 
+        $mockups = self::mockupSection($number);
+
         $design = $lines . "\n\n"
             . self::startFromIntegration() . ' Then design ticket ' . $number . ' in code: screens, components, theme tokens, the loading/empty/error '
-            . 'states, en/es copy and accessibility. Check it on iOS and Android screenshots. Commit only: do not '
-            . 'push and do not open a pull request.' . $quoted;
+            . 'states, en/es copy and accessibility. When the app has ' . $mockups . ', that section is the design of '
+            . 'this ticket: build its screens and states to match their mockups (layout, colours, type, spacing, '
+            . 'copy), add nothing it does not show, and lay out every piece of data where the section says it comes '
+            . 'from. Put your iOS and Android screenshots next to the mockups and fix every difference. If the ticket '
+            . 'and its section disagree, the ticket text wins: build it and name the difference in your reply. Commit '
+            . 'only: do not push and do not open a pull request.' . $quoted;
 
         $build = self::startFromIntegration() . ' '
             . ($needsDesign
                 ? 'Build the logic of ticket ' . $number . ' on top of the design already committed on this branch: '
-                    . 'interfaces, services, hooks, data wiring, and tests for hooks and utils. Do not redo the design. Then '
+                    . 'interfaces, services, hooks, data wiring, and tests for hooks and utils. Do not redo the design. '
+                    . 'When the app has ' . $mockups . ', wire each piece of data to the operation and field that '
+                    . 'section names for it. Then '
                 : 'Build ticket ' . $number . ': interfaces, services, hooks, data wiring, and tests for hooks and utils. '
                     . 'It has nothing on screen. Then ');
 
+        $designCheck = $needsDesign
+            ? ' When the app has ' . $mockups . ', the QA also compares each screen and state of this ticket, on both '
+                . 'platforms, with its mockups there, filled with the real data: a difference is a finding like any '
+                . 'other and is fixed before the work lands, unless only the backend can close it, which goes under '
+                . '"Waiting on backend".'
+            : '';
+
         $ship = $lines . "\n\n" . $build
-            . self::APP_QA . ' Save ' . ($needsDesign ? 'iOS and Android screenshots' : 'the test output')
+            . self::APP_QA . $designCheck . ' Save ' . ($needsDesign ? 'iOS and Android screenshots' : 'the test output')
             . ' with the QA report: the release pull request shows them. ' . self::landOnIntegration()
             . ' The data comes from Kanvas, never '
             . 'hard-coded or dummy data: a new kind of thing the app keeps is a Kanvas message with its own '
@@ -198,6 +315,12 @@ final readonly class FactoryStage
                 : [$shipStep],
             'Ticket ' . $number . ': %(' . self::likeLiteral($repository) . ')',
         );
+    }
+
+    /** Kickoff's design step writes this heading per ticket, in the plan's numbering. */
+    private static function mockupSection(int $number): string
+    {
+        return 'the section `## Ticket ' . $number . ':` in `specs/design/README.md`';
     }
 
     private static function likeLiteral(string $value): string
@@ -346,6 +469,19 @@ final readonly class FactoryStage
         }
 
         return $bundleId;
+    }
+
+    /** Fetched by the agent on the Mac, never by this server, so this only keeps the task text honest. */
+    private static function url(string $url, string $label): string
+    {
+        $url = (string) Str::trimToNull($url);
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        if (filter_var($url, FILTER_VALIDATE_URL) === false || ! in_array($scheme, ['http', 'https'], true)) {
+            throw new ValidationException('"' . $url . '" is not a link to the ' . $label . ': give its http(s) URL, as list_task_files shows it.');
+        }
+
+        return $url;
     }
 
     private static function required(string $value, string $label): string
