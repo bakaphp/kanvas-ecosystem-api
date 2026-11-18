@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\CardNet;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\CardNet\Client;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardDetail;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
+use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
@@ -655,14 +657,13 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         $paymentMethod = $payment->paymentMethod;
         $trxToken = (string) ($paymentMethod->getMetadata(CustomFieldEnum::TOKEN->value) ?? '');
 
-        // orders.currency is a CHAR-padded column ("DOP ") — CardNet rejects untrimmed values with PR004.
         // CustomerUserAgent/CustomerIP must be stored on the purchase: refunds of a purchase created
         // without a UserAgent are rejected with PR015 "Parámetro de UserAgent vacío".
         return new CardNetPurchaseRequest(
             trxToken: $trxToken,
             order: (string) $order->id,
             amount: $this->toCardNetAmount($order->getTotalDueAmount()),
-            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
+            currency: $this->requestCurrency($order),
             invoice: (string) ($order->order_number ?? $order->id),
             capture: $capture,
             customerIp: request()?->ip(),
@@ -679,12 +680,25 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             trxToken: (string) ($paymentMethod?->getMetadata(CustomFieldEnum::TOKEN->value) ?? ''),
             order: (string) $order->id,
             amount: $this->toCardNetAmount($amount ?? (float) ($payment->amount ?: $order->getTotalDueAmount())),
-            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
+            currency: $this->requestCurrency($order),
             invoice: (string) ($order->order_number ?? $order->id),
             tip: 0,
             customerIp: $payment->getMetadata('customer_ip') ?? request()?->ip(),
             customerUserAgent: $payment->getMetadata('customer_user_agent') ?? request()?->userAgent() ?? 'KanvasEcosystem/1.0',
         );
+    }
+
+    // orders.currency is a CHAR-padded column ("DOP ") — CardNet rejects untrimmed values with PR004.
+    private function requestCurrency(Order $order): string
+    {
+        $sandboxCurrency = Str::trimToNull($this->app->get(ConfigurationEnum::SANDBOX_CURRENCY->value));
+        $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? ConfigurationEnum::SANDBOX_URL->value;
+
+        if ($sandboxCurrency !== null && rtrim($baseUrl, '/') === ConfigurationEnum::SANDBOX_URL->value) {
+            return strtoupper($sandboxCurrency);
+        }
+
+        return trim((string) ($order->currency ?? '')) ?: 'DOP';
     }
 
     /**
