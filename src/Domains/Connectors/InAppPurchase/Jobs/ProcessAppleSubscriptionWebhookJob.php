@@ -6,8 +6,13 @@ namespace Kanvas\Connectors\InAppPurchase\Jobs;
 
 use Imdhemy\AppStore\Jws\Parser;
 use Imdhemy\AppStore\ServerNotifications\V2DecodedPayload;
+use Kanvas\Connectors\InAppPurchase\Concerns\FindsStoreSubscription;
 use Kanvas\Connectors\InAppPurchase\Enums\AppleNotificationTypeEnum;
-use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Kanvas\Connectors\InAppPurchase\Enums\StoreProviderEnum;
+use Kanvas\Connectors\InAppPurchase\Services\AppleJwsVerifier;
+use Kanvas\Connectors\InAppPurchase\Services\AppleSignedTransactionVerifier;
+use Kanvas\Connectors\InAppPurchase\Services\StaleTransactionGuard;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Laravel\Cashier\Subscription as CashierSubscription;
@@ -16,6 +21,8 @@ use Override;
 #[WorkflowAction]
 class ProcessAppleSubscriptionWebhookJob extends ProcessWebhookJob
 {
+    use FindsStoreSubscription;
+
     #[Override]
     public function execute(): array
     {
@@ -28,18 +35,26 @@ class ProcessAppleSubscriptionWebhookJob extends ProcessWebhookJob
         }
 
         $jws = Parser::toJws($signedPayload);
+        if (! app(AppleJwsVerifier::class)->verify($jws)) {
+            return ['message' => 'Invalid Apple signature', 'status' => 'rejected'];
+        }
+
         $decodedPayload = V2DecodedPayload::fromJws($jws);
+
+        // Apple signs every app's notifications with the same chain, so the signature alone does not say it is ours.
+        try {
+            new AppleSignedTransactionVerifier($this->receiver->app)
+                ->assertBundle($decodedPayload->toArray()['data'] ?? []);
+        } catch (ValidationException $e) {
+            return ['message' => $e->getMessage(), 'status' => 'rejected'];
+        }
+
         $notificationType = $decodedPayload->getType();
         $subtype = $decodedPayload->getSubType();
 
         if ($notificationType === V2DecodedPayload::TYPE_TEST) {
             return ['message' => 'Test notification received', 'notification_type' => 'TEST'];
         }
-
-        $transactionInfo = $decodedPayload->getTransactionInfo();
-        $originalTransactionId = $transactionInfo->getOriginalTransactionId();
-        $productId = $transactionInfo->getProductId();
-        $expiresDate = $transactionInfo->getExpiresDate()?->toCarbon();
 
         $typeEnum = AppleNotificationTypeEnum::tryFrom($notificationType);
         if ($typeEnum === null) {
@@ -49,14 +64,18 @@ class ProcessAppleSubscriptionWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $newStatus = $this->resolveStatus($typeEnum, $subtype);
+        $transactionInfo = $decodedPayload->getTransactionInfo();
+        $originalTransactionId = (string) $transactionInfo->getOriginalTransactionId();
+        $productId = $transactionInfo->getProductId();
+        $expiresDate = $transactionInfo->getExpiresDate()?->toCarbon();
 
-        $appsStripeCustomer = AppsStripeCustomer::where('apps_id', $this->receiver->app->getId())
-            ->where('provider', 'apple')
-            ->where('stripe_id', $originalTransactionId)
-            ->first();
+        $subscription = $this->findAppStoreSubscription(
+            $originalTransactionId,
+            $this->receiver->app,
+            StoreProviderEnum::APPLE
+        );
 
-        if (! $appsStripeCustomer) {
+        if (! $subscription instanceof CashierSubscription) {
             return [
                 'message' => 'No matching Apple subscription found',
                 'original_transaction_id' => $originalTransactionId,
@@ -68,18 +87,47 @@ class ProcessAppleSubscriptionWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        /** @var CashierSubscription|null $subscription */
-        $subscription = CashierSubscription::where('apps_stripe_customer_id', $appsStripeCustomer->getId())
-            ->where('stripe_id', $originalTransactionId)
-            ->first();
+        $unchanged = [
+            'notification_type' => $notificationType,
+            'subtype' => $subtype,
+            'original_transaction_id' => $originalTransactionId,
+            'transaction_id' => $transactionInfo->getTransactionId(),
+            'current_status' => $subscription->stripe_status,
+            'current_ends_at' => $subscription->ends_at?->toDateTimeString(),
+        ];
 
-        if ($subscription) {
-            $subscription->stripe_status = $newStatus;
-            if ($expiresDate) {
-                $subscription->ends_at = $expiresDate;
-            }
-            $subscription->saveOrFail();
+        $isStale = StaleTransactionGuard::isStale(
+            $subscription,
+            $transactionInfo->getPurchaseDate()?->toCarbon(),
+            $expiresDate
+        );
+
+        if ($isStale) {
+            return [
+                'message' => 'Apple notification for an earlier period or a refunded period, current access left unchanged',
+                'notification_expires_date' => $expiresDate?->toDateTimeString(),
+            ] + $unchanged;
         }
+
+        $newStatus = $typeEnum->toSubscriptionStatus($subtype);
+
+        if ($typeEnum->isPreferenceChange() && ($newStatus === null || $subscription->ended())) {
+            return ['message' => 'Apple preference change, current access left unchanged'] + $unchanged;
+        }
+
+        $endsAt = match (true) {
+            $typeEnum->isRevocation() => $transactionInfo->getRevocationDate()?->toCarbon() ?? now(),
+            $typeEnum->isPreferenceChange() => null,
+            default => $expiresDate,
+        };
+
+        if ($newStatus !== null) {
+            $subscription->stripe_status = $newStatus->value;
+        }
+        if ($endsAt !== null) {
+            $subscription->ends_at = $endsAt;
+        }
+        $subscription->saveOrFail();
 
         return [
             'message' => 'Apple subscription webhook processed',
@@ -87,18 +135,8 @@ class ProcessAppleSubscriptionWebhookJob extends ProcessWebhookJob
             'subtype' => $subtype,
             'original_transaction_id' => $originalTransactionId,
             'product_id' => $productId,
-            'new_status' => $newStatus,
+            'new_status' => $subscription->stripe_status,
+            'ends_at' => $endsAt?->toDateTimeString(),
         ];
-    }
-
-    private function resolveStatus(AppleNotificationTypeEnum $type, ?string $subtype): string
-    {
-        if ($type === AppleNotificationTypeEnum::DID_CHANGE_RENEWAL_STATUS) {
-            return $subtype === V2DecodedPayload::SUBTYPE_AUTO_RENEW_DISABLED
-                ? 'canceled'
-                : 'active';
-        }
-
-        return $type->toSubscriptionStatus();
     }
 }

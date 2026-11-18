@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\InAppPurchase\Actions;
 
 use Carbon\Carbon;
+use Closure;
 use GuzzleHttp\ClientInterface;
 use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
@@ -14,9 +15,12 @@ use Imdhemy\AppStore\ValueObjects\Receipt;
 use Imdhemy\Purchases\Facades\Subscription;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
+use Kanvas\Connectors\InAppPurchase\Enums\StoreProviderEnum;
+use Kanvas\Connectors\InAppPurchase\Enums\SubscriptionStatusEnum;
+use Kanvas\Connectors\InAppPurchase\Services\AppleSignedTransactionVerifier;
+use Kanvas\Connectors\InAppPurchase\Services\StaleTransactionGuard;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
@@ -30,6 +34,9 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 {
     public const string CLIENT_BINDING = 'in-app-purchase.apple.client';
     private const string DEFAULT_CURRENCY = 'USD';
+    private const int OFFER_TYPE_INTRODUCTORY = 1;
+    private const string OFFER_DISCOUNT_FREE_TRIAL = 'FREE_TRIAL';
+    private const string TYPE_AUTO_RENEWABLE_SUBSCRIPTION = 'Auto-Renewable Subscription';
 
     public function __construct(
         protected readonly AppleInAppPurchaseReceipt $appleInAppPurchase,
@@ -47,11 +54,173 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
     #[Override]
     public function execute(): ModelsOrder
     {
+        $hasSignedTransaction = ! empty($this->appleInAppPurchase->signed_transaction);
+
+        if ($this->appleInAppPurchase->is_renewable_subscription && $hasSignedTransaction) {
+            return $this->executeSignedTransactionFlow();
+        }
+
+        if ($this->appleInAppPurchase->receipt === '') {
+            throw new ValidationException(
+                'An Apple receipt is required unless a signed transaction is sent for a renewable subscription'
+            );
+        }
+
         if (! $this->appleInAppPurchase->is_renewable_subscription) {
             return $this->executeProductFlow();
         }
 
         return $this->executeRenewableSubscriptionFlow();
+    }
+
+    /**
+     * StoreKit 2: the transaction is verified from its own signature, so no app receipt is needed. That
+     * receipt is missing on development installs and never exists under Xcode StoreKit testing.
+     */
+    private function executeSignedTransactionFlow(): ModelsOrder
+    {
+        $transaction = new AppleSignedTransactionVerifier($this->app)
+            ->verify((string) $this->appleInAppPurchase->signed_transaction);
+
+        $productId = (string) ($transaction['productId'] ?? '');
+        if ($productId !== $this->resolveStoreProductId($this->appleInAppPurchase->product_id)) {
+            throw new ValidationException('Signed transaction is for a different product');
+        }
+
+        if (! empty($transaction['revocationDate'])) {
+            throw new ValidationException('Transaction was cancelled or revoked by Apple.');
+        }
+
+        // A consumable or non-renewing purchase has no expiry and would be stored as a never-ending subscription.
+        if (($transaction['type'] ?? null) !== self::TYPE_AUTO_RENEWABLE_SUBSCRIPTION) {
+            throw new ValidationException('Signed transaction is not an auto-renewable subscription');
+        }
+
+        if (! is_numeric($transaction['expiresDate'] ?? null)) {
+            throw new ValidationException('Signed subscription transaction has no expiration date');
+        }
+
+        $metadata = $this->normalizeSignedTransactionMetadata($transaction);
+
+        return $this->recordAppleSubscription(
+            $metadata,
+            fn (): ModelsOrder => $this->createSignedTransactionOrder($metadata)
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     */
+    private function createSignedTransactionOrder(array $metadata): ModelsOrder
+    {
+        $orderItems = [
+            $this->createOrderItem($this->getVariant($metadata['product_id']), $metadata['quantity']),
+        ];
+        $this->processCustomFieldsVariants($orderItems);
+
+        $orderMetadata = $this->buildReceiptPayload();
+        $orderMetadata['transactionId'] = $metadata['transaction_id'];
+        $orderMetadata['transactionReceipt'] = null;
+        $orderMetadata['source'] = StoreProviderEnum::APPLE->value;
+        $orderMetadata['apple_subscription'] = $metadata;
+        $this->addMessageMetadataFromCustomFields($orderMetadata);
+
+        return new CreateOrderAction(
+            $this->createOrderDto($orderItems, $this->createPeople(), $orderMetadata)
+        )->execute();
+    }
+
+    /**
+     * One transaction lineage (original transaction id) is one subscription. A transaction already
+     * recorded, or a stale one (StaleTransactionGuard), creates no order and leaves the stored
+     * subscription as is: a replayed old JWS would otherwise roll back a renewal or revive a refund.
+     *
+     * @param array<string, mixed> $metadata normalizeSignedTransactionMetadata()
+     *                                     or normalizeAppleSubscriptionMetadata()
+     * @param Closure(): ModelsOrder $createOrder
+     * @throws ValidationException
+     */
+    private function recordAppleSubscription(array $metadata, Closure $createOrder): ModelsOrder
+    {
+        return $this->withStorePurchaseLock(
+            $metadata['original_transaction_id'],
+            fn (): ModelsOrder => $this->findOrCreateAppleSubscriptionOrder($metadata, $createOrder)
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @param Closure(): ModelsOrder $createOrder
+     * @throws ValidationException
+     */
+    private function findOrCreateAppleSubscriptionOrder(array $metadata, Closure $createOrder): ModelsOrder
+    {
+        $subscription = $this->findOwnedCashierSubscription($metadata['original_transaction_id']);
+
+        $order = $this->findExistingOrderByAppleTransactionId($metadata['transaction_id']);
+        if ($order instanceof ModelsOrder) {
+            return $this->reuseExistingSubscriptionOrder(
+                $order,
+                $subscription,
+                fn () => $this->upsertAppleSubscription($metadata, $order, null)
+            );
+        }
+
+        $isStale = $subscription instanceof CashierSubscription && StaleTransactionGuard::isStale(
+            $subscription,
+            $this->toCarbon($metadata['purchase_date']),
+            $this->toCarbon($metadata['expires_date'])
+        );
+
+        if ($isStale) {
+            $originalTransactionId = $metadata['original_transaction_id'];
+            $order = $this->findExistingOrderByAppleOriginalTransactionId($originalTransactionId)
+                ?? throw new ValidationException('Transaction is older than the current subscription');
+            $this->tagOrderAsIapSubscription($order);
+
+            return $order;
+        }
+
+        $order = $createOrder();
+        $this->handleCustomFieldsOnOrder($order);
+        $this->upsertAppleSubscription($metadata, $order, $subscription);
+        $this->tagOrderAsIapSubscription($order);
+
+        return $order;
+    }
+
+    private function toCarbon(?string $dateTime): ?Carbon
+    {
+        return $dateTime !== null ? Carbon::parse($dateTime) : null;
+    }
+
+    /**
+     * offerType 1 is any introductory offer; only a FREE_TRIAL discount is a trial.
+     *
+     * @param array<string, mixed> $transaction
+     * @return array<string, mixed>
+     */
+    private function normalizeSignedTransactionMetadata(array $transaction): array
+    {
+        $date = static fn (mixed $ms): ?string => is_numeric($ms)
+            ? Carbon::createFromTimestampMs((int) $ms)->toDateTimeString()
+            : null;
+        $transactionId = (string) $transaction['transactionId'];
+        $offerType = (int) ($transaction['offerType'] ?? 0);
+        $offerDiscountType = $transaction['offerDiscountType'] ?? null;
+
+        return [
+            'transaction_id' => $transactionId,
+            'original_transaction_id' => (string) ($transaction['originalTransactionId'] ?? $transactionId),
+            'product_id' => (string) $transaction['productId'],
+            'purchase_date' => $date($transaction['purchaseDate'] ?? null),
+            'expires_date' => $date($transaction['expiresDate'] ?? null),
+            'cancellation_date' => $date($transaction['revocationDate'] ?? null),
+            'is_trial_period' => $offerDiscountType === self::OFFER_DISCOUNT_FREE_TRIAL,
+            'is_in_intro_offer_period' => $offerType === self::OFFER_TYPE_INTRODUCTORY,
+            'environment' => (string) ($transaction['environment'] ?? ''),
+            'quantity' => (int) ($transaction['quantity'] ?? 1),
+        ];
     }
 
     #[Override]
@@ -149,27 +318,23 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             throw new ValidationException('No matching renewable subscription transaction found in receipt');
         }
 
-        $existingOrder = $this->findExistingAppleSubscriptionOrder($resolvedReceiptInfo->getTransactionId());
-        if ($existingOrder instanceof ModelsOrder) {
-            $this->tagOrderAsIapSubscription($existingOrder);
+        $metadata = $this->normalizeAppleSubscriptionMetadata($verifiedReceipt, $resolvedReceiptInfo);
 
-            return $existingOrder;
+        if ($metadata['expires_date'] === null) {
+            throw new ValidationException('Receipt transaction has no expiry, so it is not a renewable subscription');
         }
 
-        $people = $this->createPeople();
-        $orderData = $this->createRenewableOrderData(
-            $receipt,
-            $people,
-            $verifiedReceipt,
-            $resolvedReceiptInfo
+        return $this->recordAppleSubscription(
+            $metadata,
+            fn (): ModelsOrder => new CreateOrderAction(
+                $this->createRenewableOrderData(
+                    $receipt,
+                    $this->createPeople(),
+                    $resolvedReceiptInfo,
+                    $metadata
+                )
+            )->execute()
         );
-        $order = new CreateOrderAction($orderData)->execute();
-
-        $this->handleCustomFieldsOnOrder($order);
-        $this->upsertAppleSubscription($resolvedReceiptInfo, $verifiedReceipt, $order);
-        $this->tagOrderAsIapSubscription($order);
-
-        return $order;
     }
 
     private function buildReceiptPayload(): array
@@ -243,7 +408,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         $orderItems[] = $orderItem;
 
         $this->processCustomFieldsVariants($orderItems);
-        $allReceiptData['source'] = 'apple';
+        $allReceiptData['source'] = StoreProviderEnum::APPLE->value;
         $this->addMessageMetadataFromCustomFields($allReceiptData);
 
         if (array_key_exists('custom_fields', $allReceiptData)) {
@@ -274,11 +439,14 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         );
     }
 
+    /**
+     * @param array<string, mixed> $subscriptionMetadata
+     */
     private function createRenewableOrderData(
         array $allReceiptData,
         People $people,
-        ReceiptResponse $verifiedReceipt,
-        LatestReceiptInfo $receiptInfo
+        LatestReceiptInfo $receiptInfo,
+        array $subscriptionMetadata
     ): Order {
         $variant = $this->getVariant($receiptInfo->getProductId());
         /** @var array<OrderItem> $orderItems */
@@ -290,8 +458,8 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         );
 
         $this->processCustomFieldsVariants($orderItems);
-        $allReceiptData['source'] = 'apple';
-        $allReceiptData['apple_subscription'] = $this->normalizeAppleSubscriptionMetadata($verifiedReceipt, $receiptInfo);
+        $allReceiptData['source'] = StoreProviderEnum::APPLE->value;
+        $allReceiptData['apple_subscription'] = $subscriptionMetadata;
         $this->addMessageMetadataFromCustomFields($allReceiptData);
 
         return $this->createOrderDto(
@@ -305,11 +473,11 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         ReceiptResponse $receiptResponse,
         string $requestedTransactionId,
         ?string $requestedOriginalTransactionId,
-        string $requestedVariantId
+        string $requestedProductId
     ): ?LatestReceiptInfo {
         /** @var array<LatestReceiptInfo>|null $latestReceiptInfo */
         $latestReceiptInfo = $receiptResponse->getLatestReceiptInfo();
-        $variantInfo = Variants::getByIdFromCompanyApp($requestedVariantId, $this->company, $this->app);
+        $storeProductId = $this->resolveStoreProductId($requestedProductId);
 
         if ($latestReceiptInfo === null || $latestReceiptInfo === []) {
             return null;
@@ -324,7 +492,8 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         if ($requestedOriginalTransactionId !== null && $requestedOriginalTransactionId !== '') {
             $matchedByOriginal = array_values(array_filter(
                 $latestReceiptInfo,
-                fn (LatestReceiptInfo $receiptInfo): bool => $receiptInfo->getOriginalTransactionId() === $requestedOriginalTransactionId
+                fn (LatestReceiptInfo $receiptInfo): bool
+                    => $receiptInfo->getOriginalTransactionId() === $requestedOriginalTransactionId
             ));
 
             if ($matchedByOriginal !== []) {
@@ -334,7 +503,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         $matchedByProduct = array_values(array_filter(
             $latestReceiptInfo,
-            fn (LatestReceiptInfo $receiptInfo): bool => $receiptInfo->getProductId() === $variantInfo->sku
+            fn (LatestReceiptInfo $receiptInfo): bool => $receiptInfo->getProductId() === $storeProductId
         ));
 
         if ($matchedByProduct === []) {
@@ -359,6 +528,9 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         return $receiptInfos[0];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function normalizeAppleSubscriptionMetadata(
         ReceiptResponse $verifiedReceipt,
         LatestReceiptInfo $receiptInfo
@@ -369,65 +541,63 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             'product_id' => $receiptInfo->getProductId(),
             'purchase_date' => $receiptInfo->getPurchaseDate()?->toCarbon()?->toDateTimeString(),
             'expires_date' => $receiptInfo->getExpiresDate()?->toCarbon()?->toDateTimeString(),
-            'is_trial_period' => $receiptInfo->getIsTrialPeriod(),
-            'is_in_intro_offer_period' => $receiptInfo->getIsInIntroOfferPeriod(),
+            'cancellation_date' => $receiptInfo->getCancellationDate()?->toCarbon()?->toDateTimeString(),
+            'is_trial_period' => (bool) $receiptInfo->getIsTrialPeriod(),
+            'is_in_intro_offer_period' => (bool) $receiptInfo->getIsInIntroOfferPeriod(),
             'environment' => $verifiedReceipt->getEnvironment(),
+            'quantity' => $receiptInfo->getQuantity(),
         ];
     }
 
+    /**
+     * @param array<string, mixed> $metadata
+     */
     private function upsertAppleSubscription(
-        LatestReceiptInfo $receiptInfo,
-        ReceiptResponse $verifiedReceipt,
-        ModelsOrder $order
+        array $metadata,
+        ModelsOrder $order,
+        ?CashierSubscription $subscription
     ): void {
         $appsStripeCustomer = AppsStripeCustomer::updateOrCreate(
             [
                 'apps_id' => $this->app->getId(),
                 'companies_id' => 0,
                 'users_id' => $this->user->getId(),
-                'provider' => 'apple',
+                'provider' => StoreProviderEnum::APPLE->value,
             ],
             [
-                'stripe_id' => $receiptInfo->getOriginalTransactionId(),
+                'stripe_id' => $metadata['original_transaction_id'],
                 'config' => [
-                    'environment' => $verifiedReceipt->getEnvironment(),
-                    'product_id' => $receiptInfo->getProductId(),
+                    'environment' => $metadata['environment'],
+                    'product_id' => $metadata['product_id'],
                     'order_id' => $order->getId(),
                 ],
             ]
         );
 
-        $subscriptionType = 'apple:' . $receiptInfo->getProductId();
-        $expiresDate = $receiptInfo->getExpiresDate()?->toCarbon();
-        $trialEndsAt = $receiptInfo->getIsTrialPeriod() ? $expiresDate : null;
+        $expiresDate = $this->toCarbon($metadata['expires_date']);
+        $cancellationDate = $this->toCarbon($metadata['cancellation_date']);
 
-        $subscription = $this->findCashierSubscription(
-            $appsStripeCustomer->getId(),
-            $receiptInfo->getOriginalTransactionId()
-        ) ?? new CashierSubscription();
-
+        $subscription ??= new CashierSubscription();
         $subscription->apps_stripe_customer_id = $appsStripeCustomer->getId();
-        $subscription->type = $subscriptionType;
-        $subscription->stripe_id = $receiptInfo->getOriginalTransactionId();
-        $subscription->stripe_price = $receiptInfo->getProductId();
-        $subscription->stripe_status = $this->resolveAppleSubscriptionStatus($receiptInfo);
-        $subscription->quantity = $receiptInfo->getQuantity();
-        $subscription->ends_at = $expiresDate;
-        $subscription->trial_ends_at = $trialEndsAt;
+        $subscription->type = StoreProviderEnum::APPLE->value . ':' . $metadata['product_id'];
+        $subscription->stripe_id = $metadata['original_transaction_id'];
+        $subscription->stripe_price = $metadata['product_id'];
+        $subscription->stripe_status = $this->resolveAppleSubscriptionStatus($cancellationDate, $expiresDate)->value;
+        $subscription->quantity = $metadata['quantity'];
+        // A refund ends access at the refund date; the future expiry would keep Cashier's active() true.
+        $subscription->ends_at = $cancellationDate ?? $expiresDate;
+        $subscription->trial_ends_at = $metadata['is_trial_period'] && $cancellationDate === null
+            ? $expiresDate
+            : null;
         $subscription->saveOrFail();
     }
 
-    private function resolveAppleSubscriptionStatus(LatestReceiptInfo $receiptInfo): string
+    private function resolveAppleSubscriptionStatus(?Carbon $cancellationDate, ?Carbon $expiresDate): SubscriptionStatusEnum
     {
-        if ($receiptInfo->getCancellationDate() !== null) {
-            return 'canceled';
-        }
-
-        $expiresDate = $receiptInfo->getExpiresDate()?->toCarbon();
-        if ($expiresDate instanceof Carbon && $expiresDate->isPast()) {
-            return 'expired';
-        }
-
-        return 'active';
+        return match (true) {
+            $cancellationDate instanceof Carbon => SubscriptionStatusEnum::CANCELED,
+            $expiresDate instanceof Carbon && $expiresDate->isPast() => SubscriptionStatusEnum::EXPIRED,
+            default => SubscriptionStatusEnum::ACTIVE,
+        };
     }
 }
