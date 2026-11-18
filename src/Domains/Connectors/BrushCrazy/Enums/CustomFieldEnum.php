@@ -68,6 +68,13 @@ enum CustomFieldEnum: string
     /** `pos_settings`: add-on and art-formula prices the shop charges (global in BrushCrazy). */
     case BRUSHCRAZY_POS_SETTINGS = 'BRUSHCRAZY_POS_SETTINGS';
 
+    /**
+     * On the customer's Kanvas User: how BrushCrazy created the account, and whether its password is
+     * one the customer never chose (an automatic account), so the launch email asks them to set one.
+     */
+    case BRUSHCRAZY_REGISTRATION_METHOD = 'BRUSHCRAZY_REGISTRATION_METHOD';
+    case BRUSHCRAZY_NEEDS_PASSWORD = 'BRUSHCRAZY_NEEDS_PASSWORD';
+
     /** A category's GL account name, `transferable` flag and cost-to-MSRP formula tiers. */
     case BRUSHCRAZY_CATEGORY_SETTINGS = 'BRUSHCRAZY_CATEGORY_SETTINGS';
     case BRUSHCRAZY_DISPLAY_NAME = 'BRUSHCRAZY_DISPLAY_NAME';

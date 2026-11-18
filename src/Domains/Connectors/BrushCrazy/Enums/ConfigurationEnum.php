@@ -44,4 +44,10 @@ enum ConfigurationEnum: string
      */
     case BRUSHCRAZY_API_URL = 'BRUSHCRAZY_API_URL';
     case BRUSHCRAZY_API_SECRET = 'BRUSHCRAZY_API_SECRET';
+
+    /**
+     * The branch every imported customer's Kanvas login joins (a dedicated customers company, never
+     * a studio's: a member of a studio company can read its data). Unset, no logins are created.
+     */
+    case BRUSHCRAZY_CUSTOMER_ACCOUNTS_BRANCH_ID = 'BRUSHCRAZY_CUSTOMER_ACCOUNTS_BRANCH_ID';
 }

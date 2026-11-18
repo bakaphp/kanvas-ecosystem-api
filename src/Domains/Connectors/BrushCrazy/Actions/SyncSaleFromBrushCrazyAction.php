@@ -93,6 +93,9 @@ class SyncSaleFromBrushCrazyAction
 
     protected ?int $guestId = null;
 
+    /** @var array<int, int|null> bc user id => the buyer's Kanvas login, null when they have none */
+    protected array $buyerAccounts = [];
+
     /** @var array<int, string> bc user id => why its People could not be written */
     protected array $failedBuyers = [];
 
@@ -146,6 +149,10 @@ class SyncSaleFromBrushCrazyAction
             $buyerIds,
             fn (int $id) => ! isset($this->knownBuyers[(string) $id])
         )));
+
+        // After the import above: importing a buyer also makes their login.
+        $this->buyerAccounts = SyncCustomerAccountFromBrushCrazyAction::userIdsFor($this->app, $buyerIds)
+            + array_fill_keys($buyerIds, null);
     }
 
     /**
@@ -263,6 +270,7 @@ class SyncSaleFromBrushCrazyAction
 
         $attributes = $mapped['order'] + [
             'people_id' => $this->buyerId($sale),
+            'users_id' => $this->buyerUserId($sale),
             'region_id' => $this->catalog->region()->getId(),
         ];
 
@@ -439,7 +447,7 @@ class SyncSaleFromBrushCrazyAction
             $order->uuid = Str::uuid()->toString();
             $order->apps_id = $this->app->getId();
             $order->companies_id = $this->context->companyId();
-            $order->users_id = $this->user->getId();
+            $order->users_id ??= $this->user->getId();
             // A site order already holds the sale id: Souk's next number instead (it locks the
             // company's highest order inside this transaction).
             $order->order_number = isset($this->takenOrderNumbers[$preferredNumber])
@@ -533,6 +541,27 @@ class SyncSaleFromBrushCrazyAction
      * A sale with no customer, or whose user is gone from the source, belongs to the studio's
      * unknown guest — Souk requires a buyer on every order.
      */
+    /**
+     * The site lists a customer's history as the orders their login owns, so a sale is owned by
+     * the buyer's Kanvas user once they have one, and by the import user until then (a guest sale,
+     * or a buyer whose login is not made yet; the next sync moves it).
+     */
+    protected function buyerUserId(SaleRows $sale): int
+    {
+        $bcUserId = isset($sale->sale->customer_id) ? (int) $sale->sale->customer_id : null;
+
+        if ($bcUserId === null) {
+            return $this->user->getId();
+        }
+
+        if (! array_key_exists($bcUserId, $this->buyerAccounts)) {
+            $this->buyerAccounts += SyncCustomerAccountFromBrushCrazyAction::userIdsFor($this->app, [$bcUserId])
+                + [$bcUserId => null];
+        }
+
+        return $this->buyerAccounts[$bcUserId] ?? $this->user->getId();
+    }
+
     protected function buyerId(SaleRows $sale): int
     {
         $bcUserId = isset($sale->sale->customer_id) ? (int) $sale->sale->customer_id : null;
