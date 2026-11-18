@@ -11,6 +11,7 @@ use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\SessionConfigBuilder;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 /**
  * Serial because it writes app settings, which live in Redis as well as `ecosystem` and are therefore
@@ -20,6 +21,7 @@ use Tests\TestCase;
 class SessionConfigBuilderTest extends TestCase
 {
     use DatabaseTransactions;
+    use ManagesAppSettings;
 
     protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
 
@@ -29,31 +31,14 @@ class SessionConfigBuilderTest extends TestCase
     private const string ENV_VAR = 'KANVAS_TEST_PROVIDER_KEY';
     private const string API_KEY = 'sk-test-never-written-to-disk-9f3a';
 
-    /** @var array<string, mixed> */
-    private array $originalAppSettings = [];
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        $app = app(Apps::class);
-
-        // Only the `ecosystem` half of a setting is inside the test transaction, so whatever this app
-        // already had has to be put back by hand.
-        foreach ($this->managedSettings() as $setting) {
-            $this->originalAppSettings[$setting->value] = $app->get($setting->value);
-        }
-    }
-
-    protected function tearDown(): void
-    {
-        $app = app(Apps::class);
-
-        foreach ($this->originalAppSettings as $key => $value) {
-            $value === null ? $app->del($key) : $app->set($key, $value);
-        }
-
-        parent::tearDown();
+        $this->rememberAppSettings(...array_map(
+            static fn (ConfigurationEnum $setting): string => $setting->value,
+            $this->managedSettings()
+        ));
     }
 
     public function testInstructionsNameTheKanvasOwnedFilesAndTheRepositoryHouseRules(): void
@@ -87,6 +72,7 @@ class SessionConfigBuilderTest extends TestCase
         $app->set(ConfigurationEnum::PROVIDER_BASE_URL->value, self::BASE_URL);
         $app->set(ConfigurationEnum::PROVIDER_ENV_VAR->value, self::ENV_VAR);
         $app->set(ConfigurationEnum::PROVIDER_API_KEY->value, self::API_KEY);
+        $app->del(ConfigurationEnum::PROVIDER_NPM->value);
 
         $builder = new SessionConfigBuilder($app);
         $config = $builder->toArray();
@@ -210,6 +196,7 @@ class SessionConfigBuilderTest extends TestCase
             ConfigurationEnum::PROVIDER_BASE_URL,
             ConfigurationEnum::PROVIDER_ENV_VAR,
             ConfigurationEnum::PROVIDER_API_KEY,
+            ConfigurationEnum::PROVIDER_NPM,
         ];
     }
 }

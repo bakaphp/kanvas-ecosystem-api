@@ -11,20 +11,25 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Services\SessionCostService;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 #[Group('serial')]
 class SessionTimeLimitTest extends TestCase
 {
     use CreatesTaskSessions;
     use DatabaseTransactions;
+    use ManagesAppSettings;
 
     protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
 
-    protected function tearDown(): void
+    protected function setUp(): void
     {
-        app(Apps::class)->del(ConfigurationEnum::MAX_SESSION_MINUTES->value);
+        parent::setUp();
 
-        parent::tearDown();
+        $this->rememberAppSettings(
+            ConfigurationEnum::MAX_SESSION_MINUTES->value,
+            ConfigurationEnum::MAX_SESSION_COST_USD->value,
+        );
     }
 
     public function testDefaultsToThreeHours(): void
@@ -57,6 +62,10 @@ class SessionTimeLimitTest extends TestCase
      */
     public function testEachApprovedExtensionAddsAFullBlockOfTimeAndBudget(): void
     {
+        $app = app(Apps::class);
+        $app->del(ConfigurationEnum::MAX_SESSION_MINUTES->value);
+        $app->del(ConfigurationEnum::MAX_SESSION_COST_USD->value);
+
         $session = $this->createTaskSession(attributes: ['limit_extensions' => 2]);
 
         $this->assertSame(540, new SessionCostService()->maxActiveMinutesFor($session));
