@@ -132,16 +132,29 @@ class CreateBillAction
             return;
         }
 
-        $existing = Bill::withTrashed()
+        $loose = $this->looseNumber($this->data->bill_number);
+
+        $match = Bill::withTrashed()
             ->where('apps_id', $this->data->app->getId())
             ->where('companies_id', $this->data->company->getId())
             ->where('vendor_organization_id', $vendorOrganizationId)
-            ->where('bill_number', $this->data->bill_number)
-            ->first();
+            ->whereNotNull('bill_number')
+            ->select(['id', 'bill_number'])
+            ->lazy()
+            ->first(
+                fn (Bill $bill): bool => $bill->bill_number === $this->data->bill_number
+                    || ($loose !== '' && $this->looseNumber($bill->bill_number) === $loose)
+            );
 
-        if ($existing !== null) {
-            $this->rejectDuplicate($vendorOrganizationId, $existing);
+        if ($match !== null) {
+            $this->rejectDuplicate($vendorOrganizationId, Bill::withTrashed()->find($match->getId()));
         }
+    }
+
+    /** "INV-123", "inv 123" and "INV123" are the same invoice number. */
+    private function looseNumber(string $billNumber): string
+    {
+        return preg_replace('/[^a-z0-9]/', '', strtolower($billNumber)) ?? '';
     }
 
     /**
