@@ -9,6 +9,7 @@ use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
 use Kanvas\Connectors\Movipass\Services\RoadsideQuoteCalculator;
 use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
+use Kanvas\Connectors\Movipass\Support\RoadsideIntakeRules;
 use Kanvas\Connectors\Movipass\Support\RoadsideQuote;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
@@ -43,6 +44,24 @@ class ApplyRoadsideQuoteToOrderAction
         if ($service === null) {
             throw new ValidationException('A recognised service_type is required to price a roadside assistance case');
         }
+
+        $verdict = RoadsideIntakeRules::evaluate(
+            $service,
+            is_array($assistanceCase['intake'] ?? null) ? $assistanceCase['intake'] : [],
+        );
+
+        if (! $verdict->proceeds()) {
+            throw new ValidationException(sprintf(
+                'The %s service cannot be provided for this case (%s)%s',
+                $service->label(),
+                implode(', ', $verdict->reasons),
+                $verdict->recommendedService !== null
+                    ? '. Recommended service: ' . $verdict->recommendedService->value
+                    : '',
+            ));
+        }
+
+        $assistanceCase['intake_verdict'] = $verdict->toArray();
 
         $quote = new RoadsideQuoteCalculator(RegionalAssistance::tariffsFor($this->order))->quote(
             service: $service,

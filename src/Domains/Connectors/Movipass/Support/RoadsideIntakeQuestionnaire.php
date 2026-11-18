@@ -37,8 +37,12 @@ final class RoadsideIntakeQuestionnaire
      */
     public static function forService(RoadsideServiceTypeEnum $service): array
     {
+        // Spec v6.0 §7. The knockout and cabin-review rules for these answers live in
+        // RoadsideIntakeRules; this class only says what is asked.
         return match ($service) {
             RoadsideServiceTypeEnum::JUMP_START => [
+                RoadsideIntakeField::boolean('is_electric', 'Is the vehicle electric?'),
+                RoadsideIntakeField::boolean('is_heavy_vehicle', 'Is it a heavy vehicle or truck?'),
                 RoadsideIntakeField::boolean('lights_turn_on', 'Do the dashboard lights turn on?'),
                 RoadsideIntakeField::boolean('air_conditioning_works', 'Does the air conditioning work?'),
                 RoadsideIntakeField::choice('stalled_context', 'Was it parked or did it stall while driving?', [
@@ -50,76 +54,103 @@ final class RoadsideIntakeQuestionnaire
                 RoadsideIntakeField::text('armor_level', 'Armor level')->dependentOn('is_armored'),
             ],
             RoadsideServiceTypeEnum::FUEL_DELIVERY => [
-                RoadsideIntakeField::text('fuel_type', 'Fuel type'),
+                RoadsideIntakeField::choice('fuel_type', 'Fuel type', ['regular', 'super', 'diesel']),
                 RoadsideIntakeField::number(
                     'fuel_gallons',
                     'How many gallons',
                     hint: 'Two gallons maximum recommended',
                 ),
-                RoadsideIntakeField::text('preferred_gas_station', 'Preferred gas station', required: false),
-                RoadsideIntakeField::choice('payment_method', 'Payment', ['transfer', 'cash']),
+                RoadsideIntakeField::boolean('confirms_fuel_type', 'I confirm the selected fuel matches my vehicle'),
+                RoadsideIntakeField::boolean(
+                    'authorizes_fuel_charge',
+                    'I authorize the fuel cost to be added to the open order',
+                ),
             ],
             RoadsideServiceTypeEnum::LIGHT_TOW => [
-                RoadsideIntakeField::text('failure_description', 'Failure'),
-                RoadsideIntakeField::boolean(
-                    'hit_water_or_pothole',
-                    'Did it drive through water, a damaged road or a pothole?',
-                ),
+                RoadsideIntakeField::choice('failure_type', 'What failure does the vehicle have?', [
+                    'mechanical',
+                    'electrical',
+                    'immobilized',
+                    'other',
+                ]),
+                RoadsideIntakeField::text('failure_description', 'Describe the failure')
+                    ->dependentOn('failure_type', 'other'),
                 RoadsideIntakeField::boolean('tow_hook', 'Tow hook'),
                 RoadsideIntakeField::boolean('authorizes_scissor_lift', 'Authorizes lifting by scissor jack'),
                 RoadsideIntakeField::boolean('accompanies_transfer', 'Riding along with the tow'),
-                RoadsideIntakeField::number('accompanying_passengers', 'How many passengers')
+                RoadsideIntakeField::choice('accompanying_passengers', 'How many passengers', ['1', '2', '3+'])
                     ->dependentOn('accompanies_transfer'),
                 RoadsideIntakeField::boolean('can_shift_to_neutral', 'Can it be shifted into neutral?'),
                 RoadsideIntakeField::choice('handbrake_type', 'Handbrake', ['electric', 'manual']),
                 RoadsideIntakeField::choice('transmission_type', 'Transmission', ['standard', 'automatic']),
                 RoadsideIntakeField::boolean('is_armored', 'Is it armored? (trucks and SUVs)', required: false),
                 RoadsideIntakeField::text('armor_level', 'Armor level')->dependentOn('is_armored'),
-                RoadsideIntakeField::boolean('workshop_confirmed', 'Has the workshop already been confirmed?'),
+                RoadsideIntakeField::boolean('workshop_confirmed', 'Has the destination workshop been confirmed?'),
             ],
             RoadsideServiceTypeEnum::DESIGNATED_DRIVER => [
-                RoadsideIntakeField::text('request_reason', 'Reason for the request'),
+                RoadsideIntakeField::choice('request_reason', 'Reason for the request', [
+                    'alcohol',
+                    'fatigue',
+                    'other',
+                ]),
+                RoadsideIntakeField::text('request_reason_detail', 'Describe the reason')
+                    ->dependentOn('request_reason', 'other'),
                 RoadsideIntakeField::dateTime('requested_service_time', 'Requested service time'),
                 RoadsideIntakeField::text('pickup_location', 'Pickup location'),
-                RoadsideIntakeField::text('dropoff_location', 'Drop-off location'),
+                RoadsideIntakeField::text('dropoff_location', 'Final destination'),
+                RoadsideIntakeField::boolean('authorizes_driver', 'I authorize the designated driver to drive my vehicle'),
+                RoadsideIntakeField::text('additional_information', 'Anything else we should consider', required: false),
             ],
             RoadsideServiceTypeEnum::TIRE_CHANGE => [
-                RoadsideIntakeField::text('damaged_tire_position', 'Which tire is damaged'),
-                RoadsideIntakeField::boolean('spare_tire_in_good_condition', 'Is the spare tire in good condition?'),
-                RoadsideIntakeField::boolean('hit_pothole', 'Did it hit a pothole?'),
+                RoadsideIntakeField::choice('damaged_tire_position', 'Which tire is damaged', [
+                    'front_left',
+                    'front_right',
+                    'rear_left',
+                    'rear_right',
+                ]),
+                RoadsideIntakeField::boolean('spare_tire_in_good_condition', 'Is the spare tire fit to be installed and used?'),
+                RoadsideIntakeField::boolean('hit_pothole', 'Did it hit a pothole or a damaged road?'),
                 RoadsideIntakeField::choice('tire_condition', 'Burst or deflated?', ['burst', 'deflated']),
-                RoadsideIntakeField::boolean('has_security_lug_nut', 'Security lug nut'),
+                RoadsideIntakeField::boolean('has_security_lug_nut', 'Security lug nut', required: false),
                 RoadsideIntakeField::choice('lug_nut_type', 'Lug nuts', ['conventional', 'special']),
                 RoadsideIntakeField::boolean('is_armored', 'Is the vehicle armored?', required: false),
                 RoadsideIntakeField::text('armor_level', 'Armor level')->dependentOn('is_armored'),
             ],
             RoadsideServiceTypeEnum::ACCIDENT_TOW => [
                 RoadsideIntakeField::boolean('police_present', 'Is the police on site?'),
-                RoadsideIntakeField::text('police_report_number', 'Police report number')
-                    ->dependentOn('police_present'),
+                RoadsideIntakeField::boolean('police_report_exists', 'Is there already a police report?'),
+                RoadsideIntakeField::text('police_report_number', 'Police report number', required: false),
                 RoadsideIntakeField::boolean('injuries_reported', 'Injuries'),
                 RoadsideIntakeField::boolean('fatalities_reported', 'Fatalities'),
                 RoadsideIntakeField::boolean('third_parties_involved', 'Third parties involved'),
                 RoadsideIntakeField::boolean('authorization_to_move_vehicle', 'Authorization to move the vehicle'),
+                RoadsideIntakeField::boolean('special_maneuvers_required', 'Are special maneuvers required?'),
                 RoadsideIntakeField::text('maneuvers_required', 'Maneuvers required', required: false),
                 RoadsideIntakeField::boolean('can_shift_to_neutral', 'Can it be shifted into neutral?'),
             ],
             RoadsideServiceTypeEnum::MOTORCYCLE_TOW => [
-                RoadsideIntakeField::text('failure_description', 'Failure'),
-                RoadsideIntakeField::text('engine_displacement', 'Engine displacement'),
+                RoadsideIntakeField::choice('failure_type', 'What failure does the motorcycle have?', [
+                    'mechanical',
+                    'electrical',
+                    'cannot_ride',
+                    'other',
+                ]),
+                RoadsideIntakeField::text('failure_description', 'Describe the failure')
+                    ->dependentOn('failure_type', 'other'),
+                RoadsideIntakeField::number('engine_displacement', 'Engine displacement (cc)'),
                 RoadsideIntakeField::boolean('has_top_case', 'Top case'),
                 RoadsideIntakeField::boolean('accompanies_transfer', 'Riding along with the tow'),
             ],
             RoadsideServiceTypeEnum::LOCKSMITH => [
-                RoadsideIntakeField::text('keys_location', 'Where are the keys?'),
-                RoadsideIntakeField::choice('incident_kind', 'Vandalism or lost keys?', [
-                    'vandalism',
-                    'lost_keys',
+                RoadsideIntakeField::choice('keys_location', 'Were the keys left in the cabin or the trunk?', [
+                    'cabin',
+                    'trunk',
                 ]),
-                RoadsideIntakeField::choice('vehicle_engine_state', 'Is the engine off or running?', [
-                    'off',
-                    'running',
-                ]),
+                RoadsideIntakeField::boolean('only_opening_required', 'Is only opening the vehicle required?'),
+                RoadsideIntakeField::boolean(
+                    'owner_declaration',
+                    'I declare I am the owner, an authorized user, or authorized to request the opening',
+                ),
             ],
         };
     }

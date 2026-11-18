@@ -10,8 +10,9 @@ final class RoadsideIntakeField
 {
     /**
      * @param array<int, string> $options  allowed values, CHOICE only
-     * @param string|null $requiredWhen    key of a BOOLEAN field in the same questionnaire; this
-     *                                     field is only demanded once that one answers true
+     * @param string|null $requiredWhen      key of another field in the same questionnaire; this field
+     *                                       is only demanded once that one answers true, or answers
+     *                                       $requiredWhenValue when one is given (a CHOICE parent)
      */
     public function __construct(
         public readonly string $key,
@@ -21,6 +22,7 @@ final class RoadsideIntakeField
         public readonly array $options = [],
         public readonly ?string $requiredWhen = null,
         public readonly ?string $hint = null,
+        public readonly ?string $requiredWhenValue = null,
     ) {
     }
 
@@ -83,7 +85,7 @@ final class RoadsideIntakeField
         );
     }
 
-    public function dependentOn(string $booleanFieldKey): self
+    public function dependentOn(string $fieldKey, ?string $whenValue = null): self
     {
         return new self(
             key: $this->key,
@@ -91,8 +93,9 @@ final class RoadsideIntakeField
             type: $this->type,
             required: $this->required,
             options: $this->options,
-            requiredWhen: $booleanFieldKey,
+            requiredWhen: $fieldKey,
             hint: $this->hint,
+            requiredWhenValue: $whenValue,
         );
     }
 
@@ -105,6 +108,7 @@ final class RoadsideIntakeField
             'required' => $this->required,
             'options' => $this->options,
             'required_when' => $this->requiredWhen,
+            'required_when_value' => $this->requiredWhenValue,
             'hint' => $this->hint,
         ];
     }
