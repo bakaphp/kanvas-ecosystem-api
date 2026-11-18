@@ -32,6 +32,10 @@ final readonly class FactoryStage
 
     private const string LANDING_PUSH = 'git push origin HEAD:' . self::INTEGRATION_BRANCH;
 
+    /** Any step that looks at a signed-in screen on a device needs it; left out, the agent asks a person. */
+    private const string ARGENT_LOGIN = 'signed in through Argent with the test login it holds as secrets '
+        . '(`{{secret:KANVAS_TEST_EMAIL}}` and `{{secret:KANVAS_TEST_PASSWORD}}`, never printed or committed)';
+
     /**
      * The app's own `CLAUDE.md` makes this mandatory after every change, but a builder follows the specs
      * its task names, so the task names it.
@@ -44,8 +48,7 @@ final readonly class FactoryStage
         . 'changed, on both platforms, asserting real outcomes and not only that a screen rendered (in apps from the '
         . 'mobile template that is the Argent sweep, `specs/qa/app-test.runbook.md`). Save the report where the specs '
         . 'say (`specs/qa/reports/` in the template) and name it in your reply. The QA runs through Argent itself, '
-        . 'signed in with the test login it holds as secrets (`{{secret:KANVAS_TEST_EMAIL}}` and '
-        . '`{{secret:KANVAS_TEST_PASSWORD}}`, never printed or committed), never by hand with simulator tools and '
+        . self::ARGENT_LOGIN . ', never by hand with simulator tools and '
         . 'never through a temporary login bypass in the code; this overrides any manual fallback in the app\'s own '
         . 'docs. If Argent or the test login is not available, that is not a reason to test another way: reply '
         . 'BLOCKED saying exactly what is missing. Argent is also the gate: start with its environment check, and '
@@ -273,7 +276,8 @@ final readonly class FactoryStage
             . 'states, en/es copy and accessibility. When the app has ' . $mockups . ', that section is the design of '
             . 'this ticket: build its screens and states to match their mockups (layout, colours, type, spacing, '
             . 'copy), add nothing it does not show, and lay out every piece of data where the section says it comes '
-            . 'from. Put your iOS and Android screenshots next to the mockups and fix every difference. If the ticket '
+            . 'from. Put your iOS and Android screenshots next to the mockups and fix every difference; reach a screen '
+            . 'behind sign-in ' . self::ARGENT_LOGIN . ', and never ask a person for a login. If the ticket '
             . 'and its section disagree, the ticket text wins: build it and name the difference in your reply. Commit '
             . 'only: do not push and do not open a pull request.' . $quoted;
 

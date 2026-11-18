@@ -128,6 +128,9 @@ final class FactoryStageTest extends TestCase
 
         $this->assertStringContainsString($section . ', that section is the design of this ticket', (string) $design->description);
         $this->assertStringContainsString('add nothing it does not show', (string) $design->description);
+        // Screenshots of a signed-in screen need a login; without this the designer stopped to ask a person.
+        $this->assertStringContainsString('{{secret:KANVAS_TEST_EMAIL}}', (string) $design->description);
+        $this->assertStringContainsString('never ask a person for a login', (string) $design->description);
         $this->assertStringContainsString('wire each piece of data to the operation and field that section names', (string) $ship->description);
         $this->assertStringContainsString('the QA also compares each screen and state of this ticket', (string) $ship->description);
 
