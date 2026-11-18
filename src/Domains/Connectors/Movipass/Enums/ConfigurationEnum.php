@@ -21,6 +21,8 @@ enum ConfigurationEnum: string
     case ROADSIDE_MAX_RESCHEDULES = 'movipass_roadside_max_reschedules';
     case ONE_SIGNAL_TECHNICIANS_APP_ID = 'one_signal_technicians_app_id';
     case ONE_SIGNAL_TECHNICIANS_REST_API_KEY = 'one_signal_technicians_rest_api_key';
+    case ROADSIDE_REGIONAL_ASSISTANCE = 'movipass_roadside_regional_assistance';
+    case ROADSIDE_TARIFFS = 'movipass_roadside_tariffs';
 
     case ROADSIDE_PROVIDER_BASE_URL = 'movipass_roadside_provider_base_url';
     case ROADSIDE_PROVIDER_API_TOKEN = 'movipass_roadside_provider_api_token';

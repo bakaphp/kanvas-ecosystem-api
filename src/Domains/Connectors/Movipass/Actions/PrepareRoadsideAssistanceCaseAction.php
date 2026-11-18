@@ -56,6 +56,9 @@ class PrepareRoadsideAssistanceCaseAction
             'service_type' => $serviceType?->value,
             'intake' => $intake,
             'location' => $location,
+            // Only Asistencia Regional sends a drop-off (it bills tows by distance); other cases keep
+            // the exact shape they always stored.
+            ...(is_array($assistanceCase['destination'] ?? null) ? ['destination' => $assistanceCase['destination']] : []),
             'notes' => $assistanceCase['notes'] ?? null,
             'provider_id' => $providerId,
             'provider_name' => $providerName !== '' ? $providerName : null,

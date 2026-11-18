@@ -217,3 +217,101 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideIntakeQuery@notProceedReasons"
         )
 }
+
+input RoadsideCoordinatesInput {
+    lat: Float!
+    lng: Float!
+}
+
+input RoadsideQuoteInput {
+    service_type: RoadsideServiceTypeEnum!
+    "Where the user is; decides the zone, and the billable distance for on-site services"
+    location: RoadsideCoordinatesInput!
+    "Drop-off point; required for tows and designated driver, where it decides the billable distance"
+    destination: RoadsideCoordinatesInput
+    "Defaults to now; decides the peak-hour, late-night and holiday surcharge"
+    requested_at: DateTime
+}
+
+type RoadsideQuote {
+    service_type: String!
+    "One of: amss, other_city, foraneo"
+    zone: String!
+    base_fare: Float!
+    "Straight-line km from Kilómetro Cero to the billed point"
+    distance_km: Float!
+    included_km: Float!
+    billable_km: Int!
+    per_km_rate: Float
+    extra_km_amount: Float!
+    additional_charges: Float!
+    "Every condition that matched; the surcharge is applied once regardless of how many"
+    surcharge_reasons: [String!]!
+    subtotal: Float!
+    surcharge_rate: Float!
+    surcharge_amount: Float!
+    taxable_base: Float!
+    tax_rate: Float!
+    tax_amount: Float!
+    total: Float!
+    quoted_at: String!
+}
+
+enum RoadsideAdditionalChargeConceptEnum {
+    fuel
+}
+
+input RoadsideAdditionalChargeInput {
+    order_id: ID!
+    concept: RoadsideAdditionalChargeConceptEnum!
+    "Real amount the technician paid, before surcharge and tax"
+    amount: Float!
+    notes: String
+}
+
+type RoadsideAdditionalCharge {
+    id: String!
+    concept: String!
+    amount: Float!
+    subtotal: Float!
+    surcharge_rate: Float!
+    surcharge_amount: Float!
+    taxable_base: Float!
+    tax_rate: Float!
+    tax_amount: Float!
+    total: Float!
+    "One of: pending, approved, rejected, cancelled"
+    status: String!
+    "The child order the user pays through the normal order payment flow"
+    order_id: ID!
+    order_uuid: String!
+    notes: String
+    registered_at: String!
+}
+
+extend type Query @guard {
+    "Prices a roadside service from the tariff sheet: base fare, km beyond the included ones, one surcharge and VAT."
+    roadsideAssistanceQuote(input: RoadsideQuoteInput!): RoadsideQuote!
+        @field(
+            resolver: "App\GraphQL\Connector\Movipass\Queries\RoadsideQuoteQuery@get"
+        )
+}
+
+extend type Mutation @guard {
+    """
+    Prices the user's roadside order from the tariff sheet right now. Call it after
+    createOrderFromCart and before addPaymentToOrder: the payment must be opened for the
+    total this returns, or it is refused before the card is charged.
+    """
+    priceRoadsideAssistanceOrder(order_id: ID!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideOrderPricingMutation@price"
+        )
+
+    "Cabin bills an additional charge (fuel) on an open case; the user pays it before the technician supplies it."
+    addRoadsideAdditionalCharge(input: RoadsideAdditionalChargeInput!): RoadsideAdditionalCharge!
+        @can(ability: "edit", model: "Kanvas\Souk\Orders\Models\Order")
+        @field(
+            resolver: "App\GraphQL\Connector\Movipass\Mutations\RoadsideAdditionalChargeMutation@add"
+        )
+}

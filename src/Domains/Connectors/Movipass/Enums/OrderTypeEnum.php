@@ -10,6 +10,9 @@ enum OrderTypeEnum: string
     case PASO_RAPIDO = 'paso_rapido';
     case IMPOUND_LOT = 'impound_lot';
     case ROADSIDE_ASSISTANCE = 'roadside_assistance';
+    // A charge billed on top of a paid roadside case (fuel). Its own type keeps it out of the
+    // case state machine, the mechanic order lists and the case metrics.
+    case ROADSIDE_ADDITIONAL_CHARGE = 'roadside_additional_charge';
 
     /**
      * Entry / exit / still-open status slugs that turn an order stream into a turnover report.
@@ -60,7 +63,8 @@ enum OrderTypeEnum: string
                     MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
                 ],
             ],
-            self::PASO_RAPIDO => null,
+            self::PASO_RAPIDO,
+            self::ROADSIDE_ADDITIONAL_CHARGE => null,
         };
     }
 
