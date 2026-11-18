@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Dhl\Enums;
+namespace Kanvas\Souk\Orders\Enums;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 
-enum OrderStatusEnum: string
+enum DeliveryOrderStatusEnum: string
 {
     case VERIFYING = 'verifying';
-    case PAID = 'paid';
+    case CONFIRMED = 'confirmed';
     case READY_FOR_DISPATCH = 'ready-for-dispatch';
     case DISPATCHED = 'dispatched';
     case DELIVERED = 'delivered';
@@ -23,7 +23,7 @@ enum OrderStatusEnum: string
     {
         $type = OrderTypes::query()
             ->where('apps_id', $app->getId())
-            ->where('name', OrderTypeEnum::DELIVERY->value)
+            ->where('name', DeliveryOrderTypeEnum::DELIVERY->value)
             ->first();
 
         return $type === null

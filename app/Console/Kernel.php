@@ -8,7 +8,6 @@ use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Brex\PullBrexCommand;
 use App\Console\Commands\Connectors\BrushCrazy\Schedules\BrushCrazySchedule;
-use App\Console\Commands\Connectors\Dhl\AlertUnverifiedOrdersCommand;
 use App\Console\Commands\Connectors\Dhl\PollDhlTrackingCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -37,6 +36,7 @@ use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
 use App\Console\Commands\Search\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
+use App\Console\Commands\Souk\AlertUnverifiedDeliveryOrdersCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\CheckoutReconcileCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
@@ -81,7 +81,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(PruneIntegrationHistoryCommand::class)->dailyAt('04:00')
             ->withoutOverlapping(60)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
-        $schedule->command(AlertUnverifiedOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
+        $schedule->command(AlertUnverifiedDeliveryOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(PollDhlTrackingCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();

@@ -2,22 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Dhl;
+namespace Tests\Souk\Orders;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Dhl\Actions\AlertUnverifiedOrdersAction;
-use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
-use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Actions\AlertUnverifiedDeliveryOrdersAction;
+use Kanvas\Souk\Orders\Actions\SetupDeliveryOrderTypeAction;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Tests\TestCase;
 
-final class DhlOrderPipelineTest extends TestCase
+final class DeliveryOrderPipelineTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -31,7 +30,7 @@ final class DhlOrderPipelineTest extends TestCase
         parent::setUp();
 
         $this->apps = app(Apps::class);
-        $result = new SetupDhlOrderTypeAction($this->apps)->execute();
+        $result = new SetupDeliveryOrderTypeAction($this->apps)->execute();
 
         foreach ($result['statuses'] as $status) {
             $this->statuses[$status->slug] = $status;
@@ -42,13 +41,13 @@ final class DhlOrderPipelineTest extends TestCase
     {
         $this->assertTrue((bool) $this->statuses['verifying']->is_default);
 
-        $path = ['verifying', 'paid', 'ready-for-dispatch', 'dispatched', 'delivered'];
+        $path = ['verifying', 'confirmed', 'ready-for-dispatch', 'dispatched', 'delivered'];
 
         foreach (array_slice($path, 0, -1) as $index => $from) {
             $this->assertTrue($this->transitionExists($from, $path[$index + 1]), "{$from} to {$path[$index + 1]}");
         }
 
-        $this->assertTrue($this->transitionExists('paid', 'out-of-stock'));
+        $this->assertTrue($this->transitionExists('confirmed', 'out-of-stock'));
         $this->assertTrue($this->transitionExists('dispatched', 'returned'));
         $this->assertTrue($this->transitionExists('dispatched', 'cancelled'));
         $this->assertFalse($this->transitionExists('verifying', 'dispatched'));
@@ -58,7 +57,7 @@ final class DhlOrderPipelineTest extends TestCase
     {
         $expected = [
             'verifying' => 'Order placed, pending confirmation',
-            'paid' => 'Order confirmed',
+            'confirmed' => 'Order confirmed',
             'ready-for-dispatch' => 'Preparing to ship',
             'dispatched' => 'Shipped',
             'delivered' => 'Delivered',
@@ -67,9 +66,9 @@ final class DhlOrderPipelineTest extends TestCase
             'cancelled' => 'Cancelled',
         ];
 
-        $this->statuses['paid']->update(['name' => 'Paid']);
+        $this->statuses['confirmed']->update(['name' => 'Confirmed']);
 
-        $statuses = collect(new SetupDhlOrderTypeAction($this->apps)->execute()['statuses'])
+        $statuses = collect(new SetupDeliveryOrderTypeAction($this->apps)->execute()['statuses'])
             ->mapWithKeys(fn (OrderStatus $status): array => [$status->slug => $status->refresh()->name])
             ->all();
 
@@ -78,23 +77,24 @@ final class DhlOrderPipelineTest extends TestCase
 
     public function testRunningTheSetupTwiceKeepsTheSameGraph(): void
     {
-        $before = OrderStatusTransitions::query()->where('order_types_id', $this->statuses['paid']->order_types_id)->count();
+        $before = OrderStatusTransitions::query()->where('order_types_id', $this->statuses['confirmed']->order_types_id)->count();
 
-        new SetupDhlOrderTypeAction($this->apps)->execute();
+        new SetupDeliveryOrderTypeAction($this->apps)->execute();
 
         $this->assertSame(
             $before,
-            OrderStatusTransitions::query()->where('order_types_id', $this->statuses['paid']->order_types_id)->count()
+            OrderStatusTransitions::query()->where('order_types_id', $this->statuses['confirmed']->order_types_id)->count()
         );
     }
 
-    public function testCapturingThePaymentMovesAVerifyingOrderToPaid(): void
+    public function testMarkingTheOrderPaidNoLongerMovesItOutOfVerifying(): void
     {
         $order = $this->orderIn('verifying');
 
         $order->markAsPaid(auth()->user());
 
-        $this->assertSame(OrderStatusEnum::PAID->value, $order->refresh()->orderStatus->slug);
+        $this->assertSame(DeliveryOrderStatusEnum::VERIFYING->value, $order->refresh()->orderStatus->slug);
+        $this->assertSame('paid', $order->payment_status);
     }
 
     public function testAnOrderPastTheLimitIsAlertedOnce(): void
@@ -102,16 +102,16 @@ final class DhlOrderPipelineTest extends TestCase
         Notification::fake();
         $overdue = $this->orderIn('verifying', Carbon::now()->subHours(25));
         $recent = $this->orderIn('verifying', Carbon::now()->subHours(2));
-        $paid = $this->orderIn('paid', Carbon::now()->subHours(30));
+        $paid = $this->orderIn('confirmed', Carbon::now()->subHours(30));
 
-        $first = new AlertUnverifiedOrdersAction($this->apps)->execute();
-        $second = new AlertUnverifiedOrdersAction($this->apps)->execute();
+        $first = new AlertUnverifiedDeliveryOrdersAction($this->apps)->execute();
+        $second = new AlertUnverifiedDeliveryOrdersAction($this->apps)->execute();
 
         $this->assertSame(1, $first);
         $this->assertSame(0, $second);
-        $this->assertNotNull($overdue->get(CustomFieldEnum::UNVERIFIED_ALERTED_AT->value));
-        $this->assertNull($recent->get(CustomFieldEnum::UNVERIFIED_ALERTED_AT->value));
-        $this->assertNull($paid->get(CustomFieldEnum::UNVERIFIED_ALERTED_AT->value));
+        $this->assertNotNull($overdue->get(AlertUnverifiedDeliveryOrdersAction::ALERTED_AT_FIELD));
+        $this->assertNull($recent->get(AlertUnverifiedDeliveryOrdersAction::ALERTED_AT_FIELD));
+        $this->assertNull($paid->get(AlertUnverifiedDeliveryOrdersAction::ALERTED_AT_FIELD));
     }
 
     private function transitionExists(string $from, string $to): bool
