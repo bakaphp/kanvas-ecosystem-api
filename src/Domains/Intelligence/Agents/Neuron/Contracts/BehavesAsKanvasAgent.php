@@ -34,6 +34,10 @@ interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies,
     public function setInboundMessageId(?int $messageId): void;
 
     /** Flag the current turn's user message private (persisted is_public=0) so the UI hides it. */
+    public function setTurnId(?string $turnId): void;
+
+    public function currentTurnId(): ?string;
+
     public function setPrivateUserTurn(bool $private): void;
 
     /** Whether the reply lands on a surface that renders `kanvas-artifact` blocks (the admin userChat). */
