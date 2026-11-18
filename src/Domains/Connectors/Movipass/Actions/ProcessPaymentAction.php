@@ -128,7 +128,17 @@ class ProcessPaymentAction
             return $this->failBeforeCharging('The roadside assistance order could not be priced: ' . $exception->getMessage());
         }
 
-        if ($quote === null || round((float) $this->payment->amount, 2) === $quote->price->total) {
+        if ($quote === null) {
+            return null;
+        }
+
+        try {
+            new AssertRoadsideCaseIsPayableAction($this->order)->execute();
+        } catch (ValidationException $exception) {
+            return $this->failBeforeCharging($exception->getMessage());
+        }
+
+        if (round((float) $this->payment->amount, 2) === $quote->price->total) {
             return null;
         }
 

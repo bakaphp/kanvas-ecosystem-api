@@ -184,8 +184,10 @@ type RoadsideIntakeField {
     required: Boolean!
     "Allowed values, populated for choice fields only"
     options: [String!]!
-    "Key of the boolean field that has to answer true before this one is required"
+    "Key of the field that has to answer true (or required_when_value) before this one is required"
     required_when: String
+    "When set, required_when must answer this value instead of true"
+    required_when_value: String
     hint: String
 }
 
@@ -216,6 +218,23 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideIntakeQuery@notProceedReasons"
         )
+
+    """
+    Runs the discard rules on the intake answers before the user pays: proceed, cabin_review
+    (paid but held for the cabin before dispatch) or not_proceed (no payment; show the reasons and,
+    when set, offer recommended_service instead).
+    """
+    evaluateRoadsideIntake(service_type: RoadsideServiceTypeEnum!, answers: JSON!): RoadsideIntakeVerdict!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideIntakeQuery@evaluate"
+        )
+}
+
+type RoadsideIntakeVerdict {
+    "One of: proceed, cabin_review, not_proceed"
+    outcome: String!
+    reasons: [String!]!
+    recommended_service: String
 }
 
 input RoadsideCoordinatesInput {

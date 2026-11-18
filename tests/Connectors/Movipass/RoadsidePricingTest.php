@@ -18,12 +18,15 @@ use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Users\Models\Users;
 use PHPUnit\Framework\Attributes\Group;
+use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
+use Tests\Connectors\Movipass\Concerns\BuildsRoadsideIntake;
 use Tests\Connectors\Movipass\Concerns\TogglesRegionalAssistance;
 use Tests\TestCase;
 
 #[Group('serial')]
 final class RoadsidePricingTest extends TestCase
 {
+    use BuildsRoadsideIntake;
     use TogglesRegionalAssistance;
 
     // An off-peak, non-holiday jump start inside AMSS: 15.00 + 13% VAT.
@@ -152,6 +155,43 @@ final class RoadsidePricingTest extends TestCase
         $this->assertSame('Card declined', $result['message']);
     }
 
+    public function testAnIntakeThatDoesNotProceedCannotBePriced(): void
+    {
+        $order = $this->createRoadsideOrder([
+            'intake' => $this->proceedingIntake(RoadsideServiceTypeEnum::JUMP_START, ['is_electric' => true]),
+        ]);
+
+        $this->expectExceptionMessage('electric_vehicle');
+
+        new ApplyRoadsideQuoteToOrderAction($order)->execute();
+    }
+
+    public function testACabinReviewIntakeIsPricedAndKeepsTheVerdict(): void
+    {
+        $order = $this->createRoadsideOrder([
+            'intake' => $this->proceedingIntake(RoadsideServiceTypeEnum::JUMP_START, ['single_battery' => false]),
+        ]);
+
+        new ApplyRoadsideQuoteToOrderAction($order)->execute();
+
+        $this->assertSame('cabin_review', $order->refresh()->metadata['assistance_case']['intake_verdict']['outcome']);
+    }
+
+    public function testAPaymentWithoutAcceptedTermsIsRefusedBeforeTheCardIsTouched(): void
+    {
+        $order = $this->createRoadsideOrder(['terms_accepted' => false]);
+        $payment = $this->createPayment($order, self::QUOTED_TOTAL);
+
+        $processor = $this->createMock(PortalPaymentProcessor::class);
+        $processor->expects($this->never())->method('processPayment');
+
+        $result = new ProcessPaymentAction($this->apps, $payment, $order, $processor)
+            ->execute($this->createMock(ConsumerAuthentication::class));
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('terms', $result['message']);
+    }
+
     private function createRoadsideOrder(array $assistanceCase = []): Order
     {
         $orderType = OrderTypes::firstOrCreate([
@@ -170,6 +210,8 @@ final class RoadsidePricingTest extends TestCase
                     'service' => 'Jump start',
                     'service_type' => 'jump_start',
                     'location' => ['lat' => 13.6929, 'lng' => -89.2182],
+                    'intake' => $this->proceedingIntake(RoadsideServiceTypeEnum::JUMP_START),
+                    'terms_accepted' => true,
                     ...$assistanceCase,
                 ]],
             ]);
