@@ -79,8 +79,8 @@ class PostStillWorkingUpdateJob implements ShouldQueue
     private function conversationIsSilent(): bool
     {
         $conversations = AgentConversation::query()
-            ->fromApp($this->session->apps_id)
-            ->fromCompany($this->session->companies_id)
+            ->fromApp($this->session->app)
+            ->fromCompany($this->session->company)
             ->where('title', $this->session->uuid)
             ->select('id');
 

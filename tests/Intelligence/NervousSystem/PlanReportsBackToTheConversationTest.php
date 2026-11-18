@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -396,6 +397,8 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         [$plan, $pm, $session] = $this->plannedInAConversation();
         $this->runningTask($plan, startedMinutesAgo: 6);
         $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
+        // The queue runs it with nobody signed in, so the scopes may not fall back to a current user.
+        Auth::forgetGuards();
 
         new PostStillWorkingUpdateJob($session)->handle();
 
