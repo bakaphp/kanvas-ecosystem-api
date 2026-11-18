@@ -41,13 +41,13 @@ final class DeliveryOrderPipelineTest extends TestCase
     {
         $this->assertTrue((bool) $this->statuses['verifying']->is_default);
 
-        $path = ['verifying', 'paid', 'ready-for-dispatch', 'dispatched', 'delivered'];
+        $path = ['verifying', 'confirmed', 'ready-for-dispatch', 'dispatched', 'delivered'];
 
         foreach (array_slice($path, 0, -1) as $index => $from) {
             $this->assertTrue($this->transitionExists($from, $path[$index + 1]), "{$from} to {$path[$index + 1]}");
         }
 
-        $this->assertTrue($this->transitionExists('paid', 'out-of-stock'));
+        $this->assertTrue($this->transitionExists('confirmed', 'out-of-stock'));
         $this->assertTrue($this->transitionExists('dispatched', 'returned'));
         $this->assertTrue($this->transitionExists('dispatched', 'cancelled'));
         $this->assertFalse($this->transitionExists('verifying', 'dispatched'));
@@ -57,7 +57,7 @@ final class DeliveryOrderPipelineTest extends TestCase
     {
         $expected = [
             'verifying' => 'Order placed, pending confirmation',
-            'paid' => 'Order confirmed',
+            'confirmed' => 'Order confirmed',
             'ready-for-dispatch' => 'Preparing to ship',
             'dispatched' => 'Shipped',
             'delivered' => 'Delivered',
@@ -66,7 +66,7 @@ final class DeliveryOrderPipelineTest extends TestCase
             'cancelled' => 'Cancelled',
         ];
 
-        $this->statuses['paid']->update(['name' => 'Paid']);
+        $this->statuses['confirmed']->update(['name' => 'Confirmed']);
 
         $statuses = collect(new SetupDeliveryOrderTypeAction($this->apps)->execute()['statuses'])
             ->mapWithKeys(fn (OrderStatus $status): array => [$status->slug => $status->refresh()->name])
@@ -77,23 +77,24 @@ final class DeliveryOrderPipelineTest extends TestCase
 
     public function testRunningTheSetupTwiceKeepsTheSameGraph(): void
     {
-        $before = OrderStatusTransitions::query()->where('order_types_id', $this->statuses['paid']->order_types_id)->count();
+        $before = OrderStatusTransitions::query()->where('order_types_id', $this->statuses['confirmed']->order_types_id)->count();
 
         new SetupDeliveryOrderTypeAction($this->apps)->execute();
 
         $this->assertSame(
             $before,
-            OrderStatusTransitions::query()->where('order_types_id', $this->statuses['paid']->order_types_id)->count()
+            OrderStatusTransitions::query()->where('order_types_id', $this->statuses['confirmed']->order_types_id)->count()
         );
     }
 
-    public function testCapturingThePaymentMovesAVerifyingOrderToPaid(): void
+    public function testMarkingTheOrderPaidNoLongerMovesItOutOfVerifying(): void
     {
         $order = $this->orderIn('verifying');
 
         $order->markAsPaid(auth()->user());
 
-        $this->assertSame(DeliveryOrderStatusEnum::PAID->value, $order->refresh()->orderStatus->slug);
+        $this->assertSame(DeliveryOrderStatusEnum::VERIFYING->value, $order->refresh()->orderStatus->slug);
+        $this->assertSame('paid', $order->payment_status);
     }
 
     public function testAnOrderPastTheLimitIsAlertedOnce(): void
@@ -101,7 +102,7 @@ final class DeliveryOrderPipelineTest extends TestCase
         Notification::fake();
         $overdue = $this->orderIn('verifying', Carbon::now()->subHours(25));
         $recent = $this->orderIn('verifying', Carbon::now()->subHours(2));
-        $paid = $this->orderIn('paid', Carbon::now()->subHours(30));
+        $paid = $this->orderIn('confirmed', Carbon::now()->subHours(30));
 
         $first = new AlertUnverifiedDeliveryOrdersAction($this->apps)->execute();
         $second = new AlertUnverifiedDeliveryOrdersAction($this->apps)->execute();

@@ -436,7 +436,7 @@ final class CreateDhlShipmentTest extends TestCase
         $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::response($this->dhlShipmentResponse(), 201)]);
         $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
 
-        $ignored = $this->runBooking($order, 'paid');
+        $ignored = $this->runBooking($order, 'confirmed');
         $booked = $this->runBooking($order, 'ready-for-dispatch');
 
         $this->assertSame('skipped', $ignored['status'] ?? json_encode($ignored));

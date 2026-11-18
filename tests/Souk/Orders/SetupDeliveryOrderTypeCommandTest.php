@@ -55,7 +55,7 @@ final class SetupDeliveryOrderTypeCommandTest extends TestCase
             $rule->workflowActivities->first()->activity->actionClass()
         );
 
-        foreach (['verifying', 'paid', 'ready-for-dispatch', 'dispatched', 'delivered', 'returned', 'out-of-stock', 'cancelled'] as $status) {
+        foreach (['verifying', 'confirmed', 'ready-for-dispatch', 'dispatched', 'delivered', 'returned', 'out-of-stock', 'cancelled'] as $status) {
             $this->assertTrue($rule->matches(new Order(), ['to_status' => $status]), $status);
         }
 

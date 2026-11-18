@@ -7,7 +7,9 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Souk\Orders\Enums\DeliveryOrderTypeEnum;
+use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use RuntimeException;
 
@@ -19,13 +21,16 @@ class SetupDeliveryOrderTypeAction
 
     public function execute(): array
     {
+        $this->renameLegacyPaidStatus();
+
         $result = new CreateOrderStatusesAction(
             $this->app,
             DeliveryOrderTypeEnum::DELIVERY->value,
             $this->statusGraph()
         )->execute();
 
-        $this->assertPaidTransitionExists($result['statuses']);
+        $this->enableCaptureOnConfirm($result['order_type']);
+        $this->assertConfirmedTransitionExists($result['statuses']);
 
         return $result;
     }
@@ -39,9 +44,9 @@ class SetupDeliveryOrderTypeAction
             DeliveryOrderStatusEnum::VERIFYING->value => [
                 'name' => 'Order placed, pending confirmation',
                 'is_default' => true,
-                'transitions' => [DeliveryOrderStatusEnum::PAID->value, $outOfStock, $cancelled],
+                'transitions' => [DeliveryOrderStatusEnum::CONFIRMED->value, $outOfStock, $cancelled],
             ],
-            DeliveryOrderStatusEnum::PAID->value => [
+            DeliveryOrderStatusEnum::CONFIRMED->value => [
                 'name' => 'Order confirmed',
                 'transitions' => [DeliveryOrderStatusEnum::READY_FOR_DISPATCH->value, $outOfStock, $cancelled],
             ],
@@ -60,19 +65,56 @@ class SetupDeliveryOrderTypeAction
         ];
     }
 
-    private function assertPaidTransitionExists(array $statuses): void
+    private function renameLegacyPaidStatus(): void
+    {
+        $orderType = OrderTypes::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('name', DeliveryOrderTypeEnum::DELIVERY->value)
+            ->first();
+
+        if ($orderType === null) {
+            return;
+        }
+
+        $statuses = OrderStatus::query()->where('order_types_id', $orderType->getId());
+        $legacy = (clone $statuses)->where('slug', PaymentStatusEnum::PAID->value)->first();
+
+        if ($legacy === null || $statuses->where('slug', DeliveryOrderStatusEnum::CONFIRMED->value)->exists()) {
+            return;
+        }
+
+        $legacy->update(['slug' => DeliveryOrderStatusEnum::CONFIRMED->value]);
+    }
+
+    private function enableCaptureOnConfirm(OrderTypes $orderType): void
+    {
+        $config = $orderType->config ?? [];
+        $statuses = $config[OrderTypes::CAPTURE_ON_STATUS] ?? [];
+
+        $orderType->update([
+            'config' => [
+                ...$config,
+                OrderTypes::CAPTURE_ON_STATUS => array_values(array_unique([
+                    ...$statuses,
+                    DeliveryOrderStatusEnum::CONFIRMED->value,
+                ])),
+            ],
+        ]);
+    }
+
+    private function assertConfirmedTransitionExists(array $statuses): void
     {
         $bySlug = collect($statuses)->keyBy('slug');
         $verifying = $bySlug->get(DeliveryOrderStatusEnum::VERIFYING->value);
-        $paid = $bySlug->get(PaymentStatusEnum::PAID->value);
+        $confirmed = $bySlug->get(DeliveryOrderStatusEnum::CONFIRMED->value);
 
-        $exists = $verifying !== null && $paid !== null && OrderStatusTransitions::query()
+        $exists = $verifying !== null && $confirmed !== null && OrderStatusTransitions::query()
             ->where('from_status_id', $verifying->getId())
-            ->where('to_status_id', $paid->getId())
+            ->where('to_status_id', $confirmed->getId())
             ->exists();
 
         if (! $exists) {
-            throw new RuntimeException('The verifying to paid transition is missing: capturing a payment would leave the order in verifying');
+            throw new RuntimeException('The verifying to confirmed transition is missing: staff could not confirm the order');
         }
     }
 }

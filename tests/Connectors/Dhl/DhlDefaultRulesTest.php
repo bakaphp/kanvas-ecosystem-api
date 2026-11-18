@@ -59,7 +59,7 @@ final class DhlDefaultRulesTest extends TestCase
         $rule = $this->rule(DhlHandler::BOOKING_RULE_NAME);
 
         $this->assertTrue($rule->matches(new Order(), ['to_status' => 'ready-for-dispatch']));
-        $this->assertFalse($rule->matches(new Order(), ['to_status' => 'paid']));
+        $this->assertFalse($rule->matches(new Order(), ['to_status' => 'confirmed']));
         $this->assertFalse($rule->matches(new Order(), ['to_status' => 'dispatched']));
     }
 
@@ -67,7 +67,7 @@ final class DhlDefaultRulesTest extends TestCase
     {
         $rule = $this->rule(NotifyDeliveryOrderStatusActivity::RULE_NAME);
 
-        foreach (['verifying', 'paid', 'ready-for-dispatch', 'dispatched', 'delivered', 'returned', 'out-of-stock', 'cancelled'] as $status) {
+        foreach (['verifying', 'confirmed', 'ready-for-dispatch', 'dispatched', 'delivered', 'returned', 'out-of-stock', 'cancelled'] as $status) {
             $this->assertTrue($rule->matches(new Order(), ['to_status' => $status]), $status);
         }
 

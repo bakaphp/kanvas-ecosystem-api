@@ -29,7 +29,7 @@ class NotifyDeliveryOrderStatusActivity extends KanvasActivity implements Workfl
     public const string OWNER_TEMPLATE_PREFIX = 'owner-order-';
     public const array NOTIFIED_STATUSES = [
         DeliveryOrderStatusEnum::VERIFYING,
-        DeliveryOrderStatusEnum::PAID,
+        DeliveryOrderStatusEnum::CONFIRMED,
         DeliveryOrderStatusEnum::READY_FOR_DISPATCH,
         DeliveryOrderStatusEnum::DISPATCHED,
         DeliveryOrderStatusEnum::DELIVERED,

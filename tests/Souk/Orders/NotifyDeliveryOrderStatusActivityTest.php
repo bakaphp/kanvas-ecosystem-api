@@ -54,7 +54,7 @@ final class NotifyDeliveryOrderStatusActivityTest extends TestCase
     {
         return [
             'placed' => ['verifying', ['user-order-verifying', 'owner-order-verifying']],
-            'confirmed' => ['paid', ['user-order-paid']],
+            'confirmed' => ['confirmed', ['user-order-confirmed']],
             'preparing' => ['ready-for-dispatch', ['user-order-ready-for-dispatch']],
             'shipped' => ['dispatched', ['user-order-dispatched']],
             'delivered' => ['delivered', ['user-order-delivered', 'owner-order-delivered']],
@@ -109,14 +109,14 @@ final class NotifyDeliveryOrderStatusActivityTest extends TestCase
     {
         $order = $this->orderWithCustomerEmail('dispatched');
 
-        $result = $this->notify($order, 'paid');
+        $result = $this->notify($order, 'confirmed');
 
         $this->assertSame('success', $result['status']);
     }
 
     public function testAnUnnotifiedStatusSendsNothing(): void
     {
-        $order = $this->orderWithCustomerEmail('paid');
+        $order = $this->orderWithCustomerEmail('confirmed');
 
         $result = $this->notify($order, 'some-other-status');
 

@@ -11,7 +11,7 @@ use Kanvas\Souk\Orders\Models\OrderTypes;
 enum DeliveryOrderStatusEnum: string
 {
     case VERIFYING = 'verifying';
-    case PAID = 'paid';
+    case CONFIRMED = 'confirmed';
     case READY_FOR_DISPATCH = 'ready-for-dispatch';
     case DISPATCHED = 'dispatched';
     case DELIVERED = 'delivered';
