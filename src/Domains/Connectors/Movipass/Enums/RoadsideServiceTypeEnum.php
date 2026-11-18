@@ -32,6 +32,21 @@ enum RoadsideServiceTypeEnum: string
     }
 
     /**
+     * Billable distance runs from Kilómetro Cero to wherever the unit ends up: the drop-off for
+     * services that move the vehicle, the user's location for everything fixed on site.
+     */
+    public function billsDistanceToDestination(): bool
+    {
+        return match ($this) {
+            self::LIGHT_TOW,
+            self::ACCIDENT_TOW,
+            self::MOTORCYCLE_TOW,
+            self::DESIGNATED_DRIVER => true,
+            default => false,
+        };
+    }
+
+    /**
      * Operators dictate the service over the phone and clients send it as free text, so the same
      * service arrives spelled a dozen ways and in either language. These are input-matching values,
      * not names: they exist so a real request resolves to a case instead of silently skipping the
