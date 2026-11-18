@@ -137,12 +137,40 @@ class SessionConfigBuilderTest extends TestCase
         }
     }
 
+    public function testAppStoreConnectExtendsTheAllowListWithoutTheAccountCommands(): void
+    {
+        $repository = new CodingRepository(
+            slug: 'quorum',
+            cloneUrl: 'https://git.example.test/acme/quorum.git',
+            protectedPaths: ['credentials/'],
+        );
+
+        $builder = new SessionConfigBuilder(app(Apps::class), $repository, hostTools: ['xcode', 'asc']);
+        $bash = $builder->toArray()['permission']['bash'];
+        $keys = array_keys($bash);
+
+        $this->assertSame('deny', $bash['*']);
+        $this->assertSame('allow', $bash['xcrun *']);
+        $this->assertSame(
+            ['asc *', 'asc web *', 'asc * web *', 'asc auth *', 'asc * auth *'],
+            array_values(array_filter($keys, static fn (string $key): bool => str_starts_with($key, 'asc ')))
+        );
+        $this->assertSame('allow', $bash['asc *']);
+
+        foreach (['asc web *', 'asc * web *', 'asc auth *', 'asc * auth *'] as $deny) {
+            $this->assertSame('deny', $bash[$deny], $deny);
+        }
+
+        $this->assertGreaterThan(array_search('asc *', $keys, true), array_search('* credentials/*', $keys, true));
+    }
+
     public function testNoHostToolsLeavesPermissionsUnchanged(): void
     {
         $permission = new SessionConfigBuilder(app(Apps::class))->toArray()['permission'];
 
         $this->assertArrayNotHasKey('read', $permission);
         $this->assertArrayNotHasKey('xcrun *', $permission['bash']);
+        $this->assertArrayNotHasKey('asc *', $permission['bash']);
     }
 
     /**

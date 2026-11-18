@@ -379,6 +379,52 @@ class HostProcessRuntimeDriverTest extends TestCase
         $this->assertSame('', $ssh->commandStartingWith('PATH=' . HostProcessRuntimeDriver::PATH . '; xcode-select'));
     }
 
+    public function testAppStoreConnectIsReadyWithTheCliAndTheKeyAtTheWorkspaceRoot(): void
+    {
+        $ssh = $this->readyMacSsh([
+            'PATH=' . HostProcessRuntimeDriver::PATH . '; command -v asc' => 'OK',
+            "test -r '/srv/kanvas/.asc/config.json'" => 'OK',
+        ]);
+
+        $this->assertSame([], $this->driver($this->ascMachine())->hostProblems($this->app(), $ssh));
+    }
+
+    public function testAMissingAscIsNamedWithTheFix(): void
+    {
+        $problems = $this->driver($this->ascMachine())->hostProblems($this->app(), $this->readyMacSsh([
+            'PATH=' . HostProcessRuntimeDriver::PATH . '; command -v asc' => 'NO',
+        ]));
+
+        $this->assertSame(['asc is not installed on mac — brew install asc as kanvasrun.'], $problems);
+    }
+
+    public function testAMissingAscKeyNamesWhereItGoes(): void
+    {
+        $problems = $this->driver($this->ascMachine())->hostProblems($this->app(), $this->readyMacSsh([
+            'PATH=' . HostProcessRuntimeDriver::PATH . '; command -v asc' => 'OK',
+            "test -r '/srv/kanvas/.asc/config.json'" => 'NO',
+        ]));
+
+        $this->assertCount(1, $problems);
+        $this->assertStringContainsString('/srv/kanvas/.asc/config.json', $problems[0]);
+        $this->assertStringContainsString('will not follow a symlink', $problems[0]);
+    }
+
+    public function testAscRowsAreSkippedWhenNotAdvertised(): void
+    {
+        $ssh = $this->readyMacSsh([
+            'PATH=' . HostProcessRuntimeDriver::PATH . '; xcode-select' => 'OK',
+            'PATH=' . HostProcessRuntimeDriver::PATH . '; xcrun simctl list devices available' => '12',
+        ]);
+
+        $problems = $this->driver($this->xcodeMachine())->hostProblems($this->app(), $ssh);
+
+        $ascProbe = $ssh->commandStartingWith('PATH=' . HostProcessRuntimeDriver::PATH . '; command -v asc');
+
+        $this->assertSame([], $problems);
+        $this->assertSame('', $ascProbe);
+    }
+
     public function testAnIntelMacIsRefused(): void
     {
         $problems = $this->driver()->hostProblems($this->app(), $this->readyMacSsh(['uname -m' => 'x86_64']));
@@ -537,6 +583,14 @@ class HostProcessRuntimeDriverTest extends TestCase
     {
         $machine = $this->savedMachine();
         $machine->set(MachineCustomFieldEnum::HOST_TOOLS->value, ['xcode']);
+
+        return $machine;
+    }
+
+    private function ascMachine(): AgentMachine
+    {
+        $machine = $this->savedMachine();
+        $machine->set(MachineCustomFieldEnum::HOST_TOOLS->value, ['asc']);
 
         return $machine;
     }

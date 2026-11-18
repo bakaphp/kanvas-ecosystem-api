@@ -186,7 +186,42 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
             $problems = [...$problems, ...$this->xcodeProblems($client, $identity['user'])];
         }
 
+        if ($this->advertisesAppStoreConnect()) {
+            $root = CodingWorkspaceService::rootFor($app);
+            $problems = [...$problems, ...$this->appStoreConnectProblems($client, $root, $identity['user'])];
+        }
+
         return $problems;
+    }
+
+    /**
+     * Sessions run with `$HOME` inside their worktree, so `~/.asc` is never read: asc finds its key
+     * through the nearest `.asc/config.json` above the working directory, which is the workspace root.
+     *
+     * @return list<string>
+     */
+    private function appStoreConnectProblems(SshClient $client, string $root, string $user): array
+    {
+        $installed = trim($client->exec(
+            'PATH=' . self::PATH . '; command -v asc >/dev/null 2>&1 && echo OK || echo NO',
+            30
+        ));
+
+        if ($installed !== 'OK') {
+            return ['asc is not installed on ' . $this->machine->name . ' — brew install asc as ' . $user . '.'];
+        }
+
+        $config = $root . '/.asc/config.json';
+
+        if (trim($client->exec('test -r ' . escapeshellarg($config) . ' && echo OK || echo NO', 30)) !== 'OK') {
+            return [
+                'No App Store Connect key for agents on ' . $this->machine->name . ' — write ' . $config
+                . ' (key_id, issuer_id, private_key_path) as ' . $user . '. Give the key file\'s real path: '
+                . 'asc will not follow a symlink, and /srv is one on macOS.',
+            ];
+        }
+
+        return [];
     }
 
     /**
@@ -219,6 +254,11 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
     private function advertisesXcode(): bool
     {
         return CodingHostToolsService::hasXcode(CodingHostToolsService::forMachine($this->machine));
+    }
+
+    private function advertisesAppStoreConnect(): bool
+    {
+        return CodingHostToolsService::hasAppStoreConnect(CodingHostToolsService::forMachine($this->machine));
     }
 
     /**
