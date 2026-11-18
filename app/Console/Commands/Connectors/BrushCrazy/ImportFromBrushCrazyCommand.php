@@ -18,6 +18,7 @@ use Kanvas\Connectors\BrushCrazy\Actions\PullSalesFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\PullStaffFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\ResolveStudioContextsAction;
 use Kanvas\Connectors\BrushCrazy\Actions\SeedBrushCrazyLookupDataAction;
+use Kanvas\Connectors\BrushCrazy\Actions\SyncCommerceCatalogFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\SyncEntityEnum;
 use Kanvas\Connectors\BrushCrazy\Support\CorrectionCutoff;
@@ -39,6 +40,7 @@ class ImportFromBrushCrazyCommand extends Command
         'calendarables',
         'registrations',
         'sales',
+        'catalog',
         'receivers',
     ];
 
@@ -52,7 +54,7 @@ class ImportFromBrushCrazyCommand extends Command
     protected $signature = 'kanvas:brushcrazy-import
                             {app_id : The application ID}
                             {user_id : User the imported rows and receivers are created as}
-                            {--entity=all : all, studios, lookups, paintings, customers, staff, calendarables, registrations, sales, receivers}
+                            {--entity=all : all, studios, lookups, paintings, customers, staff, calendarables, registrations, sales, catalog, receivers}
                             {--studio=* : Only these BrushCrazy studio ids (repeatable)}
                             {--since= : Only rows updated since this UTC datetime (Y-m-d H:i:s)}
                             {--incremental : Resume each studio from its own cursor instead of a full pass}
@@ -152,6 +154,13 @@ class ImportFromBrushCrazyCommand extends Command
 
                 if (in_array($entity, ['all', 'sales'], true)) {
                     $failed += $this->importSales($app, $user, $context);
+                }
+
+                // The sales pull already runs the catalog on a full pass; this is the catalog alone,
+                // for a studio whose sales are imported and only the products need a refresh.
+                if ($entity === 'catalog') {
+                    $catalog = new SyncCommerceCatalogFromBrushCrazyAction($app, $user, $context)->execute();
+                    $this->line('  catalog: ' . http_build_query($catalog, '', ', '));
                 }
 
                 if (in_array($entity, ['all', 'receivers'], true)) {

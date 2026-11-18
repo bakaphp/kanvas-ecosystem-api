@@ -21,10 +21,21 @@ class ProductMapper
     private const int VARIANT_CODE_MAX = 64;
 
     /**
-     * @return array{product: array<string, mixed>, variant: array<string, mixed>, price: float}
+     * The stock is the studio's `inventory_items` count and cost, null when the studio has no row
+     * for the product (a product it only ever sold or prices).
+     *
+     * @return array{
+     *     product: array<string, mixed>,
+     *     variant: array<string, mixed>,
+     *     price: float,
+     *     stock: array{quantity: int, cost: float}|null
+     * }
      */
-    public static function map(object $product, ?object $studioSetting = null): array
-    {
+    public static function map(
+        object $product,
+        ?object $studioSetting = null,
+        ?object $inventoryItem = null
+    ): array {
         $name = Str::trimToNull($product->name ?? null) ?? 'Product ' . (int) $product->id;
         $slug = self::slug((int) $product->id);
         $barcode = Str::trimToNull($product->barcode ?? null);
@@ -49,10 +60,15 @@ class ProductMapper
                 'sku' => $fitsVariant ? $barcode : $slug,
                 'barcode' => $fitsVariant ? $barcode : null,
                 'description' => Str::trimToNull($product->description ?? null),
+                'base_cost' => Money::fromRaw($product->cost ?? null)->dollars(),
                 'is_published' => true,
                 'is_deleted' => $isDeleted,
             ],
             'price' => Money::toDollars(self::priceCents($product, $studioSetting)),
+            'stock' => $inventoryItem === null ? null : [
+                'quantity' => (int) $inventoryItem->quantity,
+                'cost' => Money::fromRaw($inventoryItem->cost ?? $product->cost ?? null)->dollars(),
+            ],
         ];
     }
 

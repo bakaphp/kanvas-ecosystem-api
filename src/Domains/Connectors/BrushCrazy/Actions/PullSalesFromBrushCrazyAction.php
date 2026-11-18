@@ -40,7 +40,7 @@ class PullSalesFromBrushCrazyAction
     }
 
     /**
-     * @return array{synced: int, skipped: int, failed: int, errors: array<int, string>, warnings: array<int, string>, catalog: array{products: int, lines: int}|array{skipped: string}}
+     * @return array{synced: int, skipped: int, failed: int, errors: array<int, string>, warnings: array<int, string>, catalog: array{products: int, lines: int, category_types: int, categories: int, groups: int}|array{skipped: string}}
      */
     public function execute(?callable $onProgress = null): array
     {
@@ -60,7 +60,7 @@ class PullSalesFromBrushCrazyAction
             source: $source,
         );
 
-        // The full catalog pass scans every product the studio ever sold. An incremental run leaves
+        // The full catalog pass scans every product the studio stocks, prices or sold. An incremental run leaves
         // it out: variantFor() pulls a product the first time a sale needs it, and catalog edits
         // arrive through the product webhook.
         $results = [
