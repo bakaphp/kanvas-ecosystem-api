@@ -242,6 +242,45 @@ class PdfIngestDedupTest extends ScribeTestCase
         $this->assertSame(1, $billCount, 'Bill-number dedup should prevent a second Bill row.');
     }
 
+    public function test_path3_same_bill_number_with_other_punctuation_is_ignored_as_a_duplicate(): void
+    {
+        $hasher = new FakePdfContentHasher();
+        $arrive = fn (string $billNumber, string $messageId): PdfIngestLog => new ProcessAccountingPdfAction(
+            input: new PdfIngestInput(
+                app: $this->kanvasApp,
+                company: $this->company,
+                pdf: $this->createFilesystemRow(),
+                messageId: $messageId,
+                fromEmail: 'invoice@amazonaws.com',
+            ),
+            user: static::$cachedUser,
+            classifier: new FakePdfClassifier()->queue(new PdfClassificationResult(
+                document_type: PdfIngestDocumentTypeEnum::VENDOR_INVOICE,
+                confidence: 0.93,
+                extracted: [
+                    'vendor_name' => 'AWS',
+                    'bill_number' => $billNumber,
+                    'currency' => 'USD',
+                    'subtotal' => 5240.0,
+                    'tax' => 0.0,
+                    'total' => 5240.0,
+                ],
+            )),
+            hasher: $hasher,
+        )->execute();
+
+        $first = $arrive('INV-2026-777', 'aws-original');
+        $second = $arrive('inv 2026/777', 'aws-resent');
+
+        $this->assertSame(PdfIngestStatusEnum::IGNORED_DUPLICATE, $second->status);
+        $this->assertSame((int) $first->linked_entity_id, (int) $second->linked_entity_id);
+        $this->assertSame(1, Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('bill_number', 'like', '%2026%777%')
+            ->count());
+    }
+
     public function test_path3_voided_bills_do_not_block_a_new_one_with_same_number(): void
     {
         // If a prior bill_number is VOIDED, we should NOT consider it a duplicate — the user
