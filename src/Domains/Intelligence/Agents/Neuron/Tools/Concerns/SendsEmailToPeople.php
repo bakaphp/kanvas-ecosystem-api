@@ -130,6 +130,30 @@ trait SendsEmailToPeople
     }
 
     /**
+     * The contact when `$email` is a deliverable email of a person in this company who has not asked to
+     * stop, else null: the closed set a send with no record in scope may reach.
+     */
+    protected function companyEmailContact(string $email): ?Contact
+    {
+        if (! $this->hasTenantContext()) {
+            return null;
+        }
+
+        return Contact::query()
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+            ->where('value', trim($email))
+            ->notDeleted()
+            ->deliverable()
+            ->whereHas(
+                'people',
+                fn (Builder $query): Builder => $query->fromCompany($this->company)->fromApp($this->app)->notDeleted()
+            )
+            ->with('people')
+            ->get()
+            ->first(fn (Contact $contact): bool => ! ConsentGuard::isPersonDoNotContact($contact->people));
+    }
+
+    /**
      * An agent told only "not copied" emailed the rejected address separately through
      * send_email_to_user, so the refusal rules that out in so many words.
      *
