@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use PDO;
+use Pdo\Mysql;
 
 /**
  * Read-only connection to the legacy BrushCrazy MySQL database, built at runtime from app
@@ -70,13 +70,13 @@ class Client
             return [];
         }
 
-        $options = [PDO::MYSQL_ATTR_SSL_CA => self::caFile((string) $sslCa)];
+        $options = [Mysql::ATTR_SSL_CA => self::caFile((string) $sslCa)];
 
         // Reaching the instance through an SSH tunnel means connecting to localhost, which never
         // matches the certificate's RDS hostname. The tunnel already encrypts the hop, so verify
         // the CA without the hostname check instead of failing the handshake.
         if (in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
-            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            $options[Mysql::ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
 
         return $options;
