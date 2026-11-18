@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -104,6 +105,14 @@ class UpdateTaskStatusAction
                 new CloseFollowUpPlanAction($this->task)->execute();
             }
 
+            if ($this->newStatus === TaskStatusEnum::SKIPPED) {
+                $this->task->plan?->retireFailedAttempt();
+            }
+
+            if (in_array($this->newStatus, TaskStatusEnum::completedStatuses(), true)) {
+                $this->retireFailedRuns();
+            }
+
             $plan = $this->task->plan;
 
             // Factory work only: a Mac task sent back to run again. Other plans keep their status as their
@@ -165,5 +174,27 @@ class UpdateTaskStatusAction
 
             return $this->task->fresh() ?? $this->task;
         });
+    }
+
+    /**
+     * A run this task sent that failed (the Mac unreachable, no worktree) was retried or made moot, and
+     * this task is now closed: nothing will ever pick the failed one up again. Its outcome was already
+     * delivered, so skipping it reaches no parent twice.
+     */
+    private function retireFailedRuns(): void
+    {
+        $failedRuns = $this->task->children()
+            ->whereHas('plan', fn ($plan) => $plan->where('status', PlanStatusEnum::FAILED->value))
+            ->get();
+
+        foreach ($failedRuns as $run) {
+            if ($run->status === TaskStatusEnum::BLOCKED->value) {
+                new UpdateTaskStatusAction(task: $run, newStatus: TaskStatusEnum::SKIPPED, fromSync: true)->execute();
+
+                continue;
+            }
+
+            $run->plan?->retireFailedAttempt();
+        }
     }
 }

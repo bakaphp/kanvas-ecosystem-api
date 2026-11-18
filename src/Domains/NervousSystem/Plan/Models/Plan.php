@@ -203,6 +203,29 @@ class Plan extends BaseModel implements HandlesAgentMention
     }
 
     /**
+     * A failed run the work has moved past: its own task was dropped, or the task that sent it closed.
+     * Left failed, it stays in the board's Blocked column for good though nothing waits on it any more.
+     * The failure itself stays readable on `error_message` and the session row.
+     */
+    public function retireFailedAttempt(): void
+    {
+        if ($this->status !== PlanStatusEnum::FAILED->value
+            || $this->tasks()->whereNotIn('status', TaskStatusEnum::completedStatusValues())->exists()
+        ) {
+            return;
+        }
+
+        $this->status = PlanStatusEnum::CANCELLED->value;
+        $this->save();
+
+        $this->emitLedgerEvent('plan.retired', payload: ['status_from' => PlanStatusEnum::FAILED->value]);
+        $this->broadcastChange(
+            changeType: PlanChangeTypeEnum::UPDATED,
+            previousStatus: PlanStatusEnum::FAILED->value,
+        );
+    }
+
+    /**
      * The agent that asked for this plan was told its last task finished, and answers the person in
      * their conversation itself — so closing the plan afterwards is not news to either of them.
      */
