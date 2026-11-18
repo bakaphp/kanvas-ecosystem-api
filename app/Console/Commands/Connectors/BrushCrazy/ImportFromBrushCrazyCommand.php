@@ -19,6 +19,7 @@ use Kanvas\Connectors\BrushCrazy\Actions\PullStaffFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\ResolveStudioContextsAction;
 use Kanvas\Connectors\BrushCrazy\Actions\SeedBrushCrazyLookupDataAction;
 use Kanvas\Connectors\BrushCrazy\Actions\SyncCommerceCatalogFromBrushCrazyAction;
+use Kanvas\Connectors\BrushCrazy\Actions\SyncStudioProfileFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\SyncEntityEnum;
 use Kanvas\Connectors\BrushCrazy\Support\CorrectionCutoff;
@@ -118,6 +119,11 @@ class ImportFromBrushCrazyCommand extends Command
             foreach ($contexts as $context) {
                 $this->line('');
                 $this->info("Studio {$context->bcStudioId} → company {$context->companyId()} ({$context->company->name}, {$context->timezone})");
+
+                if (in_array($entity, ['all', 'studios'], true)) {
+                    $profile = new SyncStudioProfileFromBrushCrazyAction($app, $context)->execute();
+                    $this->line('  profile: ' . ($profile ? 'synced' : 'missing at the source'));
+                }
 
                 if ($entity !== 'studios' && $entity !== 'receivers') {
                     $this->seedLookups($app, $user, $context);

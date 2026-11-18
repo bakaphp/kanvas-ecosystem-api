@@ -50,14 +50,26 @@ enum CustomFieldEnum: string
     case BRUSHCRAZY_STUDIO_TIMEZONE = 'BRUSHCRAZY_STUDIO_TIMEZONE';
     case BRUSHCRAZY_STUDIO_OCCUPANCY = 'BRUSHCRAZY_STUDIO_OCCUPANCY';
     case BRUSHCRAZY_STUDIO_SETTINGS = 'BRUSHCRAZY_STUDIO_SETTINGS';
-
-    /** A category's GL account name, `transferable` flag and cost-to-MSRP formula tiers. */
-    case BRUSHCRAZY_CATEGORY_SETTINGS = 'BRUSHCRAZY_CATEGORY_SETTINGS';
     case BRUSHCRAZY_STUDIO_SALES_TAX = 'BRUSHCRAZY_STUDIO_SALES_TAX';
     case BRUSHCRAZY_STUDIO_BILLING = 'BRUSHCRAZY_STUDIO_BILLING';
     case BRUSHCRAZY_STUDIO_SOCIAL = 'BRUSHCRAZY_STUDIO_SOCIAL';
     case BRUSHCRAZY_STUDIO_LAT = 'BRUSHCRAZY_STUDIO_LAT';
     case BRUSHCRAZY_STUDIO_LNG = 'BRUSHCRAZY_STUDIO_LNG';
+
+    /** What the studio's landing page shows: contact, address, hours, licenses, description. */
+    case BRUSHCRAZY_STUDIO_PROFILE = 'BRUSHCRAZY_STUDIO_PROFILE';
+
+    /** `studio_contents`: shop availability slots, brush rental fee, delivery fees and hours. */
+    case BRUSHCRAZY_STUDIO_CONTENT = 'BRUSHCRAZY_STUDIO_CONTENT';
+
+    /** `studio_slides`: the homepage carousel, title and order per slide; photos are `slide-{id}` files. */
+    case BRUSHCRAZY_STUDIO_SLIDES = 'BRUSHCRAZY_STUDIO_SLIDES';
+
+    /** `pos_settings`: add-on and art-formula prices the shop charges (global in BrushCrazy). */
+    case BRUSHCRAZY_POS_SETTINGS = 'BRUSHCRAZY_POS_SETTINGS';
+
+    /** A category's GL account name, `transferable` flag and cost-to-MSRP formula tiers. */
+    case BRUSHCRAZY_CATEGORY_SETTINGS = 'BRUSHCRAZY_CATEGORY_SETTINGS';
     case BRUSHCRAZY_DISPLAY_NAME = 'BRUSHCRAZY_DISPLAY_NAME';
     /** `users.birthday` is a month (1-12) — BrushCrazy only ever compares it with isSameMonth(). */
     case BRUSHCRAZY_BIRTHDAY_MONTH = 'BRUSHCRAZY_BIRTHDAY_MONTH';

@@ -11,10 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Client;
+use Kanvas\Connectors\BrushCrazy\Concerns\SyncsAttachedPhotos;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\SaleLineKindEnum;
+use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
 use Kanvas\Connectors\BrushCrazy\Mappers\ProductMapper;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
+use Kanvas\Connectors\BrushCrazy\Support\PaintingRelations;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Products\Models\Products;
@@ -44,6 +47,7 @@ use RuntimeException;
 class SyncCommerceCatalogFromBrushCrazyAction
 {
     use ScalarCoercionTrait;
+    use SyncsAttachedPhotos;
 
     /** BrushCrazy morph aliases this action mirrors. */
     public const array MORPHS = [
@@ -58,6 +62,8 @@ class SyncCommerceCatalogFromBrushCrazyAction
     public const string PRODUCT_SETTING_MORPH = 'product-setting';
 
     public const string INVENTORY_ITEM_MORPH = 'inventory-item';
+
+    public const string FEATURED_TAG = 'featured';
 
     protected IdMapRepository $idMaps;
 
@@ -200,7 +206,44 @@ class SyncCommerceCatalogFromBrushCrazyAction
             ->keyBy('product_id')
             ->all();
 
-        return $this->syncProductRows($products, $settings, $inventory);
+        $featured = $this->client()->table('studio_products')
+            ->where('studio_id', $this->context->bcStudioId)
+            ->whereIn('product_id', $bcProductIds)
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $this->syncProductRows(
+            $products,
+            $settings,
+            $inventory,
+            $this->productPhotos($bcProductIds),
+            $featured
+        );
+    }
+
+    /**
+     * Null without a media base url, which leaves every product's photos as they are.
+     *
+     * @param  array<int, int>  $bcProductIds
+     * @return array<int, array{media_id: int, url: string}>|null  BrushCrazy product id => photo
+     */
+    protected function productPhotos(array $bcProductIds): ?array
+    {
+        $mediaBaseUrl = self::mediaBaseUrlOf($this->app);
+
+        if ($mediaBaseUrl === null) {
+            return null;
+        }
+
+        $photos = [];
+        $media = PaintingRelations::mediaQuery($this->client(), [self::PRODUCT_MORPH => $bcProductIds])->get()->all();
+
+        foreach (PaintingMapper::photos($media, $mediaBaseUrl) as $key => $photo) {
+            $photos[(int) substr($key, strlen(self::PRODUCT_MORPH) + 1)] = $photo;
+        }
+
+        return $photos;
     }
 
     /**
@@ -209,11 +252,15 @@ class SyncCommerceCatalogFromBrushCrazyAction
      * @param  iterable<object>  $products
      * @param  array<int|string, object>  $settingsByProductId  this studio's product_settings
      * @param  array<int|string, object>  $inventoryByProductId  this studio's inventory_items
+     * @param  array<int, array{media_id: int, url: string}>|null  $photosByProductId  null leaves photos alone
+     * @param  array<int, int>|null  $featuredProductIds  this studio's studio_products; null leaves the tag alone
      */
     public function syncProductRows(
         iterable $products,
         array $settingsByProductId = [],
-        array $inventoryByProductId = []
+        array $inventoryByProductId = [],
+        ?array $photosByProductId = null,
+        ?array $featuredProductIds = null
     ): int {
         $rows = [];
 
@@ -250,6 +297,17 @@ class SyncCommerceCatalogFromBrushCrazyAction
             if ($knownProductId === null) {
                 $product->disableWorkflows();
                 $product->set(CustomFieldEnum::BRUSHCRAZY_PRODUCT_ID->value, $bcProductId);
+            }
+
+            if ($photosByProductId !== null) {
+                $this->syncPhotos(
+                    $product,
+                    isset($photosByProductId[$bcProductId]) ? [PaintingMapper::PHOTO_FIELD => $photosByProductId[$bcProductId]] : []
+                );
+            }
+
+            if ($featuredProductIds !== null) {
+                $this->syncFeatured($product, in_array($bcProductId, $featuredProductIds, true));
             }
 
             $this->syncCategories($product, array_filter([
@@ -355,6 +413,24 @@ class SyncCommerceCatalogFromBrushCrazyAction
         }
 
         return $this->warehouse;
+    }
+
+    /**
+     * A studio's `studio_products` are its homepage's featured products; the shop reads them by tag.
+     */
+    protected function syncFeatured(Products $product, bool $isFeatured): void
+    {
+        if ($product->hasTag([self::FEATURED_TAG]) === $isFeatured) {
+            return;
+        }
+
+        $product->disableWorkflows();
+
+        if ($isFeatured) {
+            $product->addTag(self::FEATURED_TAG, $this->app, $this->user, $this->context->company);
+        } else {
+            $product->removeTag(self::FEATURED_TAG);
+        }
     }
 
     /**

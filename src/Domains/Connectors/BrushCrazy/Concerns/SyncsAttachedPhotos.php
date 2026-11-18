@@ -8,10 +8,14 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
-use Kanvas\Event\Models\BaseModel;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 
+/**
+ * For any model with HasFilesystemTrait and custom fields (Event themes and versions, Inventory
+ * products); the attached-media record lives in a custom field on the entity itself.
+ */
 trait SyncsAttachedPhotos
 {
     /**
@@ -42,7 +46,7 @@ trait SyncsAttachedPhotos
      *
      * @param  array<string, array{media_id: int, url: string}>  $files  field name => photo
      */
-    protected function syncPhotos(BaseModel $entity, array $files): void
+    protected function syncPhotos(Model $entity, array $files): void
     {
         $attached = $this->attachedPhotos($entity);
 
@@ -96,7 +100,7 @@ trait SyncsAttachedPhotos
      *
      * @return array<string, array{media_id: int, url: string|null}>
      */
-    protected function attachedPhotos(BaseModel $entity): array
+    protected function attachedPhotos(Model $entity): array
     {
         $stored = $entity->get(CustomFieldEnum::BRUSHCRAZY_ATTACHED_MEDIA->value);
 
@@ -119,14 +123,14 @@ trait SyncsAttachedPhotos
      * The mirror's own previous link is already detached by the time this runs, so any other live
      * link under the field is one Kanvas made.
      */
-    protected function hasKanvasPhoto(BaseModel $entity, string $field, string $url): bool
+    protected function hasKanvasPhoto(Model $entity, string $field, string $url): bool
     {
         return FilesystemEntitiesRepository::getFileFromEntityByNameBuilder($entity, $field)
             ->where('filesystem.url', '!=', $url)
             ->exists();
     }
 
-    protected function detachPhoto(BaseModel $entity, string $field, ?string $url): void
+    protected function detachPhoto(Model $entity, string $field, ?string $url): void
     {
         if ($url === null) {
             return;
@@ -141,7 +145,7 @@ trait SyncsAttachedPhotos
     /**
      * @param  array<string, array{media_id: int, url: string|null}>  $attached
      */
-    protected function rememberPhotos(BaseModel $entity, array $attached): void
+    protected function rememberPhotos(Model $entity, array $attached): void
     {
         $key = CustomFieldEnum::BRUSHCRAZY_ATTACHED_MEDIA->value;
 

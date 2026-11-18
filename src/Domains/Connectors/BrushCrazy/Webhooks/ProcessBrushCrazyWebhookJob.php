@@ -16,6 +16,7 @@ use Kanvas\Connectors\BrushCrazy\Actions\SyncPaintingFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\SyncRegistrationFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\SyncSaleFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\SyncStaffFromBrushCrazyAction;
+use Kanvas\Connectors\BrushCrazy\Actions\SyncStudioProfileFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
@@ -126,11 +127,24 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
         $cutoffMissing = false;
         $calendarableKeys = [];
         $saleIds = [];
+        $profileChanged = false;
 
         foreach ($events as $event) {
             $entityType = (string) ($event['entity_type'] ?? '');
             $entityId = (int) ($event['entity_id'] ?? 0);
             $handled = false;
+
+            // A `studio` pointer is a broadcast; only this receiver's own studio re-reads its profile.
+            // `pos-setting` is global, so every studio does.
+            if (in_array($entityType, SyncStudioProfileFromBrushCrazyAction::MORPHS, true)) {
+                $handled = true;
+
+                if ($entityType !== SyncStudioProfileFromBrushCrazyAction::STUDIO_MORPH || $entityId === $context->bcStudioId) {
+                    $profileChanged = true;
+                } else {
+                    $results['skipped']++;
+                }
+            }
 
             if ($entityType === self::USER_MORPH) {
                 $handled = true;
@@ -312,6 +326,17 @@ class ProcessBrushCrazyWebhookJob extends ProcessWebhookJob
                     customers: $customers ?? null,
                 ),
                 array_values(array_unique($calendarableKeys)),
+                $results
+            );
+        }
+
+        if ($profileChanged) {
+            $this->countOutcome(
+                fn () => new SyncStudioProfileFromBrushCrazyAction($app, $context, $client)->execute()
+                    ? SyncSaleFromBrushCrazyAction::SYNCED
+                    : SyncSaleFromBrushCrazyAction::MISSING,
+                SyncStudioProfileFromBrushCrazyAction::STUDIO_MORPH,
+                $context->bcStudioId,
                 $results
             );
         }
