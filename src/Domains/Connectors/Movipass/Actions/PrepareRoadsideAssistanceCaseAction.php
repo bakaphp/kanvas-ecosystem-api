@@ -47,6 +47,7 @@ class PrepareRoadsideAssistanceCaseAction
             'case_id' => $assistanceCase['case_id'] ?? (string) Str::uuid(),
             'status' => MovipassOrderStatusEnum::REQUEST_SUBMITTED->value,
             'requested_at' => $assistanceCase['requested_at'] ?? Carbon::now()->toISOString(),
+            'prepared_at' => Carbon::now()->toISOString(),
             'user' => [
                 'id' => $user->getId(),
                 'uuid' => $user->uuid,

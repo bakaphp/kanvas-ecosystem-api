@@ -7,8 +7,11 @@ namespace Kanvas\Connectors\Movipass\Actions;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\RoadsideAdditionalChargeStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\RoadsideCaseStateEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Services\RoadsideAuditTrail;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -44,6 +47,7 @@ class RefreshRoadsideAdditionalChargesAction
 
         $caseClosed = $this->isTerminalAssistanceStatus($this->order->orderStatus?->slug);
         $approved = [];
+        $changedCharges = [];
         $changed = false;
 
         foreach ($charges as $index => $charge) {
@@ -67,6 +71,7 @@ class RefreshRoadsideAdditionalChargesAction
             $charges[$index]['status'] = $resolved->value;
             $charges[$index]['status_updated_at'] = Carbon::now()->toISOString();
             $changed = true;
+            $changedCharges[] = $charges[$index];
 
             if ($resolved === RoadsideAdditionalChargeStatusEnum::APPROVED) {
                 $approved[] = $charges[$index];
@@ -80,6 +85,17 @@ class RefreshRoadsideAdditionalChargesAction
         $assistanceCase['additional_charges'] = $charges;
         $assistanceCase['additional_payment_pending'] = $this->hasOutstandingAdditionalCharges($assistanceCase);
         $this->saveAssistanceCase($this->order, $assistanceCase);
+
+        foreach ($changedCharges as $charge) {
+            RoadsideAuditTrail::forOrder(
+                order: $this->order,
+                module: 'payment',
+                action: 'additional_charge_' . ($charge['status'] ?? 'updated'),
+                after: ['charge_id' => $charge['id'] ?? null, 'status' => $charge['status'] ?? null],
+            );
+        }
+
+        $this->resumeInterruptedState($assistanceCase);
 
         $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
         RefreshActiveAssistanceEvent::dispatch($this->order, $mechanicId > 0 ? $mechanicId : (int) $this->order->users_id);
@@ -118,5 +134,25 @@ class RefreshRoadsideAdditionalChargesAction
         return $latestPayment?->status === PaymentStatusEnum::FAILED->value
             ? RoadsideAdditionalChargeStatusEnum::REJECTED
             : RoadsideAdditionalChargeStatusEnum::PENDING;
+    }
+
+    /**
+     * Once nothing is owed the case goes back to the stage the charge interrupted.
+     */
+    private function resumeInterruptedState(array $assistanceCase): void
+    {
+        $interrupted = RoadsideCaseStateEnum::tryFrom((string) ($assistanceCase['interrupted_state'] ?? ''));
+
+        if ($interrupted === null
+            || ($assistanceCase['state'] ?? null) !== RoadsideCaseStateEnum::ADDITIONAL_PAYMENT_PENDING->value
+            || $this->hasOutstandingAdditionalCharges($assistanceCase)
+        ) {
+            return;
+        }
+
+        try {
+            new TransitionRoadsideCaseStateAction($this->order, $interrupted, reason: 'additional charges settled')->execute();
+        } catch (ValidationException) {
+        }
     }
 }

@@ -10,9 +10,13 @@ use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideAdditionalChargeConceptEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideAdditionalChargeStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\RoadsideAuditChannelEnum;
+use Kanvas\Connectors\Movipass\Enums\RoadsideCaseStateEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
+use Kanvas\Connectors\Movipass\Jobs\SyncRoadsideRegionalEventJob;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Services\RoadsideAuditTrail;
 use Kanvas\Connectors\Movipass\Services\RoadsideQuoteCalculator;
 use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
 use Kanvas\Connectors\Movipass\Support\RoadsidePriceBreakdown;
@@ -79,6 +83,28 @@ class AddRoadsideAdditionalChargeAction
         ];
         $assistanceCase['additional_payment_pending'] = true;
         $this->saveAssistanceCase($this->order, $assistanceCase);
+
+        RoadsideAuditTrail::forOrder(
+            order: $this->order,
+            module: 'payment',
+            action: 'additional_charge_registered',
+            actor: $this->registeredBy,
+            after: ['charge_id' => $charge['id'], 'concept' => $charge['concept'], 'amount' => $charge['amount'], 'total' => $charge['total']],
+            channel: RoadsideAuditChannelEnum::WEB,
+        );
+        SyncRoadsideRegionalEventJob::dispatchFor($this->order, 'payment', $charge);
+
+        // A charge billed before the case has a state (or after it closed) still stands; only the
+        // state reading is skipped.
+        try {
+            new TransitionRoadsideCaseStateAction(
+                order: $this->order,
+                to: RoadsideCaseStateEnum::ADDITIONAL_PAYMENT_PENDING,
+                actor: $this->registeredBy,
+                channel: RoadsideAuditChannelEnum::WEB,
+            )->execute();
+        } catch (ValidationException) {
+        }
 
         $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
         RefreshActiveAssistanceEvent::dispatch($this->order, $mechanicId > 0 ? $mechanicId : (int) $this->order->users_id);

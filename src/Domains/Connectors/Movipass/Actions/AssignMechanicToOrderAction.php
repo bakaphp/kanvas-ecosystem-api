@@ -10,6 +10,7 @@ use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\AssistanceAssignedEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Support\Geo;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -125,7 +126,7 @@ class AssignMechanicToOrderAction
                     return PHP_INT_MAX;
                 }
 
-                return $this->haversineDistance(
+                return Geo::distanceKm(
                     (float) $orderLocation['lat'],
                     (float) $orderLocation['lng'],
                     (float) $lat,
@@ -155,17 +156,5 @@ class AssignMechanicToOrderAction
             'location' => (is_array($existingData['location'] ?? null) ? $existingData['location'] : null) ?? $profileLocation,
             'vehicle_info' => (is_array($existingData['vehicle_info'] ?? null) ? $existingData['vehicle_info'] : null) ?? ($vehicleInfo ?: null),
         ];
-    }
-
-    protected function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
-    {
-        $earthRadiusKm = 6371.0;
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-
-        $a = sin($dLat / 2) ** 2
-            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
-
-        return $earthRadiusKm * 2 * asin(sqrt($a));
     }
 }

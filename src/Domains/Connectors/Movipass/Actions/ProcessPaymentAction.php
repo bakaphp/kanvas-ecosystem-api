@@ -98,6 +98,13 @@ class ProcessPaymentAction
 
         $this->order->markAsPaid($this->payment->user);
 
+        // The card is already charged; a dispatch failure must not report the payment as failed.
+        try {
+            new DispatchRegionalRoadsideCaseAction($this->order)->execute();
+        } catch (Exception $e) {
+            report($e);
+        }
+
         try {
             new SendPaymentReceiptAction(
                 $this->order,

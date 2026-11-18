@@ -334,3 +334,213 @@ extend type Mutation @guard {
             resolver: "App\GraphQL\Connector\Movipass\Mutations\RoadsideAdditionalChargeMutation@add"
         )
 }
+
+enum RoadsideTechnicianDeclineReasonEnum {
+    unit_unavailable
+    out_of_coverage
+    incompatible_vehicle
+    technical_issue
+    operational_emergency
+    other
+}
+
+enum RoadsideEvidencePhaseEnum {
+    before
+    after
+}
+
+type RoadsideTrackingResult {
+    "Straight-line meters to the user location, null when the case has no location"
+    distance_meters: Float
+    "The homologated case state after this point was recorded"
+    state: String
+}
+
+type RoadsideEvidenceSummary {
+    required_per_phase: Int!
+    before: Int!
+    after: Int!
+    has_comment: Boolean!
+    "Empty when the case may close"
+    missing_for_closing: [String!]!
+}
+
+type RoadsideSlaMetric {
+    "One of: dispatch, cabin_review, acceptance, reassignment, arrival, resolution, incident"
+    metric: String!
+    started_at: String!
+    ended_at: String
+    minutes: Float!
+    threshold_minutes: Float!
+    running: Boolean!
+    breached: Boolean!
+}
+
+type RoadsideSlaSummary {
+    metric: String!
+    cases: Int!
+    average_minutes: Float!
+    breached: Int!
+}
+
+type RoadsideAuditEntry {
+    id: String!
+    occurred_at: String
+    event_type: String!
+    "success or error"
+    result: String!
+    "user or system"
+    actor_type: String
+    actor_id: Int
+    actor_name: String
+    module: String
+    action: String
+    "One of: web, apk, app, api, system"
+    channel: String
+    reason: String
+    before: Mixed
+    after: Mixed
+    ip: String
+    device: String
+}
+
+type RoadsideProviderSyncEvent {
+    id: String!
+    type: String!
+    payload: Mixed
+    "One of: pending, sent, failed, skipped"
+    status: String!
+    attempts: Int!
+    last_error: String
+    created_at: String
+    updated_at: String
+}
+
+type RoadsideProviderSyncStatus {
+    last_error: String
+    events: [RoadsideProviderSyncEvent!]!
+}
+
+type RoadsideTariffVersion {
+    effective_from: String!
+    tariffs: Mixed
+    reason: String!
+    users_id: Int!
+    created_at: String!
+}
+
+input RoadsideEvidenceInput {
+    order_id: ID!
+    phase: RoadsideEvidencePhaseEnum
+    "Filesystem uuids of photos taken with the APK camera"
+    file_uuids: [String!]
+    "Operative comment; internal, never shown to the user"
+    comment: String
+    source: String
+}
+
+input RoadsideReassignInput {
+    order_id: ID!
+    reason: String!
+    "Hand the case to this technician; omit to send it back to the pool"
+    technician_id: ID
+    "Limit who may take the case; an empty list clears the limit"
+    eligible_technician_ids: [ID!]
+}
+
+input RoadsideTariffsInput {
+    "Same shape as the movipass_roadside_tariffs setting; omitted keys keep the launch defaults"
+    tariffs: JSON!
+    reason: String!
+    "Defaults to now; cannot be in the past"
+    effective_from: DateTime
+}
+
+extend type Query @guard {
+    "Immutable audit trail of an Asistencia Regional case, newest first."
+    roadsideAssistanceAuditLog(order_id: ID!): [RoadsideAuditEntry!]!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideRegionalQuery@auditLog")
+
+    "Every tariff change with its previous and new values."
+    roadsideTariffAuditLog: [RoadsideAuditEntry!]!
+        @guardByAdmin
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideRegionalQuery@tariffAuditLog")
+
+    roadsideTariffVersions: [RoadsideTariffVersion!]!
+        @guardByAdmin
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideRegionalQuery@tariffVersions")
+
+    "Stage durations of one case against their SLA thresholds."
+    roadsideAssistanceSla(order_id: ID!): [RoadsideSlaMetric!]!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideRegionalQuery@sla")
+
+    "Average stage durations and breaches for the cases created in the period."
+    roadsideAssistanceSlaSummary(from: DateTime!, to: DateTime!): [RoadsideSlaSummary!]!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideRegionalQuery@slaSummary")
+
+    "What was sent to Asistencia Regional for a case, what failed and why."
+    roadsideProviderSyncStatus(order_id: ID!): RoadsideProviderSyncStatus!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideRegionalQuery@providerSync")
+
+    "Evidence collected so far and what still blocks closing."
+    roadsideAssistanceEvidence(order_id: ID!): RoadsideEvidenceSummary!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideRegionalQuery@evidence")
+}
+
+extend type Mutation @guard {
+    "Technician (APK): take an offered case. The first to accept gets it."
+    acceptRoadsideOffer(order_id: ID!): Order!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@acceptOffer")
+
+    "Technician (APK): turn an offer down. A comment is required when the reason is other."
+    rejectRoadsideOffer(order_id: ID!, reason: RoadsideTechnicianDeclineReasonEnum!, comment: String): Order!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@rejectOffer")
+
+    "Technician (APK): drop an accepted case. The order is reassigned, never cancelled."
+    cancelRoadsideAttention(order_id: ID!, reason: RoadsideTechnicianDeclineReasonEnum!, comment: String!): Order!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@cancelAttention")
+
+    "Technician (APK): go online or offline. Offline is refused with a case in progress."
+    setRoadsideTechnicianAvailability(online: Boolean!): String!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@setAvailability")
+
+    "Technician (APK): a live GPS point for the assigned case."
+    trackRoadsideTechnician(order_id: ID!, lat: Float!, lng: Float!): RoadsideTrackingResult!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@track")
+
+    "Technician (APK): validate the 4-digit PIN to start the service. Every attempt is recorded."
+    validateRoadsideAssistancePin(order_id: ID!, pin: String!): Order!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@validatePin")
+
+    "Technician (APK): add before/after photos and/or the operative comment."
+    addRoadsideEvidence(input: RoadsideEvidenceInput!): RoadsideEvidenceSummary!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@addEvidence")
+
+    "Technician (APK): close as resolved or not resolved (reason required). Final."
+    closeRoadsideService(order_id: ID!, resolved: Boolean!, reason: String): Order!
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@close")
+
+    "Cabin: approve a held case (offers it to technicians) or decline it (flags a refund)."
+    resolveRoadsideCabinReview(order_id: ID!, approved: Boolean!, reason: String): Order!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@resolveCabinReview")
+
+    "Cabin: release the current technician, limit who may take the case, or hand it to one technician."
+    reassignRoadsideAssistance(input: RoadsideReassignInput!): Order!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@reassign")
+
+    "Cabin: re-queue the provider sync events that failed. Returns how many were re-queued."
+    retryRoadsideProviderSync(order_id: ID!): Int!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@retryProviderSync")
+
+    "Admin: append a tariff version with its effective date and reason. Paid orders keep their price."
+    updateRoadsideTariffs(input: RoadsideTariffsInput!): RoadsideTariffVersion!
+        @guardByAdmin
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@updateTariffs")
+}
