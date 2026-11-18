@@ -21,6 +21,7 @@ use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Payments\Jobs\RetryPaymentCaptureJob;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Throwable;
 
 /**
  * Class Payments
@@ -201,6 +202,18 @@ class Payments extends BaseModel
             $this->payable->markAsPaid($this->user);
         } elseif (method_exists($this->payable, 'checkPayments')) {
             $this->payable->checkPayments();
+        }
+    }
+
+    public function markAsCaptured(array $metadata = []): void
+    {
+        try {
+            $this->markAsPaid($metadata);
+        } catch (Throwable $e) {
+            report($e);
+
+            $this->status = PaymentStatusEnum::PAID->value;
+            $this->saveQuietly();
         }
     }
 

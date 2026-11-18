@@ -15,6 +15,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
 
 class PortalMockPaymentFlowTest extends PortalMockFlowCase
 {
@@ -271,5 +272,27 @@ class PortalMockPaymentFlowTest extends PortalMockFlowCase
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
         $this->assertTrue($payment->getMetadata('backup_capture'));
         $this->assertStringContainsString('timed out', $payment->getMetadata('capture_timeout')['error']);
+    }
+
+    public function testACaptureTheGatewayAcceptedStaysPaidWhenMarkingItPaidFails(): void
+    {
+        $this->collectReportedExceptions();
+        $service = $this->portalServiceWithRealMockClient();
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+
+        $redisFull = true;
+        Payments::updated(function (Payments $payment) use (&$redisFull, $paymentId) {
+            if ($redisFull && (string) $payment->getId() === (string) $paymentId && $payment->status === PaymentStatusEnum::PAID->value) {
+                $redisFull = false;
+
+                throw new RuntimeException("OOM command not allowed when used memory > 'maxmemory'.");
+            }
+        });
+
+        $capture = $this->runPaymentAction('capturePayment', $paymentId);
+
+        $this->assertSame('success', $capture['status'], $capture['message']);
+        $this->assertFalse($redisFull);
+        $this->assertSame(PaymentStatusEnum::PAID->value, Payments::find($paymentId)->status);
     }
 }

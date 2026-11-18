@@ -564,24 +564,6 @@ class PortalPaymentProcessor
                 ]),
                 $merchantAuthentication
             );
-
-            $payment->addLog('payment_captured', [
-                'order_id' => $order->id,
-                'transaction_id' => $transactionId,
-                'amount' => $order->getTotalAmount(),
-            ]);
-
-            $payment->markAsPaid([
-                'data' => [
-                    'capture_data' => $capturePayment,
-                ],
-            ]);
-
-            return [
-                'status' => 'success',
-                'message' => 'Payment captured successfully',
-                'data' => $capturePayment,
-            ];
         } catch (ConnectException | RequestException $e) {
             // Timeout occurred - provider likely captured but response didn't arrive
             // Assume success and mark as backup_capture for reconciliation
@@ -595,7 +577,7 @@ class PortalPaymentProcessor
                 'assumed_captured' => true,
             ]);
 
-            $payment->markAsPaid([
+            $payment->markAsCaptured([
                 'data' => [
                     'backup_capture' => true,
                     'capture_timeout' => [
@@ -647,6 +629,24 @@ class PortalPaymentProcessor
                 'data' => [],
             ];
         }
+
+        $payment->addLog('payment_captured', [
+            'order_id' => $order->id,
+            'transaction_id' => $transactionId,
+            'amount' => $order->getTotalAmount(),
+        ]);
+
+        $payment->markAsCaptured([
+            'data' => [
+                'capture_data' => $capturePayment,
+            ],
+        ]);
+
+        return [
+            'status' => 'success',
+            'message' => 'Payment captured successfully',
+            'data' => $capturePayment,
+        ];
     }
 
     public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array

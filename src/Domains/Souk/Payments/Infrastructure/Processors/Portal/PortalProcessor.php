@@ -150,7 +150,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 'assumed_captured' => true,
             ]);
 
-            $payment->markAsPaid([
+            $payment->markAsCaptured([
                 'data' => [
                     'backup_capture' => true,
                     'capture_timeout' => [
@@ -192,7 +192,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             'amount' => $captureAmount,
         ]);
 
-        $payment->markAsPaid([
+        $payment->markAsCaptured([
             'data' => [
                 'capture_data' => $response,
             ],
