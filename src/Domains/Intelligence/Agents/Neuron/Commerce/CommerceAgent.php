@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\ListOpenSalesOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesRevenueTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\ActiveUsersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\IssueCompanyCreditTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\ListOrderTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderBreakdownTool;
@@ -68,6 +69,7 @@ class CommerceAgent extends SystemUserAgent
             new OrderPaymentStatsTool(),
             new OrderCommissionStatsTool(),
             new OrderTrendTool(),
+            new ActiveUsersTool(),
             new OrderFulfillmentStatsTool(),
             new OrderProviderStatsTool(),
             new FindSalesOrderTool(),
@@ -99,6 +101,7 @@ class CommerceAgent extends SystemUserAgent
             '- "How much did we collect" / paid totals / average order value → order_payment_stats.',
             '- "Marketplace commission" / platform take-rate on commissioned orders → order_commission_stats. Per-provider payouts / "what do we owe provider X" / "which provider sells the most" → order_provider_stats.',
             '- "Orders over time" / "month by month" / "which week was best" / "is volume up or down" → order_trend (group_by day|week|month). It returns only periods that have orders — do not read a missing period as a data gap.',
+            '- "Active users" / "unique payers" / "usuarios activos" per vertical or in total → active_users (distinct users with a paid payment in the range; the total is deduplicated, never sum the verticals).',
             '- "Waiting to ship" / "paid but not fulfilled" / "how much is uncollected" / fulfillment backlog → order_fulfillment_stats.',
             '- "Revenue this quarter" / sales trend → sales_revenue (set by_month for a trend). "Top customers" / "biggest buyers" → sales_by_customer. "Best sellers" / "top products" → sales_by_product. All exclude draft/canceled orders — state the date range.',
             '- "Look up sales order #X" → find_sales_order. "What orders are open" / a customer\'s in-flight orders → list_open_sales_orders.',
