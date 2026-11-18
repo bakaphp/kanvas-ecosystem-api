@@ -42,7 +42,7 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
 
     public function testADeletedStatusAndTransitionAreRestoredNotDuplicated(): void
     {
-        $status = $this->status(MovipassOrderStatusEnum::ON_SITE);
+        $status = $this->orderStatus(MovipassOrderStatusEnum::ON_SITE);
         $transition = $this->transition(MovipassOrderStatusEnum::DISPATCHED, MovipassOrderStatusEnum::ON_SITE);
         $status->delete();
         $transition->delete();
@@ -64,8 +64,8 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
     {
         OrderStatusTransitions::create([
             'order_types_id' => $this->orderType()->getId(),
-            'from_status_id' => $this->status(MovipassOrderStatusEnum::SERVICE_COMPLETED)->getId(),
-            'to_status_id' => $this->status(MovipassOrderStatusEnum::REQUEST_SUBMITTED)->getId(),
+            'from_status_id' => $this->orderStatus(MovipassOrderStatusEnum::SERVICE_COMPLETED)->getId(),
+            'to_status_id' => $this->orderStatus(MovipassOrderStatusEnum::REQUEST_SUBMITTED)->getId(),
             'name' => 'stale',
             'companies_id' => 0,
         ]);
@@ -78,14 +78,14 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
 
     public function testAChangedFlagIsPutBack(): void
     {
-        $this->status(MovipassOrderStatusEnum::SERVICE_COMPLETED)->updateQuietly(['is_final' => 0]);
-        $this->status(MovipassOrderStatusEnum::DISPATCHED)->updateQuietly(['is_default' => 1]);
+        $this->orderStatus(MovipassOrderStatusEnum::SERVICE_COMPLETED)->updateQuietly(['is_final' => 0]);
+        $this->orderStatus(MovipassOrderStatusEnum::DISPATCHED)->updateQuietly(['is_default' => 1]);
 
         $summary = $this->sync();
 
         $this->assertSame(2, $summary['statuses_updated']);
-        $this->assertSame(1, (int) $this->status(MovipassOrderStatusEnum::SERVICE_COMPLETED)->is_final);
-        $this->assertSame(0, (int) $this->status(MovipassOrderStatusEnum::DISPATCHED)->is_default);
+        $this->assertSame(1, (int) $this->orderStatus(MovipassOrderStatusEnum::SERVICE_COMPLETED)->is_final);
+        $this->assertSame(0, (int) $this->orderStatus(MovipassOrderStatusEnum::DISPATCHED)->is_default);
     }
 
     /**
@@ -121,7 +121,7 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
             ->firstOrFail();
     }
 
-    private function status(MovipassOrderStatusEnum $status): OrderStatus
+    private function orderStatus(MovipassOrderStatusEnum $status): OrderStatus
     {
         return OrderStatus::where('order_types_id', $this->orderType()->getId())
             ->where('slug', $status->slug())
@@ -132,8 +132,8 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
     private function transition(MovipassOrderStatusEnum $from, MovipassOrderStatusEnum $to): ?OrderStatusTransitions
     {
         return OrderStatusTransitions::where('order_types_id', $this->orderType()->getId())
-            ->where('from_status_id', $this->status($from)->getId())
-            ->where('to_status_id', $this->status($to)->getId())
+            ->where('from_status_id', $this->orderStatus($from)->getId())
+            ->where('to_status_id', $this->orderStatus($to)->getId())
             ->first();
     }
 
