@@ -24,10 +24,9 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
- * The repositories live on the factory machine, and an agent that runs in Kanvas cannot read them: a
- * planner asked to audit the mobile template blocked with "no repository read tool". This puts the
- * question to a factory agent as a read-only sub-task of the asker's task, which waits and resumes
- * with the answer through the ordinary child-outcome path.
+ * The repositories live on the factory machine, where an agent that runs in Kanvas cannot read them. This
+ * puts the question to a factory agent as a read-only sub-task of the asker's task, which waits and
+ * resumes with the answer through the ordinary child-outcome path.
  */
 #[AgentTool(name: 'Ask Repository', category: 'nervous_system')]
 class AskRepositoryTool extends Tool implements RequiresSystemAgent
@@ -39,9 +38,8 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
 
     protected string $name = 'ask_repository';
 
-    protected ?string $description = 'Ask a question about a code repository (an app, the mobile template '
-        . 'kanvas-mobile-skeleton, the API). The repositories are on the factory machine and you cannot read '
-        . 'them yourself: a factory agent reads the repository and answers, read-only. Use it while working a '
+    protected ?string $description = 'Ask a question about a code repository (an app, a template, the API). '
+        . 'The repositories are on the factory machine and you cannot read them yourself: a factory agent reads the repository and answers, read-only. Use it while working a '
         . 'task, whenever the task needs facts from a repository (what the template already has, which '
         . 'components or services exist, what the specs say). Your task waits and resumes with the answer, '
         . 'so end your turn after asking. Never describe a repository you have not had answered.';
@@ -62,7 +60,7 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
             new ToolProperty(
                 name: 'repository',
                 type: PropertyType::STRING,
-                description: 'The repository folder, e.g. kanvas-mobile-skeleton.',
+                description: 'The repository folder, e.g. example-app.',
                 required: true,
             ),
             new ToolProperty(
@@ -141,13 +139,12 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
      */
     private function openQuestion(Task $task, string $checkout): ?Task
     {
-        $open = $task->children()
+        /** @var Task|null */
+        return $task->children()
             ->open()
             ->where('title', 'like', 'Read ' . $checkout . ':%')
             ->latest('id')
             ->first();
-
-        return $open instanceof Task ? $open : null;
     }
 
     private function ask(

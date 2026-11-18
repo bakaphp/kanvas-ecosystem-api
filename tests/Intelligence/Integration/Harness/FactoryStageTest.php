@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Integration\Harness;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
@@ -115,7 +116,13 @@ final class FactoryStageTest extends TestCase
         Queue::fake();
         [$project] = $this->factoryProject();
 
-        $ticket = $this->ticket()($project->getId(), 'example-app', 2, 'Home', 'As a user I see my items.');
+        $ticket = $this->ticket()(
+            $project->getId(),
+            'example-app',
+            2,
+            'Home',
+            'As a user I see my items.',
+        );
         [$design, $ship] = $this->stepsOf((int) $ticket['plan_id']);
         $section = 'the section `## Ticket 2:` in `specs/design/README.md`';
 
@@ -158,7 +165,12 @@ final class FactoryStageTest extends TestCase
         Queue::fake();
         [$project] = $this->factoryProject();
 
-        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+        );
 
         $this->assertCount(2, $this->stepsOf((int) $result['plan_id']));
     }
@@ -188,8 +200,18 @@ final class FactoryStageTest extends TestCase
         [$project] = $this->factoryProject();
         $kickoff = $this->kickoff();
 
-        $first = $kickoff($project->getId(), 'example-app', 'Example App', 'com.example.app');
-        $again = $kickoff($project->getId(), 'example-app', 'Example App', 'com.example.app');
+        $first = $kickoff(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+        );
+        $again = $kickoff(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+        );
 
         $this->assertTrue($again['reused']);
         $this->assertSame($first['plan_id'], $again['plan_id']);
@@ -244,7 +266,14 @@ final class FactoryStageTest extends TestCase
     {
         Queue::fake();
         [$project] = $this->factoryProject();
-        $result = $this->ticket()($project->getId(), 'example-app', 2, 'Record list', 'As a user I see my records.', false);
+        $result = $this->ticket()(
+            $project->getId(),
+            'example-app',
+            2,
+            'Record list',
+            'As a user I see my records.',
+            false,
+        );
         [$ship] = $this->stepsOf((int) $result['plan_id']);
 
         new UpdateTaskStatusAction($ship, TaskStatusEnum::DONE)->execute();
@@ -256,15 +285,33 @@ final class FactoryStageTest extends TestCase
         );
     }
 
-    /** The same ticket under another short name ("visit questions" / "visit-questions") ran a second time. */
+    /** The same ticket under another short name ("login screen" / "login-screen") is the one already on the board. */
     public function testTheSameTicketUnderAnotherNameReturnsTheOneOnTheBoard(): void
     {
         Queue::fake();
         [$project] = $this->factoryProject();
 
-        $first = $this->ticket()($project->getId(), 'example-app', 3, 'visit questions', 'As a user I keep questions.');
-        $again = $this->ticket()($project->getId(), 'example-app', 3, 'visit-questions', 'As a user I keep questions.');
-        $other = $this->ticket()($project->getId(), 'example-app', 4, 'visit-questions', 'Another ticket.');
+        $first = $this->ticket()(
+            $project->getId(),
+            'example-app',
+            3,
+            'login screen',
+            'As a user I keep questions.',
+        );
+        $again = $this->ticket()(
+            $project->getId(),
+            'example-app',
+            3,
+            'login-screen',
+            'As a user I keep questions.',
+        );
+        $other = $this->ticket()(
+            $project->getId(),
+            'example-app',
+            4,
+            'login-screen',
+            'Another ticket.',
+        );
 
         $this->assertTrue($again['reused']);
         $this->assertSame($first['plan_id'], $again['plan_id']);
@@ -276,11 +323,23 @@ final class FactoryStageTest extends TestCase
     {
         Queue::fake();
         [$project] = $this->factoryProject();
-        $ticket = $this->ticket()($project->getId(), 'example-app', 2, 'Record list', 'As a user I see my records.', false);
+        $ticket = $this->ticket()(
+            $project->getId(),
+            'example-app',
+            2,
+            'Record list',
+            'As a user I see my records.',
+            false,
+        );
         [$ship] = $this->stepsOf((int) $ticket['plan_id']);
         new UpdateTaskStatusAction($ship, TaskStatusEnum::BLOCKED, blockedReason: 'waiting on backend')->execute();
         $user = static::$cachedUser;
-        $release = new StartFactoryReleaseTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user, $this->orchestrator);
+        $release = new StartFactoryReleaseTool()->withContext(
+            app(Apps::class),
+            $user->getCurrentCompany(),
+            $user,
+            $this->orchestrator,
+        );
 
         $refused = $release($project->getId(), 'example-app');
 
@@ -308,6 +367,12 @@ final class FactoryStageTest extends TestCase
 
         $result = $release($project->getId(), 'example-app');
         $again = $release($project->getId(), 'example-app');
+        Carbon::setTestNow(now()->addDay());
+        $nextDay = $release($project->getId(), 'example-app');
+        Carbon::setTestNow();
+
+        // A release sent back and started again on another day is the same release, not a second one.
+        $this->assertSame($result['plan_id'], $nextDay['plan_id']);
 
         $steps = $this->stepsOf((int) $result['plan_id']);
         $this->assertCount(1, $steps);
@@ -345,13 +410,18 @@ final class FactoryStageTest extends TestCase
     {
         Queue::fake();
         [$project] = $this->factoryProject();
-        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+        );
         [$create] = $this->stepsOf((int) $result['plan_id']);
         $user = static::$cachedUser;
         $status = new UpdateNervousSystemTaskStatusTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
 
         $status($create->getId(), 'blocked', blocked_reason: 'The run was interrupted.');
-        $status($create->getId(), 'pending', description: "Repo: kanvas-mobile-skeleton\nNew app: example-app\nAdd it to apps.txt.");
+        $status($create->getId(), 'pending', description: "Repo: example-template\nNew app: example-app\nAdd it to apps.txt.");
 
         Queue::assertPushed(
             WakeAgentForTaskJob::class,
@@ -372,7 +442,12 @@ final class FactoryStageTest extends TestCase
     {
         Queue::fake();
         [$project] = $this->factoryProject();
-        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+        );
         $plan = Plan::query()->findOrFail($result['plan_id']);
         [$create, $configure] = $this->stepsOf($plan->getId());
         $user = static::$cachedUser;
@@ -431,7 +506,12 @@ final class FactoryStageTest extends TestCase
     {
         Queue::fake();
         [$project] = $this->factoryProject();
-        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+        );
         [$create] = $this->stepsOf((int) $result['plan_id']);
 
         // The factory run is a sub-task of the step; the step waits on it.
@@ -521,7 +601,12 @@ final class FactoryStageTest extends TestCase
         [$project] = $this->factoryProject();
         $project->set(FactoryProjectSettingEnum::BUILDER_AGENT->value, 0);
 
-        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'com.example.app');
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+        );
 
         $this->assertFalse($result['success'] ?? false);
         $this->assertStringContainsString(FactoryProjectSettingEnum::BUILDER_AGENT->value, (string) $result['error']);
@@ -534,7 +619,12 @@ final class FactoryStageTest extends TestCase
         Queue::fake();
         [$project] = $this->factoryProject();
 
-        $result = $this->kickoff()($project->getId(), 'example-app', 'Example App', 'not a bundle id');
+        $result = $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'not a bundle id',
+        );
 
         $this->assertStringContainsString('not a bundle id', (string) ($result['error'] ?? ''));
         $this->assertSame(0, Plan::query()->where('project_id', $project->getId())->count());

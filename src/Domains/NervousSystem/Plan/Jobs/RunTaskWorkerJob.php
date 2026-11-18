@@ -60,24 +60,6 @@ class RunTaskWorkerJob implements ShouldQueue
 
     public int $tries = 1;
 
-    /**
-     * Openings that mean the worker is reporting failure rather than a result. Deliberately few and
-     * headline-shaped: this decides whether finished work is thrown away, and the opposite error —
-     * marking successful work blocked — costs more than the one it prevents.
-     *
-     * @var list<string>
-     */
-    private const array SELF_BLOCKED_OPENINGS = [
-        'blocked',
-        'task status report: blocked',
-        'task status: blocked',
-        'status: blocked',
-        'unable to complete',
-        'i was unable to',
-        'i cannot complete',
-        'i could not complete',
-    ];
-
     public function __construct(
         public readonly Task $task,
         /**
@@ -165,7 +147,7 @@ class RunTaskWorkerJob implements ShouldQueue
         // metric" and was still marked done; the orchestrator then reported the count as 0, because a
         // done task with no contradiction looks like an answer. Marking it done is a claim, and the
         // only evidence for it is the text the worker just wrote.
-        if ($this->reportsItselfBlocked($response)) {
+        if (TaskDirectives::reportsItselfBlocked($response)) {
             $this->markBlocked($response, keepAsResult: true);
 
             $this->task->emitLedgerEvent(
@@ -338,8 +320,7 @@ class RunTaskWorkerJob implements ShouldQueue
                     . 'unless the task asks you to.'
                 : 'You are in a worktree of your own, on a branch made for this task from the app\'s base branch '
                     . '(usually develop).',
-            // A design step told "commit only" pushed, opened the pull request and wrote the logic as well:
-            // "end to end" with push as the default read as the whole ticket.
+            // On a shared branch "end to end" with push as the default reads as the whole ticket.
             $sharedBranch
                 ? 'Do only what this task asks: the ticket\'s other steps come after you on this branch. Commit '
                     . 'your work with Conventional Commit messages. Push the branch and open a pull request only '
@@ -493,28 +474,6 @@ class RunTaskWorkerJob implements ShouldQueue
             ...(is_array($this->task->result) ? $this->task->result : []),
             'worker_summary' => Str::limit($text, 4000),
         ];
-    }
-
-    /**
-     * Does the worker's own answer say it could not do the work?
-     *
-     * Anchored to the OPENING of the response, and to headline forms only. A task that mentions being
-     * blocked halfway through ("I unblocked the pipeline, then counted") has not failed, and matching
-     * the word anywhere would mark successful work as blocked — a worse error than the one this fixes,
-     * because it stops work that actually completed.
-     */
-    private function reportsItselfBlocked(string $response): bool
-    {
-        $opening = mb_strtolower(trim(Str::limit(strip_tags($response), 200, '')));
-        $opening = trim(preg_replace('/^[#*\s>_`-]+/u', '', $opening) ?? $opening);
-
-        foreach (self::SELF_BLOCKED_OPENINGS as $marker) {
-            if (str_starts_with($opening, $marker)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

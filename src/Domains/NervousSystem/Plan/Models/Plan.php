@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
@@ -158,14 +159,22 @@ class Plan extends BaseModel implements HandlesAgentMention
             ->whereNotNull('created_by_agent_id')
             ->whereColumn('agent_id', '!=', 'created_by_agent_id')
             ->where('status', PlanStatusEnum::ACTIVE->value)
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->whereHas('tasks', fn (Builder $tasks): Builder => $tasks->workingNow());
+    }
+
+    /** `Task::hasALiveRun()` for every task of the plan at once; a run's task lives in its own plan. */
+    public function hasALiveRun(): bool
+    {
+        $ids = $this->tasks()->pluck('id');
+        $runIds = Task::query()->whereIn('parent_task_id', $ids)->notDeleted()->pluck('id');
+
+        return AgentTaskSession::query()->whereIn('task_id', $ids->merge($runIds))->live()->exists();
     }
 
     /**
      * The plan's own steps, not the questions they delegated: a sub-task's ending belongs to the task
-     * that asked it, and a failed duplicate question left blocked kept a finished plan from ever
-     * reporting.
+     * that asked it, so a question left blocked never keeps a finished plan from reporting.
      */
     public function everyTaskFinished(): bool
     {
@@ -178,7 +187,7 @@ class Plan extends BaseModel implements HandlesAgentMention
     /**
      * A blocked or finished plan whose work was sent back to run again. Left blocked, it is invisible to
      * the still-working updates and to the every-task-finished wake, so it would finish with nobody told;
-     * left done, the orchestrator reads it as finished and moves on (a release opened without its ticket).
+     * left done, the orchestrator reads it as finished and moves on.
      */
     public function resumeIfNothingBlocks(): void
     {
@@ -226,8 +235,8 @@ class Plan extends BaseModel implements HandlesAgentMention
     }
 
     /**
-     * The agent that asked for this plan was told its last task finished, and answers the person in
-     * their conversation itself — so closing the plan afterwards is not news to either of them.
+     * The agent that asked for this plan was told its last task finished, so closing the plan afterwards
+     * is not news to it.
      */
     public function rememberFinishWasReported(): void
     {
@@ -239,9 +248,34 @@ class Plan extends BaseModel implements HandlesAgentMention
         return Cache::has($this->finishReportedKey());
     }
 
+    /**
+     * That agent answers the person in their conversation in its own words, so the done alert does not
+     * repeat it there. Set when its wake is sent, because the plan is often closed during that wake.
+     */
+    public function rememberAnswerIsComing(): void
+    {
+        Cache::put($this->answerComingKey(), true, now()->addHour());
+    }
+
+    public function answerIsComing(): bool
+    {
+        return Cache::has($this->answerComingKey());
+    }
+
+    /** The answer never reached the conversation, so the done alert has to say it after all. */
+    public function forgetAnswerIsComing(): void
+    {
+        Cache::forget($this->answerComingKey());
+    }
+
     private function finishReportedKey(): string
     {
         return 'ns:plan:' . $this->getId() . ':finish-reported';
+    }
+
+    private function answerComingKey(): string
+    {
+        return 'ns:plan:' . $this->getId() . ':answer-coming';
     }
 
     /**

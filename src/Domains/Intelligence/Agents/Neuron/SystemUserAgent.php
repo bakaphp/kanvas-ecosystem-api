@@ -70,6 +70,8 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
     private ?Channel $mentionChannel = null;
 
+    private ?bool $companyHasFactory = null;
+
     #[Override]
     protected function remembersForCompany(): bool
     {
@@ -365,9 +367,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
         // Only where a factory exists, which is the only place a repository can be read; a factory agent
         // works in the repository itself.
-        if (! CodingChatSettingEnum::isEnabledFor($agent)
-            && CodingChatSettingEnum::factoryAgentsOf($this->app, $this->company)->isNotEmpty()
-        ) {
+        if (! CodingChatSettingEnum::isEnabledFor($agent) && $this->companyHasFactory()) {
             $tools[] = new AskRepositoryTool()->withContext($this->app, $this->company, $human);
         }
 
@@ -404,6 +404,12 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     /**
      * The acting user for tools that read internal company data, null on a customer surface.
      */
+    /** Read for every turn's toolset, and it loads every active agent of the company. */
+    protected function companyHasFactory(): bool
+    {
+        return $this->companyHasFactory ??= CodingChatSettingEnum::factoryAgentsOf($this->app, $this->company)->isNotEmpty();
+    }
+
     private function internalActingUser(): ?Users
     {
         return $this instanceof ConversesWithCustomer ? null : $this->actingUser();

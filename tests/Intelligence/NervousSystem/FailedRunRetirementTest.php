@@ -7,11 +7,14 @@ namespace Tests\Intelligence\NervousSystem;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
+use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Tests\TestCase;
 use Tests\Traits\MakesPlans;
 
@@ -50,6 +53,28 @@ class FailedRunRetirementTest extends TestCase
         new UpdateTaskStatusAction(task: $run, newStatus: TaskStatusEnum::SKIPPED)->execute();
 
         $this->assertSame(PlanStatusEnum::CANCELLED->value, $run->plan->refresh()->status);
+    }
+
+    /** The failure already woke whoever was waiting on it; retiring it is housekeeping, not news. */
+    public function test_retiring_a_failed_run_wakes_nobody(): void
+    {
+        $parent = $this->makeTask($this->makePlan(), TaskStatusEnum::IN_PROGRESS);
+        $run = $this->makeRun($parent, PlanStatusEnum::FAILED, TaskStatusEnum::BLOCKED);
+        $project = new CreateProjectAction(
+            ProjectData::from(
+                app(Apps::class),
+                static::$cachedUser,
+                static::$cachedUser->getCurrentCompany(),
+                ['title' => 'Board', 'agent_id' => $this->makeAgent()->getId()],
+            ),
+        )->execute();
+        $run->plan->update(['project_id' => $project->getId()]);
+        Bus::fake();
+
+        new UpdateTaskStatusAction(task: $parent, newStatus: TaskStatusEnum::DONE)->execute();
+
+        $this->assertSame(PlanStatusEnum::CANCELLED->value, $run->plan->refresh()->status);
+        Bus::assertNotDispatched(WakeAgentForProjectJob::class);
     }
 
     public function test_a_failed_run_still_open_for_its_task_stays_failed(): void

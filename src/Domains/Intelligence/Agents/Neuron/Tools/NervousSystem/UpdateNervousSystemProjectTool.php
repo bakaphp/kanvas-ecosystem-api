@@ -108,9 +108,8 @@ class UpdateNervousSystemProjectTool extends Tool
             return $project;
         }
 
-        // OpenAI fills every optional string it has no value for with "", and writing those back blanked
-        // a live project's title, objective and description in the same call that set its status.
-        // Empty means "not given"; a deadline is cleared only by asking for it in words.
+        // A model fills every optional string it has no value for with "", so empty means "not given"; a
+        // deadline is cleared only by asking for it in words.
         $objective = Str::trimToNull($objective);
         $title = Str::trimToNull($title);
         $description = Str::trimToNull($description);

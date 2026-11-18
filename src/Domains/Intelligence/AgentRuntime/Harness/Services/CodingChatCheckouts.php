@@ -79,23 +79,29 @@ class CodingChatCheckouts
             return $this->namedIn($text);
         }
 
-        $found = $this->find($declared);
+        $found = $this->find($declared, $this->all());
 
-        if ($found === null) {
-            Cache::forget($this->cacheKey());
-            $found = $this->find($declared);
+        if ($found !== null) {
+            return $found;
         }
 
-        return $found ?? throw new ValidationException(
+        // An empty listing is never cached, so each call reaches the machine again: list it once.
+        Cache::forget($this->cacheKey());
+        $repos = $this->all();
+
+        return $this->find($declared, $repos) ?? throw new ValidationException(
             'The task says it works in "' . $declared . '", and the factory machine has no checkout by that name'
-            . ($this->all() === [] ? ' (its checkouts could not be listed).' : ': it has ' . implode(', ', $this->all()) . '.')
+            . ($repos === [] ? ' (its checkouts could not be listed).' : ': it has ' . implode(', ', $repos) . '.')
             . ' A new app gets its checkout from a kickoff task in the template first.'
         );
     }
 
-    private function find(string $name): ?string
+    /**
+     * @param list<string> $repos
+     */
+    private function find(string $name, array $repos): ?string
     {
-        foreach ($this->all() as $repo) {
+        foreach ($repos as $repo) {
             if (strcasecmp($repo, $name) === 0) {
                 return $repo;
             }

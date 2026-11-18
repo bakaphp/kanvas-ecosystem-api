@@ -168,7 +168,7 @@ class AgentTaskSession extends BaseModel
         }
 
         $owner = Str::slug((string) $this->agent?->name);
-        $slug = trim(Str::limit(Str::slug((string) $ticket->title), 40, ''), '-');
+        $slug = TaskDirectives::branchSlug((string) $ticket->title);
 
         return ($owner !== '' ? $owner : 'agent') . '/task-' . $ticket->getId() . ($slug !== '' ? '-' . $slug : '');
     }

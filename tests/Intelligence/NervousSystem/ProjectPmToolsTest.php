@@ -535,7 +535,14 @@ class ProjectPmToolsTest extends TestCase
         $project->saveOrFail();
 
         $tool = new UpdateNervousSystemProjectTool()->withContext($app, $company, $user);
-        $tool((int) $project->id, objective: '', title: '', description: ' ', status: 'done', deadline_at: '');
+        $tool(
+            (int) $project->id,
+            objective: '',
+            title: '',
+            description: ' ',
+            status: 'done',
+            deadline_at: '',
+        );
 
         $fresh = Project::query()->where('id', $project->id)->firstOrFail();
         $this->assertSame('done', $fresh->status);
@@ -878,11 +885,22 @@ class ProjectPmToolsTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $plan = $this->planUnderProject(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
         $title = (string) $plan->title;
 
         $tool = new UpdateNervousSystemPlanTool()->withContext($app, $company, $user);
-        $tool((int) $plan->id, title: '', description: ' ', status: 'done', blocked_needs: '');
+        $tool(
+            (int) $plan->id,
+            title: '',
+            description: ' ',
+            status: 'done',
+            blocked_needs: '',
+        );
 
         $fresh = Plan::query()->where('id', $plan->id)->firstOrFail();
         $this->assertSame('done', $fresh->status);
@@ -894,7 +912,12 @@ class ProjectPmToolsTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $plan = $this->planUnderProject(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
         $agent = $this->makeAgent($app, $company, Users::factory()->create());
 
         $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
@@ -909,7 +932,12 @@ class ProjectPmToolsTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $plan = $this->planUnderProject(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
 
         $tool = new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user);
         $result = ($tool)(plan_id: $plan->id, comment: 'Starting the assessment.', reply_to_message_id: 0);

@@ -11,13 +11,13 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
 /**
- * A finished run's checkout, released again once the Mac answers. A release lost to a dropped tunnel
- * left the worktree on the Mac holding its branch, and the next run on that branch (the release on
- * factory/integration) failed to start with "could not create a worktree".
+ * A finished run's checkout, released again once the factory machine answers: until then its worktree
+ * holds the branch, and the next run on that branch cannot create its own.
  */
 class ReleaseFactoryCheckoutJob implements ShouldQueue
 {
@@ -55,7 +55,11 @@ class ReleaseFactoryCheckoutJob implements ShouldQueue
             return;
         }
 
-        // A transport failure throws, and the queue tries again after the backoff.
-        $factory->release($session->repo_slug, $session->uuid);
+        // A transport failure throws, and the queue tries again after the backoff. A lock someone else
+        // holds now is theirs to release, and will refuse every retry.
+        try {
+            $factory->release($session->repo_slug, $session->uuid);
+        } catch (CheckoutInUseException) {
+        }
     }
 }

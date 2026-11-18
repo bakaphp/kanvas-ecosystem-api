@@ -619,7 +619,13 @@ class CodingChatTest extends TestCase
         $run = $this->startFactoryRun($task);
         $transport = $this->transport();
 
-        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'Now restart both apps so they pick up the harness.', transport: $transport);
+        $this->finishTurn(
+            run: $run,
+            status: HarnessStatusEnum::IDLE,
+            reply: 'Now restart both apps so they pick up the harness.',
+            transport: $transport,
+            attempt: 37,
+        );
 
         $run->refresh();
         $this->assertSame(HarnessStatusEnum::RUNNING->value, $run->status, 'the run is still working');
@@ -628,7 +634,21 @@ class CodingChatTest extends TestCase
         $carryOn = collect($transport->requests)->first(fn (array $request): bool => str_ends_with($request[1], '/prompt'));
         $this->assertNotNull($carryOn, 'the same session is asked to carry on');
         $this->assertStringContainsString(AgentTaskSession::RUN_FINISHED_MARKER, (string) ($carryOn[2]['text'] ?? ''));
-        Queue::assertPushed(PollHarnessSessionJob::class);
+        // The nudge shares the run's time limit: polling starts over at attempt 1 and the limit never comes.
+        Queue::assertPushed(PollHarnessSessionJob::class, fn (PollHarnessSessionJob $job): bool => $job->attempt === 37);
+    }
+
+    /** Said the way a worker's reply is read everywhere else, "Status: blocked" is an answer, not a pause. */
+    public function testAFactoryRunThatReportsItselfBlockedInAnyHeadlineFormIsNotNudged(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        $run = $this->startFactoryRun($task);
+
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, '**Status: blocked** - the simulator will not boot.');
+
+        $this->assertSame(HarnessStatusEnum::COMPLETED->value, $run->refresh()->status);
+        Queue::assertNotPushed(PollHarnessSessionJob::class);
     }
 
     public function testAFactoryRunThatKeepsStoppingClosesAsFailedNeverAsDone(): void
@@ -675,6 +695,21 @@ class CodingChatTest extends TestCase
         new ReleaseFactoryCheckoutJob(app(Apps::class), $run->getId())->handle();
 
         $this->assertStringContainsString("'release'", $factory->commands[0] ?? '');
+    }
+
+    /** A checkout someone else holds refuses every retry; queueing one only fills the failed jobs. */
+    public function testACheckoutHeldBySomeoneElseIsNotReleasedAgainAndAgain(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        $run = $this->startFactoryRun($task);
+        $refusal = json_encode(['error' => 'example-app is in use by holder-uuid', 'holder' => 'holder-uuid']);
+        $this->bindFactory($refusal);
+
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, 'Pushed and landed.' . "\n" . AgentTaskSession::RUN_FINISHED_MARKER);
+
+        Queue::assertNotPushed(ReleaseFactoryCheckoutJob::class);
+        new ReleaseFactoryCheckoutJob(app(Apps::class), $run->getId())->handle();
     }
 
     public function testAFactoryRunThatFailsBlocksTheTaskThatStartedIt(): void
@@ -859,7 +894,7 @@ class CodingChatTest extends TestCase
         $this->assertSame('example-app', TaskDirectives::repo('Repo: example-app, branch develop'));
         $this->assertSame('example-app', TaskDirectives::repo('Repo: example-app (the template)'));
 
-        foreach (['Repo: example-app and kanvas-ecosystem-api', 'Repo: example-app, acme/other-app', '**Repo:** `example-app` & kanvas-ecosystem-api'] as $line) {
+        foreach (['Repo: example-app and kanvas-ecosystem-api', 'Repo: example-app, mctekk/other-app', '**Repo:** `example-app` & kanvas-ecosystem-api'] as $line) {
             try {
                 TaskDirectives::repo($line);
                 $this->fail('Two repositories were read as one: ' . $line);
@@ -975,7 +1010,7 @@ class CodingChatTest extends TestCase
         Queue::fake();
         [$design, $logic] = $this->ticketLine();
         $run = $this->startFactoryRun($design);
-        $this->finishTurn($run, HarnessStatusEnum::IDLE, "Designed the login screen; committed on ticket/12-login-screen.\nTASK COMPLETE");
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, "Designed the login screen; committed on ticket/12-login-screen.\n" . AgentTaskSession::RUN_FINISHED_MARKER);
 
         new RunTaskWorkerJob($design->refresh(), 'Task #1 is now done.')->handle();
 
@@ -1022,7 +1057,7 @@ class CodingChatTest extends TestCase
         Queue::fake();
         [$check, $planning] = $this->factoryThenKanvasLine();
         $run = $this->startFactoryRun($check);
-        $this->finishTurn($run, HarnessStatusEnum::IDLE, "The template has a list screen and the API serves messages.\nTASK COMPLETE");
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, "The template has a list screen and the API serves messages.\n" . AgentTaskSession::RUN_FINISHED_MARKER);
 
         new RunTaskWorkerJob($check->refresh(), 'Task #1 is now done.')->handle();
 
@@ -1996,15 +2031,21 @@ class CodingChatTest extends TestCase
         ?string $reply,
         ?string $error = null,
         int $closedTurns = 1,
-        ?HarnessTransport $transport = null
+        ?HarnessTransport $transport = null,
+        int $attempt = 1
     ): void {
-        new DeliverCodingChatTurnAction($run, new HarnessTick(
-            status: $status,
-            usage: new HarnessUsage(),
-            error: $error,
-            closedTurns: $closedTurns,
-            turnReply: $reply,
-        ), $transport)->execute();
+        new DeliverCodingChatTurnAction(
+            $run,
+            new HarnessTick(
+                status: $status,
+                usage: new HarnessUsage(),
+                error: $error,
+                closedTurns: $closedTurns,
+                turnReply: $reply,
+            ),
+            $transport,
+            $attempt,
+        )->execute();
     }
 
     private function chatSession(Agent $agent): Session

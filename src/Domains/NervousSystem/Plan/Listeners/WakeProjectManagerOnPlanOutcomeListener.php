@@ -51,6 +51,12 @@ class WakeProjectManagerOnPlanOutcomeListener
 
         if ($finishedEveryTask) {
             $plan->rememberFinishWasReported();
+
+            // Only the agent that asked for the plan answers in the person's conversation; anyone else's
+            // wake leaves the done alert to say it there.
+            if ($creator->is($plan->createdByAgent)) {
+                $plan->rememberAnswerIsComing();
+            }
         }
 
         $plan->emitLedgerEvent(
@@ -96,6 +102,12 @@ class WakeProjectManagerOnPlanOutcomeListener
         // Only the transition. A terminal plan gets re-saved (files, completion, verification) and
         // each save would otherwise wake the PM again.
         if ((string) $plan->status === (string) $event->previousStatus) {
+            return false;
+        }
+
+        // A failed run retired once the work moved past it (`Plan::retireFailedAttempt()`): the failure
+        // already woke whoever was waiting on it.
+        if ($event->previousStatus === PlanStatusEnum::FAILED->value && $plan->status === PlanStatusEnum::CANCELLED->value) {
             return false;
         }
 
@@ -172,13 +184,12 @@ class WakeProjectManagerOnPlanOutcomeListener
     }
 
     /**
-     * Nobody else starts what follows a landed ticket. Told only "it is finished", the orchestrator
-     * reported the last ticket and stopped, and the stage never got its release pull request.
+     * Nobody else starts what follows a landed ticket, so the fact has to say what comes next.
      */
     private function nextFactoryStage(Plan $plan): string
     {
         $landed = $plan->tasks()->whereNull('parent_task_id')->get()->contains(
-            fn (Task $task): bool => str_contains($task->fullText(), 'HEAD:' . FactoryStage::INTEGRATION_BRANCH)
+            fn (Task $task): bool => FactoryStage::landsOnIntegration($task->fullText())
         );
 
         if (! $landed) {

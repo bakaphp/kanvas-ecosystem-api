@@ -65,7 +65,7 @@ class WakeAgentForTaskJob implements ShouldQueue
 
         $this->overwriteAppService($agent->app);
 
-        // A factory agent has no board turn to take: its model is the opencode agent on the factory Mac.
+        // A factory agent has no board turn to take: its model is the opencode agent on the factory machine.
         // The task goes through the worker, which hands it to the factory and records what comes back.
         if ($agent->is_active && CodingChatSettingEnum::runsTaskInFactory($agent, $this->task->fullText())) {
             $this->handToTheFactory();
@@ -82,11 +82,7 @@ class WakeAgentForTaskJob implements ShouldQueue
 
         // The factory worker that finishes the step ahead starts this one (RunTaskWorkerJob).
         if ($this->task->waitsOnEarlierFactoryWork()) {
-            $this->task->emitLedgerEvent('plan.task.queued', payload: [
-                'task_id' => $this->task->getId(),
-                'plan_id' => $this->task->plan_id,
-                'sequence' => (int) $this->task->sequence,
-            ]);
+            $this->recordQueued();
 
             return;
         }
@@ -245,15 +241,20 @@ class WakeAgentForTaskJob implements ShouldQueue
         }
 
         if ($this->task->waitsOnEarlierTasks()) {
-            $this->task->emitLedgerEvent('plan.task.queued', payload: [
-                'task_id' => $this->task->getId(),
-                'plan_id' => $this->task->plan_id,
-                'sequence' => (int) $this->task->sequence,
-            ]);
+            $this->recordQueued();
 
             return;
         }
 
         RunTaskWorkerJob::dispatch($this->task);
+    }
+
+    private function recordQueued(): void
+    {
+        $this->task->emitLedgerEvent('plan.task.queued', payload: [
+            'task_id' => $this->task->getId(),
+            'plan_id' => $this->task->plan_id,
+            'sequence' => (int) $this->task->sequence,
+        ]);
     }
 }

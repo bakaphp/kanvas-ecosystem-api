@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Support;
 
+use Baka\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 
 /**
@@ -14,9 +15,38 @@ use Kanvas\Exceptions\ValidationException;
 final class TaskDirectives
 {
     /**
-     * Integration branches a person merges into. A task works on its own branch and never on one of these.
+     * Branches a person merges into or deploys from. A task works on its own branch and never on one of
+     * these, and nothing is pushed to one: that is the one mistake deleting a branch cannot undo.
      */
-    private const array PROTECTED_BRANCHES = ['main', 'master', 'develop', 'development', 'trunk'];
+    public const array PROTECTED_BRANCHES = [
+        'main',
+        'master',
+        'develop',
+        'development',
+        'staging',
+        'production',
+        'release',
+        'trunk',
+        'head',
+    ];
+
+    /**
+     * Openings that mean the worker is reporting failure rather than a result. Deliberately few and
+     * headline-shaped: this decides whether finished work is thrown away, and the opposite error —
+     * marking successful work blocked — costs more than the one it prevents.
+     *
+     * @var list<string>
+     */
+    private const array SELF_BLOCKED_OPENINGS = [
+        'blocked',
+        'task status report: blocked',
+        'task status: blocked',
+        'status: blocked',
+        'unable to complete',
+        'i was unable to',
+        'i cannot complete',
+        'i could not complete',
+    ];
 
     /**
      * `Repo: example-app`, `**Repo:** acme/example-app`, `Repository: https://github.com/acme/example-app.git`:
@@ -30,8 +60,7 @@ final class TaskDirectives
             $matches
         );
 
-        // A run opens one checkout. "Repo: a and b" used to open `a` and drop `b` without a word, so a
-        // backend agent asked about two repositories read only the app.
+        // A run opens one checkout, so "Repo: a and b" would silently drop `b`.
         foreach ($matches[2] as $index => $rest) {
             if (preg_match('/^[ \t]*(?:,|&|\+|\band\b|\by\b)[ \t*`]*(?:[A-Za-z0-9._-]+\/[A-Za-z0-9]|[A-Za-z0-9._]+-[A-Za-z0-9])/i', $rest) === 1) {
                 throw new ValidationException(
@@ -106,5 +135,33 @@ final class TaskDirectives
         }
 
         return $values[0] ?? null;
+    }
+
+    /**
+     * Does the worker's own answer say it could not do the work?
+     *
+     * Anchored to the OPENING of the response, and to headline forms only. A task that mentions being
+     * blocked halfway through ("I unblocked the pipeline, then counted") has not failed, and matching
+     * the word anywhere would mark successful work as blocked — a worse error than the one this fixes,
+     * because it stops work that actually completed.
+     */
+    public static function reportsItselfBlocked(string $response): bool
+    {
+        $opening = mb_strtolower(trim(Str::limit(strip_tags($response), 200, '')));
+        $opening = trim(preg_replace('/^[#*\s>_`-]+/u', '', $opening) ?? $opening);
+
+        foreach (self::SELF_BLOCKED_OPENINGS as $marker) {
+            if (str_starts_with($opening, $marker)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** A name's part of a branch: short, and never ending in "-" when the cut lands on one. */
+    public static function branchSlug(string $name): string
+    {
+        return trim(Str::limit(Str::slug($name), 40, ''), '-');
     }
 }

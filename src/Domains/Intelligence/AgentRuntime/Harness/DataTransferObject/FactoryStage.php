@@ -28,9 +28,13 @@ final readonly class FactoryStage
      */
     public const string INTEGRATION_BRANCH = 'factory/integration';
 
+    private const string RELEASE_TITLE = 'Release: ';
+
+    private const string LANDING_PUSH = 'git push origin HEAD:' . self::INTEGRATION_BRANCH;
+
     /**
-     * The app's own `CLAUDE.md` makes this mandatory after every change, and a builder follows the specs
-     * its task names: left out of the task, it was skipped.
+     * The app's own `CLAUDE.md` makes this mandatory after every change, but a builder follows the specs
+     * its task names, so the task names it.
      */
     private const string APP_QA = 'Before the work leaves this branch, get the app running your change from Metro on BOTH the '
         . 'iOS simulator and the Android emulator, with the app\'s own run scripts (`yarn ios` / `yarn android`). A '
@@ -58,8 +62,6 @@ final readonly class FactoryStage
 
     /**
      * @param list<FactoryStep> $steps run in this order
-     */
-    /**
      * @param ?string $sameStageLike a SQL LIKE pattern for an open plan that is this same stage under
      *                               another title; null means the exact title
      */
@@ -121,7 +123,7 @@ final readonly class FactoryStage
             '',
             'Steps:',
             '1. Run `.kanvas/new-app check`.',
-            '2. If the repository ' . $repository . ' and its clone on this Mac already exist, an earlier run created them: '
+            '2. If the repository ' . $repository . ' and its clone on this machine already exist, an earlier run created them: '
                 . 'do not create them again. Otherwise run `.kanvas/new-app create ' . $repository . '`.',
             '3. If `' . $repository . '` is not in `apps.txt` yet, add it and open a draft pull request for that line into '
                 . 'the template\'s `develop`.',
@@ -259,7 +261,8 @@ final readonly class FactoryStage
 
         $builder = self::builder($project);
         $designer = FactoryProjectSettingEnum::designerFor($project) ?? $builder;
-        $branch = 'ticket/' . $number . '-' . Str::limit(Str::slug($shortName), 40, '');
+        $slug = TaskDirectives::branchSlug($shortName);
+        $branch = 'ticket/' . $number . ($slug !== '' ? '-' . $slug : '');
         $lines = 'Repo: ' . $repository . "\nBranch: " . $branch;
         $quoted = "\n\nTicket " . $number . ":\n" . $ticket;
 
@@ -383,25 +386,25 @@ final readonly class FactoryStage
 
         return new self(
             $project,
-            'Release: ' . $repository . ' into develop (' . $date . ')',
+            self::RELEASE_TITLE . $repository . ' into develop (' . $date . ')',
             'The unified app on `' . $integration . '` tested as a whole, then one pull request from it into `develop`.',
             [new FactoryStep('Release ' . $date . ': test the unified app, pull request into develop', $text, $builder)],
+            self::RELEASE_TITLE . self::likeLiteral($repository) . ' into develop (%',
         );
     }
 
     /**
      * A release pull request says the stage is finished, so it never starts while the board says
-     * otherwise. One went ready with two tickets whose features did not work yet and blocked steps
-     * on the board. The release's own plan is left out: it is the one being started or sent back.
+     * otherwise. The release's own plan is left out: it is the one being started or sent back.
      */
     private static function assertBoardIsDone(Project $project): void
     {
         $open = Task::query()
             ->whereHas('plan', fn ($plan) => $plan
                 ->where('project_id', $project->getId())
-                ->where('is_deleted', 0)
-                ->where('title', 'not like', 'Release: %'))
-            ->where('is_deleted', 0)
+                ->notDeleted()
+                ->where('title', 'not like', self::RELEASE_TITLE . '%'))
+            ->notDeleted()
             ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
             ->orderBy('id')
             ->limit(10)
@@ -427,14 +430,20 @@ final readonly class FactoryStage
             . 'origin/develop:refs/heads/' . self::INTEGRATION_BRANCH . '`.';
     }
 
+    /** The task's own steps move the integration branch, so the next stage can start when it finishes. */
+    public static function landsOnIntegration(string $taskText): bool
+    {
+        return str_contains($taskText, self::LANDING_PUSH);
+    }
+
     /** A fast-forward push of the ticket branch: no checkout, no pull request, no person in the loop. */
     private static function landOnIntegration(): string
     {
         return 'Land the work on the integration branch, not in a pull request: commit following the app\'s '
             . 'Conventional Commits, run `git fetch origin` and merge `origin/' . self::INTEGRATION_BRANCH . '` into '
             . 'this branch again (another ticket may have landed), fix any conflict, re-run the app\'s type check, lint '
-            . 'and unit tests, then push this branch and move the integration branch to it with `git push origin '
-            . 'HEAD:' . self::INTEGRATION_BRANCH . '`. If that push is rejected, fetch, merge and push again. Never push '
+            . 'and unit tests, then push this branch and move the integration branch to it with `'
+            . self::LANDING_PUSH . '`. If that push is rejected, fetch, merge and push again. Never push '
             . 'to `develop` and never open a pull request: the stage ends with one release pull request into '
             . '`develop`. Reply with the commit now at the tip of `' . self::INTEGRATION_BRANCH . '`, the checks you '
             . 'ran and the QA report.';
@@ -444,7 +453,7 @@ final readonly class FactoryStage
     {
         return FactoryProjectSettingEnum::builderFor($project) ?? throw new ValidationException(
             'This project has no factory builder: set its `' . FactoryProjectSettingEnum::BUILDER_AGENT->value
-            . '` to an agent that works on the factory Mac.'
+            . '` to an agent that works on the factory machine.'
         );
     }
 

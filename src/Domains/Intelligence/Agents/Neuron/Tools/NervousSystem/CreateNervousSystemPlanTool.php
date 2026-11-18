@@ -128,7 +128,7 @@ class CreateNervousSystemPlanTool extends Tool
         )->execute();
 
         $plan->project_id = $project->getId();
-        // The CONVERSATION, not just the room (plan 26824: the alert landed in the right DM, outside the
+        // The CONVERSATION, not just the room (the alert landed in the right DM, outside the
         // session, and the person watching that DM saw nothing).
         $plan->rememberOrigin($this->session);
 

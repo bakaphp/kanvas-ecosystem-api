@@ -12,6 +12,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\PollHarnessSessionJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\WatchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Throwable;
 
 /**
@@ -30,10 +31,13 @@ class DeliverCodingChatTurnAction
      */
     public const int MAX_TASK_RUN_TURNS = 4;
 
+    private ?string $nudgeFailure = null;
+
     public function __construct(
         private readonly AgentTaskSession $session,
         private readonly HarnessTick $tick,
         private readonly ?HarnessTransport $transport = null,
+        private readonly int $attempt = 1,
     ) {
     }
 
@@ -60,8 +64,8 @@ class DeliverCodingChatTurnAction
      * Closing records the run's task as done or blocked, and that is what resumes the task that started
      * it. The checkout is released for the next run: nobody will send this one a second message.
      *
-     * A turn also ends when the model simply stops talking, mid-work, and closing then recorded a ticket
-     * as done with nothing pushed (its last words were "Now restart both apps"). So a run is done only
+     * A turn also ends when the model simply stops talking, mid-work, and closing then would record a
+     * ticket as done with nothing pushed. So a run is done only
      * when it says it is, with the marker its brief asks for, or says BLOCKED; otherwise it is told to
      * carry on, and after `MAX_TASK_RUN_TURNS` it closes as failed, never as done.
      */
@@ -75,10 +79,13 @@ class DeliverCodingChatTurnAction
                 return;
             }
 
+            $reason = $this->nudgeFailure !== null
+                ? 'The factory run stopped before it finished and could not be told to carry on: ' . $this->nudgeFailure . '.'
+                : 'The factory run stopped before it finished, ' . $this->tick->closedTurns . ' times.';
+
             $this->close(
                 HarnessStatusEnum::FAILED,
-                'The factory run stopped before it finished, ' . $this->tick->closedTurns . ' times. Its work so '
-                    . 'far is saved on its branch; send the step back to continue from there.',
+                $reason . ' Its work so far is saved on its branch; send the step back to continue from there.',
                 $reply,
             );
 
@@ -106,18 +113,13 @@ class DeliverCodingChatTurnAction
 
     private function saysItIsFinished(?string $reply): bool
     {
-        if ($reply === null) {
-            return false;
-        }
-
-        $opening = ltrim($reply, " \t\n\r\0\x0B#*>_`-");
-
-        return str_contains($reply, AgentTaskSession::RUN_FINISHED_MARKER)
-            || stripos($opening, 'BLOCKED') === 0;
+        return $reply !== null
+            && (str_contains($reply, AgentTaskSession::RUN_FINISHED_MARKER) || TaskDirectives::reportsItselfBlocked($reply));
     }
 
     /**
-     * The next turn of the same session, so the agent keeps its context and its checkout.
+     * The next turn of the same session, so the agent keeps its context and its checkout. The poll goes on
+     * at the same attempt, so the nudges share the run's time limit instead of each starting a new one.
      */
     private function carryOn(): bool
     {
@@ -127,21 +129,25 @@ class DeliverCodingChatTurnAction
             $this->session->touchHeartbeat();
             $this->session->saveOrFail();
 
-            HarnessFactory::forSession($this->session, $this->transport)->ask(
+            RestartFactoryServerAction::retrying(
                 $this->session,
-                'You stopped before the task was finished: your last reply did not end with the line '
-                    . AgentTaskSession::RUN_FINISHED_MARKER . '. Carry on from exactly where you are and do every '
-                    . 'step the task still needs. When all of it is done, reply with the summary the task asks '
-                    . 'for and end it with ' . AgentTaskSession::RUN_FINISHED_MARKER . '. If something stops '
-                    . 'you, start your reply with BLOCKED and say why.'
+                fn () => HarnessFactory::forSession($this->session, $this->transport)->ask(
+                    $this->session,
+                    'You stopped before the task was finished: your last reply did not end with the line '
+                        . AgentTaskSession::RUN_FINISHED_MARKER . '. Carry on from exactly where you are and do '
+                        . 'every step the task still needs. When all of it is done, reply with the summary the '
+                        . 'task asks for and end it with ' . AgentTaskSession::RUN_FINISHED_MARKER . '. If something '
+                        . 'stops you, start your reply with BLOCKED and say why.'
+                )
             );
         } catch (Throwable $e) {
             report($e);
+            $this->nudgeFailure = $e->getMessage();
 
             return false;
         }
 
-        PollHarnessSessionJob::dispatch($this->session->app, $this->session->getId());
+        PollHarnessSessionJob::dispatch($this->session->app, $this->session->getId(), $this->attempt);
 
         return true;
     }

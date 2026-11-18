@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -80,7 +81,7 @@ class AssignNervousSystemTaskTool extends Tool
 
         // Its work is already running (a factory run under the current assignee): moving the record would
         // leave the board naming one agent while another does the work, and the run would not move with it.
-        if ($task->agent_id !== null && $task->agent_id !== $agent->getId() && $task->hasOpenChildren()) {
+        if ($task->agent_id !== null && $task->agent_id !== $agent->getId() && $task->hasALiveRun()) {
             return [
                 'error' => "Task {$task_id} is already being worked by '{$task->agent?->name}', so it was NOT "
                     . 'reassigned. Wait for its result; if it comes back blocked, put it back to pending first.',
@@ -96,6 +97,14 @@ class AssignNervousSystemTaskTool extends Tool
 
         if ($refusal !== null) {
             return ['error' => "Task {$task_id} was NOT assigned to '{$agent->name}'. " . $refusal];
+        }
+
+        if (CodingChatSettingEnum::isEnabledFor($agent)) {
+            try {
+                TaskDirectives::repo($task->fullText());
+            } catch (ValidationException $e) {
+                return ['error' => "Task {$task_id} was NOT assigned to '{$agent->name}'. " . $e->getMessage()];
+            }
         }
 
         // A plan nobody owns is inert: WakeWorkerForPlanJob returns on its first line, the plan-change
@@ -141,7 +150,7 @@ class AssignNervousSystemTaskTool extends Tool
 
         return [
             'note' => sprintf(
-                'Task %d has no `Repo: <folder>` line, so on the Mac it runs in the checkout its text names, '
+                'Task %d has no `Repo: <folder>` line, so on the factory machine it runs in the checkout its text names, '
                     . 'else in %s. If it belongs in another repository, give it that line now.',
                 $task->getId(),
                 $default,

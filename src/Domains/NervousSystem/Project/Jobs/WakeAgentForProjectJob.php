@@ -173,6 +173,8 @@ class WakeAgentForProjectJob implements ShouldQueue
         );
 
         if ($wake === null) {
+            $this->reportsOn?->forgetAnswerIsComing();
+
             return;
         }
 
@@ -190,6 +192,7 @@ class WakeAgentForProjectJob implements ShouldQueue
                 payload: $failurePayload,
                 durationMs: $durationMs,
             );
+            $this->reportsOn?->forgetAnswerIsComing();
 
             return;
         }
@@ -246,6 +249,7 @@ class WakeAgentForProjectJob implements ShouldQueue
                 mention: false,
             );
         } catch (Throwable $e) {
+            $this->reportsOn->forgetAnswerIsComing();
             report($e);
         }
     }

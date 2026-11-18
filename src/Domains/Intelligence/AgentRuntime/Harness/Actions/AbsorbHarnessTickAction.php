@@ -56,9 +56,8 @@ class AbsorbHarnessTickAction
     }
 
     /**
-     * Every poll re-reports a pending ask, so each one is announced once, by its id. Keying it on the
-     * status instead missed an agent that asks again before a poll sees it running: the session never
-     * leaves the waiting state, and the second ask was never said.
+     * Every poll re-reports a pending ask, so each one is announced once, by its id: an agent can ask
+     * again before a poll sees it running, and the session never leaves the waiting state in between.
      */
     private function say(): void
     {

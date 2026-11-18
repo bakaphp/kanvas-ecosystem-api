@@ -106,18 +106,16 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
             return ['error' => 'A wait needs its wake: use snooze_task with the date, not a status change.'];
         }
 
-        // A run's task, and the step it runs for, close when the run does. A PM that read a pending ask as
-        // "blocked" marked a live factory run blocked, and the steps above it followed while it kept working.
+        // A run's task, and the step it runs for, close when the run does.
         if ($task->hasALiveRun()) {
             return ['error' => sprintf(
                 'Task #%d has a coding run that is still going; it reports its own outcome. Nothing changed. '
-                    . 'To stop it, use cancel_self_hosted_coding_job.',
+                    . 'If it has to stop, tell the person who asked for the work.',
                 $task->getId()
             )];
         }
 
-        // Without this, "send it back with what to fix" cannot change what the task says, so a task whose
-        // instructions were wrong could only be skipped and written again.
+        // Sending a task back with what to fix has to be able to change what it says.
         $description = Str::trimToNull($description);
 
         if ($description !== null) {

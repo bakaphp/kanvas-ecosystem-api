@@ -30,7 +30,7 @@ class StartAppKickoffTool extends Tool implements RequiresSystemAgent
 
     protected string $name = 'start_app_kickoff';
 
-    protected ?string $description = 'Start the kickoff of a new mobile app on the factory Mac, once a person has approved '
+    protected ?string $description = 'Start the kickoff of a new mobile app on the factory machine, once a person has approved '
         . 'the technical plan and confirmed the repository name, display name and bundle id. Creates the kickoff plan '
         . 'with its steps already written and assigned: the app is created from the template, given its identity '
         . 'and, with brief_url and plan_url, designed ticket by ticket from the approved plan (brand and theme from '

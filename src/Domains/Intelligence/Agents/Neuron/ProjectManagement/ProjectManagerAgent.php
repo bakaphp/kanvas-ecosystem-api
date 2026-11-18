@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\ProjectManagement;
 
 use Illuminate\Database\Eloquent\Collection;
-use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
@@ -16,6 +15,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingQuestionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
@@ -463,14 +463,16 @@ class ProjectManagerAgent extends SystemUserAgent
             new ListCompanyWorkflowsTool(),
         ]);
 
-        // Only a company with a factory Mac has stages to start; every other PM keeps its toolset as it was.
-        if (CodingChatSettingEnum::factoryAgentsOf($app, $company)->isNotEmpty()) {
+        // Only a company with a factory has stages to start.
+        if ($this->companyHasFactory()) {
             array_push($core, ...$this->addToolContext([
                 new StartAppKickoffTool($this->session),
                 new StartFactoryTicketTool($this->session),
                 new StartFactoryReleaseTool($this->session),
             ]));
-            // A factory step that stops on a permission or a question is asked in this conversation.
+            // A factory step that stops on a permission or a question is asked in this conversation; the
+            // check tool is where both answer tools read the ids from.
+            $core[] = new CheckHarnessCodingJobTool($agent);
             $core[] = new AnswerHarnessCodingPermissionTool($agent, onlyRelays: true);
             $core[] = new AnswerHarnessCodingQuestionTool($agent);
         }

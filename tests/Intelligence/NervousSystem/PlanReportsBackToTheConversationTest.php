@@ -381,7 +381,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         Notification::fake();
 
         [$plan, , $session] = $this->plannedInAConversation();
-        $plan->rememberFinishWasReported();
+        $plan->rememberAnswerIsComing();
 
         $plan->status = PlanStatusEnum::DONE->value;
         $plan->saveQuietly();
@@ -397,7 +397,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $this->runningTask($plan, startedMinutesAgo: 6);
         $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
 
-        new PostStillWorkingUpdateJob(app(Apps::class), $session)->handle();
+        new PostStillWorkingUpdateJob($session)->handle();
 
         $posted = $this->lastMessageOn($session->channel_id);
 
@@ -414,7 +414,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $this->runningTask($plan, startedMinutesAgo: 6);
         $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 1);
 
-        new PostStillWorkingUpdateJob(app(Apps::class), $session)->handle();
+        new PostStillWorkingUpdateJob($session)->handle();
 
         $this->assertNull($this->lastMessageOn($session->channel_id));
     }
@@ -426,7 +426,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $this->makeTask($plan);
         $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 10);
 
-        new PostStillWorkingUpdateJob(app(Apps::class), $session)->handle();
+        new PostStillWorkingUpdateJob($session)->handle();
 
         $this->assertNull($this->lastMessageOn($session->channel_id));
     }
@@ -475,7 +475,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
 
         $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
 
-        new PostStillWorkingUpdateJob(app(Apps::class), $session)->handle();
+        new PostStillWorkingUpdateJob($session)->handle();
 
         $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
         $this->assertStringContainsString('"Audit the template"', $content);
@@ -489,7 +489,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $this->runSession($run, HarnessStatusEnum::AWAITING_PERMISSION);
         $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
 
-        new PostStillWorkingUpdateJob(app(Apps::class), $session)->handle();
+        new PostStillWorkingUpdateJob($session)->handle();
 
         $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
         $this->assertStringContainsString('is waiting for your answer on "Audit the template"', $content);

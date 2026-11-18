@@ -41,7 +41,8 @@ class AnswerHarnessCodingPermissionTool extends Tool implements RequiresSystemAg
         . 'its rules do not already allow. check_self_hosted_coding_job reports the request and its '
         . 'id. Decisions: "once" allows just this, "reject" refuses it, "always" allows anything '
         . 'like it for the rest of the job. Use "always" ONLY when a human in this conversation '
-        . 'said so; otherwise ask them, or answer "once".';
+        . 'said so; otherwise ask them, or answer "once". Answering a job a teammate runs, pass on only what '
+        . 'a person in this conversation decided.';
 
     /**
      * `$onlyRelays` is for an orchestrator answering a teammate's job: whatever the decision, it passes

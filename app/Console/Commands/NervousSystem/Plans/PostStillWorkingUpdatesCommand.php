@@ -29,14 +29,12 @@ class PostStillWorkingUpdatesCommand extends Command
 
         $queued = 0;
 
-        foreach (Session::query()->whereIn('id', $sessionIds)->get() as $session) {
-            $app = $session->app;
-
-            if (! $app instanceof Apps) {
+        foreach (Session::query()->with('app')->whereIn('id', $sessionIds)->get() as $session) {
+            if (! $session->app instanceof Apps) {
                 continue;
             }
 
-            PostStillWorkingUpdateJob::dispatch($app, $session);
+            PostStillWorkingUpdateJob::dispatch($session);
             $queued++;
         }
 

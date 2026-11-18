@@ -30,7 +30,7 @@ class StartFactoryReleaseTool extends Tool implements RequiresSystemAgent
 
     protected string $name = 'start_factory_release';
 
-    protected ?string $description = 'Finish an app\'s stage on the factory Mac: the builder tests the unified app on '
+    protected ?string $description = 'Finish an app\'s stage on the factory machine: the builder tests the unified app on '
         . 'the factory/integration branch, where every ticket landed (nothing lost or overwritten, the features '
         . 'working together on both platforms), adds the dated changelog, and opens the one pull request from that '
         . 'branch into develop. Call it once, when the last ticket of the approved plan has finished, without asking '

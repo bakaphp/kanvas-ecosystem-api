@@ -39,8 +39,8 @@ class StartFactoryStageAction
     {
         $project = $this->stage->project;
 
-        // The same ticket under a slightly different short name ("visit questions" / "visit-questions")
-        // is still the same ticket: started twice, it ran its design and build a second time.
+        // The same ticket under a slightly different short name ("login screen" / "login-screen") is still
+        // the same ticket, and must not run its design and build twice.
         $open = Plan::query()
             ->where('project_id', $project->getId())
             ->when(

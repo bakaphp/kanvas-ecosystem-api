@@ -283,6 +283,29 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
         Bus::assertDispatchedTimes(WakeAgentForProjectJob::class, 1);
     }
 
+    /**
+     * Only the agent that asked for the plan answers in the person's conversation, so only its wake may
+     * hold back the done alert there. With no creator recorded the project's PM is woken, and the person
+     * heard nothing at all.
+     */
+    public function testOnlyTheCreatorsWakeHoldsBackTheDoneAlertInTheConversation(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+        new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE)->execute();
+
+        $this->assertTrue($plan->finishWasReported());
+        $this->assertFalse($plan->answerIsComing());
+
+        [$project, $asked] = $this->delegatedPlan();
+        $asked->created_by_agent_id = $project->pmAgent?->getId();
+        $asked->saveQuietly();
+        new UpdateTaskStatusAction($this->taskOn($asked->refresh()), TaskStatusEnum::DONE)->execute();
+
+        $this->assertTrue($asked->answerIsComing());
+    }
+
     /** A plan the worker blocks is still news, after its last task was reported or not. */
     public function testBlockingAPlanWhoseFinishWasReportedStillWakesTheCreator(): void
     {

@@ -14,7 +14,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
@@ -42,14 +41,13 @@ class PostStillWorkingUpdateJob implements ShouldQueue
     public const int SILENT_SECONDS = 180;
 
     public function __construct(
-        public readonly Apps $app,
         public readonly Session $session,
     ) {
     }
 
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
+        $this->overwriteAppService($this->session->app);
 
         $plans = Plan::query()
             ->workingForAConversation()
@@ -81,8 +79,8 @@ class PostStillWorkingUpdateJob implements ShouldQueue
     private function conversationIsSilent(): bool
     {
         $conversations = AgentConversation::query()
-            ->where('apps_id', $this->session->apps_id)
-            ->where('companies_id', $this->session->companies_id)
+            ->fromApp($this->session->apps_id)
+            ->fromCompany($this->session->companies_id)
             ->where('title', $this->session->uuid)
             ->select('id');
 
@@ -144,12 +142,11 @@ class PostStillWorkingUpdateJob implements ShouldQueue
     /** The step on this plan itself, never a sub-step under it. */
     private function workingTask(Plan $plan): ?Task
     {
-        $working = $plan->tasks()
+        /** @var Task|null */
+        return $plan->tasks()
             ->workingNow()
             ->orderByRaw('parent_task_id IS NOT NULL')
             ->orderBy('id')
             ->first();
-
-        return $working instanceof Task ? $working : null;
     }
 }

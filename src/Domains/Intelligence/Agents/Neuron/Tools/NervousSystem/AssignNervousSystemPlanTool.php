@@ -80,8 +80,7 @@ class AssignNervousSystemPlanTool extends Tool
      */
     public function __invoke(int $plan_id, ?int $agent_id = null, ?int $users_id = null): array
     {
-        // OpenAI fills the optional id it has no value for with 0, which read as "both given" and was
-        // refused on every retry until the turn hit its run cap. No row has id 0.
+        // A model fills an optional id it has no value for with 0, and no row has id 0.
         $agent_id = $agent_id > 0 ? $agent_id : null;
         $users_id = $users_id > 0 ? $users_id : null;
 
@@ -138,11 +137,11 @@ class AssignNervousSystemPlanTool extends Tool
             ];
         }
 
-        // A factory agent's plan wake does nothing (WakeAgentForPlanJob): only a task assigned to it runs
-        // on the Mac. Accepting the plan answered "it will auto-run" and the kickoff sat untouched.
+        // A factory agent works the tasks assigned to it, never a whole plan: its plan wake does nothing
+        // (WakeAgentForPlanJob).
         if (CodingChatSettingEnum::isEnabledFor($agent)) {
             return ['error' => sprintf(
-                'Plan %d was NOT assigned to \'%s\': it works tasks on the factory Mac, never a whole plan, so a '
+                'Plan %d was NOT assigned to \'%s\': it works tasks on the factory machine, never a whole plan, so a '
                     . 'plan given to it never starts. Give each task of the plan exactly one `Repo: <folder>` line '
                     . 'and assign each task to it with assign_nervous_system_task, in sequence order.',
                 $plan->getId(),

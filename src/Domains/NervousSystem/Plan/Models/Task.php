@@ -200,14 +200,13 @@ class Task extends BaseModel
             ->whereNull('parent_task_id')
             ->where('sequence', '<', (int) $this->sequence)
             ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->exists();
     }
 
     /**
-     * A coding run is still working this task, or a step it was handed to. Its outcome closes them: a
-     * project manager that closed one by hand (a task status, a whole plan "done") ended a ticket whose
-     * run was still building it.
+     * A coding run is still working this task, or a step it was handed to. Its outcome closes them, so
+     * nothing else may.
      */
     public function hasALiveRun(): bool
     {
@@ -223,7 +222,7 @@ class Task extends BaseModel
      */
     public function waitsOnEarlierFactoryWork(): bool
     {
-        if (! $this->waitsOnEarlierTasks()) {
+        if ($this->parent_task_id !== null) {
             return false;
         }
 
@@ -233,11 +232,16 @@ class Task extends BaseModel
             ->where('sequence', '<', (int) $this->sequence)
             ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
             ->whereNotNull('agent_id')
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->with('agent')
             ->get()
-            ->contains(fn (self $earlier): bool => $earlier->agent !== null
-                && CodingChatSettingEnum::runsTaskInFactory($earlier->agent, $earlier->fullText()));
+            ->contains(fn (self $earlier): bool => $earlier->runsInFactory());
+    }
+
+    /** Its agent works it on a factory machine, not in Kanvas. */
+    public function runsInFactory(): bool
+    {
+        return $this->agent !== null && CodingChatSettingEnum::runsTaskInFactory($this->agent, $this->fullText());
     }
 
     /**
@@ -257,7 +261,7 @@ class Task extends BaseModel
             ->where('sequence', '>', (int) $this->sequence)
             ->where('status', TaskStatusEnum::PENDING->value)
             ->whereNotNull('agent_id')
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->orderBy('sequence')
             ->orderBy('id')
             ->first();

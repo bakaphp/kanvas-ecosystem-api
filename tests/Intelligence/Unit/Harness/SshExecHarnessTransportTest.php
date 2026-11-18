@@ -118,7 +118,12 @@ class SshExecHarnessTransportTest extends TestCase
         $transport = new class ($machine) extends SshExecHarnessTransport {
             public function __construct(AgentMachine $machine)
             {
-                parent::__construct(machine: $machine, container: null, password: 'pw', port: 4101);
+                parent::__construct(
+                    machine: $machine,
+                    container: null,
+                    password: 'pw',
+                    port: 4101,
+                );
             }
 
             protected function openSshClient(): SshClient

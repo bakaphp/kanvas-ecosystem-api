@@ -86,15 +86,15 @@ class NervousSystemAgentToolsTest extends TestCase
         $tool = new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user);
         $tool((int) $task->id, 'blocked', blocked_reason: 'Run interrupted.');
 
-        $refused = $tool((int) $task->id, 'done', description: 'Repo: kanvas-mobile-skeleton');
+        $refused = $tool((int) $task->id, 'done', description: 'Repo: example-template');
         $this->assertArrayHasKey('error', $refused);
 
-        $result = $tool((int) $task->id, 'pending', description: "Repo: kanvas-mobile-skeleton\nAdd the app to apps.txt.");
+        $result = $tool((int) $task->id, 'pending', description: "Repo: example-template\nAdd the app to apps.txt.");
 
         $this->assertTrue($result['description_replaced']);
         $fresh = Task::query()->findOrFail($task->id);
         $this->assertSame('pending', $fresh->status);
-        $this->assertStringStartsWith('Repo: kanvas-mobile-skeleton', (string) $fresh->description);
+        $this->assertStringStartsWith('Repo: example-template', (string) $fresh->description);
     }
 
     public function testUpdateTaskStatusToolMovesTheTask(): void

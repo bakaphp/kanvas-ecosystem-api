@@ -95,7 +95,7 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
 
         // The conversation gets the ANSWER; the board and the notification keep the short form. Unless
         // the agent that asked already answered there in its own words, which this would only repeat.
-        if (! $plan->finishWasReported()) {
+        if (! $plan->answerIsComing()) {
             $this->alsoPostToOriginConversation($plan, $body . $this->resultsDigest($plan), 'plan-done-alert');
         }
 

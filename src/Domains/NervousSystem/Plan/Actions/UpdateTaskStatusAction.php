@@ -7,7 +7,6 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
@@ -115,14 +114,13 @@ class UpdateTaskStatusAction
 
             $plan = $this->task->plan;
 
-            // Factory work only: a Mac task sent back to run again. Other plans keep their status as their
-            // agents set it.
-            $reopenedOnTheMac = $this->newStatus === TaskStatusEnum::PENDING
+            // Factory work only: a factory task sent back to run again. Other plans keep their status as
+            // their agents set it.
+            $reopenedForTheFactory = $this->newStatus === TaskStatusEnum::PENDING
                 && in_array($oldStatus, TaskStatusEnum::terminalStatusValues(), true)
-                && $this->task->agent !== null
-                && CodingChatSettingEnum::runsTaskInFactory($this->task->agent, $this->task->fullText());
+                && $this->task->runsInFactory();
 
-            if ($reopenedOnTheMac) {
+            if ($reopenedForTheFactory) {
                 $plan?->resumeIfNothingBlocks();
             }
 
@@ -177,7 +175,7 @@ class UpdateTaskStatusAction
     }
 
     /**
-     * A run this task sent that failed (the Mac unreachable, no worktree) was retried or made moot, and
+     * A run this task sent that failed (the machine unreachable, no worktree) was retried or made moot, and
      * this task is now closed: nothing will ever pick the failed one up again. Its outcome was already
      * delivered, so skipping it reaches no parent twice.
      */
@@ -185,6 +183,7 @@ class UpdateTaskStatusAction
     {
         $failedRuns = $this->task->children()
             ->whereHas('plan', fn ($plan) => $plan->where('status', PlanStatusEnum::FAILED->value))
+            ->with('plan')
             ->get();
 
         foreach ($failedRuns as $run) {

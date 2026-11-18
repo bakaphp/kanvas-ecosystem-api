@@ -30,7 +30,7 @@ class StartFactoryTicketTool extends Tool implements RequiresSystemAgent
 
     protected string $name = 'start_factory_ticket';
 
-    protected ?string $description = 'Start one ticket of an app\'s approved technical plan on the factory Mac: the '
+    protected ?string $description = 'Start one ticket of an app\'s approved technical plan on the factory machine: the '
         . 'designer designs it on the ticket\'s branch, then the builder adds the logic and lands it on the app\'s '
         . 'factory/integration branch, with no pull request and nobody to wait for; a ticket with nothing on screen '
         . '(has_screens=false) goes to the builder alone. The steps are written and assigned for you; use this '
