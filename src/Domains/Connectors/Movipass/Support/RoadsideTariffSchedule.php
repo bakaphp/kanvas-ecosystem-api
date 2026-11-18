@@ -59,6 +59,11 @@ final class RoadsideTariffSchedule
         ]);
     }
 
+    public function toArray(): array
+    {
+        return $this->config;
+    }
+
     public function timezone(): string
     {
         return (string) $this->config['timezone'];

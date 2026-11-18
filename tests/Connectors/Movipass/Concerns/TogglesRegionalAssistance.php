@@ -17,11 +17,18 @@ trait TogglesRegionalAssistance
 
     protected function rememberRegionalAssistanceSettings(Apps $app): void
     {
-        foreach ([ConfigurationEnum::ROADSIDE_REGIONAL_ASSISTANCE, ConfigurationEnum::ROADSIDE_TARIFFS] as $setting) {
+        $settings = [
+            ConfigurationEnum::ROADSIDE_REGIONAL_ASSISTANCE,
+            ConfigurationEnum::ROADSIDE_TARIFFS,
+            ConfigurationEnum::ROADSIDE_TARIFF_VERSIONS,
+        ];
+
+        foreach ($settings as $setting) {
             $this->originalRegionalSettings[$setting->value] = $app->get($setting->value);
         }
 
         $app->del(ConfigurationEnum::ROADSIDE_TARIFFS->value);
+        $app->del(ConfigurationEnum::ROADSIDE_TARIFF_VERSIONS->value);
     }
 
     protected function toggleRegionalAssistance(Apps $app, bool $enabled): void

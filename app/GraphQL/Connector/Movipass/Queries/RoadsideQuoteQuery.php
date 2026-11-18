@@ -24,11 +24,13 @@ class RoadsideQuoteQuery
 
         $input = $request['input'];
 
-        return new RoadsideQuoteCalculator(RegionalAssistance::tariffs($app, $company))->quote(
+        $moment = isset($input['requested_at']) ? Carbon::parse($input['requested_at']) : Carbon::now();
+
+        return new RoadsideQuoteCalculator(RegionalAssistance::tariffs($app, $company, $moment))->quote(
             service: RoadsideServiceTypeEnum::from((string) $input['service_type']),
             location: $input['location'],
             destination: $input['destination'] ?? null,
-            moment: isset($input['requested_at']) ? Carbon::parse($input['requested_at']) : Carbon::now(),
+            moment: $moment,
         )->toArray();
     }
 }

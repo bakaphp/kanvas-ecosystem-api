@@ -14,6 +14,7 @@ use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\CancelMechanicAssignmentAction;
 use Kanvas\Connectors\Movipass\Actions\CheckMechanicArrivalAction;
 use Kanvas\Connectors\Movipass\Actions\CloseAssistanceWithIncidentAction;
+use Kanvas\Connectors\Movipass\Actions\DispatchRegionalRoadsideCaseAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\MarkAssistanceNotAuthorizedAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
@@ -22,7 +23,8 @@ use Kanvas\Connectors\Movipass\Actions\RefreshRoadsideAdditionalChargesAction;
 use Kanvas\Connectors\Movipass\Actions\RegisterAssistanceIncidentAction;
 use Kanvas\Connectors\Movipass\Actions\RescheduleAssistanceAction;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
-use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
+use Kanvas\Connectors\Movipass\Actions\StartRoadsideServiceWithPinAction;
+use Kanvas\Connectors\Movipass\Actions\SyncRoadsideCaseStateFromOrderStatusAction;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
@@ -127,7 +129,8 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $mechanicNotificationError = null;
         $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
-        if (empty($mechanic['user_id'])) {
+        // Asistencia Regional offers the case only once it is paid (DispatchRegionalRoadsideCaseAction).
+        if (empty($mechanic['user_id']) && ! RegionalAssistance::isEnabledFor($order)) {
             try {
                 new NotifyAvailableMechanicsAction($order, $app, $user)->execute();
             } catch (ValidationException $exception) {
@@ -560,53 +563,18 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         try {
-            new ValidateRoadsideAssistancePinAction(
+            new StartRoadsideServiceWithPinAction(
                 order: $order,
                 pin: (string) $pinAttempt,
+                technician: $this->resolveCaseUser($assistanceCase['mechanic']['user_id'] ?? 0),
             )->execute();
         } catch (ValidationException $e) {
-            $assistanceCase['pin_validation_error'] = $e->getMessage();
-            $assistanceCase['pin_validation_attempted_at'] = Carbon::now()->toISOString();
-            unset($assistanceCase['pin_attempt']);
-
-            $this->saveAssistanceCase($order, $assistanceCase);
-
             return [
                 'order' => $order->getId(),
                 'status' => 'error',
                 'message' => 'PIN validation failed: ' . $e->getMessage(),
             ];
         }
-
-        $orderUser = $this->resolveCaseUser($order->users_id);
-
-        if (! $orderUser instanceof Users) {
-            return $this->missingOrderUser($order);
-        }
-
-        // PIN is valid — clean up metadata and transition to SERVICE_IN_PROGRESS
-        $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
-        if ($mechanicId > 0) {
-            RefreshActiveAssistanceEvent::dispatch($order, $mechanicId);
-        }
-
-        $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
-        $assistanceCase['status'] = MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug();
-        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
-        unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
-        $this->saveAssistanceCase($order, $assistanceCase);
-
-        $order->transitionToStatus(
-            $orderUser,
-            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
-        );
-
-        $this->notifySafely($orderUser, new RoadsideAssistanceStatusNotification(
-            $order,
-            'Service started',
-            'The mechanic has started the roadside assistance service.',
-            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
-        ));
 
         return [
             'order' => $order->getId(),
@@ -709,6 +677,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             if (! $alreadyNotified) {
                 $this->notifyStatusTransition($order, $toStatus, $mechanicId);
             }
+        }
+
+        if (RegionalAssistance::isEnabledFor($order)) {
+            new SyncRoadsideCaseStateFromOrderStatusAction($order, $toStatus)->execute();
         }
 
         return [
@@ -885,6 +857,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ]);
         }
 
+        new DispatchRegionalRoadsideCaseAction($order)->execute();
         $order->refresh();
 
         return [
