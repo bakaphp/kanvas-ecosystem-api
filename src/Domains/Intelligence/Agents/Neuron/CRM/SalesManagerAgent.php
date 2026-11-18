@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPeopleToCampaignTool;
@@ -147,6 +148,8 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new ReadLeadActivityTool()->withContext($app, $company, $user, $agent);
         $core[] = new ReadPersonActivityTool()->withContext($app, $company, $user, $agent);
         $core[] = new ReadOrganizationActivityTool()->withContext($app, $company, $user, $agent);
+        // Meeting transcripts routed to a lead arrive as one long note; this pages through it.
+        $core[] = new ReadMessageContentTool()->withContext($app, $company, $user);
         $core[] = new UploadFileToLeadTool()->withContext($app, $company, $user);
         $core[] = new UploadFileToMessageTool()->withContext($app, $company, $user);
         $core[] = new SendBatchMessageTool()->withContext($app, $company, $user)->forRequestingUser($user);

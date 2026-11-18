@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -56,6 +57,37 @@ class Session extends BaseModel
     public function scopeFromAgent(Builder $query, Agent $agent): Builder
     {
         return $query->where('agents_id', $agent->getId())->latest('id');
+    }
+
+    /**
+     * One continuous agent thread per record, for turns nobody typed (a wake, a scheduled task, a
+     * worker). The key is the record's tenant + identity; $extraKey widens it (per agent, so a
+     * reassigned record starts fresh) and $create overrides what a new row starts with.
+     *
+     * @param array<string, mixed> $create
+     * @param array<string, mixed> $extraKey
+     */
+    public static function firstOrCreateForEntity(Model $entity, array $create = [], array $extraKey = []): self
+    {
+        /** @var self $session */
+        $session = self::firstOrCreate(
+            [
+                'apps_id' => $entity->apps_id,
+                'companies_id' => $entity->companies_id,
+                'entity_namespace' => $entity::class,
+                'entity_id' => $entity->getKey(),
+                ...$extraKey,
+            ],
+            [
+                'uuid' => Str::uuid()->toString(),
+                'channel_id' => null,
+                'content' => '',
+                'user' => [],
+                ...$create,
+            ],
+        );
+
+        return $session;
     }
 
     public function channel(): BelongsTo
