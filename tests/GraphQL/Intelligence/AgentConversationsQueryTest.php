@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Helpers\AgentChatBroadcastChannel;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
@@ -318,6 +319,45 @@ class AgentConversationsQueryTest extends TestCase
         $contents = collect($convs[0]['messages']['data'])->pluck('content')->all();
         $this->assertContains('message from B', $contents);
         $this->assertNotContains('message from A', $contents);
+    }
+
+    /**
+     * A client that opens a chat listens on this before anything is typed: the agent's own posts (a plan
+     * finishing, a run still working) are pushed there, and were shown only after a reload.
+     */
+    public function testAConversationNamesTheChannelItsRepliesArePushedOn(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $sessionId = (string) Str::uuid();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        new KanvasConversationStore()->logTurn(
+            userId: $user->getId(),
+            sessionId: $sessionId,
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'Hello',
+            assistantResponse: 'Hi',
+            agentId: $agent->getId(),
+        );
+
+        $response = $this->graphQL('
+            query {
+                agentConversations(first: 25) {
+                    data { title broadcast_channel }
+                }
+            }
+        ')->assertSuccessful();
+
+        $mine = collect($response->json('data.agentConversations.data'))
+            ->first(fn (array $conv): bool => $conv['title'] === $sessionId);
+
+        $this->assertSame(AgentChatBroadcastChannel::nameFor($agent, $sessionId), $mine['broadcast_channel'] ?? null);
     }
 
     public function testArchivedMessagesStayInTheTranscript(): void
