@@ -1320,6 +1320,24 @@ class CodingChatTest extends TestCase
         $this->assertStringContainsString('#' . $question->getId(), $summary);
     }
 
+    /**
+     * The asker is pointed at the task that ran the question for the full answer, so that task keeps all
+     * of it; cut at the summary cap, the asker read a cut answer again and asked the factory once more.
+     */
+    public function testAFactoryTaskKeepsItsRunsWholeAnswer(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Read the API: which operations serve records?');
+        $run = $this->startFactoryRun($task);
+        $answer = str_repeat('The messages query takes a type filter and returns the owner\'s rows. ', 120);
+
+        $this->finishTurn($run, HarnessStatusEnum::IDLE, $answer . "\n" . AgentTaskSession::RUN_FINISHED_MARKER);
+        new RunTaskWorkerJob($task->refresh(), 'Task #1 is now done.')->handle();
+
+        $this->assertGreaterThan(4000, mb_strlen($answer));
+        $this->assertSame(trim($answer), $task->refresh()->result['worker_summary'] ?? null);
+    }
+
     /** A later turn rewords its question; the repository it asks is what makes it the same question. */
     public function testARewordedQuestionToARepositoryAlreadyAskedWaitsForTheFirstAnswer(): void
     {

@@ -466,13 +466,17 @@ class RunTaskWorkerJob implements ShouldQueue
     }
 
     /**
+     * A model worker's summary is read back into prompts, so it is capped. A factory answer is kept whole:
+     * whoever it answers is pointed here for the full text (`RecordChildOutcomeAction`), and a cut copy
+     * only sends them back to the factory to ask again.
+     *
      * @return array<string, mixed>
      */
     private function resultWithSummary(string $text): array
     {
         return [
             ...(is_array($this->task->result) ? $this->task->result : []),
-            'worker_summary' => Str::limit($text, 4000),
+            'worker_summary' => $this->task->runsInFactory() ? $text : Str::limit($text, 4000),
         ];
     }
 
