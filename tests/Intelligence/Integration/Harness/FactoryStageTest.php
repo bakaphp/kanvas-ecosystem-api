@@ -149,6 +149,21 @@ final class FactoryStageTest extends TestCase
         );
     }
 
+    /** The same ticket under another short name ("visit questions" / "visit-questions") ran a second time. */
+    public function testTheSameTicketUnderAnotherNameReturnsTheOneOnTheBoard(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+
+        $first = $this->ticket()($project->getId(), 'example-app', 3, 'visit questions', 'As a user I keep questions.');
+        $again = $this->ticket()($project->getId(), 'example-app', 3, 'visit-questions', 'As a user I keep questions.');
+        $other = $this->ticket()($project->getId(), 'example-app', 4, 'visit-questions', 'Another ticket.');
+
+        $this->assertTrue($again['reused']);
+        $this->assertSame($first['plan_id'], $again['plan_id']);
+        $this->assertFalse($other['reused']);
+    }
+
     /** A release PR means every ticket is done and the board is clean; one went ready with blocked tickets. */
     public function testAReleaseDoesNotStartWhileATicketIsNotDone(): void
     {

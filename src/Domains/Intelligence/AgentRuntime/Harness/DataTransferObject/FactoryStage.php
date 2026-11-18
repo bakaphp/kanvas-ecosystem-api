@@ -59,11 +59,16 @@ final readonly class FactoryStage
     /**
      * @param list<FactoryStep> $steps run in this order
      */
+    /**
+     * @param ?string $sameStageLike a SQL LIKE pattern for an open plan that is this same stage under
+     *                               another title; null means the exact title
+     */
     public function __construct(
         public Project $project,
         public string $title,
         public string $description,
         public array $steps,
+        public ?string $sameStageLike = null,
     ) {
     }
 
@@ -125,6 +130,7 @@ final readonly class FactoryStage
                 new FactoryStep('Kickoff 1: create ' . $repository, $create, $builder),
                 new FactoryStep('Kickoff 2: configure ' . $displayName, $configure, $builder),
             ],
+            'Kickoff: %(' . self::likeLiteral($repository) . ')',
         );
     }
 
@@ -190,7 +196,13 @@ final readonly class FactoryStage
             $needsDesign
                 ? [new FactoryStep('Ticket ' . $number . ' design: ' . $shortName, $design, $designer), $shipStep]
                 : [$shipStep],
+            'Ticket ' . $number . ': %(' . self::likeLiteral($repository) . ')',
         );
+    }
+
+    private static function likeLiteral(string $value): string
+    {
+        return addcslashes($value, '%_\\');
     }
 
     /**

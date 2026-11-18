@@ -39,9 +39,15 @@ class StartFactoryStageAction
     {
         $project = $this->stage->project;
 
+        // The same ticket under a slightly different short name ("visit questions" / "visit-questions")
+        // is still the same ticket: started twice, it ran its design and build a second time.
         $open = Plan::query()
             ->where('project_id', $project->getId())
-            ->where('title', $this->stage->title)
+            ->when(
+                $this->stage->sameStageLike !== null,
+                fn ($query) => $query->where('title', 'like', $this->stage->sameStageLike),
+                fn ($query) => $query->where('title', $this->stage->title),
+            )
             ->open()
             ->notDeleted()
             ->first();
