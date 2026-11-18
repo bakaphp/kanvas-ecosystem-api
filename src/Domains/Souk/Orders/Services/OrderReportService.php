@@ -23,6 +23,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderProvider;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Models\Payments;
 
 class OrderReportService
 {
@@ -355,6 +356,59 @@ class OrderReportService
         ];
     }
 
+    public function activeUsers(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?string $timezone,
+        ?string $groupBy
+    ): array {
+        $timezone = $this->validTimezone($timezone);
+        $scope = $this->resolveScope($orderTypeNames, null);
+        $paid = fn (): Builder => $this->paidPaymentsQuery($scope, $since, $until, $timezone);
+        $aggregates = 'COUNT(DISTINCT payments.users_id) as active_users, COUNT(DISTINCT orders.id) as paid_orders';
+        $monthly = strtolower(trim((string) $groupBy)) === 'month';
+
+        $total = $paid()->selectRaw($aggregates)->first();
+        $totalUsers = (int) ($total->active_users ?? 0);
+        $totalOrders = (int) ($total->paid_orders ?? 0);
+        $months = $this->monthsInRange($paid(), $since, $until, $timezone);
+
+        $verticals = $paid()
+            ->join(
+                new OrderTypes()->getTable() . ' as order_types',
+                'order_types.id',
+                '=',
+                'orders.order_types_id'
+            )
+            ->selectRaw('order_types.name as vertical, ' . $aggregates)
+            ->groupBy('order_types.id', 'order_types.name')
+            ->orderByDesc('active_users')
+            ->get()
+            ->map(fn ($r): array => [
+                'order_type' => (string) $r->vertical,
+                'active_users' => (int) $r->active_users,
+                'paid_orders' => (int) $r->paid_orders,
+                'orders_per_user' => $this->ratio((int) $r->paid_orders, (int) $r->active_users),
+                'avg_orders_per_month' => $this->ratio((int) $r->paid_orders, $months),
+            ])->all();
+
+        return [
+            'timezone' => $timezone,
+            'date_anchor' => 'payment',
+            'since' => $since,
+            'until' => $until,
+            'months_in_range' => $months,
+            'total_active_users' => $totalUsers,
+            'total_paid_orders' => $totalOrders,
+            'orders_per_user' => $this->ratio($totalOrders, $totalUsers),
+            'avg_orders_per_month' => $this->ratio($totalOrders, $months),
+            'by_vertical' => $verticals,
+            'group_by' => $monthly ? 'month' : null,
+            'series' => $monthly ? $this->activeUsersByMonth($paid(), $aggregates, $timezone) : [],
+        ];
+    }
+
     private function baseQuery(
         OrderReportScope $scope,
         ?string $since,
@@ -362,20 +416,98 @@ class OrderReportService
         string $column = 'created_at',
         string $timezone = 'UTC'
     ): Builder {
-        return Order::query()
+        $query = Order::query()
             ->where('orders.apps_id', $this->app->getId())
             ->where('orders.companies_id', $this->company->getId())
             ->where('orders.is_deleted', false)
             ->when($scope->typeIds !== null, fn ($q) => $q->whereIn('orders.order_types_id', $scope->typeIds))
-            ->when($scope->orderIds !== null, fn ($q) => $q->whereIn('orders.id', $scope->orderIds))
+            ->when($scope->orderIds !== null, fn ($q) => $q->whereIn('orders.id', $scope->orderIds));
+
+        return $this->withinLocalDates($query, 'orders.' . $column, $since, $until, $timezone);
+    }
+
+    private function withinLocalDates(
+        Builder $query,
+        string $qualifiedColumn,
+        ?string $since,
+        ?string $until,
+        string $timezone
+    ): Builder {
+        return $query
             ->when(
                 $since !== null && $since !== '',
-                fn ($q) => $q->where('orders.' . $column, '>=', Carbon::parse($since, $timezone)->startOfDay()->utc())
+                fn ($q) => $q->where($qualifiedColumn, '>=', Carbon::parse($since, $timezone)->startOfDay()->utc())
             )
             ->when(
                 $until !== null && $until !== '',
-                fn ($q) => $q->where('orders.' . $column, '<=', Carbon::parse($until, $timezone)->endOfDay()->utc())
+                fn ($q) => $q->where($qualifiedColumn, '<=', Carbon::parse($until, $timezone)->endOfDay()->utc())
             );
+    }
+
+    private function paidPaymentsQuery(
+        OrderReportScope $scope,
+        ?string $since,
+        ?string $until,
+        string $timezone
+    ): Builder {
+        $query = $this->baseQuery($scope, null, null)
+            ->join(
+                new Payments()->getTable() . ' as payments',
+                'payments.payable_id',
+                '=',
+                'orders.id'
+            )
+            ->where('payments.payable_type', Order::class)
+            ->where('payments.apps_id', $this->app->getId())
+            ->where('payments.companies_id', $this->company->getId())
+            ->where('payments.is_deleted', false)
+            ->where('payments.status', PaymentStatusEnum::PAID->value);
+
+        return $this->withinLocalDates($query, 'payments.created_at', $since, $until, $timezone);
+    }
+
+    private function monthsInRange(Builder $paidPayments, ?string $since, ?string $until, string $timezone): int
+    {
+        $firstPayment = $since !== null && $since !== ''
+            ? Carbon::parse($since, $timezone)
+            : $this->firstPaymentDate($paidPayments, $timezone);
+
+        if ($firstPayment === null) {
+            return 0;
+        }
+
+        $last = $until !== null && $until !== '' ? Carbon::parse($until, $timezone) : Carbon::now($timezone);
+
+        return max(1, (int) $firstPayment->copy()->startOfMonth()->diffInMonths($last->copy()->startOfMonth()) + 1);
+    }
+
+    private function firstPaymentDate(Builder $paidPayments, string $timezone): ?Carbon
+    {
+        $first = $paidPayments->min('payments.created_at');
+
+        return $first === null ? null : Carbon::parse($first, 'UTC')->setTimezone($timezone);
+    }
+
+    private function activeUsersByMonth(Builder $paidPayments, string $aggregates, string $timezone): array
+    {
+        return $paidPayments
+            ->selectRaw(
+                $this->periodExpression('month', $this->localizedColumn('payments.created_at', $timezone))
+                . ' as period, ' . $aggregates
+            )
+            ->groupBy('period')
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($r): array => [
+                'period' => (string) $r->period,
+                'active_users' => (int) $r->active_users,
+                'paid_orders' => (int) $r->paid_orders,
+            ])->all();
+    }
+
+    private function ratio(int $numerator, int $denominator): float
+    {
+        return $denominator > 0 ? round($numerator / $denominator, 2) : 0.0;
     }
 
     /**
