@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Support\Facades\Exceptions;
 use Imdhemy\AppStore\ClientFactory;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
+use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Support\Setup;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class InAppPurchaseAppleOrderTest extends TestCase
@@ -294,11 +299,108 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $this->assertSame('Invalid Receipt', $response->json('errors.0.message'));
     }
 
+    #[Group('serial')]
+    public function testReceiptOfAnotherAppIsRejected(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Apple payload belongs to another app');
+
+        $this->purchaseWithBundles(
+            configuredBundleId: 'com.kanvas.receipt.test',
+            receiptBundleId: 'com.someone.else'
+        );
+    }
+
+    #[Group('serial')]
+    public function testReceiptOfThisAppCreatesTheOrder(): void
+    {
+        $order = $this->purchaseWithBundles(
+            configuredBundleId: 'com.kanvas.receipt.test',
+            receiptBundleId: 'com.kanvas.receipt.test'
+        );
+
+        $this->assertTrue($order->exists);
+    }
+
+    #[Group('serial')]
+    public function testReceiptIsAcceptedAndReportedWhenNoBundleIsConfigured(): void
+    {
+        Exceptions::fake();
+
+        $order = $this->purchaseWithBundles(
+            configuredBundleId: null,
+            receiptBundleId: 'com.someone.else'
+        );
+
+        $this->assertTrue($order->exists);
+        Exceptions::assertReported(
+            fn (ValidationException $e): bool => str_contains($e->getMessage(), 'APPLE_BUNDLE_ID is not configured')
+        );
+    }
+
+    /**
+     * Runs the action rather than the mutation: the mutation buys under the app's global company when
+     * one is configured, which is app state these tests do not own.
+     */
+    private function purchaseWithBundles(?string $configuredBundleId, string $receiptBundleId): Order
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new Setup($app, $user, $company)->run();
+
+        $receipt = [
+            'product_id' => 'apple_bundle_' . fake()->uuid(),
+            'transaction_id' => fake()->numerify('2000000#########'),
+            'transaction_date' => 1731943806000,
+        ];
+
+        new CreateProductAction(
+            new Product(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: $receipt['product_id'],
+                sku: $receipt['product_id'],
+                warehouses: [[
+                    'quantity' => 10,
+                    'price' => 0.29,
+                ]]
+            ),
+            $user
+        )->execute();
+
+        $this->fakeAppleVerification($receipt, $receiptBundleId);
+
+        if ($configuredBundleId === null) {
+            $app->del(ConfigurationEnum::APPLE_BUNDLE_ID->value);
+        } else {
+            $app->set(ConfigurationEnum::APPLE_BUNDLE_ID->value, $configuredBundleId);
+        }
+
+        try {
+            return new CreateOrderFromAppleReceiptAction(
+                new AppleInAppPurchaseReceipt(
+                    app: $app,
+                    company: $company,
+                    user: $user,
+                    region: Regions::fromApp($app)->fromCompany($company)->firstOrFail(),
+                    product_id: $receipt['product_id'],
+                    transaction_id: $receipt['transaction_id'],
+                    receipt: 'receipt-data',
+                    transaction_date: $receipt['transaction_date'],
+                )
+            )->execute();
+        } finally {
+            $app->del(ConfigurationEnum::APPLE_BUNDLE_ID->value);
+        }
+    }
+
     /**
      * Apple's sandbox answers the same receipt with 0 or a retryable 211xx at random, so the
      * verification response is faked with the purchase the test is about to send.
      */
-    private function fakeAppleVerification(array $receipt): void
+    private function fakeAppleVerification(array $receipt, ?string $bundleId = null): void
     {
         app(Apps::class)->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, 'test-shared-secret');
 
@@ -306,6 +408,7 @@ class InAppPurchaseAppleOrderTest extends TestCase
             'status' => 0,
             'environment' => 'Sandbox',
             'receipt' => [
+                'bundle_id' => $bundleId,
                 'in_app' => [[
                     'quantity' => '1',
                     'product_id' => $receipt['product_id'],

@@ -117,4 +117,25 @@ class AppleSignedTransactionVerifier
             throw new ValidationException('Apple payload belongs to another app');
         }
     }
+
+    /**
+     * Legacy receipts (StoreKit 1) are what every live app sends, so an app without APPLE_BUNDLE_ID is
+     * reported rather than refused: failing closed here would stop every Apple purchase on deploy. Once
+     * Sentry stops seeing this, the receipt flows can call assertBundle instead.
+     *
+     * @throws ValidationException
+     */
+    public function assertReceiptBundle(?string $bundleId): void
+    {
+        if ((string) ($this->app->get(ConfigurationEnum::APPLE_BUNDLE_ID->value) ?? '') === '') {
+            report(new ValidationException(
+                'APPLE_BUNDLE_ID is not configured for app ' . $this->app->getId()
+                . ', so an Apple receipt was accepted without a bundle check'
+            ));
+
+            return;
+        }
+
+        $this->assertBundle(['bundleId' => $bundleId]);
+    }
 }

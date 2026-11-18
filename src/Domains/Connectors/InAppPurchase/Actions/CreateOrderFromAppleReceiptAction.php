@@ -283,6 +283,8 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             throw new ValidationException('Invalid Receipt');
         }
 
+        $this->assertReceiptBelongsToApp($verifiedReceipt);
+
         $people = $this->createPeople();
         $orderData = $this->createOrderData(
             $receipt,
@@ -306,6 +308,8 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         if (! $receiptStatus->isValid()) {
             throw new ValidationException('Invalid Renewable Subscription Receipt');
         }
+
+        $this->assertReceiptBelongsToApp($verifiedReceipt);
 
         $resolvedReceiptInfo = $this->resolveRenewableReceiptInfo(
             $verifiedReceipt,
@@ -335,6 +339,16 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
                 )
             )->execute()
         );
+    }
+
+    /**
+     * verifyReceipt answers valid for any genuine receipt, and a primary shared secret covers every app
+     * on the developer account, so validity alone does not say the purchase was made in this app.
+     */
+    private function assertReceiptBelongsToApp(ReceiptResponse $verifiedReceipt): void
+    {
+        new AppleSignedTransactionVerifier($this->app)
+            ->assertReceiptBundle($verifiedReceipt->getReceipt()?->getBundleId());
     }
 
     private function buildReceiptPayload(): array

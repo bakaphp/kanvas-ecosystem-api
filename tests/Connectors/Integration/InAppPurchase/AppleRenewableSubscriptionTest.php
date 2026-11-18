@@ -9,6 +9,7 @@ use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
+use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
@@ -18,6 +19,7 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Cashier\Subscription as CashierSubscription;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class AppleRenewableSubscriptionTest extends TestCase
@@ -336,6 +338,27 @@ class AppleRenewableSubscriptionTest extends TestCase
         $action->execute();
     }
 
+    #[Group('serial')]
+    public function testRenewableReceiptOfAnotherAppIsRejected(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::APPLE_BUNDLE_ID->value, 'com.kanvas.receipt.test');
+
+        try {
+            $this->expectException(ValidationException::class);
+            $this->expectExceptionMessage('Apple payload belongs to another app');
+
+            $this->executeRenewable(
+                lineage: 6,
+                transactionId: 'renew_tx_6',
+                latestReceiptInfo: [$this->receiptInfo(6, 'renew_tx_6', now()->subDay(), now()->addMonth())],
+                receiptBundleId: 'com.someone.else'
+            );
+        } finally {
+            $app->del(ConfigurationEnum::APPLE_BUNDLE_ID->value);
+        }
+    }
+
     public function testRenewableInvalidReceiptThrowsValidationException(): void
     {
         $app = app(Apps::class);
@@ -374,8 +397,12 @@ class AppleRenewableSubscriptionTest extends TestCase
     /**
      * @param list<array<string, mixed>> $latestReceiptInfo
      */
-    private function executeRenewable(int $lineage, string $transactionId, array $latestReceiptInfo): Order
-    {
+    private function executeRenewable(
+        int $lineage,
+        string $transactionId,
+        array $latestReceiptInfo,
+        ?string $receiptBundleId = null
+    ): Order {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -401,6 +428,7 @@ class AppleRenewableSubscriptionTest extends TestCase
             ReceiptResponse::fromArray([
                 'status' => 0,
                 'environment' => 'Sandbox',
+                'receipt' => ['bundle_id' => $receiptBundleId],
                 'latest_receipt_info' => $latestReceiptInfo,
             ])
         )->execute();

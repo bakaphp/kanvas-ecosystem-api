@@ -17,7 +17,8 @@ below has **one** implementation; a new entry point calls it rather than restati
 | **Google: the notification type is never trusted when Play is reachable.** A `SUBSCRIPTION_REVOKED` ends access only if Play's expiry has passed. | Play fills `cancelReason` when a user merely turns off auto-renew, so cancellation fields are not a revocation. RTDN is unauthenticated. | `ProcessGoogleSubscriptionWebhookJob` |
 | **No expiry, no subscription.** A Play state without expiry is refused; an Apple signed transaction without `expiresDate` or of another type is refused. | A null `ends_at` is a subscription that never ends. | `GooglePlayBillingService::expiryOf`, signed flow |
 | **Ownership.** A store id already owned by another user or app is refused, never re-pointed. An orphaned row may be adopted. | `subscriptions.stripe_id` is unique across every app, so the row cannot be shared, and a scoped query would only turn the refusal into a unique-index 500. | `findOwnedCashierSubscription`, `Concerns/FindsStoreSubscription` |
-| **Apple bundle check, fail closed** on transactions and server notifications: the payload's `bundleId` must equal `APPLE_BUNDLE_ID`; unset means reject. Sandbox is accepted (TestFlight, App Review). | Apple signs every app's payloads with the same chain. | `AppleSignedTransactionVerifier::assertBundle` |
+| **Apple bundle check, fail closed** on signed transactions and server notifications: the payload's `bundleId` must equal `APPLE_BUNDLE_ID`; unset means reject. Sandbox is accepted (TestFlight, App Review). | Apple signs every app's payloads with the same chain. | `AppleSignedTransactionVerifier::assertBundle` |
+| **Legacy receipts: bundle check when configured.** With `APPLE_BUNDLE_ID` set, the receipt's `bundle_id` must match; unset is accepted and `report()`ed. Switch to `assertBundle` once Sentry stops reporting it. | `verifyReceipt` answers valid for any genuine receipt, and a primary shared secret covers every app on the account. Failing closed would stop every live app's purchases on deploy. | `AppleSignedTransactionVerifier::assertReceiptBundle` |
 | **One purchase at a time.** Find-or-create for a store purchase id runs under `Cache::lock`; the loser gets the winner's order. | StoreKit 2 delivers one transaction to `purchase()` and `Transaction.updates` at once. | `CreateOrderFromReceiptActionBase::withStorePurchaseLock` |
 
 Statuses are `Enums/SubscriptionStatusEnum`; providers are `Enums/StoreProviderEnum`. Cashier only treats
@@ -27,7 +28,7 @@ Statuses are `Enums/SubscriptionStatusEnum`; providers are `Enums/StoreProviderE
 
 | Setting | Needed for |
 |---|---|
-| `APPLE_BUNDLE_ID` | every Apple path; without it Apple transactions and notifications are rejected |
+| `APPLE_BUNDLE_ID` | every Apple path; without it signed transactions and notifications are rejected, and legacy receipts pass unchecked with a Sentry report |
 | `APPLE_PAYMENT_SHARED_SECRET` | Apple receipt (StoreKit 1) verification |
 | `google-payment-client-config` | Play Developer API service account; without it the Google webhook falls back to trusting the notification |
 | `GOOGLE_PLAY_PACKAGE_NAME` | every Play API call |
