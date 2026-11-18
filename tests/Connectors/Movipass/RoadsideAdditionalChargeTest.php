@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\AddRoadsideAdditionalChargeAction;
+use Kanvas\Connectors\Movipass\Actions\SyncRoadsideAssistanceStatusesAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideAdditionalChargeConceptEnum;
@@ -15,7 +16,6 @@ use Kanvas\Connectors\Movipass\Enums\RoadsideAdditionalChargeStatusEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -48,13 +48,7 @@ final class RoadsideAdditionalChargeTest extends TestCase
         $this->rememberRegionalAssistanceSettings($this->apps);
         $this->toggleRegionalAssistance($this->apps, true);
 
-        new CreateOrderStatusesAction($this->apps, OrderTypeEnum::ROADSIDE_ASSISTANCE->value, [
-            MovipassOrderStatusEnum::REQUEST_SUBMITTED->value => [
-                'is_default' => true,
-                'transitions' => [MovipassOrderStatusEnum::SERVICE_CANCELLED->value],
-            ],
-            MovipassOrderStatusEnum::SERVICE_CANCELLED->value => ['is_final' => true],
-        ])->execute();
+        new SyncRoadsideAssistanceStatusesAction($this->apps)->execute();
     }
 
     protected function tearDown(): void

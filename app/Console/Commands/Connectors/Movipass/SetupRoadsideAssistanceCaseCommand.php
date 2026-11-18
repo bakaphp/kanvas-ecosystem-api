@@ -7,9 +7,7 @@ namespace App\Console\Commands\Connectors\Movipass;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
-use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
+use Kanvas\Connectors\Movipass\Actions\SyncRoadsideAssistanceStatusesAction;
 
 class SetupRoadsideAssistanceCaseCommand extends Command
 {
@@ -17,85 +15,30 @@ class SetupRoadsideAssistanceCaseCommand extends Command
 
     protected $signature = 'kanvas:movipass-setup-roadside-assistance {app_id?}';
 
-    protected $description = 'Setup Movipass roadside assistance order type and statuses';
+    protected $description = 'Create or sync the Movipass roadside assistance order type, statuses and transitions (safe to re-run)';
 
-    public function handle(): void
+    public function handle(): int
     {
         $appId = $this->argument('app_id');
         $app = $appId ? Apps::getById((int) $appId) : app(Apps::class);
         $this->overwriteAppService($app);
 
-        $cancelled = MovipassOrderStatusEnum::SERVICE_CANCELLED->value;
-        $requestSubmitted = MovipassOrderStatusEnum::REQUEST_SUBMITTED->value;
-        // Declining a case is only reachable from the two stages before a provider is assigned;
-        // once a unit is on the way the case has to be cancelled, not declined.
-        $notAuthorized = MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->value;
+        $summary = new SyncRoadsideAssistanceStatusesAction($app)->execute();
+        $duplicates = $summary['duplicate_statuses'];
+        unset($summary['duplicate_statuses']);
 
-        new CreateOrderStatusesAction($app, OrderTypeEnum::ROADSIDE_ASSISTANCE->value, [
-            MovipassOrderStatusEnum::REQUEST_SUBMITTED->value => [
-                'is_default' => true,
-                'transitions' => [
-                    MovipassOrderStatusEnum::AWAITING_OPERATOR->value,
-                    $cancelled,
-                    $notAuthorized,
-                ],
-            ],
-            MovipassOrderStatusEnum::AWAITING_OPERATOR->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value,
-                    $requestSubmitted,
-                    $cancelled,
-                    $notAuthorized,
-                ],
-            ],
-            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::DISPATCHED->value,
-                    $requestSubmitted,
-                    $cancelled,
-                ],
-            ],
-            // An incident can be raised while tracking the unit, before the service ever starts, so
-            // the unresolved ending has to be reachable from the tracking stages too — otherwise
-            // "closed with incident" would silently leave the order sitting in dispatched/on_site.
-            MovipassOrderStatusEnum::DISPATCHED->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::ON_SITE->value,
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
-                    $requestSubmitted,
-                    $cancelled,
-                ],
-            ],
-            MovipassOrderStatusEnum::ON_SITE->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value,
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
-                    $requestSubmitted,
-                    $cancelled,
-                ],
-            ],
-            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
-                    $requestSubmitted,
-                    $cancelled,
-                ],
-            ],
-            MovipassOrderStatusEnum::SERVICE_COMPLETED->value => [
-                'is_final' => true,
-            ],
-            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => [
-                'is_final' => true,
-            ],
-            MovipassOrderStatusEnum::SERVICE_CANCELLED->value => [
-                'is_final' => true,
-            ],
-            $notAuthorized => [
-                'is_final' => true,
-            ],
-        ])->execute();
+        $this->table(['Change', 'Count'], array_map(
+            fn (string $change, int $count) => [$change, $count],
+            array_keys($summary),
+            $summary,
+        ));
 
-        $this->info('Movipass roadside assistance setup completed successfully.');
+        if ($duplicates !== []) {
+            $this->warn('Duplicate active statuses found (merge by hand, orders reference them): ' . implode(', ', $duplicates));
+        }
+
+        $this->info('Movipass roadside assistance setup completed for app ' . $app->getId() . '.');
+
+        return self::SUCCESS;
     }
 }
