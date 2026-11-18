@@ -12,6 +12,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
+use NeuronAI\Exceptions\InvalidToolInput;
+use NeuronAI\Exceptions\MissingCallbackParameter;
 use NeuronAI\Tools\Tool as NeuronTool;
 use ReflectionClass;
 use Throwable;
@@ -70,8 +72,7 @@ class RunVoiceAgentToolAction
                 $handler->setInputs($this->arguments);
                 $handler->execute();
             } catch (Throwable $e) {
-                // Never leak a stack trace to the model; hand back calm, speakable copy.
-                return ['status' => 'error', 'message' => $e->getMessage()];
+                return $this->errorResult($e);
             }
 
             // Tools setResult(json_encode($array)); decode so the runtime gets structure.
@@ -83,6 +84,32 @@ class RunVoiceAgentToolAction
             Bouncer::scope()->to($previousScope);
             app()->instance(Apps::class, $previousApp);
         }
+    }
+
+    /**
+     * What the model hears when a tool throws. The voice agent may say it out loud, so only
+     * messages written for it pass through: our validation errors and bad-argument errors (the
+     * model can fix the arguments and retry). Anything else is reported and replaced with short,
+     * neutral copy, so SQL, search-engine or model-not-found text never reaches a caller.
+     *
+     * @return array{status: string, reason: string, message: string}
+     */
+    private function errorResult(Throwable $e): array
+    {
+        if ($e instanceof ValidationException
+            || $e instanceof InvalidToolInput
+            || $e instanceof MissingCallbackParameter
+        ) {
+            return ['status' => 'error', 'reason' => 'invalid_request', 'message' => $e->getMessage()];
+        }
+
+        report($e);
+
+        return [
+            'status' => 'error',
+            'reason' => 'tool_failed',
+            'message' => "That couldn't be completed right now. Offer to have someone follow up.",
+        ];
     }
 
     /**

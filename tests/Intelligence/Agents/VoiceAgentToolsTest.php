@@ -19,10 +19,15 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ProductDetailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantDetailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
 use Kanvas\Intelligence\Agents\Services\VoiceAgentSpecService;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
+use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool as NeuronTool;
+use NeuronAI\Tools\ToolProperty;
+use RuntimeException;
 use stdClass;
 use Tests\TestCase;
 
@@ -106,6 +111,50 @@ final class VoiceAgentToolsTest extends TestCase
         new RunVoiceAgentToolAction($agent, 'add_lead_note', [])->execute();
     }
 
+    public function testAToolCrashNeverReachesTheCallerAsRawText(): void
+    {
+        $agent = $this->agentWithTools([CrashingVoiceTool::class]);
+
+        $result = new RunVoiceAgentToolAction($agent, 'crashing_voice_tool', ['kind' => 'crash'])->execute();
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame('tool_failed', $result['reason']);
+        $this->assertStringNotContainsString('SQLSTATE', $result['message']);
+    }
+
+    public function testAValidationErrorIsPassedToTheModel(): void
+    {
+        $agent = $this->agentWithTools([CrashingVoiceTool::class]);
+
+        $result = new RunVoiceAgentToolAction($agent, 'crashing_voice_tool', ['kind' => 'validation'])->execute();
+
+        $this->assertSame('invalid_request', $result['reason']);
+        $this->assertSame('That date is in the past.', $result['message']);
+    }
+
+    public function testVariantDetailNeedsACompany(): void
+    {
+        $result = new VariantDetailTool()->__invoke(variant_id: 1);
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame('no_tenant_context', $result['reason']);
+    }
+
+    public function testVariantDetailReadsOnlyTheAgentsCompany(): void
+    {
+        $variant = Products::withoutSyncingToSearch(fn () => Variants::withoutSyncingToSearch(
+            fn () => Products::factory()->company($this->company->getId())->create()->variants()->first()
+        ));
+        $tool = new VariantDetailTool()->withContext($this->testApp, $this->company, auth()->user());
+
+        $this->assertSame($variant->getId(), $tool->__invoke(variant_id: $variant->getId())['id']);
+
+        // The same id, owned by another company, reads nothing.
+        Variants::withoutSyncingToSearch(fn () => $variant->forceFill(['companies_id' => $this->company->getId() + 1_000_000])->saveQuietly());
+
+        $this->assertSame('not_found', $tool->__invoke(variant_id: $variant->getId())['status']);
+    }
+
     /**
      * @param list<class-string<NeuronTool>> $handlers
      */
@@ -146,5 +195,31 @@ final class DynamicallyNamedVoiceTool extends NeuronTool
     public function __invoke(): array
     {
         return ['ok' => true];
+    }
+}
+
+/**
+ * A tool that fails: with an internal error, or with a validation message written for the model.
+ */
+final class CrashingVoiceTool extends NeuronTool
+{
+    public function __construct()
+    {
+        $this->name = 'crashing_voice_tool';
+        $this->description = 'Test tool that throws.';
+    }
+
+    protected function properties(): array
+    {
+        return [new ToolProperty(name: 'kind', type: PropertyType::STRING, description: 'crash or validation', required: true)];
+    }
+
+    public function __invoke(string $kind = 'crash'): array
+    {
+        if ($kind === 'validation') {
+            throw new ValidationException('That date is in the past.');
+        }
+
+        throw new RuntimeException('SQLSTATE[42S22]: Column not found: 1054 Unknown column');
     }
 }
