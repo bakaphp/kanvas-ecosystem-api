@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Orchestrator\Signals\Adapters;
 
+use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
+use Illuminate\Http\Request;
 use Kanvas\NervousSystem\Orchestrator\Signals\Contracts\SignalSourceAdapter;
 use Kanvas\NervousSystem\Orchestrator\Signals\DataTransferObject\InboundSignal;
 use Kanvas\NervousSystem\Orchestrator\Signals\Enums\SignalSourceEnum;
+use Kanvas\NervousSystem\Orchestrator\Signals\Enums\SignalSourceSettingEnum;
 use Kanvas\NervousSystem\Project\Enums\ProjectIngestTypeEnum;
 use Override;
 
@@ -17,28 +21,100 @@ use Override;
  * `topics[]{text}`, `action_items[]{text}`, `transcript.speaker_blocks[]{speaker{name},words}`. Some
  * relays (Zapier/n8n) nest everything under `data`, so we accept either. Extraction stays defensive —
  * an unexpected shape degrades to empty rather than throwing.
+ *
+ * A workspace webhook can also fire at `meeting_start`, which carries no transcript, summary or
+ * participants; it parses to empty content so the job ignores it.
+ *
+ * Signature (Read.ai "Getting Started with Webhooks"): `X-Read-Signature` is the lowercase hex
+ * HMAC-SHA256 of the raw body, keyed with the webhook's signing key base64-decoded. Only webhooks
+ * created after 2026-03-17 are signed.
  */
 final class ReadAiSignalAdapter implements SignalSourceAdapter
 {
+    public const string SIGNATURE_HEADER = 'X-Read-Signature';
+
+    private const string MEETING_START = 'meeting_start';
+
     #[Override]
     public function parse(array $payload): InboundSignal
     {
         $data = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : $payload;
+        $trigger = (string) ($data['trigger'] ?? '');
 
         return new InboundSignal(
             source: SignalSourceEnum::READ_AI,
             kind: ProjectIngestTypeEnum::TRANSCRIPT,
             externalId: (string) ($data['session_id'] ?? ''),
             title: trim((string) ($data['title'] ?? '')) ?: 'Untitled meeting',
-            content: $this->transcript($data),
+            content: $trigger === self::MEETING_START ? '' : $this->transcript($data),
             occurredAt: isset($data['start_time']) ? (string) $data['start_time'] : null,
             actors: $this->actors($data),
             metadata: [
-                'trigger' => (string) ($data['trigger'] ?? ''),
+                'trigger' => $trigger,
+                'summary' => trim((string) ($data['summary'] ?? '')),
+                'report_url' => trim((string) ($data['report_url'] ?? '')),
                 'topics' => $this->textList($data['topics'] ?? []),
                 'action_items' => $this->textList($data['action_items'] ?? []),
+                'chapters' => $this->chapters($data['chapter_summaries'] ?? []),
             ],
         );
+    }
+
+    /**
+     * A company with no signing key yet is accepted, and its events record `signed: false`; one with
+     * a key gets nothing through without a matching signature.
+     */
+    #[Override]
+    public function authenticate(Request $request, CompanyInterface $company): bool
+    {
+        $key = $this->signingKey($company);
+        if ($key === null) {
+            return true;
+        }
+
+        $secret = base64_decode($key, true);
+        $signature = strtolower(trim((string) $request->headers->get(self::SIGNATURE_HEADER, '')));
+
+        if ($secret === false || $signature === '') {
+            return false;
+        }
+
+        return hash_equals(hash_hmac('sha256', $request->getContent(), $secret), $signature);
+    }
+
+    #[Override]
+    public function isSigned(CompanyInterface $company): bool
+    {
+        return $this->signingKey($company) !== null;
+    }
+
+    private function signingKey(CompanyInterface $company): ?string
+    {
+        return Str::trimToNull((string) $company->get(SignalSourceSettingEnum::READ_AI_SIGNING_KEY->value));
+    }
+
+    /**
+     * @return list<string> "Title: description" per chapter
+     */
+    private function chapters(mixed $chapters): array
+    {
+        if (! is_array($chapters)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($chapters as $chapter) {
+            if (! is_array($chapter)) {
+                continue;
+            }
+
+            $line = trim(trim((string) ($chapter['title'] ?? '')) . ': ' . trim((string) ($chapter['description'] ?? '')), ': ');
+            if ($line !== '') {
+                $out[] = $line;
+            }
+        }
+
+        return $out;
     }
 
     /**

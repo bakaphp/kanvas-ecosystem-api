@@ -75,4 +75,5 @@ enum IntegrationsEnum: string
     case WEBPOS = 'webpos';
     case SHORTIO = 'shortio';
     case DHL = 'dhl';
+    case READ_AI = 'read_ai';
 }

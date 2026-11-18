@@ -22,4 +22,26 @@ enum ProjectIngestTypeEnum: string
             self::MENTION => 'project-mention',
         };
     }
+
+    /**
+     * What a person calls this kind of signal. Notes, agent instructions and routing logs are worded
+     * from it, so a new kind reads correctly everywhere without touching the routing code.
+     */
+    public function noun(): string
+    {
+        return match ($this) {
+            self::TRANSCRIPT => 'meeting',
+            self::EMAIL => 'email',
+            self::MENTION => 'mention',
+        };
+    }
+
+    public function bodyLabel(): string
+    {
+        return match ($this) {
+            self::TRANSCRIPT => 'transcript',
+            self::EMAIL => 'body',
+            self::MENTION => 'message',
+        };
+    }
 }

@@ -15,6 +15,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -182,6 +183,17 @@ class Agent extends BaseModel
     public function type(): BelongsTo
     {
         return $this->belongsTo(AgentType::class, 'agent_type_id');
+    }
+
+    /**
+     * @param class-string $handler
+     */
+    public function scopeOfHandler(Builder $query, string $handler): Builder
+    {
+        return $query->whereHas(
+            'type',
+            fn (Builder $type): Builder => $type->where('handler', $handler)
+        );
     }
 
     public function model(): BelongsTo
