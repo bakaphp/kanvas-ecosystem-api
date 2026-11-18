@@ -232,17 +232,23 @@ class AuthenticationService
 
     public static function getAppDefaultAssignCompanyBranch(Apps $app): ?CompaniesBranches
     {
-        $userRegistrationAssignToAppDefaultCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
-        $branch = null;
+        $setting = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
 
-        try {
-            if ($userRegistrationAssignToAppDefaultCompanyBranch) {
-                $branch = CompaniesBranches::getById($userRegistrationAssignToAppDefaultCompanyBranch);
-            }
-        } catch (EloquentModelNotFoundException $e) {
+        if (empty($setting)) {
+            return null;
         }
 
-        return $branch;
+        // A uuid handed to an integer `id` comparison is cast by MySQL to its leading digits
+        // ("01a0445a-…" is 1), which silently signed users up into another tenant's branch.
+        if (is_int($setting) || ctype_digit((string) $setting)) {
+            try {
+                return CompaniesBranches::getById((int) $setting);
+            } catch (EloquentModelNotFoundException) {
+                return null;
+            }
+        }
+
+        return CompaniesBranches::where('uuid', (string) $setting)->where('is_deleted', 0)->first();
     }
 
     public static function logoutFromAllDevices(Users $user, Apps $app): bool
