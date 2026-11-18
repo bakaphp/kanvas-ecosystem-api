@@ -312,7 +312,7 @@ extend type Query @guard {
     "Prices a roadside service from the tariff sheet: base fare, km beyond the included ones, one surcharge and VAT."
     roadsideAssistanceQuote(input: RoadsideQuoteInput!): RoadsideQuote!
         @field(
-            resolver: "App\GraphQL\Connector\Movipass\Queries\RoadsideQuoteQuery@get"
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideQuoteQuery@get"
         )
 }
 
@@ -329,9 +329,9 @@ extend type Mutation @guard {
 
     "Cabin bills an additional charge (fuel) on an open case; the user pays it before the technician supplies it."
     addRoadsideAdditionalCharge(input: RoadsideAdditionalChargeInput!): RoadsideAdditionalCharge!
-        @can(ability: "edit", model: "Kanvas\Souk\Orders\Models\Order")
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\Order")
         @field(
-            resolver: "App\GraphQL\Connector\Movipass\Mutations\RoadsideAdditionalChargeMutation@add"
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideAdditionalChargeMutation@add"
         )
 }
 
