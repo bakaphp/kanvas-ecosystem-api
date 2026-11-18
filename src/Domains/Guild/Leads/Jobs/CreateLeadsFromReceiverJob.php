@@ -160,13 +160,20 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         )->execute();
     }
 
-    protected function buildPayload(LeadReceiver $leadReceiver): array
+    protected function rawPayload(): array
     {
         $payload = $this->webhookRequest->payload;
 
         if (isset($this->receiver->configuration['double_encoded_json'])) {
             $payload = $this->parseDoubleEncodedJsonToArray($payload);
         }
+
+        return $payload;
+    }
+
+    protected function buildPayload(LeadReceiver $leadReceiver): array
+    {
+        $payload = $this->rawPayload();
 
         if (! empty($leadReceiver->template) && is_array($leadReceiver->template)) {
             $payload = new ConvertJsonTemplateToLeadStructureAction(
