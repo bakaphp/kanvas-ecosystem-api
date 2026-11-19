@@ -196,7 +196,9 @@ class WakeProjectManagerOnPlanOutcomeListener
             return '';
         }
 
-        return ' ' . FactoryStage::whatFollows($plan);
+        return ' This factory stage landed on `' . FactoryStage::INTEGRATION_BRANCH . '`. Right away, without asking '
+            . 'anyone: start the next ticket of the approved plan with start_factory_ticket, or, if this was the '
+            . 'last one, call start_factory_release with every ticket of the stage in notes.';
     }
 
     private function outcomeFact(Plan $plan, PlanChangeTypeEnum $changeType): string

@@ -10,7 +10,6 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Models\Project;
 
@@ -32,8 +31,6 @@ final readonly class FactoryStage
     private const string RELEASE_TITLE = 'Release: ';
 
     private const string LANDING_PUSH = 'git push origin HEAD:' . self::INTEGRATION_BRANCH;
-
-    private const string PLAN_CONTRACT = '- The approved technical plan, the contract: ';
 
     /** Any step that looks at a signed-in screen on a device needs it; left out, the agent asks a person. */
     private const string ARGENT_LOGIN = 'signed in through Argent with the test login it holds as secrets '
@@ -203,7 +200,7 @@ final readonly class FactoryStage
             '',
             'Kickoff 3: design ' . $displayName . ' ticket by ticket from its approved technical plan: the one design '
                 . 'every ticket is built and checked against.',
-            self::PLAN_CONTRACT . $planUrl,
+            '- The approved technical plan, the contract: ' . $planUrl,
             '- The approved brief, for the product, its users and its positioning: ' . $briefUrl,
             $designFiles !== []
                 ? "- Design files the person gave. They win over your own choices: match them, and design only what they do not cover:\n"
@@ -441,51 +438,6 @@ final readonly class FactoryStage
     public static function landsOnIntegration(string $taskText): bool
     {
         return str_contains($taskText, self::LANDING_PUSH);
-    }
-
-    /**
-     * What the orchestrator starts once a stage landed. A ticket's plan carries neither the approved plan
-     * nor the next number, and an orchestrator told only "the next ticket of the approved plan" stopped to
-     * ask a person for a plan it had approved itself.
-     */
-    public static function whatFollows(Plan $landed): string
-    {
-        $repository = $landed->tasks()
-            ->whereNull('parent_task_id')
-            ->notDeleted()
-            ->orderBy('id')
-            ->get()
-            ->map(fn (Task $task): ?string => TaskDirectives::repo($task->fullText()))
-            ->filter()
-            ->last();
-        $next = preg_match('/^Ticket (\d+):/', (string) $landed->title, $match) === 1
-            ? 'ticket ' . ((int) $match[1] + 1)
-            : (str_starts_with((string) $landed->title, 'Kickoff: ') ? 'ticket 1' : 'the next ticket not started yet');
-        $planUrl = $repository !== null && $landed->project !== null
-            ? self::approvedPlanUrl($landed->project, $repository)
-            : null;
-
-        return 'This factory stage landed on `' . self::INTEGRATION_BRANCH . '`. Right away, without asking anyone: '
-            . 'start ' . $next . ' of the approved technical plan with start_factory_ticket'
-            . ($planUrl !== null ? ', its text copied from the plan at ' . $planUrl . ' (read_file with that file_url)' : '')
-            . ', or, if the plan has no further ticket, call start_factory_release with every ticket of the stage in notes.';
-    }
-
-    private static function approvedPlanUrl(Project $project, string $repository): ?string
-    {
-        $text = Task::query()
-            ->whereHas('plan', fn ($plan) => $plan
-                ->where('project_id', $project->getId())
-                ->notDeleted()
-                ->where('title', 'like', 'Kickoff: %(' . self::likeLiteral($repository) . ')'))
-            ->notDeleted()
-            ->where('description', 'like', '%' . self::likeLiteral(self::PLAN_CONTRACT) . '%')
-            ->orderByDesc('id')
-            ->value('description');
-
-        return $text !== null && preg_match('/^' . preg_quote(self::PLAN_CONTRACT, '/') . '(\S+)/m', (string) $text, $match) === 1
-            ? $match[1]
-            : null;
     }
 
     /** A fast-forward push of the ticket branch: no checkout, no pull request, no person in the loop. */
