@@ -29,7 +29,7 @@ class CustomerMapper
      */
     public static function map(object $row): array
     {
-        $fullName = preg_replace('/\s+/', ' ', trim((string) ($row->name ?? ''))) ?? '';
+        $fullName = self::storableName((string) ($row->name ?? ''));
         $name = Str::parseFullName($fullName);
         $email = Str::trimToNull($row->email ?? null);
 
@@ -50,6 +50,18 @@ class CustomerMapper
             'address' => self::address($row),
             'custom_fields' => self::customFields($row),
         ];
+    }
+
+    /**
+     * `peoples` is utf8mb3, so a name carrying an emoji fails the whole insert (MySQL 3988) and
+     * takes the customer's registrations and sales down with it. Characters above the BMP are
+     * dropped, with the joiner and variation selector they leave behind.
+     */
+    public static function storableName(string $name): string
+    {
+        $name = preg_replace('/[\x{10000}-\x{10FFFF}\x{200D}\x{FE0E}\x{FE0F}]/u', '', $name) ?? $name;
+
+        return preg_replace('/\s+/', ' ', trim($name)) ?? '';
     }
 
     /**

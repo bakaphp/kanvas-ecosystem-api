@@ -27,6 +27,24 @@ final class CustomerMapperTest extends TestCase
         $this->assertSame('jane@example.com', $mapped['people']['name']);
     }
 
+    public function testEmojiAreDroppedBecausePeoplesIsUtf8mb3(): void
+    {
+        $fairy = CustomerMapper::map($this->row(['name' => "Key\u{1F9DA}\u{1F3FE}\u{200D}\u{2640}\u{FE0F} Drummer"]));
+
+        $this->assertSame("Key\u{2640}", $fairy['people']['firstname']);
+        $this->assertSame('Drummer', $fairy['people']['lastname']);
+
+        $heart = CustomerMapper::map($this->row(['name' => "Gia Scull-Hernandez\u{1F495}"]));
+
+        $this->assertSame('Gia Scull-Hernandez', $heart['people']['name']);
+        $this->assertSame('Scull-Hernandez', $heart['people']['lastname']);
+    }
+
+    public function testANameMadeOnlyOfEmojiFallsBackToTheEmail(): void
+    {
+        $this->assertSame('jane@example.com', CustomerMapper::map($this->row(['name' => "\u{1F3A8}"]))['people']['name']);
+    }
+
     public function testSoftDeletedUserIsFlaggedNotDropped(): void
     {
         $this->assertTrue(CustomerMapper::map($this->row(['deleted_at' => '2025-01-01 00:00:00']))['people']['is_deleted']);
