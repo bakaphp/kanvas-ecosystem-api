@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\CardNet\Ztrans\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Baka\Support\Str;
 use Kanvas\Connectors\CardNet\Ztrans\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Ztrans\Services\RedirectReceiverService;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Override;
