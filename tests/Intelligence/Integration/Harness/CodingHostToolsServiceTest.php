@@ -34,6 +34,9 @@ class CodingHostToolsServiceTest extends TestCase
         $machine->set(MachineCustomFieldEnum::HOST_TOOLS->value, ['xcode', 'xcode']);
         $this->assertSame(['xcode'], CodingHostToolsService::forMachine($machine));
 
+        $machine->set(MachineCustomFieldEnum::HOST_TOOLS->value, '["xcode", "ASC"]');
+        $this->assertSame(['xcode', 'asc'], CodingHostToolsService::forMachine($machine));
+
         $this->assertSame([], CodingHostToolsService::forMachine($this->createAgentMachine(runtime: 'host')));
         $this->assertSame([], CodingHostToolsService::forMachine(null));
     }
@@ -67,6 +70,60 @@ class CodingHostToolsServiceTest extends TestCase
         }
 
         $this->assertSame([], CodingHostToolsService::bashRules([]));
+    }
+
+    /**
+     * opencode takes the last matching rule, so the account-level subcommands are denied after the allow.
+     */
+    public function testAppStoreConnectOpensAscButNotItsWebOrAuthCommands(): void
+    {
+        $rules = CodingHostToolsService::bashRules(['asc']);
+
+        $this->assertSame([
+            'asc *' => 'allow',
+            'asc web *' => 'deny',
+            'asc * web *' => 'deny',
+            'asc auth *' => 'deny',
+            'asc * auth *' => 'deny',
+        ], $rules);
+        $this->assertSame('asc *', array_key_first($rules));
+
+        $this->assertSame([], CodingHostToolsService::readRules(['asc']));
+        $this->assertTrue(CodingHostToolsService::hasAppStoreConnect(['xcode', 'asc']));
+        $this->assertFalse(CodingHostToolsService::hasAppStoreConnect(['xcode']));
+        $this->assertArrayNotHasKey('asc *', CodingHostToolsService::bashRules(['xcode']));
+    }
+
+    /**
+     * asc reads root flags before the command name, so `asc --debug auth login` must not slip past a
+     * deny written for `asc auth *`. A command that only passes the word `auth` as an argument is
+     * denied too; that is the safe side.
+     */
+    public function testAscAccountCommandsStayDeniedBehindRootFlags(): void
+    {
+        $rules = ['*' => 'deny', ...CodingHostToolsService::bashRules(['asc'])];
+
+        foreach ([
+            'asc auth',
+            'asc web',
+            'asc auth login --name MyKey',
+            'asc web auth login --apple-id user@example.com',
+            'asc --debug auth login',
+            'asc --profile x web y',
+            'asc --profile work auth',
+            'asc --report=junit --debug web apps create --name App',
+        ] as $command) {
+            $this->assertSame('deny', $this->opencodeDecision($rules, $command), $command);
+        }
+
+        foreach ([
+            'asc apps list',
+            'asc --profile work apps list --output json',
+            'asc webhooks list',
+            'asc --debug webhooks list',
+        ] as $command) {
+            $this->assertSame('allow', $this->opencodeDecision($rules, $command), $command);
+        }
     }
 
     public function testXcodeReadRulesPreAnswerDotenvInsideTheWorkspace(): void
@@ -139,5 +196,31 @@ class CodingHostToolsServiceTest extends TestCase
         }
 
         $this->assertDoesNotMatchRegularExpression($regex, 'open -a Terminal');
+    }
+
+    /**
+     * opencode's `Wildcard.match` (2.2): `*` is any run of characters, spaces included and possibly
+     * none, `?` is one character, and a trailing ` *` is optional, so `asc auth *` also covers a bare
+     * `asc auth`. The last matching rule decides.
+     *
+     * @param array<string, string> $rules
+     */
+    private function opencodeDecision(array $rules, string $command): ?string
+    {
+        $decision = null;
+
+        foreach ($rules as $pattern => $action) {
+            $regex = str_replace(['\\*', '\\?'], ['.*', '.'], preg_quote($pattern, '/'));
+
+            if (str_ends_with($regex, ' .*')) {
+                $regex = substr($regex, 0, -3) . '( .*)?';
+            }
+
+            if (preg_match('/^' . $regex . '$/s', $command) === 1) {
+                $decision = $action;
+            }
+        }
+
+        return $decision;
     }
 }

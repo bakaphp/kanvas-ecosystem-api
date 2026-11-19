@@ -349,12 +349,15 @@ input ImportOrderCsvInput {
 input AppleInAppPurchaseReceipt {
     product_id: ID!
     transaction_id: String!
-    receipt: String!
+    "Legacy app receipt (base64). Optional when signed_transaction is sent."
+    receipt: String
     transaction_date: Mixed!
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
     is_renewable_subscription: Boolean = false
     original_transaction_id: String
+    "StoreKit 2 signed transaction (JWS). Preferred over receipt for renewable subscriptions."
+    signed_transaction: String
 }
 
 input GooglePlayInAppPurchaseReceipt {

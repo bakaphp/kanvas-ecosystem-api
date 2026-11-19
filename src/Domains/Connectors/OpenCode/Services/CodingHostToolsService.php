@@ -24,10 +24,13 @@ class CodingHostToolsService
 {
     public const string XCODE = 'xcode';
 
+    /** The App Store Connect CLI; its API key lives in `<workspace root>/.asc/config.json` on the machine. */
+    public const string APP_STORE_CONNECT = 'asc';
+
     /** Where the agent keeps the logs and pid files of what it runs in the background. */
     public const string LOGS_DIRECTORY = '.kanvas/logs';
 
-    public const array KNOWN = [self::XCODE];
+    public const array KNOWN = [self::XCODE, self::APP_STORE_CONNECT];
 
     private const string SIMULATOR_PREFIX = 'Kanvas-';
 
@@ -61,6 +64,16 @@ class CodingHostToolsService
             // No kill of any shape: every session on the Mac runs as one user, so `pkill -f expo`
             // would stop a sibling session's packager too. The agent records what it started in
             // `LOGS_DIRECTORY/*.pid` and the reaper stops it once the session has ended.
+        ],
+        // `web` drives an Apple Account session and `auth` reads or rewrites the stored key; both stay
+        // with a person. Denies follow the allow because opencode takes the last matching rule.
+        // asc takes root flags before the command (`asc --profile x auth`), hence the `asc * …` twins.
+        self::APP_STORE_CONNECT => [
+            'asc *' => 'allow',
+            'asc web *' => 'deny',
+            'asc * web *' => 'deny',
+            'asc auth *' => 'deny',
+            'asc * auth *' => 'deny',
         ],
     ];
 
@@ -126,6 +139,14 @@ class CodingHostToolsService
     public static function hasXcode(array $hostTools): bool
     {
         return in_array(self::XCODE, $hostTools, true);
+    }
+
+    /**
+     * @param list<string> $hostTools
+     */
+    public static function hasAppStoreConnect(array $hostTools): bool
+    {
+        return in_array(self::APP_STORE_CONNECT, $hostTools, true);
     }
 
     /**

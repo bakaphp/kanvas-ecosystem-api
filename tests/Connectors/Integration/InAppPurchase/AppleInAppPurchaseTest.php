@@ -10,6 +10,7 @@ use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Internal\Handlers\InternalHandler;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Support\Setup;
@@ -27,16 +28,37 @@ use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
+/**
+ * Verifies real receipts against Apple's sandbox. Serial: it changes app settings shared by every
+ * parallel process.
+ */
+#[Group('serial')]
 final class AppleInAppPurchaseTest extends TestCase
 {
+    use ManagesAppSettings;
+
     protected function setUp(): void
     {
         parent::setUp();
         if (getenv('GITHUB_ACTIONS')) {
             $this->markTestSkipped('InAppPurchase integration tests are skipped in CI');
         }
+
+        if (! getenv('TEST_APPLE_PAYMENT_SHARED_SECRET')) {
+            $this->markTestSkipped('TEST_APPLE_PAYMENT_SHARED_SECRET is not set, so Apple cannot verify the receipt');
+        }
+
+        // An app with a global registration company records the order and links its message under
+        // that company, while these tests stock products in the buyer's.
+        $this->rememberAppSettings(
+            AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue(),
+            ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value,
+        );
+        app(Apps::class)->del(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
     }
 
     public function testAppleInAppPurchaseReceipt()
@@ -196,7 +218,7 @@ final class AppleInAppPurchaseTest extends TestCase
         $activity = new LinkMessageToOrderActivity(
             0,
             now()->toDateTimeString(),
-            StoredWorkflow::make(),
+            new StoredWorkflow(),
             []
         );
 

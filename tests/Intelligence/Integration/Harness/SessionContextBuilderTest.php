@@ -151,7 +151,24 @@ class SessionContextBuilderTest extends TestCase
         [$app, $company, $user] = $this->context();
         $agent = $this->makeAgent($app, $company, $user);
 
-        $this->assertStringNotContainsString('Simulator', new SessionContextBuilder($agent)->agentDocument());
+        $document = new SessionContextBuilder($agent)->agentDocument();
+
+        $this->assertStringNotContainsString('Simulator', $document);
+        $this->assertStringNotContainsString('App Store Connect', $document);
+    }
+
+    public function testAppStoreConnectAddsItsOwnParagraph(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $document = new SessionContextBuilder($agent, hostTools: ['asc'])->agentDocument();
+
+        $this->assertStringContainsString('## App Store Connect', $document);
+        $this->assertStringContainsString('`asc …`', $document);
+        $this->assertStringContainsString('list before you create', $document);
+        $this->assertStringContainsString('`asc web` and `asc auth` are not available to you', $document);
+        $this->assertStringNotContainsString('## Xcode and the Simulator', $document);
     }
 
     public function testTheSimulatorNameComesFromTheSessionTheWayProvisionBuildsIt(): void

@@ -162,6 +162,23 @@ reports `machine` as `{name, runtime, host_tools}` so the PM promises a Simulato
 listed. A repository's protected-path denies are appended AFTER the tool set's allows — opencode takes
 the last matching rule.
 
+**`asc` is the App Store Connect tool set** (`--host-tools=xcode,asc`): the allow-list gains `asc *`
+and then denies `web` (an Apple Account web session) and `auth` (reads or rewrites the stored key) —
+both stay with a person. Each is denied twice, `asc auth *` and `asc * auth *`, because asc takes root
+flags before the command (`asc --debug auth login`, `asc --profile x web …`) and those slip past a
+plain `asc auth *`. opencode's matcher makes `*` any run of characters, spaces included, and a
+trailing ` *` optional, so `asc auth *` also denies a bare `asc auth`; `asc webhooks` stays allowed
+because each deny needs the whole word. The cost is a false deny when `auth` or `web` is only an
+argument (`--name auth`), which is the safe side. **The denies are a guardrail, not a boundary:** the
+session must read the key for asc to work, and it may run `cat`, `node` or a quoted `asc 'auth'`, so
+the key itself is the control — give agents an App Store Connect key with the App Manager role, never
+Admin, and rotate it if a session misbehaves. The agent document gains an "App Store Connect" section, and
+readiness gains two rows: `asc` on the job's PATH, and a readable `<workspace root>/.asc/config.json`.
+The key lives there because a session's `$HOME` is inside its worktree, so `~/.asc` is never read;
+asc picks the nearest `.asc/config.json` above the working directory instead, so one file serves every
+agent on the machine (and a repository's own `.asc/` still wins for that repository). Point
+`private_key_path` at the key's real path: asc refuses to follow a symlink, and `/srv` is one on macOS.
+
 Three facts from the live box that shape the Simulator rules (Xcode 27.2, 2026-11-04):
 **CoreSimulator ignores `$HOME`** — devices live under the login user's own Library, so every agent
 on the Mac shares one device list and a device is only known to be ours by its name. Kanvas names
@@ -471,7 +488,7 @@ by `kanvas:coding:setup --machine=<id>` and `build-image`, never by the GraphQL 
 | Key | Notes |
 |---|---|
 | `runtime` (column) | `container` (default) or `host`. `--runtime=host` on setup; a host ignores `network_mode`. |
-| `CODING_HOST_TOOLS` | List of tool sets a host advertises, e.g. `["xcode"]`; `--host-tools=xcode`. Gates the Xcode allow-list, the dotenv read rules, the agent-document section, two readiness rows and the simulator sweep (`CodingHostToolsService`). Unknown entries are ignored. |
+| `CODING_HOST_TOOLS` | List of tool sets a host advertises, `xcode` and/or `asc`, e.g. `["xcode","asc"]`; `--host-tools=xcode,asc`. `xcode` gates the Xcode allow-list, the dotenv read rules, its agent-document section, two readiness rows and the simulator sweep; `asc` gates `asc *` (minus `web`/`auth`), its section and two readiness rows (`CodingHostToolsService`). Unknown entries are ignored. |
 | `CODING_IMAGE_DIGEST` | What the machine runs under the pinned version: the image id on a container machine, `sha256:…` of the binary on a host. Written by `build-image`; compared across machines in its drift report. |
 
 After changing an agent type or a tool, run `kanvas:intelligence:sync-agent-types` and

@@ -73,7 +73,7 @@ class SessionContextBuilder
         $lines[] = '## Rules of engagement';
         $lines[] = '';
         $lines[] = CodingPolicy::BLOCK;
-        $lines = [...$lines, ...$this->hostToolsSection()];
+        $lines = [...$lines, ...$this->hostToolsSection(), ...$this->appStoreConnectSection()];
 
         return implode("\n", $lines) . "\n";
     }
@@ -130,6 +130,29 @@ class SessionContextBuilder
             '',
             'Run the scheme\'s tests before handing off. When you finish, `xcrun simctl shutdown "' . $name
                 . '"`; Kanvas deletes the device afterwards.',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function appStoreConnectSection(): array
+    {
+        if (! CodingHostToolsService::hasAppStoreConnect($this->hostTools)) {
+            return [];
+        }
+
+        return [
+            '',
+            '## App Store Connect',
+            '',
+            'This machine has the `asc` CLI with an App Store Connect API key already configured; run it '
+                . 'as `asc …` from the checkout. Start with `asc --help` and `asc <command> --help`, and use '
+                . '`--output json` to read results.',
+            '',
+            'It acts on the live account: list before you create, and change only the app your task names. '
+                . '`asc web` and `asc auth` are not available to you; an Apple Account sign-in or a new key is '
+                . 'a step for a person, so say so in your report instead.',
         ];
     }
 

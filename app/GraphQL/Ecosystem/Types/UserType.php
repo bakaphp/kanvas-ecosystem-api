@@ -40,22 +40,29 @@ class UserType
     }
 
     /**
-     * Return the latest subscription for the user in the current app.
-     * User subscriptions use companies_id = 0 to distinguish from company subscriptions.
+     * The user's active subscription in the current app, else their latest one.
+     * User subscriptions use companies_id = 0; a user can hold one customer row per provider.
      */
     public function currentSubscription(Users $user, array $request): ?Subscription
     {
         $app = app(Apps::class);
 
-        $stripeCustomer = AppsStripeCustomer::where('users_id', $user->getId())
+        $customerIds = AppsStripeCustomer::where('users_id', $user->getId())
             ->where('companies_id', 0)
             ->where('apps_id', $app->getId())
-            ->first();
+            ->pluck('id');
 
-        if (! $stripeCustomer) {
+        if ($customerIds->isEmpty()) {
             return null;
         }
 
-        return $stripeCustomer->subscriptions()->latest()->first();
+        $subscriptions = Subscription::query()
+            ->whereIn('apps_stripe_customer_id', $customerIds)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return $subscriptions->first(fn (Subscription $subscription): bool => $subscription->active())
+            ?? $subscriptions->first();
     }
 }
