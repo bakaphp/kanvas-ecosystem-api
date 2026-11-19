@@ -9,7 +9,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
@@ -297,35 +296,6 @@ final class FactoryStageTest extends TestCase
                 && str_contains((string) $job->triggerMessage, 'start ticket 3 of the approved technical plan')
                 && str_contains((string) $job->triggerMessage, 'https://files.example.com/technical-plan.md')
         );
-    }
-
-    public function testATicketWaitingOnlyOnTheBackendStillStartsTheNextOne(): void
-    {
-        Queue::fake();
-        [$project] = $this->factoryProject();
-        $result = $this->ticket()(
-            $project->getId(),
-            'example-app',
-            3,
-            'Attach a document',
-            'As a user I attach a file to a record.',
-            false,
-        );
-        [$ship] = $this->stepsOf((int) $result['plan_id']);
-
-        $plan = $ship->plan;
-
-        new UpdateTaskStatusAction($ship, TaskStatusEnum::BLOCKED, blockedReason: 'BLOCKED — the simulator would not boot.')->execute();
-        $this->assertSame('', FactoryStage::afterBackendGap($plan->refresh()), 'any other block stops the line');
-
-        new UpdateTaskStatusAction($ship->refresh(), TaskStatusEnum::PENDING)->execute();
-        new UpdateTaskStatusAction(
-            $ship->refresh(),
-            TaskStatusEnum::BLOCKED,
-            blockedReason: "**BLOCKED — waiting on backend**\nThe upload mutation is not deployed.",
-        )->execute();
-
-        $this->assertStringContainsString('start ticket 4 of the approved technical plan', FactoryStage::afterBackendGap($plan->refresh()));
     }
 
     /** The same ticket under another short name ("login screen" / "login-screen") is the one already on the board. */

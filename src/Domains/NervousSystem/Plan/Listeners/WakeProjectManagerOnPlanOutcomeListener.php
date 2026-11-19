@@ -212,13 +212,13 @@ class WakeProjectManagerOnPlanOutcomeListener
             );
         }
 
-        return trim(sprintf(
+        return sprintf(
             'Plan %d ("%s") is now %s, worked by %s.',
             $plan->getId(),
             (string) $plan->title,
             (string) $plan->status,
             $plan->agent?->name ?? 'an assignee',
         ) . ' Read it with read_plan_activity before you report anything about it — the result and any '
-            . 'blocker are recorded on its tasks. ' . FactoryStage::afterBackendGap($plan));
+            . 'blocker are recorded on its tasks.';
     }
 }
