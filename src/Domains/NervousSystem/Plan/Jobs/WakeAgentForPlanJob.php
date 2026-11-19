@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
@@ -237,14 +238,15 @@ class WakeAgentForPlanJob implements ShouldQueue
         WakeAgentForProjectJob::dispatch(
             $project,
             WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
-            sprintf(
+            trim(sprintf(
                 'On plan %d ("%s"), worked by %s in the factory: %s Read the task with get_task before you '
-                . 'report anything or hand out the next step; its result and any blocker are recorded there.',
+                . 'report anything or hand out the next step; its result and any blocker are recorded there. %s',
                 $this->plan->getId(),
                 (string) $this->plan->title,
                 (string) $this->plan->agent?->name,
                 $this->userMessage,
-            ),
+                FactoryStage::afterBackendGap($this->plan),
+            )),
             wakeAgent: $creator,
         );
     }

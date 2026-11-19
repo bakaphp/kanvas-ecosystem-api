@@ -35,6 +35,8 @@ final readonly class FactoryStage
 
     private const string PLAN_CONTRACT = '- The approved technical plan, the contract: ';
 
+    private const string WAITING_ON_BACKEND = 'BLOCKED — waiting on backend';
+
     /** Any step that looks at a signed-in screen on a device needs it; left out, the agent asks a person. */
     private const string ARGENT_LOGIN = 'signed in through Argent with the test login it holds as secrets '
         . '(`{{secret:KANVAS_TEST_EMAIL}}` and `{{secret:KANVAS_TEST_PASSWORD}}`, never printed or committed)';
@@ -309,8 +311,7 @@ final readonly class FactoryStage
             . 'custom field. Never change kanvas-ecosystem-api yourself. When the Kanvas the app points at lacks '
             . 'something the ticket needs (an API change not deployed yet, a message type an admin has to create), '
             . 'that is a backend gap: build everything else, keep the screen in its unavailable state and land the '
-            . 'work so nothing is lost, but the ticket is NOT done. Start your reply with "BLOCKED — waiting on '
-            . 'backend", then name each gap and exactly what a person has to do about it: the ticket stays blocked '
+            . 'work so nothing is lost, but the ticket is NOT done. Start your reply with "' . self::WAITING_ON_BACKEND . '", then name each gap and exactly what a person has to do about it: the ticket stays blocked '
             . 'on the board until the backend landed and the feature was verified, and no release starts before '
             . 'then.' . $quoted;
 
@@ -469,6 +470,26 @@ final readonly class FactoryStage
             . 'start ' . $next . ' of the approved technical plan with start_factory_ticket'
             . ($planUrl !== null ? ', its text copied from the plan at ' . $planUrl . ' (read_file with that file_url)' : '')
             . ', or, if the plan has no further ticket, call start_factory_release with every ticket of the stage in notes.';
+    }
+
+    /**
+     * A ticket blocked only on the backend has already landed: its gaps hold back the release, never the
+     * next ticket. Empty for any other plan.
+     */
+    public static function afterBackendGap(Plan $plan): string
+    {
+        $landedWaitingOnBackend = $plan->tasks()
+            ->whereNull('parent_task_id')
+            ->notDeleted()
+            ->where('status', TaskStatusEnum::BLOCKED->value)
+            ->get()
+            ->contains(fn (Task $task): bool => self::landsOnIntegration($task->fullText())
+                && str_contains(mb_substr((string) $task->blocked_reason, 0, 80), self::WAITING_ON_BACKEND));
+
+        return $landedWaitingOnBackend
+            ? 'Its work landed and it waits only on the backend, which holds back the release, not the next ticket: '
+                . 'leave it blocked for the backend and keep going. ' . self::whatFollows($plan)
+            : '';
     }
 
     private static function approvedPlanUrl(Project $project, string $repository): ?string
