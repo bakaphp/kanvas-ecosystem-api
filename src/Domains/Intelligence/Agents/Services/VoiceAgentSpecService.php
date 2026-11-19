@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
@@ -132,6 +133,10 @@ class VoiceAgentSpecService
                     'properties' => $properties === [] ? new stdClass() : $properties,
                     'required' => $handler->getRequiredProperties(),
                 ],
+                // Always present and boolean: true runs the tool in the background while the
+                // agent keeps talking; false (the default for unmarked tools) makes the agent
+                // wait and dedupes repeats, as for any write.
+                'read_only' => AgentTool::isReadOnly($handler),
             ];
         }
 
