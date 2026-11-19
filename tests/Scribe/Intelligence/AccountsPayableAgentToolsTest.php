@@ -615,6 +615,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         }
 
         $this->assertTrue($createInvoice('INV-0043')['created']);
+        $this->assertTrue($createInvoice('INV-É0042')['created'], 'An accented letter is part of the number, not punctuation.');
     }
 
     public function test_a_duplicate_bill_number_is_client_safe_and_not_reported(): void

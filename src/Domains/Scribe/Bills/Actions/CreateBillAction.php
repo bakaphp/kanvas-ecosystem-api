@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Actions;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
@@ -141,20 +142,19 @@ class CreateBillAction
             ->whereNotNull('bill_number')
             ->select(['id', 'bill_number'])
             ->lazy()
-            ->first(
-                fn (Bill $bill): bool => $bill->bill_number === $this->data->bill_number
-                    || ($loose !== '' && $this->looseNumber($bill->bill_number) === $loose)
-            );
+            ->first(fn (Bill $bill): bool => $this->looseNumber($bill->bill_number) === $loose);
 
         if ($match !== null) {
             $this->rejectDuplicate($vendorOrganizationId, Bill::withTrashed()->find($match->getId()));
         }
     }
 
-    /** "INV-123", "inv 123" and "INV123" are the same invoice number. */
+    /** "INV-123", "inv 123" and "INV123" are the same invoice number; one made only of symbols compares as typed. */
     private function looseNumber(string $billNumber): string
     {
-        return preg_replace('/[^a-z0-9]/', '', strtolower($billNumber)) ?? '';
+        $loose = Str::of($billNumber)->lower()->replaceMatches('/[^\p{L}\p{N}]/u', '')->toString();
+
+        return $loose !== '' ? $loose : $billNumber;
     }
 
     /**
