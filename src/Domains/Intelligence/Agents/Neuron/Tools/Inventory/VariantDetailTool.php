@@ -6,7 +6,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesVariantForTool;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Kanvas\Souk\Services\StorefrontProductUrlService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
@@ -17,7 +18,6 @@ use Override;
 class VariantDetailTool extends Tool
 {
     use HasKanvasContext;
-    use ResolvesVariantForTool;
 
     protected string $name = 'variant_detail';
 
@@ -45,10 +45,23 @@ class VariantDetailTool extends Tool
             return ['status' => 'error', ...$this->tenantContextMissingError('variant detail')];
         }
 
-        // Own company only, like product_detail: no cross-company read scope, so no tenant labels.
-        $variant = $this->resolveVariantOrError($variant_id);
-        if (is_array($variant)) {
-            return $variant;
+        // The agent's own company, unless the app shares variants across companies — the same
+        // rule list_available_products lists by, so every product it offers can be opened here.
+        // An explicit where, not fromCompany(): under an app key (the voice runtime) that scope
+        // widens to every company in the app.
+        /** @var Variants|null $variant */
+        $variant = Variants::query()
+            ->where('id', $variant_id)
+            ->fromApp($this->app)
+            ->notDeleted()
+            ->when(
+                ! $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value),
+                fn ($query) => $query->where('companies_id', $this->company->getId()),
+            )
+            ->first();
+
+        if ($variant === null) {
+            return ['status' => 'not_found', 'message' => "Variant #{$variant_id} not found."];
         }
 
         $variant->load([

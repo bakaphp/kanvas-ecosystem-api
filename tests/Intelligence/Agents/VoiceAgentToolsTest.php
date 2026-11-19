@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
 use Kanvas\Intelligence\Agents\Services\VoiceAgentSpecService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
@@ -157,7 +158,29 @@ final class VoiceAgentToolsTest extends TestCase
                 ->saveQuietly()
         );
 
-        $this->assertSame('error', $tool->__invoke(variant_id: $variant->getId())['status']);
+        $this->assertSame('not_found', $tool->__invoke(variant_id: $variant->getId())['status']);
+    }
+
+    public function testVariantDetailOpensAnotherCompanysVariantWhenTheAppSharesThem(): void
+    {
+        $variant = Products::withoutSyncingToSearch(fn () => Variants::withoutSyncingToSearch(
+            fn () => Products::factory()->company($this->company->getId())->create()->variants()->first()
+        ));
+        Variants::withoutSyncingToSearch(
+            fn () => $variant->forceFill(['companies_id' => $this->company->getId() + 1_000_000])
+                ->saveQuietly()
+        );
+        $tool = new VariantDetailTool()->withContext($this->testApp, $this->company, auth()->user());
+        $originalFlag = $this->testApp->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
+        try {
+            // A marketplace app: list_available_products offers every company's products.
+            $this->testApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, true);
+
+            $this->assertSame($variant->getId(), $tool->__invoke(variant_id: $variant->getId())['id']);
+        } finally {
+            $this->testApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, $originalFlag);
+        }
     }
 
     /**
