@@ -82,6 +82,8 @@ final class EngagementReferenceMigrationTest extends TestCase
             $this->assertFalse($schema->hasColumn('engagements', 'entity_id'));
             $this->assertSame(2, $connection->table('engagements')->count());
         } finally {
+            // Laravel's teardown disconnects through app('db'); it has to find the real manager there.
+            DB::swap($manager);
             $manager->purge('engagement_migration_test');
             $source->statement('DROP DATABASE `' . $database . '`');
         }

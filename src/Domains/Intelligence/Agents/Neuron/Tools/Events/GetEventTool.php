@@ -21,7 +21,7 @@ use Throwable;
  * Full detail of one event: taxonomy, tags, description, and its list of versions (editions) with
  * their dates, price and capacity. Company-scoped. Use get_event_version for one edition's full detail.
  */
-#[AgentTool(name: 'Get Event', category: 'events')]
+#[AgentTool(name: 'Get Event', category: 'events', readOnly: true)]
 class GetEventTool extends Tool
 {
     use HasKanvasContext;

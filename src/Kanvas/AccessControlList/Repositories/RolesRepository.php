@@ -112,19 +112,12 @@ class RolesRepository
         return $roles;
     }
 
-    public static function getPermissions(string $roleName, ?string $title = null): SupportCollection
+    public static function getPermissions(Role $role): SupportCollection
     {
-        $roles = Bouncer::role()
-            ->where('name', $roleName)
-            ->when($title, function ($query) use ($title) {
-                $query->orWhere('title', $title);
-            })
-            ->firstOrFail();
-
         return DB::table('permissions')
             ->leftJoin('abilities', 'permissions.ability_id', 'abilities.id')
             ->where('permissions.entity_type', 'roles')
-            ->where('permissions.entity_id', $roles->id)
+            ->where('permissions.entity_id', $role->getKey())
             ->select('abilities.name', 'abilities.title', 'abilities.entity_type')
             ->get();
     }

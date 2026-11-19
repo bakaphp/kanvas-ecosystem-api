@@ -192,6 +192,17 @@ class Agent extends BaseModel
         return $this->belongsTo(AgentType::class, 'agent_type_id');
     }
 
+    /**
+     * @param class-string $handler
+     */
+    public function scopeOfHandler(Builder $query, string $handler): Builder
+    {
+        return $query->whereHas(
+            'type',
+            fn (Builder $type): Builder => $type->where('handler', $handler)
+        );
+    }
+
     public function model(): BelongsTo
     {
         return $this->belongsTo(AgentModel::class, 'agent_model_id');

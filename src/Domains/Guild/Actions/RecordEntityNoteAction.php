@@ -36,7 +36,8 @@ abstract class RecordEntityNoteAction
         ?Users $actingUser = null,
         bool $fromIa = true,
         ?bool $isPublic = null,
-        string $messageTypeVerb = 'system'
+        string $messageTypeVerb = 'system',
+        ?string $slug = null
     ): ?Message {
         try {
             $entity = $this->entity();
@@ -68,6 +69,7 @@ abstract class RecordEntityNoteAction
                 type: $messageType,
                 message: $messagePayload->toArray(),
                 is_public: (int) $isPublic,
+                slug: $slug,
             );
 
             $note = new CreateSocialMessageAction(
