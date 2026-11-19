@@ -269,6 +269,14 @@ final class FactoryStageTest extends TestCase
     {
         Queue::fake();
         [$project] = $this->factoryProject();
+        $this->kickoff()(
+            $project->getId(),
+            'example-app',
+            'Example App',
+            'com.example.app',
+            brief_url: 'https://files.example.com/business-brief.md',
+            plan_url: 'https://files.example.com/technical-plan.md',
+        );
         $result = $this->ticket()(
             $project->getId(),
             'example-app',
@@ -285,6 +293,8 @@ final class FactoryStageTest extends TestCase
             WakeAgentForProjectJob::class,
             fn (WakeAgentForProjectJob $job): bool => $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
                 && str_contains((string) $job->triggerMessage, 'start_factory_release')
+                && str_contains((string) $job->triggerMessage, 'start ticket 3 of the approved technical plan')
+                && str_contains((string) $job->triggerMessage, 'https://files.example.com/technical-plan.md')
         );
     }
 
