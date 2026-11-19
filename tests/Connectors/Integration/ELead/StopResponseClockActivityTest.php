@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Elead;
+namespace Tests\Connectors\Integration\ELead;
 
 use Baka\Contracts\DefaultRule;
 use Illuminate\Foundation\Testing\DatabaseTransactions;

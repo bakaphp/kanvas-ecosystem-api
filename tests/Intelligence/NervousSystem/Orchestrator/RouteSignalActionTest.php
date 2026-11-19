@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Orchestrator\Routing\Actions\RouteSignalAction;
+use Kanvas\NervousSystem\Orchestrator\Routing\DataTransferObject\RoutingCandidate;
 use Kanvas\NervousSystem\Orchestrator\Routing\Enums\RoutingOutcomeEnum;
 use Kanvas\NervousSystem\Orchestrator\Signals\DataTransferObject\InboundSignal;
 use Kanvas\NervousSystem\Orchestrator\Signals\Enums\SignalSourceEnum;
@@ -20,13 +21,15 @@ use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\StructuredAnonymousAgent;
+use Tests\Intelligence\NervousSystem\Orchestrator\Concerns\MakesMeetingRoutingFixtures;
 use Tests\TestCase;
 
 class RouteSignalActionTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesMeetingRoutingFixtures;
 
-    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social', 'workflow'];
 
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
@@ -83,7 +86,7 @@ class RouteSignalActionTest extends TestCase
         $decision = new RouteSignalAction($this->signal(['greg@acme.io']))->execute([$acme]);
 
         $this->assertSame(RoutingOutcomeEnum::FORWARD, $decision->outcome);
-        $this->assertSame((int) $acme->id, (int) $decision->project?->id);
+        $this->assertSame((int) $acme->id, (int) $decision->project()?->id);
     }
 
     public function testHighConfidenceClassificationForwards(): void
@@ -93,7 +96,7 @@ class RouteSignalActionTest extends TestCase
         $globex = $this->makeProject($app, $company, $user, 'Globex');
 
         StructuredAnonymousAgent::fake([[
-            'project_id' => (int) $globex->id,
+            'candidate' => 'project:' . $globex->id,
             'confidence' => 0.9,
             'reason' => 'clearly Globex',
         ]]);
@@ -101,7 +104,7 @@ class RouteSignalActionTest extends TestCase
         $decision = new RouteSignalAction($this->signal())->execute([$acme, $globex]);
 
         $this->assertSame(RoutingOutcomeEnum::FORWARD, $decision->outcome);
-        $this->assertSame((int) $globex->id, (int) $decision->project?->id);
+        $this->assertSame((int) $globex->id, (int) $decision->project()?->id);
     }
 
     public function testMidConfidenceRaisesApprovalWithSuggestedProject(): void
@@ -110,7 +113,7 @@ class RouteSignalActionTest extends TestCase
         $acme = $this->makeProject($app, $company, $user, 'Acme');
 
         StructuredAnonymousAgent::fake([[
-            'project_id' => (int) $acme->id,
+            'candidate' => 'project:' . $acme->id,
             'confidence' => 0.55,
             'reason' => 'probably Acme',
         ]]);
@@ -118,7 +121,7 @@ class RouteSignalActionTest extends TestCase
         $decision = new RouteSignalAction($this->signal())->execute([$acme]);
 
         $this->assertSame(RoutingOutcomeEnum::APPROVAL, $decision->outcome);
-        $this->assertSame((int) $acme->id, (int) $decision->project?->id);
+        $this->assertSame((int) $acme->id, (int) $decision->project()?->id);
     }
 
     public function testLowConfidenceGoesToTriageWithNoSuggestion(): void
@@ -127,7 +130,7 @@ class RouteSignalActionTest extends TestCase
         $acme = $this->makeProject($app, $company, $user, 'Acme');
 
         StructuredAnonymousAgent::fake([[
-            'project_id' => (int) $acme->id,
+            'candidate' => 'project:' . $acme->id,
             'confidence' => 0.2,
             'reason' => 'weak guess',
         ]]);
@@ -135,7 +138,7 @@ class RouteSignalActionTest extends TestCase
         $decision = new RouteSignalAction($this->signal())->execute([$acme]);
 
         $this->assertSame(RoutingOutcomeEnum::TRIAGE, $decision->outcome);
-        $this->assertNull($decision->project);
+        $this->assertNull($decision->target);
     }
 
     public function testClassifierNoneDrops(): void
@@ -144,7 +147,7 @@ class RouteSignalActionTest extends TestCase
         $acme = $this->makeProject($app, $company, $user, 'Acme');
 
         StructuredAnonymousAgent::fake([[
-            'project_id' => 0,
+            'candidate' => 'none',
             'confidence' => 0.0,
             'reason' => 'internal FYI',
         ]]);
@@ -159,5 +162,70 @@ class RouteSignalActionTest extends TestCase
         $decision = new RouteSignalAction($this->signal())->execute([]);
 
         $this->assertSame(RoutingOutcomeEnum::DROP, $decision->outcome);
+    }
+
+    public function testSoleLeadMatchForwardsWithoutLlm(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $acme = $this->makeProject(
+            $app,
+            $company,
+            $user,
+            'Acme',
+        );
+        $lead = $this->lead($company, $this->person($company, $this->uniqueEmail()));
+
+        // No LLM fake — one record and no member match forwards on the attendee alone.
+        $decision = new RouteSignalAction($this->signal())->execute([$acme], [RoutingCandidate::forLead($lead)]);
+
+        $this->assertSame(RoutingOutcomeEnum::FORWARD, $decision->outcome);
+        $this->assertSame('lead:' . $lead->getId(), $decision->target?->key());
+    }
+
+    public function testLeadAndMemberProjectAreSettledByTheClassifier(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $acme = $this->makeProject(
+            $app,
+            $company,
+            $user,
+            'Acme',
+        );
+        $member = Users::factory()->create(['email' => 'pm@acme.io']);
+        new AddProjectMemberAction(project: $acme, role: ProjectMemberRoleEnum::CONTRIBUTOR, user: $member)->execute();
+        $lead = $this->lead($company, $this->person($company, $this->uniqueEmail()));
+
+        StructuredAnonymousAgent::fake([[
+            'candidate' => 'project:' . $acme->id,
+            'confidence' => 0.5,
+            'reason' => 'Implementation status call.',
+        ]]);
+
+        $decision = new RouteSignalAction($this->signal(['pm@acme.io']))->execute([$acme], [RoutingCandidate::forLead($lead)]);
+
+        // A mid confidence still forwards: every candidate here is backed by an attendee.
+        $this->assertSame(RoutingOutcomeEnum::FORWARD, $decision->outcome);
+        $this->assertSame((int) $acme->id, (int) $decision->project()?->id);
+    }
+
+    public function testClassifierNoneAmongMatchesFallsBackToTheFirstByPriority(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $lead = $this->lead($company, $this->person($company, $this->uniqueEmail()));
+        $organization = $this->organization($company, 'Globex');
+
+        StructuredAnonymousAgent::fake([[
+            'candidate' => 'none',
+            'confidence' => 0.0,
+            'reason' => 'Unclear.',
+        ]]);
+
+        $decision = new RouteSignalAction($this->signal())->execute([], [
+            RoutingCandidate::forLead($lead),
+            RoutingCandidate::forOrganization($organization),
+        ]);
+
+        $this->assertSame(RoutingOutcomeEnum::FORWARD, $decision->outcome);
+        $this->assertSame('lead:' . $lead->getId(), $decision->target?->key());
     }
 }
