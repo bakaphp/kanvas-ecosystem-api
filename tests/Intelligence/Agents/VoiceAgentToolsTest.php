@@ -179,7 +179,11 @@ final class VoiceAgentToolsTest extends TestCase
 
             $this->assertSame($variant->getId(), $tool->__invoke(variant_id: $variant->getId())['id']);
         } finally {
-            $this->testApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, $originalFlag);
+            // App settings live in Redis too, so the transaction doesn't undo them, and set(null)
+            // is a no-op: an unset flag has to be deleted or it leaks into every later test.
+            $originalFlag === null
+                ? $this->testApp->del(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)
+                : $this->testApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, $originalFlag);
         }
     }
 
