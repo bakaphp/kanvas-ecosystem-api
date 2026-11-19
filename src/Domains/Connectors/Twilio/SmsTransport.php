@@ -39,7 +39,29 @@ class SmsTransport implements Transport
 
     public const string MESSAGE_VERB = MessageTypeEnum::SMS->value;
 
-    private const string ALLOWED_LINE_TYPE = 'mobile';
+    private const string VOIP_WITHOUT_SMS = 'VOIP without SMS';
+
+    private const string MOBILE_LINE_TYPE = 'mobile';
+
+    private const array VOIP_LINE_TYPES = ['fixedvoip', 'nonfixedvoip'];
+
+    /**
+     * Lookup classifies a VoIP line but cannot say whether texting is enabled on it; the carrier
+     * behind the number is the only hint it gives. These are the wholesale networks behind the VoIP
+     * numbers people really text from (Google Voice, TextNow...), plus the "SVR" marker of a
+     * messaging-enabled line.
+     */
+    private const array VOIP_CARRIER_KEYWORDS = [
+        'svr',
+        'bandwidth',
+        'onvoy',
+        'sinch',
+        'twilio',
+        'telnyx',
+        'peerless',
+        'level 3',
+        'enflick',
+    ];
 
     #[Override]
     public function send(Delivery $delivery, Content $content): TransportResult
@@ -171,17 +193,28 @@ class SmsTransport implements Transport
     }
 
     /**
-     * Texts only go to mobile numbers. An allow-list on purpose: a line type Twilio adds later, or a
-     * number it could not classify, must not slip through. What the lookup learns about the line is
-     * kept on the person, so a number already known to be a landline is refused without paying for
+     * Texts only go to mobile numbers and to VoIP numbers on a carrier known to carry texts. An
+     * allow-list on purpose: a line type Twilio adds later, or a number it could not classify, must
+     * not slip through. What is already known about the number is asked first — a contact marked
+     * invalid, a line an earlier lookup called a landline (kept on the person) — so neither pays for
      * another lookup.
      */
     private function refusalForLine(Delivery $delivery, string $to): ?TransportResult
     {
         $people = $delivery->request?->people;
 
+        if ($people?->isPhoneUndeliverable($to) === true) {
+            return TransportResult::failed(
+                'undeliverable_number',
+                $to . ' is marked invalid; no further texts are sent to it.'
+            );
+        }
+
         if ($people?->isPhoneLandline($to) === true) {
-            return TransportResult::failed('not_mobile', $to . ' is a landline; texts only go to mobile numbers.');
+            return TransportResult::failed(
+                'not_mobile',
+                $to . ' is a landline; texts only go to mobile and VoIP numbers.'
+            );
         }
 
         $line = $this->lineOf($delivery, $to);
@@ -197,11 +230,13 @@ class SmsTransport implements Transport
             $people?->setPhoneLandline($to, $lineType === 'landline');
         }
 
-        if ($lineType !== self::ALLOWED_LINE_TYPE) {
+        $isVoip = in_array($lineType, self::VOIP_LINE_TYPES, true);
+
+        if ($lineType !== self::MOBILE_LINE_TYPE && ! $isVoip) {
             $lookupError = $line->lineTypeIntelligence['error_code'] ?? null;
 
             return TransportResult::failed('not_mobile', sprintf(
-                '%s has line type %s; texts only go to mobile numbers.',
+                '%s has line type %s; texts only go to mobile and VoIP numbers.',
                 $to,
                 match (true) {
                     $lineType !== '' => $received,
@@ -209,6 +244,13 @@ class SmsTransport implements Transport
                     default => 'unknown (Twilio returned no line type)',
                 }
             ));
+        }
+
+        $carrier = strtolower((string) ($line->lineTypeIntelligence['carrier_name'] ?? ''));
+
+        // The person who wrote the text reads this reason as is, so it names no number or carrier.
+        if ($isVoip && ! Str::contains($carrier, self::VOIP_CARRIER_KEYWORDS)) {
+            return TransportResult::failed('voip_without_sms', self::VOIP_WITHOUT_SMS);
         }
 
         $lineStatus = strtolower((string) ($line->lineStatus['status'] ?? 'unknown'));
