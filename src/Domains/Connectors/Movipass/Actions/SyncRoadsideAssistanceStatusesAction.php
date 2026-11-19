@@ -19,8 +19,13 @@ use Kanvas\Souk\Orders\Models\OrderTypes;
  *
  * Not CreateOrderStatusesAction: its firstOrCreate goes through the soft-delete scope, so a deleted
  * status or transition is created a second time, and an existing status never picks up a changed
- * is_default / is_final / sequence, nor loses a transition the map dropped. Rows are restored and
- * soft-deleted here, never hard-deleted, because order history points at their ids.
+ * is_default / is_final / sequence. Rows are restored and soft-deleted here, never hard-deleted,
+ * because order history points at their ids.
+ *
+ * Every app with roadside assistance shares this order type, so an existing status keeps its name
+ * (the legacy setup stored "Request_submitted"; clients may show it), and a transition the map does
+ * not list is only reported unless $prune: one added by hand would otherwise vanish, and
+ * transitionToStatus() then silently leaves the order where it was.
  */
 class SyncRoadsideAssistanceStatusesAction
 {
@@ -32,10 +37,12 @@ class SyncRoadsideAssistanceStatusesAction
         'transitions_restored' => 0,
         'transitions_removed' => 0,
         'duplicate_statuses' => [],
+        'unlisted_transitions' => [],
     ];
 
     public function __construct(
         private readonly AppInterface $app,
+        private readonly bool $prune = false,
     ) {
     }
 
@@ -99,7 +106,6 @@ class SyncRoadsideAssistanceStatusesAction
     ): OrderStatus {
         $slug = Str::slug($key);
         $attributes = [
-            'name' => $config['name'],
             'is_default' => (int) ($config['is_default'] ?? false),
             'is_final' => (int) ($config['is_final'] ?? false),
             'sequence' => $sequence,
@@ -126,6 +132,7 @@ class SyncRoadsideAssistanceStatusesAction
 
             return OrderStatus::create([
                 ...$attributes,
+                'name' => $config['name'],
                 'apps_id' => $this->app->getId(),
                 'companies_id' => 0,
                 'order_types_id' => $orderType->getId(),
@@ -174,8 +181,15 @@ class SyncRoadsideAssistanceStatusesAction
         foreach ($existing as $transition) {
             $pair = $transition->from_status_id . ':' . $transition->to_status_id;
             $isActive = ! $this->isDeleted($transition);
+            $unlisted = ! isset($wanted[$pair]);
 
-            if (! isset($wanted[$pair]) || isset($kept[$pair])) {
+            if ($unlisted && $isActive && ! $this->prune) {
+                $this->summary['unlisted_transitions'][] = $transition->name ?: $pair;
+
+                continue;
+            }
+
+            if ($unlisted || isset($kept[$pair])) {
                 if ($isActive) {
                     $this->setDeleted($transition, true);
                     $this->summary['transitions_removed']++;

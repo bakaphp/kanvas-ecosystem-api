@@ -562,6 +562,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
+        if (! $this->resolveCaseUser($order->users_id) instanceof Users) {
+            return $this->missingOrderUser($order);
+        }
+
         try {
             new StartRoadsideServiceWithPinAction(
                 order: $order,

@@ -41,7 +41,7 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
     {
         $summary = $this->sync();
 
-        unset($summary['duplicate_statuses']);
+        unset($summary['duplicate_statuses'], $summary['unlisted_transitions']);
         $this->assertSame(array_fill_keys(array_keys($summary), 0), $summary);
         $this->assertSame($this->expectedTransitionCount(), $this->activeTransitions()->count());
     }
@@ -66,20 +66,36 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
         $this->assertSame($transition->getId(), $this->transition(MovipassOrderStatusEnum::DISPATCHED, MovipassOrderStatusEnum::ON_SITE)->getId());
     }
 
-    public function testATransitionNoLongerInTheMapIsRemoved(): void
+    public function testATransitionNotInTheMapIsKeptAndReported(): void
     {
-        OrderStatusTransitions::create([
-            'order_types_id' => $this->orderType()->getId(),
-            'from_status_id' => $this->orderStatus(MovipassOrderStatusEnum::SERVICE_COMPLETED)->getId(),
-            'to_status_id' => $this->orderStatus(MovipassOrderStatusEnum::REQUEST_SUBMITTED)->getId(),
-            'name' => 'stale',
-            'companies_id' => 0,
-        ]);
+        $this->createUnlistedTransition();
 
         $summary = $this->sync();
 
+        $this->assertSame(0, $summary['transitions_removed']);
+        $this->assertContains('unlisted', $summary['unlisted_transitions']);
+        $this->assertSame($this->expectedTransitionCount() + 1, $this->activeTransitions()->count());
+    }
+
+    public function testPruneRemovesATransitionNotInTheMap(): void
+    {
+        $this->createUnlistedTransition();
+
+        $summary = $this->sync(prune: true);
+
         $this->assertSame(1, $summary['transitions_removed']);
+        $this->assertNotContains('unlisted', $summary['unlisted_transitions']);
         $this->assertSame($this->expectedTransitionCount(), $this->activeTransitions()->count());
+    }
+
+    public function testAnExistingStatusKeepsItsName(): void
+    {
+        $this->orderStatus(MovipassOrderStatusEnum::REQUEST_SUBMITTED)->updateQuietly(['name' => 'Request_submitted']);
+
+        $summary = $this->sync();
+
+        $this->assertSame(0, $summary['statuses_updated']);
+        $this->assertSame('Request_submitted', $this->orderStatus(MovipassOrderStatusEnum::REQUEST_SUBMITTED)->name);
     }
 
     public function testAChangedFlagIsPutBack(): void
@@ -114,9 +130,20 @@ final class RoadsideAssistanceStatusSetupTest extends TestCase
         }
     }
 
-    private function sync(): array
+    private function sync(bool $prune = false): array
     {
-        return new SyncRoadsideAssistanceStatusesAction($this->apps)->execute();
+        return new SyncRoadsideAssistanceStatusesAction($this->apps, $prune)->execute();
+    }
+
+    private function createUnlistedTransition(): void
+    {
+        OrderStatusTransitions::create([
+            'order_types_id' => $this->orderType()->getId(),
+            'from_status_id' => $this->orderStatus(MovipassOrderStatusEnum::SERVICE_COMPLETED)->getId(),
+            'to_status_id' => $this->orderStatus(MovipassOrderStatusEnum::REQUEST_SUBMITTED)->getId(),
+            'name' => 'unlisted',
+            'companies_id' => 0,
+        ]);
     }
 
     private function orderType(): OrderTypes
