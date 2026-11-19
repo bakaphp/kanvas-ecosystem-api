@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Baka\Support\Geo;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
-use Kanvas\Connectors\Movipass\Support\Geo;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 

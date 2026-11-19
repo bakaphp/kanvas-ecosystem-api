@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Baka\Support\Geo;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
@@ -11,7 +12,6 @@ use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideAuditChannelEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideCaseStateEnum;
-use Kanvas\Connectors\Movipass\Support\Geo;
 use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;

@@ -56,4 +56,4 @@ shared roadside flow untouched; `RoadsideAuditTrail::forOrder()` is a no-op for 
   is dropped unless you carry it through there.
 - `Order::transitionToStatus()` silently ignores an undeclared transition — add it to
   `RoadsideAssistanceStatusMap` and re-run the setup command.
-- Distance: `Support\Geo` is the one haversine; don't add another.
+- Distance and geofences: `Baka\Support\Geo` is the one haversine; don't add another.

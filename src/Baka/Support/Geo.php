@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Support;
+namespace Baka\Support;
 
 final class Geo
 {

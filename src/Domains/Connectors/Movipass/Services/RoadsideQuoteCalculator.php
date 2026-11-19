@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Services;
 
+use Baka\Support\Geo;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
-use Kanvas\Connectors\Movipass\Support\Geo;
 use Kanvas\Connectors\Movipass\Support\RoadsidePriceBreakdown;
 use Kanvas\Connectors\Movipass\Support\RoadsideQuote;
 use Kanvas\Connectors\Movipass\Support\RoadsideTariffSchedule;
