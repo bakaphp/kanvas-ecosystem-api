@@ -42,12 +42,16 @@ class LaunchCodingChatJob implements ShouldQueue
 
     private const int TURN_CHECK_SECONDS = 60;
 
+    /** What the factory answers when the branch a task run needs is checked out in another worktree. */
+    private const string BRANCH_TAKEN = 'could not create a worktree';
+
     public int $tries = 1;
 
     public function __construct(
         public readonly Apps $app,
         public readonly int $sessionId,
         public readonly string $instruction,
+        public readonly bool $retriedAfterRelease = false,
     ) {
         $this->onQueue('coding');
     }
@@ -158,6 +162,17 @@ class LaunchCodingChatJob implements ShouldQueue
 
             return;
         } catch (Throwable $e) {
+            if (! $this->retriedAfterRelease && $this->releasedFinishedRunsOnItsBranch($session, $e)) {
+                self::dispatch(
+                    $this->app,
+                    $this->sessionId,
+                    $this->instruction,
+                    retriedAfterRelease: true,
+                );
+
+                return;
+            }
+
             // An unreachable or refusing Mac is said in the chat; anything else is a fault worth tracking.
             if (! $e instanceof HarnessTransportException) {
                 report($e);
@@ -233,6 +248,42 @@ class LaunchCodingChatJob implements ShouldQueue
      * one's "start again with /repo" would only be refused the same way. A task run carries it as its
      * reason instead, which is what the task that started it is blocked with.
      */
+    /**
+     * The steps of one ticket share a branch, and a finished step's worktree that outlived its run still
+     * holds it, so the next step cannot check the branch out. Releasing the finished runs on that branch
+     * frees it without losing anything: a release commits what a run left uncommitted on the branch.
+     */
+    private function releasedFinishedRunsOnItsBranch(AgentTaskSession $session, Throwable $e): bool
+    {
+        $branch = $session->taskRunBranch();
+
+        if ($branch === null || ! str_contains($e->getMessage(), self::BRANCH_TAKEN)) {
+            return false;
+        }
+
+        $finished = AgentTaskSession::query()
+            ->where('apps_id', $session->apps_id)
+            ->where('agent_machine_id', $session->agent_machine_id)
+            ->where('repo_slug', $session->repo_slug)
+            ->where('branch', $branch)
+            ->whereIn('status', HarnessStatusEnum::terminalValues())
+            ->whereKeyNot($session->getId())
+            ->get();
+
+        $factory = HarnessFactory::codingFactoryFor($session);
+        $released = false;
+
+        foreach ($finished as $run) {
+            try {
+                $factory?->release((string) $run->repo_slug, $run->uuid);
+                $released = true;
+            } catch (Throwable) {
+            }
+        }
+
+        return $released;
+    }
+
     private function refuseHeldCheckout(AgentTaskSession $session, CheckoutInUseException $e): void
     {
         $notice = new CheckoutHolderNotice($session, $e->holder)->message();

@@ -821,6 +821,57 @@ class CodingChatTest extends TestCase
         );
     }
 
+    /**
+     * A ticket's design and logic share a branch. A design run whose worktree outlived it held the branch, and
+     * the logic step's launch failed on it.
+     */
+    public function testALaunchFreesItsBranchFromAFinishedRunThenTriesOnceMore(): void
+    {
+        Queue::fake();
+        [$design, $logic] = $this->ticketLine();
+        $designRun = $this->startFactoryRun($design);
+        new RunTaskWorkerJob($logic->refresh())->handle();
+        $logicRun = $this->factoryRunOf($logic);
+        // Both steps work on the same Mac; the design run finished on the ticket's branch.
+        $designRun->forceFill([
+            'branch' => 'ticket/12-login-screen',
+            'status' => HarnessStatusEnum::COMPLETED->value,
+            'agent_machine_id' => $logicRun->agent_machine_id,
+        ])->saveOrFail();
+        $machine = new AgentMachine();
+        $machine->name = 'factory-box';
+        $factory = new class ($machine, CodingChatSettingEnum::DEFAULT_FACTORY_DIR) extends FactoryServeClient {
+            /** @var list<string> */
+            public array $commands = [];
+
+            #[Override]
+            protected function run(string $command, int $timeout): string
+            {
+                $this->commands[] = $command;
+
+                return str_contains($command, "'open'")
+                    ? '{"error":"could not create a worktree for example-app on ticket/12-login-screen from origin/develop"}'
+                    : '{"repo":"example-app","released":"true"}';
+            }
+        };
+        $this->app->bind(FactoryServeClient::class, static fn (): FactoryServeClient => $factory);
+
+        new LaunchCodingChatJob(app(Apps::class), $logicRun->getId(), 'the brief')->handle();
+
+        $released = collect($factory->commands)->first(fn (string $command): bool => str_contains($command, "'release'"));
+        $this->assertNotNull($released, 'the finished run on the branch was released');
+        $this->assertStringContainsString($designRun->uuid, (string) $released);
+        $this->assertTrue($logicRun->refresh()->isLive(), 'the launch is tried again, not failed');
+        Queue::assertPushed(
+            LaunchCodingChatJob::class,
+            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $logicRun->getId() && $job->retriedAfterRelease
+        );
+
+        new LaunchCodingChatJob(app(Apps::class), $logicRun->getId(), 'the brief', retriedAfterRelease: true)->handle();
+
+        $this->assertStringContainsString('Could not start', (string) $logicRun->refresh()->error_message, 'only once');
+    }
+
     public function testATaskWithNoCheckoutToWorkInIsBlockedWithWhatToDo(): void
     {
         Queue::fake();
