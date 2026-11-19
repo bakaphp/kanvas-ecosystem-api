@@ -88,10 +88,6 @@ class SyncDhlTrackingAction
 
         $order->set(CustomFieldEnum::DELIVERED_AT->value, ($latest['date'] ?? '') . ' ' . ($latest['time'] ?? ''));
 
-        if (! $order->isFulfilled()) {
-            $order->fulfill();
-        }
-
         $this->storeEpod($order);
 
         return true;

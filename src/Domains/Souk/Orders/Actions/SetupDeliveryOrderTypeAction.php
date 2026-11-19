@@ -29,7 +29,7 @@ class SetupDeliveryOrderTypeAction
             $this->statusGraph()
         )->execute();
 
-        $this->enableCaptureOnConfirm($result['order_type']);
+        $this->enableStatusHooks($result['order_type']);
         $this->assertConfirmedTransitionExists($result['statuses']);
 
         return $result;
@@ -86,20 +86,20 @@ class SetupDeliveryOrderTypeAction
         $legacy->update(['slug' => DeliveryOrderStatusEnum::CONFIRMED->value]);
     }
 
-    private function enableCaptureOnConfirm(OrderTypes $orderType): void
+    private function enableStatusHooks(OrderTypes $orderType): void
     {
         $config = $orderType->config ?? [];
-        $statuses = $config[OrderTypes::CAPTURE_ON_STATUS] ?? [];
 
-        $orderType->update([
-            'config' => [
-                ...$config,
-                OrderTypes::CAPTURE_ON_STATUS => array_values(array_unique([
-                    ...$statuses,
-                    DeliveryOrderStatusEnum::CONFIRMED->value,
-                ])),
-            ],
-        ]);
+        $hooks = [
+            OrderTypes::CAPTURE_ON_STATUS => DeliveryOrderStatusEnum::CONFIRMED,
+            OrderTypes::FULFILL_ON_STATUS => DeliveryOrderStatusEnum::DELIVERED,
+        ];
+
+        foreach ($hooks as $key => $status) {
+            $config[$key] = array_values(array_unique([...($config[$key] ?? []), $status->value]));
+        }
+
+        $orderType->update(['config' => $config]);
     }
 
     private function assertConfirmedTransitionExists(array $statuses): void

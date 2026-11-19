@@ -4,7 +4,7 @@ Rates, booking, tracking and proof of delivery for orders shipped with DHL; Cabi
 
 ## How an order moves
 
-The `delivery` order type, its statuses, the status emails and the 24 hour alert live in Souk (see `src/Domains/Souk/CLAUDE.md`, "Delivery orders"); DHL plugs into them. `verifying` -> `confirmed` (staff; capturing the card hold is part of the transition) -> `ready-for-dispatch` (staff, package packed) -> `dispatched` (set by the booking) -> `delivered` or `returned` (set by the poller). `DhlHandler::setup()` runs Souk's `SetupDeliveryOrderTypeAction` when a company connects DHL (the command only recreates or repairs it). Setup is the generic `integrationCompany` mutation; there is no DHL-specific one.
+The `delivery` order type, its statuses, the status emails and the 24 hour alert live in Souk (see `src/Domains/Souk/CLAUDE.md`, "Delivery orders"); DHL plugs into them. `verifying` -> `confirmed` (staff; capturing the card hold is part of the transition) -> `ready-for-dispatch` (staff, package packed) -> `dispatched` (set by the booking) -> `delivered` or `returned` (set by the poller; fulfilling the order is part of the transition into `delivered`, so staff moving it by hand fulfills it too). `DhlHandler::setup()` runs Souk's `SetupDeliveryOrderTypeAction` when a company connects DHL (the command only recreates or repairs it). Setup is the generic `integrationCompany` mutation; there is no DHL-specific one.
 
 DHL owns the booking, the cancel flag and tracking. Connecting DHL creates two default rules (booking and cancel flag) and, through Souk's `EnsureDeliveryOrderNoticeRuleAction`, the shared status notice rule. The notice rule is not a DHL default rule, so disconnecting DHL does not remove it:
 
