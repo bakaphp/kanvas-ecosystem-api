@@ -96,9 +96,12 @@ final class RoadsideAdditionalChargeTest extends TestCase
         $chargeOrder = $this->createChargeOrder($case, PaymentStatusEnum::PAID->value);
         $this->attachCharge($case, $chargeOrder);
 
+        $this->assertSame(PaymentStatusEnum::PAID->value, $chargeOrder->payment_status);
+
         $result = $this->runEvent($chargeOrder, WorkflowEnum::UPDATED);
 
         $this->assertSame('success', $result['status']);
+        $this->assertSame('Additional charge approved', $result['message'], json_encode($result));
 
         $assistanceCase = $case->refresh()->metadata['assistance_case'];
         $this->assertSame(
@@ -214,16 +217,24 @@ final class RoadsideAdditionalChargeTest extends TestCase
         return $order->refresh();
     }
 
+    /**
+     * The payment lands after the charge order exists, as in production; setting it at creation
+     * lets whatever the CREATED workflow does to a new order overwrite it.
+     */
     private function createChargeOrder(Order $case, ?string $paymentStatus): Order
     {
-        return Order::factory()
+        $chargeOrder = Order::factory()
             ->withCompanyId($case->companies_id)
             ->withUserId($case->users_id)
             ->create([
                 'order_types_id' => $this->orderTypeId(OrderTypeEnum::ROADSIDE_ADDITIONAL_CHARGE),
                 'parent_id' => $case->getId(),
-                'payment_status' => $paymentStatus,
             ]);
+
+        $chargeOrder->payment_status = $paymentStatus;
+        $chargeOrder->saveQuietly();
+
+        return $chargeOrder->refresh();
     }
 
     private function attachCharge(Order $case, Order $chargeOrder): void

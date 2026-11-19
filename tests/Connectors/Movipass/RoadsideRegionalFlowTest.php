@@ -152,7 +152,8 @@ final class RoadsideRegionalFlowTest extends TestCase
 
         $case = $order->refresh()->metadata['assistance_case'];
         $this->assertContains($this->technician->getId(), $case['rejected_mechanic_ids']);
-        $this->assertNotContains($this->technician->getId(), $case['offer']['offered_ids']);
+        // offer.offered_ids is the round as sent; who can still accept is notified_mechanic_ids.
+        $this->assertNotContains($this->technician->getId(), $case['notified_mechanic_ids']);
 
         $this->expectException(ValidationException::class);
         new AcceptRoadsideOfferAction($order, $this->technician)->execute();
