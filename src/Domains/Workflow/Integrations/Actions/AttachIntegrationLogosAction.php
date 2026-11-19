@@ -63,6 +63,7 @@ class AttachIntegrationLogosAction
         '700-credit' => '700credit.com',
         'browserbase' => 'browserbase.com',
         'cardnet' => 'cardnet.com.do',
+        'cardnet_ztrans' => 'cardnet.com.do',
         'chromedata' => 'chromedata.com',
         'dealersocket' => 'dealersocket.com',
         'deel' => 'deel.com',

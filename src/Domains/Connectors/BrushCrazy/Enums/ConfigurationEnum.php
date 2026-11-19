@@ -13,8 +13,8 @@ enum ConfigurationEnum: string
     case BRUSHCRAZY_DB_PASSWORD = 'BRUSHCRAZY_DB_PASSWORD';
 
     /**
-     * Path to the RDS CA bundle. The source app sets MYSQL_ATTR_SSL_CA, so the instance may
-     * require TLS — without this the connection is rejected once the network path is open.
+     * The RDS CA bundle: its PEM content (the us-east-2 bundle; the global one is too big for the
+     * setting) or a path inside the container. `kanvas_mirror` is REQUIRE SSL.
      */
     case BRUSHCRAZY_DB_SSL_CA = 'BRUSHCRAZY_DB_SSL_CA';
     case BRUSHCRAZY_SYNC_ENABLED = 'BRUSHCRAZY_SYNC_ENABLED';
