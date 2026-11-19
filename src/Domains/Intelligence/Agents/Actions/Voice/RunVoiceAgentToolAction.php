@@ -128,7 +128,7 @@ class RunVoiceAgentToolAction
      * by reflection without building the tool, so only the match is instantiated
      * (an agent can carry dozens of tools, each with its own constructor
      * dependencies). Slow path, only when that finds nothing: build the remaining
-     * handlers and ask each for getName(), as before — this keeps a tool whose name
+     * handlers and ask each for getName() — this keeps a tool whose name
      * is set at construction time (no literal default) callable, so run-time
      * selection still matches what VoiceAgentSpecService advertised.
      */
@@ -151,7 +151,7 @@ class RunVoiceAgentToolAction
                 continue;
             }
 
-            $handler = $this->buildHandler($handlerClass);
+            $handler = self::buildHandler($handlerClass);
             if ($handler !== null && $handler->getName() === $this->toolName) {
                 return $handler;
             }
@@ -160,7 +160,7 @@ class RunVoiceAgentToolAction
         $fallback = null;
 
         foreach ($remaining as [$catalogTool, $handlerClass]) {
-            $handler = $this->buildHandler($handlerClass);
+            $handler = self::buildHandler($handlerClass);
             if ($handler === null) {
                 continue;
             }
@@ -198,10 +198,10 @@ class RunVoiceAgentToolAction
     }
 
     /**
-     * A handler that can't be built is skipped, not fatal — mirrors
-     * VoiceAgentSpecService, so run-time selection matches advertise-time.
+     * A handler that can't be built is skipped, not fatal. VoiceAgentSpecService
+     * builds through this too, so run-time selection matches advertise-time.
      */
-    private function buildHandler(string $handlerClass): ?NeuronTool
+    public static function buildHandler(string $handlerClass): ?NeuronTool
     {
         try {
             $handler = app($handlerClass);

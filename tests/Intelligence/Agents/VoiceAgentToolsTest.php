@@ -39,7 +39,7 @@ final class VoiceAgentToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'inventory'];
 
     private Apps $testApp;
     private Companies $company;
@@ -147,12 +147,17 @@ final class VoiceAgentToolsTest extends TestCase
         ));
         $tool = new VariantDetailTool()->withContext($this->testApp, $this->company, auth()->user());
 
-        $this->assertSame($variant->getId(), $tool->__invoke(variant_id: $variant->getId())['id']);
+        $detail = $tool->__invoke(variant_id: $variant->getId());
+        $this->assertSame($variant->getId(), $detail['id']);
+        $this->assertArrayNotHasKey('cost', $detail['inventory'][0] ?? [], 'cost is internal; agents talk to customers');
 
         // The same id, owned by another company, reads nothing.
-        Variants::withoutSyncingToSearch(fn () => $variant->forceFill(['companies_id' => $this->company->getId() + 1_000_000])->saveQuietly());
+        Variants::withoutSyncingToSearch(
+            fn () => $variant->forceFill(['companies_id' => $this->company->getId() + 1_000_000])
+                ->saveQuietly()
+        );
 
-        $this->assertSame('not_found', $tool->__invoke(variant_id: $variant->getId())['status']);
+        $this->assertSame('error', $tool->__invoke(variant_id: $variant->getId())['status']);
     }
 
     /**
@@ -211,7 +216,14 @@ final class CrashingVoiceTool extends NeuronTool
 
     protected function properties(): array
     {
-        return [new ToolProperty(name: 'kind', type: PropertyType::STRING, description: 'crash or validation', required: true)];
+        return [
+            new ToolProperty(
+                name: 'kind',
+                type: PropertyType::STRING,
+                description: 'crash or validation',
+                required: true,
+            ),
+        ];
     }
 
     public function __invoke(string $kind = 'crash'): array

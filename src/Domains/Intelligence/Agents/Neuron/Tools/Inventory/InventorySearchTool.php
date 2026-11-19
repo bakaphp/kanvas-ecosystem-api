@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\Concerns\RespondsWithNoInventoryMatches;
@@ -83,7 +84,7 @@ class InventorySearchTool extends Tool
             // The engine's message names index fields and filters — log it, never speak it.
             report($e);
 
-            return $this->searchFailedResponse();
+            return $this->searchUnavailableResponse('inventory');
         }
 
         // Defense in depth: whichever tenant filter the engine applied, only this
@@ -181,7 +182,7 @@ class InventorySearchTool extends Tool
      *    also re-checks companies_id on every returned row.
      * Each fallback applies at most once; any other failure is rethrown.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Products>
+     * @return Collection<int, Products>
      */
     protected function searchWithSchemaFallbacks(string $productName)
     {
@@ -195,14 +196,18 @@ class InventorySearchTool extends Tool
                     ->get();
             } catch (Throwable $e) {
                 $message = $e->getMessage();
+                $collectionLacksTenantField = $tenantField === self::TENANT_FIELD
+                    && str_contains($message, 'filter field named `' . self::TENANT_FIELD . '`');
+                $collectionLacksLocaleFields = $queryBy === self::QUERY_BY_ALL_LOCALES
+                    && str_contains($message, 'Could not find a field named');
 
-                if ($tenantField === self::TENANT_FIELD && str_contains($message, 'filter field named `' . self::TENANT_FIELD . '`')) {
+                if ($collectionLacksTenantField) {
                     $tenantField = self::LEGACY_TENANT_FIELD;
 
                     continue;
                 }
 
-                if ($queryBy === self::QUERY_BY_ALL_LOCALES && str_contains($message, 'Could not find a field named')) {
+                if ($collectionLacksLocaleFields) {
                     $queryBy = self::QUERY_BY_BASE;
 
                     continue;
@@ -211,19 +216,5 @@ class InventorySearchTool extends Tool
                 throw $e;
             }
         }
-    }
-
-    /**
-     * Speakable copy for a search the engine couldn't run — no engine internals.
-     *
-     * @return array{status: string, reason: string, message: string}
-     */
-    protected function searchFailedResponse(): array
-    {
-        return [
-            'status' => 'error',
-            'reason' => 'search_unavailable',
-            'message' => 'The inventory search is not available right now. Offer to have someone from the team follow up with the details.',
-        ];
     }
 }
