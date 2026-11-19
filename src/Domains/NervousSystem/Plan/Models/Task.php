@@ -12,12 +12,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Traits\HasApprovals;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Concerns\TruncatesTitle;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Observers\TaskObserver;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Users\Models\Users;
 use Override;
 
@@ -117,9 +120,24 @@ class Task extends BaseModel
         return $this->title ?? '';
     }
 
+    /** Title and description together: where an orchestrator writes the `Repo:` / `Branch:` lines. */
+    public function fullText(): string
+    {
+        return trim($this->title . "\n" . $this->description);
+    }
+
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
+    }
+
+    /** Assigns it and wakes the agent; the wake holds a task whose earlier steps are not done yet. */
+    public function handTo(Agent $agent): void
+    {
+        $this->agent_id = $agent->getId();
+        $this->saveQuietly();
+
+        WakeAgentForTaskJob::dispatch($this);
     }
 
     /** The task that delegated this one and is resumed by its outcome. */
@@ -164,6 +182,91 @@ class Task extends BaseModel
     public function hasOpenChildren(): bool
     {
         return $this->children()->open()->exists();
+    }
+
+    /**
+     * An earlier top-level task of the plan (lower sequence) has not finished well. Tasks sharing a
+     * sequence run side by side; a sub-task belongs to its parent's turn and is never in line. A blocked
+     * earlier task keeps this one waiting: logic is never built on a design that did not land.
+     */
+    public function waitsOnEarlierTasks(): bool
+    {
+        if ($this->parent_task_id !== null) {
+            return false;
+        }
+
+        return self::query()
+            ->where('plan_id', $this->plan_id)
+            ->whereNull('parent_task_id')
+            ->where('sequence', '<', (int) $this->sequence)
+            ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
+            ->notDeleted()
+            ->exists();
+    }
+
+    /**
+     * A coding run is still working this task, or a step it was handed to. Its outcome closes them, so
+     * nothing else may.
+     */
+    public function hasALiveRun(): bool
+    {
+        $ids = [$this->getId(), ...$this->children()->pluck('id')->all()];
+
+        return AgentTaskSession::query()->whereIn('task_id', $ids)->live()->exists();
+    }
+
+    /**
+     * An earlier unfinished step of this plan is factory work. Only those hold a task that runs in Kanvas:
+     * a planner handed the factory's answer as its second step started at once and found nothing to read.
+     * Plans with no factory work keep running their tasks as they always did.
+     */
+    public function waitsOnEarlierFactoryWork(): bool
+    {
+        if ($this->parent_task_id !== null) {
+            return false;
+        }
+
+        return self::query()
+            ->where('plan_id', $this->plan_id)
+            ->whereNull('parent_task_id')
+            ->where('sequence', '<', (int) $this->sequence)
+            ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
+            ->whereNotNull('agent_id')
+            ->notDeleted()
+            ->with('agent')
+            ->get()
+            ->contains(fn (self $earlier): bool => $earlier->runsInFactory());
+    }
+
+    /** Its agent works it on a factory machine, not in Kanvas. */
+    public function runsInFactory(): bool
+    {
+        return $this->agent !== null && CodingChatSettingEnum::runsTaskInFactory($this->agent, $this->fullText());
+    }
+
+    /**
+     * The assigned task that may start now that this one is done: the earliest pending one after it with
+     * nothing unfinished before it.
+     */
+    public function nextInLine(): ?self
+    {
+        if ($this->parent_task_id !== null) {
+            return null;
+        }
+
+        /** @var self|null $next */
+        $next = self::query()
+            ->where('plan_id', $this->plan_id)
+            ->whereNull('parent_task_id')
+            ->where('sequence', '>', (int) $this->sequence)
+            ->where('status', TaskStatusEnum::PENDING->value)
+            ->whereNotNull('agent_id')
+            ->notDeleted()
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->first();
+
+        return $next !== null && ! $next->waitsOnEarlierTasks() ? $next : null;
     }
 
     /** Not yet at a terminal status — pending, in progress or waiting. */
@@ -253,6 +356,29 @@ class Task extends BaseModel
                     ->where('wake_at', '>', now())
                     ->orWhereHas('children', fn (Builder $child): Builder => $child->open()),
             );
+    }
+
+    /**
+     * In progress, and started within the last three hours: past that it has stopped, and the stalled
+     * sweep owns it. A factory run is created in progress and never stamps started_at.
+     */
+    public function scopeRunningRecently(Builder $query): Builder
+    {
+        return $query->where('status', TaskStatusEnum::IN_PROGRESS->value)
+            ->whereRaw('COALESCE(started_at, created_at) >= ?', [now()->subHours(3)]);
+    }
+
+    /** Running, or handed to the factory and waiting on a run that is: its run lives on a plan of its own. */
+    public function scopeWorkingNow(Builder $query): Builder
+    {
+        return $query->where(
+            fn (Builder $working): Builder => $working->runningRecently()
+                ->orWhere(
+                    fn (Builder $waiting): Builder => $waiting
+                        ->where('status', TaskStatusEnum::WAITING->value)
+                        ->whereHas('children', fn (Builder $run): Builder => $run->runningRecently())
+                )
+        );
     }
 
     public function scopeStalled(Builder $query, int $minutes): Builder

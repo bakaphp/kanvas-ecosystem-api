@@ -236,6 +236,72 @@ Things that bite:
   before removing the folder. Task runs still take turns per Mac (`CODING_CHAT_MAX_TASK_RUNS`, default 1,
   first come first served) because the simulator, emulator and Metro's port are machine-wide; a run
   whose turn has not come waits in `waiting_for_factory` and re-checks every minute — never a failure.
+- **A task says where it works with a `Repo: <folder>` line** (`CodingChatCheckouts::forTask()`). The line
+  wins over any other checkout the text names, is looked up past the five-minute list cache, and a
+  declared folder the Mac does not have blocks the task instead of falling back to
+  `CODING_CHAT_DEFAULT_REPO`: a kickoff names the template and the app it creates, and the task after
+  it names a checkout that did not exist when the list was cached. Without the line, the old rule holds
+  (the one checkout the text names, else the default).
+- **A ticket's tasks share one branch with a `Branch: <name>` line** (`TaskDirectives::branch()`, read
+  only at the start of a line, never `main`/`master`/`develop`/`development`/`trunk`). Design, logic and
+  ship run one after the other on it, each in a fresh worktree of that branch, so each builds on the
+  commits before it. **Order is the plan's `sequence`, enforced, not trusted to the orchestrator**: a
+  factory task assigned while an earlier top-level task of its plan is not done waits
+  (`Task::waitsOnEarlierTasks()`, ledger `plan.task.queued`), and the worker that finishes a task DONE
+  starts the next one in line (`Task::nextInLine()`). A BLOCKED task holds the line for the orchestrator.
+  This exists because a live orchestrator assigned design, logic and ship all at once, two of them to
+  the wrong agent.
+- **An orchestrator builds on the Mac without its chat going there**: `CODING_FACTORY_TASKS` on an agent
+  that is not in chat mode sends its tasks that carry a `Repo:` line to the factory, under its own name
+  (`CodingChatSettingEnum::runsTaskInFactory()`); everything else, its chat included, stays with its
+  model, which is where plans and assignments exist.
+- **No agent in Kanvas can read a repository; it asks the factory.** The checkouts exist only on the
+  Mac, so a planner given "audit the template" blocked with nothing to read. `ask_repository`
+  (`AskRepositoryTool`, on every internal agent of a company that has a factory agent, never on a
+  factory agent itself) puts the question to a factory agent as a read-only sub-task with a `Repo:` line,
+  and the asker's task waits and resumes with the answer through the ordinary child-outcome path. The
+  reader is the factory agent whose default checkout it is, else the first (`factoryAgentFor()`). And a
+  task that declares a `Repo:` cannot be assigned to an agent that would work it in Kanvas, task or plan
+  (`CodingChatSettingEnum::repositoryRefusal()`): the refusal names the factory agents to give it to.
+- **Factory stages are written in code, not by the orchestrator.** `start_app_kickoff` and
+  `start_factory_ticket` (PM tools, offered only where the company has factory agents) build a
+  `FactoryStage` and `StartFactoryStageAction` puts it on the board: the plan, its ordered tasks with
+  their `Repo:` / `Branch:` lines and steps, each handed to its agent. Who builds and who designs is per
+  project (`FactoryProjectSettingEnum`: `factory_builder_agent_id`, `factory_designer_agent_id`,
+  `factory_template_repo`). The ticket text also carries the post-change QA (both platforms, the app's
+  runbook, BLOCKED rather than untested) and the Kanvas-first data rule. Starting a stage that is open
+  returns it. A kickoff given `brief_url` and `plan_url` (the approved brief's and technical plan's file
+  URLs) adds a third step for the designer: brand and theme from the brief, and an HTML mockup, rendered
+  to PNG by headless Chrome, of exactly the screens, states and data the plan's tickets name, filed in the
+  app's `specs/design/README.md` under `## Ticket <n>:`. The plan is the contract on both sides: a mockup
+  shows only data its ticket's query returns, the ticket's design step builds its own section and nothing
+  more, the build wires each value to the field the section names, and the ticket's QA compares the
+  screens with the mockups. What the brief shows and no ticket builds is a reported "Plan gap", in neither
+  the design nor the build. The person's own `design_files` win over the designer's choices. Without both
+  URLs the kickoff keeps its two steps and the app keeps the template's look. A model left to type those lines leaves them out, and a task without `Repo:` runs in the
+  default checkout.
+- **No stage waits on a person to merge.** A kickoff or ticket merges `factory/integration`
+  (`FactoryStage::INTEGRATION_BRANCH`) into its branch first and lands with a fast-forward
+  `git push origin HEAD:factory/integration`, never a pull request; the orchestrator starts the next
+  ticket when one finishes. After the last, `start_factory_release` works on the integration branch itself:
+  checks no ticket's work was lost in the unifying, tests the whole app on both platforms, adds the dated
+  changelog and opens the one pull request from it into `develop` that a person reviews. A backend gap
+  (API not deployed, a message type to create) lands the ticket with a "Waiting on backend" list instead
+  of BLOCKED, and the release pull request gathers them. The branching lives in the task text, not in
+  `serve.sh`, so the Mac needs no change for it.
+- **Mixed plans: a Kanvas step waits for the factory step ahead of it** (`Task::waitsOnEarlierFactoryWork()`),
+  and the factory worker that finishes starts it. A reopened task on a factory-owned plan, or one that runs
+  on the Mac, is woken as a task; its blocked plan unblocks itself (`Plan::resumeIfNothingBlocks()`), only
+  for factory work. Plans with no factory work behave as before.
+- **A plan a factory agent owns never wakes that agent's chat.** A plan wake (task done, comment) would
+  otherwise be typed into its opencode session as a request; `WakeAgentForPlanJob` forwards the fact to
+  the agent that created the plan instead (`REASON_PLAN_OUTCOME`).
+- **A new app is created on the Mac, by the agent, never by Kanvas.** `gh` only works inside the Mac's
+  desktop login, which is where the session runs and where an SSH call from here does not. The kickoff
+  is a task in the template's checkout (`Repo: kanvas-mobile-skeleton`) that runs the factory's
+  `.kanvas/new-app create <Name>` (`scripts/new-app.sh`: private repository, clone with the template as
+  `upstream`, `main` + `develop`, dependencies); the next task names the new folder and sets the identity
+  with `.kanvas/new-app identity`. Env keys, `eas init` and store accounts stay a person's.
 - **One lock per checkout, on the Mac — for chats.** `open` takes `locks/<App>`; every environment pointing at the
   same Mac shares it, so a local test chat holds a checkout production then cannot open ("in use"). A
   refusal carries the lock's `holder` (`CheckoutInUseException`); `CheckoutHolderNotice` turns it into

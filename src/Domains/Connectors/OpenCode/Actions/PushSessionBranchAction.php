@@ -13,6 +13,7 @@ use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 
 /**
  * Commits a finished session's work and pushes its branch — from the HOST, never the container.
@@ -33,23 +34,6 @@ class PushSessionBranchAction
 {
     use RunsCheckedSshCommands;
     use UsesGitCredential;
-
-    /**
-     * Branches that are never a valid push target, whatever the repository's own settings say. The
-     * tenant configures `branch_prefix`, so the branch name is not entirely ours — and a push to a
-     * trunk is the one mistake here that cannot be undone by deleting a branch.
-     */
-    private const array NEVER_PUSH_TO = [
-        'main',
-        'master',
-        'develop',
-        'development',
-        'staging',
-        'production',
-        'release',
-        'trunk',
-        'head',
-    ];
 
     /**
      * Files Kanvas writes into the workspace for its own use. They are already in the checkout's
@@ -140,7 +124,7 @@ class PushSessionBranchAction
 
         $normalised = mb_strtolower(trim($branch, "/ \t\n\r\0\x0B"));
 
-        if ($normalised === mb_strtolower($this->baseBranch) || in_array($normalised, self::NEVER_PUSH_TO, true)) {
+        if ($normalised === mb_strtolower($this->baseBranch) || in_array($normalised, TaskDirectives::PROTECTED_BRANCHES, true)) {
             throw new ValidationException(
                 'Refusing to push: "' . $branch . '" is a base or protected branch, and this agent is not '
                 . 'allowed to push to one. Set ' . AgentCustomFieldEnum::ALLOW_TRUNK_PUSH->value

@@ -5,30 +5,44 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\AbsorbHarnessTickAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
+use Kanvas\NervousSystem\Plan\Jobs\PostStillWorkingUpdateJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
+use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Tests\Traits\MakesPlans;
 
@@ -336,6 +350,247 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         return [$plan->fresh(), $pm, $session];
     }
 
+    /**
+     * The worker finished every task and left the plan open: the PM is woken, and what it answers is
+     * for the person who asked — who is in this conversation, not on the project channel.
+     */
+    public function testThePmsAnswerToAFinishedPlanLandsInTheConversation(): void
+    {
+        Notification::fake();
+
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        $pm->type->update(['handler' => SalesNeuronAgentStub::class]);
+
+        new WakeAgentForProjectJob(
+            $plan->project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            'Every task on plan ' . $plan->getId() . ' is finished.',
+            wakeAgent: $pm->refresh(),
+            reportsOn: $plan,
+        )->handle();
+
+        $posted = $this->lastMessageOn($session->channel_id);
+
+        $this->assertNotNull($posted, 'The person who asked never heard the work was done.');
+        $this->assertSame($session->uuid, $posted->message['session_id'] ?? null);
+        $this->assertSame($pm->user->getId(), (int) $posted->users_id);
+    }
+
+    /** The PM already answered in that conversation; the generic "Done" would only repeat it. */
+    public function testTheDoneAlertSkipsAConversationThePmAlreadyAnswered(): void
+    {
+        Notification::fake();
+
+        [$plan, , $session] = $this->plannedInAConversation();
+        $plan->rememberAnswerIsComing();
+
+        $plan->status = PlanStatusEnum::DONE->value;
+        $plan->saveQuietly();
+
+        new NotifyPlanOwnerOfCompletedPlanJob($plan->fresh())->handle();
+
+        $this->assertNull($this->lastMessageOn($session->channel_id));
+    }
+
+    public function testASilentChatHearsTheWorkIsStillRunning(): void
+    {
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        $this->runningTask($plan, startedMinutesAgo: 6);
+        $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
+        // The queue runs it with nobody signed in, so the scopes may not fall back to a current user.
+        Auth::forgetGuards();
+
+        new PostStillWorkingUpdateJob($session)->handle();
+
+        $posted = $this->lastMessageOn($session->channel_id);
+
+        $this->assertNotNull($posted, 'Three silent minutes and the chat heard nothing.');
+        $this->assertStringContainsString('Still working on it', (string) $posted->message['content']);
+        $this->assertStringContainsString('6 min so far', (string) $posted->message['content']);
+        $this->assertSame($session->uuid, $posted->message['session_id'] ?? null);
+        $this->assertSame($pm->user->getId(), (int) $posted->users_id);
+    }
+
+    public function testAChatThatSpokeInTheLastThreeMinutesHearsNothing(): void
+    {
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        $this->runningTask($plan, startedMinutesAgo: 6);
+        $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 1);
+
+        new PostStillWorkingUpdateJob($session)->handle();
+
+        $this->assertNull($this->lastMessageOn($session->channel_id));
+    }
+
+    /** Waiting on a person is not "still working": nothing is running. */
+    public function testAPlanWithNothingRunningSendsNoUpdate(): void
+    {
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        $this->makeTask($plan);
+        $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 10);
+
+        new PostStillWorkingUpdateJob($session)->handle();
+
+        $this->assertNull($this->lastMessageOn($session->channel_id));
+    }
+
+    public function testTheSweepQueuesOneUpdatePerChatWithWorkRunning(): void
+    {
+        Bus::fake();
+
+        [$plan, , $session] = $this->plannedInAConversation();
+        $this->runningTask($plan, startedMinutesAgo: 6);
+
+        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+
+        Bus::assertDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
+    }
+
+    /** A factory run is created in progress and never stamps started_at; it is still running. */
+    public function testAFactoryRunWithNoStartTimeStillCounts(): void
+    {
+        Bus::fake();
+
+        [$plan, , $session] = $this->plannedInAConversation();
+        $run = $this->makeTask($plan, TaskStatusEnum::IN_PROGRESS);
+        $run->agent_id = $plan->agent_id;
+        $run->saveOrFail();
+
+        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+
+        Bus::assertDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
+    }
+
+    /**
+     * The real shape of factory work: the step on the person's plan waits, and its run is a sub-task on a
+     * plan of its own. The update names the step and times the run.
+     */
+    public function testAStepWaitingOnItsFactoryRunIsStillWorking(): void
+    {
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        $this->factoryStepWithItsRun($plan);
+
+        $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
+
+        new PostStillWorkingUpdateJob($session)->handle();
+
+        $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
+        $this->assertStringContainsString('"Audit the template"', $content);
+        $this->assertStringContainsString('7 min so far', $content);
+    }
+
+    public function testAStepWhoseRunWaitsOnAPermissionSaysItIsWaiting(): void
+    {
+        [$plan, $pm, $session] = $this->plannedInAConversation();
+        [, $run] = $this->factoryStepWithItsRun($plan);
+        $this->runSession($run, HarnessStatusEnum::AWAITING_PERMISSION);
+        $this->saidInTheChat($this->conversationFor($pm, $session->uuid), minutesAgo: 4);
+
+        new PostStillWorkingUpdateJob($session)->handle();
+
+        $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
+        $this->assertStringContainsString('is waiting for your answer on "Audit the template"', $content);
+        $this->assertStringNotContainsString('min so far', $content);
+    }
+
+    /**
+     * A factory run is a chat nobody types into, and its plan's asker is the orchestrator's bot user: a
+     * permission it asked for reached no one and the run sat until the time limit.
+     */
+    public function testAFactoryRunsPermissionIsAskedWhereTheWorkWasRequested(): void
+    {
+        [$plan, , $session] = $this->plannedInAConversation();
+        [, $run] = $this->factoryStepWithItsRun($plan);
+        $runSession = $this->runSession($run, HarnessStatusEnum::AWAITING_PERMISSION);
+
+        $poster = new class () {
+            use PostsSessionActivity;
+
+            public function ask(AgentTaskSession $session, HarnessPermissionRequest $permission): void
+            {
+                $this->postPermissionRequest($session, $permission);
+            }
+        };
+        $poster->ask($runSession, new HarnessPermissionRequest('per_1', 'webfetch', ['https://example.com/a.php']));
+
+        $content = (string) $this->lastMessageOn($session->channel_id)?->message['content'];
+        $this->assertStringContainsString('webfetch: https://example.com/a.php', $content);
+        $this->assertStringContainsString('Job ' . $run->getId(), $content);
+        $this->assertStringContainsString('per_1', $content);
+        $this->assertStringContainsString((string) $runSession->agent?->name, $content);
+    }
+
+    /**
+     * Answered once, the agent asked again before any poll saw it running: the session never left the
+     * waiting state and the second ask was never said. Each ask is said once, by its id.
+     */
+    public function testEveryNewAskIsSaidOnceEvenWithoutLeavingTheWaitingState(): void
+    {
+        [$plan, , $session] = $this->plannedInAConversation();
+        [, $run] = $this->factoryStepWithItsRun($plan);
+        $runSession = $this->runSession($run, HarnessStatusEnum::AWAITING_PERMISSION);
+
+        $tick = fn (string $id): HarnessTick => new HarnessTick(
+            status: HarnessStatusEnum::AWAITING_PERMISSION,
+            usage: new HarnessUsage(),
+            permissions: [new HarnessPermissionRequest($id, 'webfetch', ['https://example.com/' . $id])],
+        );
+
+        new AbsorbHarnessTickAction($runSession, $tick('per_first'))->execute();
+        new AbsorbHarnessTickAction($runSession->refresh(), $tick('per_first'))->execute();
+        new AbsorbHarnessTickAction($runSession->refresh(), $tick('per_second'))->execute();
+
+        $asks = Channel::query()->findOrFail($session->channel_id)->messages()
+            ->orderBy('messages.id')
+            ->get()
+            ->map(fn (Message $message): string => (string) ($message->message['content'] ?? ''))
+            ->filter(fn (string $content): bool => str_contains($content, 'webfetch: https://example.com/per_'))
+            ->values();
+
+        $this->assertCount(2, $asks, 'Each ask once: the repeat of the first is silent, the second is said.');
+        $this->assertStringContainsString('per_first', (string) $asks->first());
+        $this->assertStringContainsString('per_second', (string) $asks->last());
+    }
+
+    /** A coding chat is the agent's own plan, and that chat reports its own progress minute by minute. */
+    public function testAnAgentWorkingItsOwnPlanIsNotSwept(): void
+    {
+        Bus::fake();
+
+        [$plan, , $session] = $this->plannedInAConversation();
+        $plan->agent_id = $plan->created_by_agent_id;
+        $plan->saveQuietly();
+        $this->runningTask($plan, startedMinutesAgo: 6);
+
+        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+
+        Bus::assertNotDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
+    }
+
+    public function testAStepRunningForHoursIsStuckNotStillWorking(): void
+    {
+        Bus::fake();
+
+        [$plan, , $session] = $this->plannedInAConversation();
+        $this->runningTask($plan, startedMinutesAgo: 240);
+
+        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+
+        Bus::assertNotDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
+    }
+
     /** A conversation keyed the way ConversationMessageStore keys one: the session id lives in `title`. */
     private function conversationFor(Agent $agent, string $sessionId): string
     {
@@ -353,6 +608,70 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         ]);
 
         return $id;
+    }
+
+    /**
+     * @return array{0: Task, 1: Task}
+     */
+    private function factoryStepWithItsRun(Plan $plan): array
+    {
+        $step = $this->makeTask($plan, TaskStatusEnum::WAITING);
+        $step->agent_id = $plan->agent_id;
+        $step->title = 'Audit the template';
+        $step->saveOrFail();
+
+        $run = $this->makeTask($this->makePlan(['title' => 'Factory run'], $plan->agent), TaskStatusEnum::IN_PROGRESS);
+        $run->parent_task_id = $step->getId();
+        $run->agent_id = $plan->agent_id;
+        $run->created_at = now()->subMinutes(7);
+        $run->saveOrFail();
+
+        return [$step, $run];
+    }
+
+    private function runSession(Task $run, HarnessStatusEnum $status): AgentTaskSession
+    {
+        $session = new AgentTaskSession();
+        $session->apps_id = $run->apps_id;
+        $session->companies_id = $run->companies_id;
+        $session->users_id = $this->human()->getId();
+        $session->agent_id = $run->agent_id;
+        $session->plan_id = $run->plan_id;
+        $session->task_id = $run->getId();
+        $session->chat_session_id = random_int(900000, 999999);
+        $session->harness = HarnessEnum::OPENCODE->value;
+        $session->status = $status->value;
+        $session->saveOrFail();
+
+        return $session;
+    }
+
+    private function runningTask(Plan $plan, int $startedMinutesAgo): Task
+    {
+        $task = $this->makeTask($plan, TaskStatusEnum::IN_PROGRESS);
+        $task->agent_id = $plan->agent_id;
+        $task->started_at = now()->subMinutes($startedMinutesAgo);
+        $task->saveOrFail();
+
+        return $task;
+    }
+
+    private function saidInTheChat(string $conversationId, int $minutesAgo): void
+    {
+        DB::connection('intelligence')->table('agent_conversation_messages')->insert([
+            'id' => (string) Str::uuid7(),
+            'conversation_id' => $conversationId,
+            'user_id' => $this->human()->getId(),
+            'agent' => 'Test\\Stub\\Handler',
+            'role' => 'assistant',
+            'content' => 'On it.',
+            'attachments' => '[]',
+            'usage' => '[]',
+            'meta' => '[]',
+            'status' => 'completed',
+            'created_at' => now()->subMinutes($minutesAgo),
+            'updated_at' => now()->subMinutes($minutesAgo),
+        ]);
     }
 
     private function lastMessageOn(?int $channelId): ?Message

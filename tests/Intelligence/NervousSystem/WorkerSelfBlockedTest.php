@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -95,8 +96,6 @@ class WorkerSelfBlockedTest extends TestCase
 
     private function reportsBlocked(string $response): bool
     {
-        $job = new RunTaskWorkerJob($this->makeTask($this->makePlan(), TaskStatusEnum::IN_PROGRESS));
-
-        return (bool) new ReflectionMethod($job, 'reportsItselfBlocked')->invoke($job, $response);
+        return TaskDirectives::reportsItselfBlocked($response);
     }
 }

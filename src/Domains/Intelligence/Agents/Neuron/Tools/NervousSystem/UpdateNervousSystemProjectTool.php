@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProjectForTool;
@@ -107,6 +108,14 @@ class UpdateNervousSystemProjectTool extends Tool
             return $project;
         }
 
+        // A model fills every optional string it has no value for with "", so empty means "not given"; a
+        // deadline is cleared only by asking for it in words.
+        $objective = Str::trimToNull($objective);
+        $title = Str::trimToNull($title);
+        $description = Str::trimToNull($description);
+        $status = Str::trimToNull($status);
+        $deadline_at = Str::trimToNull($deadline_at);
+
         $data = [];
         if ($objective !== null) {
             $data['objective'] = $objective;
@@ -123,7 +132,7 @@ class UpdateNervousSystemProjectTool extends Tool
         if ($deadline_at !== null) {
             // forUpdate keeps the current deadline unless the key is present, so clearing one needs a
             // value the model can actually type.
-            $data['deadline_at'] = in_array(strtolower(trim($deadline_at)), ['none', 'null', ''], true)
+            $data['deadline_at'] = in_array(strtolower($deadline_at), ['none', 'null'], true)
                 ? null
                 : $deadline_at;
         }

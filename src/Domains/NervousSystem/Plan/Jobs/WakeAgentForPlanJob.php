@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
 use Kanvas\NervousSystem\Plan\Actions\PlanContinuationAction;
@@ -22,6 +23,7 @@ use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\PlanLoopSettings;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
@@ -101,6 +103,14 @@ class WakeAgentForPlanJob implements ShouldQueue
         $owner = $this->plan->user ?? $agent?->user;
 
         if ($agent === null || $owner === null) {
+            return;
+        }
+
+        // A factory agent has no model of its own to own a plan with: the chat kernel would type this
+        // wake into its opencode session, in its default checkout, as if a person had asked for it.
+        if (CodingChatSettingEnum::isEnabledFor($agent)) {
+            $this->tellWhoeverAskedForThePlan();
+
             return;
         }
 
@@ -197,6 +207,46 @@ class WakeAgentForPlanJob implements ShouldQueue
                 ],
             );
         }
+    }
+
+    /**
+     * The fact a factory-owned plan cannot act on (a task finished, a person commented) goes to the agent
+     * that created the plan, which is the one deciding its next step. Nothing to forward wakes nobody.
+     */
+    private function tellWhoeverAskedForThePlan(): void
+    {
+        $creator = $this->plan->createdByAgent;
+        $project = $this->plan->project;
+
+        if ($this->userMessage === null
+            || $project === null
+            || $creator === null
+            || ! $creator->is_active
+            || $creator->is($this->plan->agent)
+            || CodingChatSettingEnum::isEnabledFor($creator)
+        ) {
+            return;
+        }
+
+        // The last task finishing is reported by WakeProjectManagerOnPlanOutcomeListener, into the
+        // conversation the plan was asked in; forwarding it too would wake the creator twice.
+        if ($this->reason === self::REASON_TASK_COMPLETED && $this->plan->everyTaskFinished()) {
+            return;
+        }
+
+        WakeAgentForProjectJob::dispatch(
+            $project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            sprintf(
+                'On plan %d ("%s"), worked by %s in the factory: %s Read the task with get_task before you '
+                . 'report anything or hand out the next step; its result and any blocker are recorded there.',
+                $this->plan->getId(),
+                (string) $this->plan->title,
+                (string) $this->plan->agent?->name,
+                $this->userMessage,
+            ),
+            wakeAgent: $creator,
+        );
     }
 
     /**

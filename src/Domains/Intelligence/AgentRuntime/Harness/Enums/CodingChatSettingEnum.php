@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Enums;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**
@@ -28,11 +33,100 @@ enum CodingChatSettingEnum: string
      */
     case MAX_TASK_RUNS = 'CODING_CHAT_MAX_TASK_RUNS';
 
+    /**
+     * For an agent whose chat stays with its own model (an orchestrator): its tasks that declare a
+     * `Repo:` run in the factory under its name. It keeps planning and assigning in Kanvas, where those
+     * tools exist, and builds on the Mac, where `gh` and the checkouts are.
+     */
+    case FACTORY_TASKS = 'CODING_FACTORY_TASKS';
+
     public const string DEFAULT_FACTORY_DIR = 'Documents/Projects/opencode-factory';
 
     public static function isEnabledFor(Agent $agent): bool
     {
         return filter_var($agent->get(self::MODE->value), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Whether this task is worked in the factory: every task of a chat-mode agent, and the tasks of a
+     * factory-tasks agent that name their checkout.
+     */
+    public static function runsTaskInFactory(Agent $agent, string $taskText): bool
+    {
+        if (self::isEnabledFor($agent)) {
+            return true;
+        }
+
+        if (! filter_var($agent->get(self::FACTORY_TASKS->value), FILTER_VALIDATE_BOOLEAN)) {
+            return false;
+        }
+
+        // Two different Repo lines still mean the factory: the worker blocks the task with the reason,
+        // where a throw here would only fail the job that hands it over.
+        try {
+            return TaskDirectives::repo($taskText) !== null;
+        } catch (ValidationException) {
+            return true;
+        }
+    }
+
+    /**
+     * The company's agents that work on its factory machine. Read on every turn of an internal agent to
+     * decide whether it gets `ask_repository`; the settings come from Redis, so a company's handful of
+     * agents costs one query.
+     *
+     * @return Collection<int, Agent>
+     */
+    public static function factoryAgentsOf(AppInterface $app, CompanyInterface $company): Collection
+    {
+        return Agent::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->where('is_active', 1)
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Agent $agent): bool => self::isEnabledFor($agent))
+            ->values();
+    }
+
+    /** The one whose default checkout this is, else the first: a question needs one reader, not a choice. */
+    public static function factoryAgentFor(AppInterface $app, CompanyInterface $company, string $repo): ?Agent
+    {
+        $agents = self::factoryAgentsOf($app, $company);
+
+        return $agents->first(fn (Agent $agent): bool => self::defaultRepoFor($agent) === $repo) ?? $agents->first();
+    }
+
+    /**
+     * Why this agent cannot be handed this task, or null when it can. A task that declares a checkout is
+     * worked in it, and the checkouts exist only on the factory machine: an agent that runs in Kanvas
+     * would get the task, find nothing to read, and block it.
+     */
+    public static function repositoryRefusal(Agent $agent, string $taskText): ?string
+    {
+        try {
+            $repo = TaskDirectives::repo($taskText);
+        } catch (ValidationException) {
+            return null;
+        }
+
+        if ($repo === null || self::runsTaskInFactory($agent, $taskText)) {
+            return null;
+        }
+
+        $factory = self::factoryAgentsOf($agent->app, $agent->company)
+            ->map(fn (Agent $candidate): string => $candidate->name . ' (agent_id ' . $candidate->getId() . ')')
+            ->implode(', ');
+
+        return sprintf(
+            'It works in the repository "%s", which exists only on the factory machine, and %s runs in Kanvas '
+                . 'where no repository can be read. %s An agent in Kanvas that only needs facts from the '
+                . 'repository asks with ask_repository while working its own task.',
+            $repo,
+            $agent->name,
+            $factory !== '' ? 'Give it to a factory agent: ' . $factory . '.' : 'This company has no factory agent to give it to.',
+        );
     }
 
     public static function defaultRepoFor(Agent $agent): ?string

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
@@ -116,6 +117,13 @@ class UpdateNervousSystemPlanTool extends Tool
             return $plan;
         }
 
+        // OpenAI fills every optional string it has no value for with "", and writing that back
+        // blanked the plan's title in the same call that set its status.
+        $title = Str::trimToNull($title);
+        $description = Str::trimToNull($description);
+        $status = Str::trimToNull($status);
+        $blocked_needs = Str::trimToNull($blocked_needs);
+
         $data = [];
         if ($title !== null) {
             $data['title'] = $title;
@@ -134,6 +142,18 @@ class UpdateNervousSystemPlanTool extends Tool
                         . implode(', ', array_map(fn (PlanStatusEnum $case): string => $case->value, PlanStatusEnum::cases()))
                         . '. To hold a plan for sign-off set requires_human_approval=true instead.',
                 ];
+            }
+
+            // Closing a plan closes its tasks, and a coding run still building one of them would be
+            // ended with it.
+            $closes = in_array($data['status'], [PlanStatusEnum::DONE->value, PlanStatusEnum::CANCELLED->value, PlanStatusEnum::BLOCKED->value], true);
+
+            if ($closes && $plan->hasALiveRun()) {
+                return ['error' => sprintf(
+                    'Plan %d has a coding run that is still going; it reports its own outcome and the plan follows. '
+                        . 'Nothing changed.',
+                    $plan->getId()
+                )];
             }
         }
         if ($priority !== null) {
