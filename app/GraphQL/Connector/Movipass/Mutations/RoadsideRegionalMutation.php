@@ -39,7 +39,9 @@ class RoadsideRegionalMutation
     {
         $ctx = $this->actingContext();
 
-        return new AcceptRoadsideOfferAction($this->regionalRoadsideOrder($ctx->app, $request['order_id']), $ctx->user)->execute();
+        $order = $this->regionalRoadsideOrder($ctx->app, $request['order_id']);
+
+        return new AcceptRoadsideOfferAction($order, $ctx->user)->execute();
     }
 
     public function rejectOffer(mixed $rootValue, array $request): Order
@@ -73,7 +75,9 @@ class RoadsideRegionalMutation
     {
         $ctx = $this->actingContext();
 
-        return new SetRoadsideTechnicianAvailabilityAction($ctx->user, $ctx->app, (bool) $request['online'])->execute()->value;
+        return new SetRoadsideTechnicianAvailabilityAction($ctx->user, $ctx->app, (bool) $request['online'])
+            ->execute()
+            ->value;
     }
 
     public function track(mixed $rootValue, array $request): array

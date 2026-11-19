@@ -94,7 +94,14 @@ class RecordRoadsideTrackingAction
             return null;
         }
 
-        return round(Geo::distanceKm((float) $location['lat'], (float) $location['lng'], $this->lat, $this->lng) * 1000, 1);
+        $distanceKm = Geo::distanceKm(
+            (float) $location['lat'],
+            (float) $location['lng'],
+            $this->lat,
+            $this->lng
+        );
+
+        return round($distanceKm * 1000, 1);
     }
 
     private function moveTo(RoadsideCaseStateEnum $state): ?RoadsideCaseStateEnum

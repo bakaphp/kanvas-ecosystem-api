@@ -89,7 +89,8 @@ final class SyncRoadsideRegionalEventJob implements ShouldQueue
 
         $sent = match ($event['type']) {
             'state' => $this->pushState($event['payload']),
-            'contact' => new RegisterRoadsideProviderContactAction($this->order, (array) $event['payload'])->execute(),
+            'contact' => new RegisterRoadsideProviderContactAction($this->order, (array) $event['payload'])
+                ->execute(),
             default => null,
         };
 
@@ -112,7 +113,12 @@ final class SyncRoadsideRegionalEventJob implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        RoadsideProviderOutbox::mark($this->order, $this->eventId, RoadsideProviderOutbox::FAILED, $exception->getMessage());
+        RoadsideProviderOutbox::mark(
+            $this->order,
+            $this->eventId,
+            RoadsideProviderOutbox::FAILED,
+            $exception->getMessage()
+        );
         $this->order->set(CustomFieldEnum::ROADSIDE_PROVIDER_SYNC_ERROR->value, $exception->getMessage());
 
         RoadsideAuditTrail::forOrder(
@@ -146,7 +152,12 @@ final class SyncRoadsideRegionalEventJob implements ShouldQueue
 
     private function skip(array $event, string $reason): void
     {
-        RoadsideProviderOutbox::mark($this->order, $this->eventId, RoadsideProviderOutbox::SKIPPED, $reason);
+        RoadsideProviderOutbox::mark(
+            $this->order,
+            $this->eventId,
+            RoadsideProviderOutbox::SKIPPED,
+            $reason
+        );
 
         RoadsideAuditTrail::forOrder(
             order: $this->order,

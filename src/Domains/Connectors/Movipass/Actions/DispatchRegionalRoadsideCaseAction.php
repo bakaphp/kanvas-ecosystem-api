@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
-use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideCaseStateEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideIntakeOutcomeEnum;
 use Kanvas\Connectors\Movipass\Services\RoadsideAuditTrail;
@@ -31,7 +30,7 @@ class DispatchRegionalRoadsideCaseAction
 
     public function execute(): bool
     {
-        if (! $this->appliesTo()) {
+        if (! RegionalAssistance::isRegionalCase($this->order)) {
             return false;
         }
 
@@ -45,7 +44,8 @@ class DispatchRegionalRoadsideCaseAction
                 return false;
             }
 
-            new TransitionRoadsideCaseStateAction($this->order, RoadsideCaseStateEnum::CREATED, $this->order->user)->execute();
+            new TransitionRoadsideCaseStateAction($this->order, RoadsideCaseStateEnum::CREATED, $this->order->user)
+                ->execute();
 
             RoadsideAuditTrail::forOrder(
                 order: $this->order,
@@ -71,12 +71,5 @@ class DispatchRegionalRoadsideCaseAction
 
             return true;
         });
-    }
-
-    private function appliesTo(): bool
-    {
-        return $this->order->parent_id === null
-            && $this->order->orderType?->name === OrderTypeEnum::ROADSIDE_ASSISTANCE->value
-            && RegionalAssistance::isEnabledFor($this->order);
     }
 }

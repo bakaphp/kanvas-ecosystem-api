@@ -37,7 +37,12 @@ class RoadsideQuoteCalculator
 
         $zone = $this->schedule->zoneFor($origin['lat'], $origin['lng']);
         $kmZero = $this->schedule->kmZero();
-        $distanceKm = Geo::distanceKm($kmZero['lat'], $kmZero['lng'], $billedPoint['lat'], $billedPoint['lng']);
+        $distanceKm = Geo::distanceKm(
+            $kmZero['lat'],
+            $kmZero['lng'],
+            $billedPoint['lat'],
+            $billedPoint['lng']
+        );
 
         $perKmRate = $this->schedule->perKmRate($service);
         // Kilometres are charged per started km, matching how the provider bills the tow.

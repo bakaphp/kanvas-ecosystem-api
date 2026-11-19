@@ -77,7 +77,12 @@ final class RoadsidePricingTest extends TestCase
             ->method('processPayment')
             ->willReturn(['status' => 'error', 'message' => 'Card declined', 'data' => []]);
 
-        $result = new ProcessPaymentAction($this->apps, $payment, $order, $processor)
+        $result = new ProcessPaymentAction(
+            $this->apps,
+            $payment,
+            $order,
+            $processor
+        )
             ->execute($this->createMock(ConsumerAuthentication::class));
 
         $this->assertSame('Card declined', $result['message']);
@@ -130,7 +135,12 @@ final class RoadsidePricingTest extends TestCase
         $processor = $this->createMock(PortalPaymentProcessor::class);
         $processor->expects($this->never())->method('processPayment');
 
-        $result = new ProcessPaymentAction($this->apps, $payment, $order, $processor)
+        $result = new ProcessPaymentAction(
+            $this->apps,
+            $payment,
+            $order,
+            $processor
+        )
             ->execute($this->createMock(ConsumerAuthentication::class));
 
         $this->assertSame('error', $result['status']);
@@ -149,7 +159,12 @@ final class RoadsidePricingTest extends TestCase
             ->method('processPayment')
             ->willReturn(['status' => 'error', 'message' => 'Card declined', 'data' => []]);
 
-        $result = new ProcessPaymentAction($this->apps, $payment, $order, $processor)
+        $result = new ProcessPaymentAction(
+            $this->apps,
+            $payment,
+            $order,
+            $processor
+        )
             ->execute($this->createMock(ConsumerAuthentication::class));
 
         $this->assertSame('Card declined', $result['message']);
@@ -185,7 +200,12 @@ final class RoadsidePricingTest extends TestCase
         $processor = $this->createMock(PortalPaymentProcessor::class);
         $processor->expects($this->never())->method('processPayment');
 
-        $result = new ProcessPaymentAction($this->apps, $payment, $order, $processor)
+        $result = new ProcessPaymentAction(
+            $this->apps,
+            $payment,
+            $order,
+            $processor
+        )
             ->execute($this->createMock(ConsumerAuthentication::class));
 
         $this->assertSame('error', $result['status']);

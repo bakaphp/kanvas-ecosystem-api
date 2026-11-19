@@ -85,7 +85,8 @@ class ReassignRoadsideAssistanceAction
             new CancelMechanicAssignmentAction($this->order, $current, $this->order->app)->execute();
             $this->order->refresh();
         } elseif ($this->technician === null) {
-            new OfferRoadsideCaseAction($this->order, $this->operator, RoadsideAuditChannelEnum::WEB)->execute();
+            new OfferRoadsideCaseAction($this->order, $this->operator, RoadsideAuditChannelEnum::WEB)
+                ->execute();
         }
 
         if ($this->technician !== null) {

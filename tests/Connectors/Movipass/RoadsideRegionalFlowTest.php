@@ -28,6 +28,7 @@ use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideTechnicianDeclineReasonEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideZoneEnum;
 use Kanvas\Connectors\Movipass\Jobs\ExpireRoadsideOfferJob;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Connectors\Movipass\Services\RoadsideAuditTrail;
 use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
 use Kanvas\Connectors\Movipass\Support\RoadsideIntakeRules;
@@ -113,6 +114,14 @@ final class RoadsideRegionalFlowTest extends TestCase
         $this->assertSame(MovipassOrderStatusEnum::DISPATCHED->slug(), $order->orderStatus?->slug);
         $this->assertSame(RoadsideCaseStateEnum::TECHNICIAN_ASSIGNED->value, $order->metadata['assistance_case']['state']);
         $this->assertGreaterThan(0, $this->auditCount($order, 'technician', 'offer_accepted'));
+
+        foreach (['Order assigned' => $this->technician, 'Mechanic assigned' => $order->user] as $title => $recipient) {
+            Notification::assertSentTo(
+                $recipient,
+                RoadsideAssistanceStatusNotification::class,
+                fn (RoadsideAssistanceStatusNotification $sent) => ($sent->data['options']['title'] ?? null) === $title
+            );
+        }
     }
 
     public function testACabinReviewCaseWaitsForTheCabinBeforeAnyOffer(): void
@@ -153,11 +162,21 @@ final class RoadsideRegionalFlowTest extends TestCase
     {
         $order = $this->accepted();
 
-        $far = new RecordRoadsideTrackingAction($order, $this->technician, 13.7200, -89.2100)->execute();
+        $far = new RecordRoadsideTrackingAction(
+            $order,
+            $this->technician,
+            13.7200,
+            -89.2100
+        )->execute();
         $this->assertSame(RoadsideCaseStateEnum::EN_ROUTE->value, $far['state']);
 
         // ~200 m north of the user: inside the proximity radius, outside the arrival threshold.
-        $near = new RecordRoadsideTrackingAction($order->refresh(), $this->technician, 13.6995, -89.1910)->execute();
+        $near = new RecordRoadsideTrackingAction(
+            $order->refresh(),
+            $this->technician,
+            13.6995,
+            -89.1910
+        )->execute();
         $this->assertSame(RoadsideCaseStateEnum::NEARBY->value, $near['state']);
 
         $here = new RecordRoadsideTrackingAction($order->refresh(), $this->technician, ...array_values(self::USER_LOCATION))->execute();

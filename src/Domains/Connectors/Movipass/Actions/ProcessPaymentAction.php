@@ -120,7 +120,7 @@ class ProcessPaymentAction
 
     /**
      * Asistencia Regional only: for every other order (parking, Paso Rápido, roadside elsewhere) the
-     * action returns null before touching anything and the payment runs exactly as before.
+     * action returns null before touching anything.
      *
      * A regional roadside order is repriced by an async workflow after creation, so the payment may
      * have been opened at the cart price before that lands. Reprice synchronously here, before the card is

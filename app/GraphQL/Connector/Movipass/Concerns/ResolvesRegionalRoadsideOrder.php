@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\Movipass\Concerns;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
@@ -18,14 +17,9 @@ trait ResolvesRegionalRoadsideOrder
      */
     protected function regionalRoadsideOrder(AppInterface $app, int|string $orderId): Order
     {
-        /** @var Order $order */
-        $order = Order::query()
-            ->fromApp($app)
-            ->notDeleted()
-            ->whereKey((int) $orderId)
-            ->firstOrFail();
+        $order = Order::getById((int) $orderId, $app);
 
-        if ($order->orderType?->name !== OrderTypeEnum::ROADSIDE_ASSISTANCE->value || ! RegionalAssistance::isEnabledFor($order)) {
+        if (! RegionalAssistance::isRegionalCase($order)) {
             throw new ValidationException('This order is not an Asistencia Regional roadside assistance case');
         }
 

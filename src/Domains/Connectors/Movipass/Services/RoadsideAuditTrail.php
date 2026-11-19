@@ -57,7 +57,13 @@ class RoadsideAuditTrail
             module: $module,
             action: $action,
             actor: $actor,
-            payload: self::payload($before, $after, $reason, $channel, $details),
+            payload: self::payload(
+                $before,
+                $after,
+                $reason,
+                $channel,
+                $details
+            ),
             succeeded: $succeeded,
         );
     }
@@ -80,7 +86,13 @@ class RoadsideAuditTrail
             module: 'tariff',
             action: $action,
             actor: $actor,
-            payload: self::payload($before, $after, $reason, RoadsideAuditChannelEnum::WEB, $details),
+            payload: self::payload(
+                $before,
+                $after,
+                $reason,
+                RoadsideAuditChannelEnum::WEB,
+                $details
+            ),
             succeeded: true,
         );
     }

@@ -151,7 +151,8 @@ class RefreshRoadsideAdditionalChargesAction
         }
 
         try {
-            new TransitionRoadsideCaseStateAction($this->order, $interrupted, reason: 'additional charges settled')->execute();
+            new TransitionRoadsideCaseStateAction($this->order, $interrupted, reason: 'additional charges settled')
+                ->execute();
         } catch (ValidationException) {
         }
     }

@@ -49,9 +49,6 @@ class RoadsideRegionalQuery
         return RoadsideSlaCalculator::forCase($this->assistanceCaseFrom($order), RegionalAssistance::slaThresholds($order));
     }
 
-    /**
-     * Analytics are scoped to the acting app and company, like every aggregate in this codebase.
-     */
     public function slaSummary(mixed $rootValue, array $request): array
     {
         $ctx = $this->actingContext();

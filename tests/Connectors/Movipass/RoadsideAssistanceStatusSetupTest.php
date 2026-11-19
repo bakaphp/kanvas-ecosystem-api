@@ -13,8 +13,14 @@ use Kanvas\Connectors\Movipass\Support\RoadsideAssistanceStatusMap;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+/**
+ * Serial: the roadside statuses are app-wide rows every roadside test syncs, and this one soft-deletes
+ * them and asserts exact counts.
+ */
+#[Group('serial')]
 final class RoadsideAssistanceStatusSetupTest extends TestCase
 {
     use DatabaseTransactions;

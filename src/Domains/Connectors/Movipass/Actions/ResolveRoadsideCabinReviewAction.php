@@ -54,7 +54,8 @@ class ResolveRoadsideCabinReviewAction
         );
 
         if ($this->approved) {
-            new OfferRoadsideCaseAction($this->order, $this->operator, RoadsideAuditChannelEnum::WEB)->execute();
+            new OfferRoadsideCaseAction($this->order, $this->operator, RoadsideAuditChannelEnum::WEB)
+                ->execute();
 
             return $this->order->refresh();
         }

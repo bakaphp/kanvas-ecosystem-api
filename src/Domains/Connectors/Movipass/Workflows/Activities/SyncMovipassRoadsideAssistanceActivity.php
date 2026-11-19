@@ -842,7 +842,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
     /**
      * Runs after the regular case preparation, never inside it, so a case outside Asistencia
-     * Regional goes through exactly the code it always did. A pricing failure leaves the case
+     * Regional never reaches this code. A pricing failure leaves the case
      * intact and flags the run so the cabin can price it by hand.
      */
     private function priceRegionalAssistanceCase($order, array $result): array

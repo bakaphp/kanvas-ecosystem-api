@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
@@ -50,7 +51,12 @@ class SyncRoadsideAssistanceStatusesAction
             $statuses = [];
             $sequence = 1;
             foreach ($definition as $key => $config) {
-                $statuses[$key] = $this->syncStatus($orderType, $key, $config, $sequence++);
+                $statuses[$key] = $this->syncStatus(
+                    $orderType,
+                    $key,
+                    $config,
+                    $sequence++
+                );
             }
 
             $this->syncTransitions($orderType, $definition, $statuses);
@@ -78,15 +84,19 @@ class SyncRoadsideAssistanceStatusesAction
             ]);
         }
 
-        if ((int) $orderType->is_deleted !== 0) {
-            $orderType->updateQuietly(['is_deleted' => 0]);
+        if ($this->isDeleted($orderType)) {
+            $this->setDeleted($orderType, false);
         }
 
         return $orderType;
     }
 
-    private function syncStatus(OrderTypes $orderType, string $key, array $config, int $sequence): OrderStatus
-    {
+    private function syncStatus(
+        OrderTypes $orderType,
+        string $key,
+        array $config,
+        int $sequence
+    ): OrderStatus {
         $slug = Str::slug($key);
         $attributes = [
             'name' => $config['name'],
@@ -105,7 +115,7 @@ class SyncRoadsideAssistanceStatusesAction
 
         // Earlier runs could duplicate a slug. Orders point at those ids, so they are reported for a
         // manual merge instead of being deleted here.
-        if ($matches->where('is_deleted', 0)->count() > 1) {
+        if ($matches->reject(fn (OrderStatus $match) => $this->isDeleted($match))->count() > 1) {
             $this->summary['duplicate_statuses'][] = $slug;
         }
 
@@ -123,15 +133,17 @@ class SyncRoadsideAssistanceStatusesAction
             ]);
         }
 
-        if ((int) $status->is_deleted !== 0) {
-            $attributes['is_deleted'] = 0;
+        $restored = $this->isDeleted($status);
+
+        if ($restored) {
+            $this->setDeleted($status, false);
             $this->summary['statuses_restored']++;
         }
 
         $status->fill($attributes);
 
         if ($status->isDirty()) {
-            if (! isset($attributes['is_deleted'])) {
+            if (! $restored) {
                 $this->summary['statuses_updated']++;
             }
             $status->saveQuietly();
@@ -161,11 +173,11 @@ class SyncRoadsideAssistanceStatusesAction
         $kept = [];
         foreach ($existing as $transition) {
             $pair = $transition->from_status_id . ':' . $transition->to_status_id;
-            $isActive = (int) $transition->is_deleted === 0;
+            $isActive = ! $this->isDeleted($transition);
 
             if (! isset($wanted[$pair]) || isset($kept[$pair])) {
                 if ($isActive) {
-                    $transition->updateQuietly(['is_deleted' => 1]);
+                    $this->setDeleted($transition, true);
                     $this->summary['transitions_removed']++;
                 }
 
@@ -175,7 +187,7 @@ class SyncRoadsideAssistanceStatusesAction
             $kept[$pair] = true;
 
             if (! $isActive) {
-                $transition->updateQuietly(['is_deleted' => 0]);
+                $this->setDeleted($transition, false);
                 $this->summary['transitions_restored']++;
             }
         }
@@ -194,5 +206,27 @@ class SyncRoadsideAssistanceStatusesAction
             ]);
             $this->summary['transitions_created']++;
         }
+    }
+
+    /**
+     * `is_deleted` is SoftDeletes' DELETED_AT on these Souk models and they do not cast it, so
+     * Eloquent reads 0 as a 1970 date and writes a date string into the int column. Read the raw
+     * value and write through the query builder, which skips the cast.
+     */
+    private function isDeleted(Model $model): bool
+    {
+        return (int) $model->getRawOriginal('is_deleted') !== 0;
+    }
+
+    private function setDeleted(Model $model, bool $deleted): void
+    {
+        $model->newQueryWithoutScopes()
+            ->whereKey($model->getKey())
+            ->update(['is_deleted' => (int) $deleted]);
+
+        $model->setRawAttributes(
+            [...$model->getAttributes(), 'is_deleted' => (int) $deleted],
+            sync: true
+        );
     }
 }

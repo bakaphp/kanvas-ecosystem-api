@@ -10,6 +10,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
 /**
@@ -30,6 +31,16 @@ final class RegionalAssistance
     public static function isEnabledFor(Order $order): bool
     {
         return self::isEnabled($order->app, $order->company);
+    }
+
+    /**
+     * The case lives on the root roadside order; a charge order is its own type and never a case.
+     */
+    public static function isRegionalCase(Order $order): bool
+    {
+        return $order->parent_id === null
+            && $order->orderType?->name === OrderTypeEnum::ROADSIDE_ASSISTANCE->value
+            && self::isEnabledFor($order);
     }
 
     /**

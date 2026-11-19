@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
-use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
 use Kanvas\Connectors\Movipass\Services\RoadsideQuoteCalculator;
 use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
@@ -79,15 +78,13 @@ class ApplyRoadsideQuoteToOrderAction
     }
 
     /**
-     * Outside Asistencia Regional the order keeps the cart price exactly as before. A paid order
+     * Outside Asistencia Regional the order keeps its cart price. A paid order
      * keeps the price it was paid at; repricing it would put the order and the money out of step.
      */
     private function appliesTo(): bool
     {
-        return $this->order->parent_id === null
-            && $this->order->orderType?->name === OrderTypeEnum::ROADSIDE_ASSISTANCE->value
-            && $this->order->payment_status !== PaymentStatusEnum::PAID->value
-            && RegionalAssistance::isEnabledFor($this->order);
+        return $this->order->payment_status !== PaymentStatusEnum::PAID->value
+            && RegionalAssistance::isRegionalCase($this->order);
     }
 
     /**

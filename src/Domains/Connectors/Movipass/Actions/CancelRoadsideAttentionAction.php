@@ -76,6 +76,7 @@ class CancelRoadsideAttentionAction
             channel: RoadsideAuditChannelEnum::APK,
         );
 
-        return new CancelMechanicAssignmentAction($this->order, $this->technician, $this->order->app)->execute();
+        return new CancelMechanicAssignmentAction($this->order, $this->technician, $this->order->app)
+            ->execute();
     }
 }

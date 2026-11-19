@@ -21,6 +21,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
@@ -28,6 +29,11 @@ use Tests\TestCase;
  * The three flow branches the case lifecycle gained: the authorization gate that declines a case
  * before dispatch, the incident record, and the reschedule/close decision that follows it.
  */
+/**
+ * Serial: it commits changes to the app's roadside statuses, which RoadsideAssistanceStatusSetupTest
+ * edits inside its own transaction and counts exactly.
+ */
+#[Group('serial')]
 final class RoadsideAssistanceFlowTest extends TestCase
 {
     use HasIntegrationCompany;

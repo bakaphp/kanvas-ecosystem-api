@@ -57,8 +57,12 @@ final class RoadsideProviderOutbox
         return null;
     }
 
-    public static function mark(Order $order, string $id, string $status, ?string $error = null): void
-    {
+    public static function mark(
+        Order $order,
+        string $id,
+        string $status,
+        ?string $error = null
+    ): void {
         $entries = array_map(static function (array $entry) use ($id, $status, $error): array {
             if (($entry['id'] ?? null) !== $id) {
                 return $entry;
