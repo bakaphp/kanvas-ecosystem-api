@@ -23,6 +23,7 @@ use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\DataTransferObject\ExpenseAccountCoding;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
+use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\ExpenseAccountCodingService;
 use Kanvas\Scribe\Bills\Services\VendorByTaxIdResolverService;
@@ -186,7 +187,12 @@ class ProposeBillFromPdfAction
             pdf_ingest_log_id: $this->pdfIngestLogId,
         );
 
-        $bill = new CreateBillAction(data: $data, user: $this->user)->execute();
+        try {
+            $bill = new CreateBillAction(data: $data, user: $this->user)->execute();
+        } catch (DuplicateBillNumberException $e) {
+            // The number matched loosely (case or punctuation), so the exact lookup above missed it.
+            return $e->existing ?? throw $e;
+        }
 
         // The snapshot shows the extracted spelling up-front; ReceiveBill re-freezes it from the linked
         // Guild Org at the moment of receipt.
