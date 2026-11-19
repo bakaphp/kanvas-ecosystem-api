@@ -24,7 +24,7 @@ class AcceptOrderAssignmentAction
 
     public function execute(): Order
     {
-        return DB::connection('commerce')->transaction(function () {
+        $order = DB::connection('commerce')->transaction(function () {
             $order = Order::where('id', $this->order->getId())
                 ->lockForUpdate()
                 ->firstOrFail();

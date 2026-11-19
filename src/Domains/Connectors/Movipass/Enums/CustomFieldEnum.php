@@ -20,4 +20,5 @@ enum CustomFieldEnum: string
     case ROADSIDE_PROVIDER_LAST_POLLED_AT = 'movipass_roadside_provider_last_polled_at';
     case ROADSIDE_PROVIDER_SNAPSHOT = 'movipass_roadside_provider_snapshot';
     case ROADSIDE_PROVIDER_SYNC_ERROR = 'movipass_roadside_provider_sync_error';
+    case ROADSIDE_PROVIDER_SYNC_OUTBOX = 'movipass_roadside_provider_sync_outbox';
 }
