@@ -74,6 +74,7 @@ class ProposeBillFromPdfAction
     public const string REVIEW_GL = 'gl_unresolved';
     public const string REVIEW_NCF = 'ncf_invalid';
     public const string REVIEW_RNC = 'rnc_not_registered';
+    public const string REVIEW_TOTAL = 'total_mismatch';
 
     public function __construct(
         public readonly AppInterface $app,
@@ -150,6 +151,12 @@ class ProposeBillFromPdfAction
         $notes = trim('Imported from PDF. ' . (string) ($this->extracted['notes'] ?? ''));
 
         $lines = $this->buildLines($expenseAccountId, $subtotal, $taxNative);
+
+        $mismatch = $this->totalMismatch($lines, $total);
+        if ($mismatch !== null) {
+            $reviewCode ??= self::REVIEW_TOTAL;
+            $reviewReason = trim(($reviewReason ?? '') . ' ' . $mismatch);
+        }
 
         $data = new BillData(
             app: $this->app,
@@ -317,6 +324,23 @@ class ProposeBillFromPdfAction
         };
     }
 
+    /**
+     * @param list<BillLineData> $lines
+     */
+    private function totalMismatch(array $lines, float $printedTotal): ?string
+    {
+        $linesTotal = round(array_sum(array_map(
+            static fn (BillLineData $line): float => $line->lineTotalNative(),
+            $lines,
+        )), 2);
+
+        if (abs($linesTotal - $printedTotal) <= 0.01) {
+            return null;
+        }
+
+        return sprintf('The lines add up to %.2f but the invoice total is %.2f.', $linesTotal, $printedTotal);
+    }
+
     private function glSource(?ExpenseAccountCoding $coding): string
     {
         return match ($coding?->source) {
@@ -466,6 +490,10 @@ class ProposeBillFromPdfAction
             $lineTotal = $this->floatOrNull($item['line_total'] ?? null) ?? ($qty * $unitPrice);
             if ($lineTotal <= 0) {
                 continue;
+            }
+            // A line the model gave only a line_total for would otherwise be saved at 0.
+            if ($unitPrice <= 0 && $qty > 0) {
+                $unitPrice = $lineTotal / $qty;
             }
             $out[] = new BillLineData(
                 description: (string) ($item['description'] ?? 'Line'),
