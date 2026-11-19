@@ -121,10 +121,12 @@ class AgentObserver
 
     /**
      * The company's first Sales Manager / PM agent becomes the one that works its routed meetings.
+     * The handler is queried rather than read through `$agent->type`: loading the relation here would
+     * leave it cached on the instance, stale for a caller that changes agent_type_id next.
      */
     private function ensureMeetingAgentSetting(Agent $agent): void
     {
-        $role = MeetingAgentEnum::forHandler($agent->type?->handler);
+        $role = MeetingAgentEnum::forHandler($agent->type()->value('handler'));
         if ($role === null || $agent->companies_id <= 0 || $agent->company === null) {
             return;
         }

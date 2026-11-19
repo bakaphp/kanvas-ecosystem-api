@@ -88,4 +88,11 @@ class MeetingAgentSettingTest extends TestCase
             ->assertSuccessful();
         $this->assertSame($salesManager->getId(), (int) $company->get(MeetingAgentEnum::LEAD->value));
     }
+
+    public function testCreatingAnAgentLeavesItsTypeUnloaded(): void
+    {
+        $agent = $this->agentOfType($this->freshCompany(), SalesManagerAgent::class);
+
+        $this->assertFalse($agent->relationLoaded('type'));
+    }
 }
