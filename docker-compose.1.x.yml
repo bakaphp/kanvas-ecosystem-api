@@ -367,6 +367,15 @@ services:
       - "-c"
       - "php artisan config:cache && exec php artisan queue:work
         --queue=nervous-system-project --tries=3 --timeout=3750"
+  meeting-queue:
+    <<: *common-queue-settings
+    stop_grace_period: 300s
+    container_name: meeting-queue
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && exec php artisan queue:work
+        --queue=meeting-transcripts,meeting-notes --tries=1 --timeout=3750"
   scheduled-actions-queue:
     <<: *common-queue-settings
     container_name: scheduled-actions-queue

@@ -96,6 +96,9 @@
         <testsuite name="Insurance">
             <directory suffix="Test.php">./tests/Insurance</directory>
         </testsuite>
+        <testsuite name="Meeting">
+            <directory suffix="Test.php">./tests/Meeting</directory>
+        </testsuite>
     </testsuites>
     <php>
         <env name="COLLISION_PRINTER" value="true"/>
