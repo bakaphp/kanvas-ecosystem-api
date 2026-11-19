@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Workflows;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Workflows\ExternalAgentChannelResponseActivity;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -19,8 +20,11 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Override;
 use Tests\Connectors\Traits\HasIntegrationCompany;
+use Tests\Connectors\Traits\RefusesLeadSms;
 use Tests\TestCase;
 
 /**
@@ -32,6 +36,7 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
 {
     use DatabaseTransactions;
     use HasIntegrationCompany;
+    use RefusesLeadSms;
 
     private const string FROM_PHONE = '+19998887777';
     private const string CUSTOMER_PHONE = '+15551234567';
@@ -110,6 +115,44 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
         );
 
         $this->assertStringContainsString('content and files are both empty', $result['message'] ?? '');
+    }
+
+    public function testARefusedTextFailsTheActivityAndMarksTheMessageFailed(): void
+    {
+        [$app, $channel, $message] = $this->makeChannelMessage(
+            verb: 'sms',
+            content: 'Orchestrator says hi',
+            fromIa: true,
+            fromOrchestrator: true,
+        );
+
+        $reason = 'Lead cellphone number ' . self::CUSTOMER_PHONE . ' has line type landline; '
+            . 'our policy only allows SMS to mobile and VoIP numbers';
+        $activity = new class (
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        ) extends ExternalAgentChannelResponseActivity {
+            public SendMessageToLeadAction $fakeSender;
+
+            #[Override]
+            protected function sender(Lead $lead): SendMessageToLeadAction
+            {
+                return $this->fakeSender;
+            }
+        };
+        $activity->fakeSender = $this->smsRefusingSender($message->preferredEntity(Lead::class), $reason);
+
+        $result = $activity->execute($channel, $app, ['message' => $message, 'from' => self::FROM_PHONE]);
+
+        $this->assertSame(StatusEnum::FAILED, $activity->workflowStatus());
+        $this->assertSame('Message not sent to lead via sms: ' . $reason, $result['message']);
+
+        $message->refresh();
+        $this->assertSame('failed', $message->message['delivery']['status'] ?? null);
+        $this->assertSame($reason, $message->message['delivery']['error_message'] ?? null);
+        $this->assertFalse((bool) $message->is_un_response);
     }
 
     /**

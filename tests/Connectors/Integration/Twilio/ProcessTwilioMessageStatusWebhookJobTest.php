@@ -6,9 +6,11 @@ namespace Tests\Connectors\Integration\Twilio;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
@@ -16,6 +18,8 @@ use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Events\MessageDeliveryStatusEvent;
@@ -25,8 +29,10 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
+use Twilio\Rest\Client as TwilioClient;
 
 final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
 {
@@ -277,6 +283,126 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
             'unreachable handset' => ['30003'],
             'unknown destination' => ['30005'],
         ];
+    }
+
+    /**
+     * The mark the carrier failure leaves is what the next text is refused on: before the Lookup,
+     * so a dead number costs nothing more, and with the reason on the message that was not sent.
+     */
+    #[DataProvider('codesThatMarkANumberInvalid')]
+    public function testANumberWhoseDeliveryFailedAcceptsNoMoreTexts(string $errorCode): void
+    {
+        Queue::fake();
+        Event::fake([MessageDeliveryStatusEvent::class]);
+        Notification::fake();
+        config(['mail.mailers.smtp.host' => 'smtp.example.com']);
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $destination = '+1809' . random_int(1000000, 9999999);
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+        $lead->people->addCellPhone($destination);
+        $lead->people->addEmail('still-reachable-' . $lead->getId() . '@example.com');
+
+        // A number nothing has failed on passes the destination guard.
+        $this->textSender($lead)->guardSmsDestinationForTest($destination);
+
+        $receiver = $this->createReceiver($app, $company->getId(), $user);
+        new ProcessTwilioMessageStatusWebhookJob(ReceiverWebhookCall::create([
+            'receiver_webhooks_id' => $receiver->getId(),
+            'url' => $receiver->getUrl(),
+            'headers' => [],
+            'payload' => [
+                'MessageSid' => 'SM-dead-number-' . $errorCode . '-' . $lead->getId(),
+                'MessageStatus' => 'undelivered',
+                'ErrorCode' => $errorCode,
+                'To' => $destination,
+            ],
+        ]))->execute();
+
+        $sender = $this->textSender($lead->fresh());
+        $refused = $sender->execute(
+            channel: 'sms',
+            message: 'Second text',
+            from: '+15555550100',
+            to: $destination,
+        );
+
+        $this->assertFalse($refused['success']);
+        $this->assertSame('validation_failed', $refused['classification']);
+        $this->assertStringContainsString('is marked invalid; no further SMS is sent to it', $refused['error']);
+        $this->assertSame([0, 0], [$sender->lookups, $sender->sends], 'neither the Lookup nor the Messages API is called');
+
+        $message = Message::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withMessageType(MessageType::firstOrCreate(
+                ['apps_id' => $app->getId(), 'languages_id' => 1, 'verb' => 'sms'],
+                ['name' => 'Sms'],
+            ))
+            ->create(['users_id' => $user->getId(), 'message' => ['content' => 'Second text']]);
+        new StoreMessageSidAction($message)->execute($refused);
+
+        $delivery = $message->fresh()->getMessage()['delivery'];
+        $this->assertSame('failed', $delivery['status']);
+        $this->assertSame($refused['error'], $delivery['error_message']);
+
+        $email = $this->textSender($lead->fresh())->execute('email', 'Still reachable by email', title: 'Hello');
+        $this->assertArrayNotHasKey('error', $email, 'a dead phone number does not stop an email');
+    }
+
+    public static function codesThatMarkANumberInvalid(): array
+    {
+        return [
+            'unreachable handset' => ['30003'],
+            'unknown destination' => ['30005'],
+            'landline or unreachable carrier' => ['30006'],
+        ];
+    }
+
+    /**
+     * The real lead send up to the two Twilio calls, which are counted instead of made.
+     */
+    private function textSender(Lead $lead): SendMessageToLeadAction
+    {
+        return new class ($lead) extends SendMessageToLeadAction {
+            public int $lookups = 0;
+
+            public int $sends = 0;
+
+            #[Override]
+            protected function validateTwilioSenderRoute(string $from): array
+            {
+                return ['from' => $from];
+            }
+
+            public function guardSmsDestinationForTest(string $cellphone): void
+            {
+                $this->guardSmsDestination($cellphone, null);
+            }
+
+            #[Override]
+            protected function lookupPhoneNumber(TwilioClient $client, string $cellphone): string
+            {
+                $this->lookups++;
+
+                return $cellphone;
+            }
+
+            #[Override]
+            protected function sendTwilioMessages(
+                TwilioClient $client,
+                string $cellphone,
+                array $route,
+                string $fullMessage,
+                array $mediaUrls,
+            ): array {
+                $this->sends++;
+
+                return ['channel' => 'sms', 'messages' => []];
+            }
+        };
     }
 
     private function inboundTextPayload(string $sid): array

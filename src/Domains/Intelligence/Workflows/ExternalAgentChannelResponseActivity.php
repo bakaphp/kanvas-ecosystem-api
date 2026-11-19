@@ -7,10 +7,10 @@ namespace Kanvas\Intelligence\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Intelligence\Workflows\Concerns\DeliversLeadReply;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
@@ -39,6 +39,8 @@ use Kanvas\Workflow\KanvasActivity;
 )]
 class ExternalAgentChannelResponseActivity extends KanvasActivity
 {
+    use DeliversLeadReply;
+
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -166,7 +168,7 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
-                $result = new SendMessageToLeadAction($lead)->execute(
+                $result = $this->sender($lead)->execute(
                     $channelType,
                     $content,
                     $fromPhone,
@@ -175,6 +177,11 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
                     $files->isNotEmpty() ? $files : null
                 );
                 new StoreMessageSidAction($message)->execute($result);
+
+                $unsent = $this->failUnsentReply($result, $channelType, $messageContext);
+                if ($unsent !== null) {
+                    return $unsent;
+                }
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
                 new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: false);

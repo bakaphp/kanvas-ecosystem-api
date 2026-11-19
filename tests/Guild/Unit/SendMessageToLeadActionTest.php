@@ -26,6 +26,7 @@ use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Mockery;
+use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -822,8 +823,135 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         ];
     }
 
-    #[DataProvider('nonMobileLineTypes')]
-    public function testLookupPhoneNumberRejectsEveryLineTypeOtherThanMobile(string $lineType): void
+    #[DataProvider('voipLinesOnATextingCarrier')]
+    public function testLookupPhoneNumberAllowsVoipOnACarrierKnownToCarryTexts(string $lineType, string $carrier): void
+    {
+        $client = $this->makeLookupClient([
+            'phone_number' => '+17734515405',
+            'valid' => true,
+            'line_type_intelligence' => ['type' => $lineType, 'carrier_name' => $carrier, 'error_code' => null],
+            'line_status' => ['status' => 'active'],
+        ]);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldReceive('setPhoneLandline')->once()->with('+17734515405', false)->andReturn(1);
+        $action = $this->makeAction($this->makeLead($people));
+
+        $this->assertSame(
+            '+17734515405',
+            $action->lookupPhoneNumberForTest($client, '+17734515405')
+        );
+    }
+
+    public static function voipLinesOnATextingCarrier(): array
+    {
+        return [
+            'nonFixedVoip on Bandwidth' => ['nonFixedVoip', 'Bandwidth.com CLEC, LLC - IL'],
+            'nonFixedVoip on an SVR line' => ['nonFixedVoip', 'Twilio - SMS/MMS-SVR'],
+            'fixedVoip on an SVR line' => ['fixedVoip', 'Enflick - 360 Networks - SVR'],
+            'keyword in any case' => ['nonFixedVoip', 'ONVOY, LLC'],
+        ];
+    }
+
+    #[DataProvider('voipLinesWithNoTextingCarrier')]
+    public function testLookupPhoneNumberRejectsVoipOnAnyOtherCarrier(array $intelligence, string $carrier): void
+    {
+        $client = $this->makeLookupClient([
+            'phone_number' => '+12296059887',
+            'valid' => true,
+            'line_type_intelligence' => $intelligence + ['error_code' => null],
+            'line_status' => ['status' => 'active'],
+        ]);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldReceive('setPhoneLandline')->once()->with('+12296059887', false)->andReturn(1);
+        $action = $this->makeAction($this->makeLead($people));
+
+        try {
+            $action->lookupPhoneNumberForTest($client, '+12296059887');
+            $this->fail('A VoIP line on a carrier that matches no keyword must be refused');
+        } catch (LeadMissingContactException $exception) {
+            $this->assertSame('VOIP without SMS', $exception->getMessage());
+        }
+
+        $this->assertSame(
+            ['line_type' => $intelligence['type'], 'carrier_name' => $carrier],
+            $action->refusedLineForTest()
+        );
+    }
+
+    public static function voipLinesWithNoTextingCarrier(): array
+    {
+        return [
+            'active Comcast fixedVoip' => [['type' => 'fixedVoip', 'carrier_name' => 'Comcast'], 'Comcast'],
+            'nonFixedVoip on another carrier' => [['type' => 'nonFixedVoip', 'carrier_name' => 'Some VoIP Co'], 'Some VoIP Co'],
+            'carrier absent' => [['type' => 'nonFixedVoip'], ''],
+            'carrier null' => [['type' => 'fixedVoip', 'carrier_name' => null], ''],
+            'carrier blank' => [['type' => 'nonFixedVoip', 'carrier_name' => '  '], ''],
+        ];
+    }
+
+    public function testAVoipRefusalReachesTheCallerAsThatReasonWithWhatTheLookupSaidBesideIt(): void
+    {
+        $client = $this->makeLookupClient([
+            'phone_number' => '+12296059887',
+            'valid' => true,
+            'line_type_intelligence' => ['type' => 'fixedVoip', 'carrier_name' => 'Comcast', 'error_code' => null],
+            'line_status' => ['status' => 'active'],
+        ]);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldReceive('setPhoneLandline')->once()->andReturn(1);
+
+        $action = new class ($this->makeLead($people), $client) extends SendMessageToLeadAction {
+            public function __construct(
+                Lead $lead,
+                private readonly TwilioClient $lookupClient,
+            ) {
+                parent::__construct($lead);
+            }
+
+            #[Override]
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                return ['to' => $this->lookupPhoneNumber($this->lookupClient, (string) $to)];
+            }
+        };
+
+        // The do-not-contact check reads the person's settings, which is not what is under test.
+        $result = $action->allowOptOutConfirmation()
+            ->execute(
+                channel: 'sms',
+                message: 'hello',
+                from: '+18095550000',
+                to: '+12296059887',
+            );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('VOIP without SMS', $result['error']);
+        $this->assertSame('validation_failed', $result['classification']);
+        $this->assertSame('fixedVoip', $result['line_type']);
+        $this->assertSame('Comcast', $result['carrier_name']);
+    }
+
+    public function testLookupPhoneNumberDoesNotCheckTheCarrierOfAMobile(): void
+    {
+        $client = $this->makeLookupClient([
+            'phone_number' => '+18095551234',
+            'valid' => true,
+            'line_type_intelligence' => ['type' => 'mobile', 'carrier_name' => 'Comcast', 'error_code' => null],
+            'line_status' => ['status' => 'active'],
+        ]);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldReceive('setPhoneLandline')->once()->with('8095551234', false)->andReturn(1);
+        $action = $this->makeAction($this->makeLead($people));
+
+        $this->assertSame('+18095551234', $action->lookupPhoneNumberForTest($client, '8095551234'));
+    }
+
+    #[DataProvider('refusedLineTypes')]
+    public function testLookupPhoneNumberRejectsEveryLineTypeOtherThanMobileAndVoip(string $lineType): void
     {
         $client = $this->makeLookupClient([
             'phone_number' => '+18095551234',
@@ -841,18 +969,17 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
 
         $this->expectException(LeadMissingContactException::class);
         $this->expectExceptionMessage(
-            "Lead cellphone number 8095551234 has line type {$lineType}; our policy only allows SMS to mobile numbers"
+            "Lead cellphone number 8095551234 has line type {$lineType}; "
+            . 'our policy only allows SMS to mobile and VoIP numbers'
         );
 
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
 
-    public static function nonMobileLineTypes(): array
+    public static function refusedLineTypes(): array
     {
         $types = [
             'landline',
-            'fixedVoip',
-            'nonFixedVoip',
             'personal',
             'tollFree',
             'premium',
@@ -864,31 +991,6 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         ];
 
         return array_combine($types, array_map(static fn (string $type): array => [$type], $types));
-    }
-
-    public function testLookupPhoneNumberRejectsActiveComcastFixedVoip(): void
-    {
-        $client = $this->makeLookupClient([
-            'phone_number' => '+12296059887',
-            'valid' => true,
-            'line_type_intelligence' => [
-                'type' => 'fixedVoip',
-                'carrier_name' => 'Comcast',
-                'error_code' => null,
-            ],
-            'line_status' => ['status' => 'active'],
-        ]);
-
-        $people = Mockery::mock(People::class);
-        $people->shouldReceive('setPhoneLandline')->once()->with('+12296059887', false)->andReturn(1);
-        $action = $this->makeAction($this->makeLead($people));
-
-        $this->expectException(LeadMissingContactException::class);
-        $this->expectExceptionMessage(
-            'Lead cellphone number +12296059887 has line type fixedVoip; our policy only allows SMS to mobile numbers'
-        );
-
-        $action->lookupPhoneNumberForTest($client, '+12296059887');
     }
 
     #[DataProvider('missingLineTypes')]
@@ -911,7 +1013,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $this->expectException(LeadMissingContactException::class);
         $this->expectExceptionMessage(
             'Lead cellphone number 8095551234 has line type unknown (Twilio returned no line type); '
-            . 'our policy only allows SMS to mobile numbers'
+            . 'our policy only allows SMS to mobile and VoIP numbers'
         );
 
         $action->lookupPhoneNumberForTest($client, '8095551234');
@@ -944,7 +1046,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $this->expectException(LeadMissingContactException::class);
         $this->expectExceptionMessage(
             'Lead cellphone number 8095551234 has line type unknown (Twilio lookup error 60601); '
-            . 'our policy only allows SMS to mobile numbers'
+            . 'our policy only allows SMS to mobile and VoIP numbers'
         );
 
         $action->lookupPhoneNumberForTest($client, '8095551234');
@@ -1211,6 +1313,11 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             public function lookupPhoneNumberForTest(TwilioClient $client, string $cellphone): string
             {
                 return $this->lookupPhoneNumber($client, $cellphone);
+            }
+
+            public function refusedLineForTest(): ?array
+            {
+                return $this->refusedLine;
             }
 
             public function createTwilioMessageForTest(TwilioClient $client, string $cellphone, array $payload): object

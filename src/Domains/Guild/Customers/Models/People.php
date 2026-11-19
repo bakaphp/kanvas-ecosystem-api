@@ -564,6 +564,16 @@ class People extends BaseModel implements ExposesTemplateData
             ->count();
     }
 
+    /**
+     * The mark a carrier failure, a CRM rejection or the agent's `mark_invalid` leaves on a number.
+     */
+    public function isPhoneUndeliverable(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(
+            fn (Contact $contact): bool => $contact->validation_status?->isPermanentFailure() === true
+        );
+    }
+
     public function markEmailBounced(string $email): int
     {
         return $this->emailContactsMatching($email)
