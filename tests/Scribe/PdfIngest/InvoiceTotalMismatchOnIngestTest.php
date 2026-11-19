@@ -16,7 +16,7 @@ use Tests\Scribe\PdfIngest\Stubs\FakePdfClassifier;
 use Tests\Scribe\PdfIngest\Stubs\FakePdfContentHasher;
 use Tests\Scribe\ScribeTestCase;
 
-/** An emailed invoice whose lines do not add up to the total printed on it must not reach an approver as is. */
+/** An emailed invoice whose lines miss its printed total must not reach an approver as is. */
 class InvoiceTotalMismatchOnIngestTest extends ScribeTestCase
 {
     public function test_lines_that_do_not_add_up_to_the_printed_total_hold_the_bill_for_review(): void
@@ -31,11 +31,14 @@ class InvoiceTotalMismatchOnIngestTest extends ScribeTestCase
             ],
         ]);
 
-        $bill = Bill::query()->findOrFail($log->linked_entity_id);
+        $bill = Bill::getById((int) $log->linked_entity_id);
 
         $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status);
         $this->assertSame(BillDocumentStatusEnum::DRAFT, $bill->document_status);
-        $this->assertStringContainsString('The lines add up to 630.00 but the invoice total is 700.00.', (string) $log->rejected_reason);
+        $this->assertStringContainsString(
+            'The lines add up to 630.00 but the invoice total is 700.00.',
+            (string) $log->rejected_reason
+        );
     }
 
     public function test_a_zero_subtotal_with_a_printed_total_holds_the_bill_for_review(): void
@@ -47,7 +50,10 @@ class InvoiceTotalMismatchOnIngestTest extends ScribeTestCase
         ]);
 
         $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status);
-        $this->assertStringContainsString('The lines add up to 0.00 but the invoice total is 630.00.', (string) $log->rejected_reason);
+        $this->assertStringContainsString(
+            'The lines add up to 0.00 but the invoice total is 630.00.',
+            (string) $log->rejected_reason
+        );
     }
 
     public function test_lines_that_add_up_to_the_printed_total_are_not_flagged(): void
@@ -74,7 +80,7 @@ class InvoiceTotalMismatchOnIngestTest extends ScribeTestCase
             'line_items' => [['description' => 'Cloud hosting', 'line_total' => 100.0]],
         ]);
 
-        $bill = Bill::query()->findOrFail($log->linked_entity_id);
+        $bill = Bill::getById((int) $log->linked_entity_id);
 
         $this->assertSame(100.0, (float) $bill->total_native);
         $this->assertStringNotContainsString('The lines add up to', (string) $log->rejected_reason);
