@@ -78,6 +78,51 @@ class RescheduleCalendarEventToolTest extends TestCase
         );
     }
 
+    public function testCreateCalendarEventTreatsZeroConfigurationIdsAsUnset(): void
+    {
+        [, , $lead] = $this->bootstrap();
+
+        // What a voice agent without get_event_configuration sent on a real call.
+        $created = $this->withTenant(new CalendarEventTool())->__invoke(
+            lead_id: $lead->getId(),
+            title: 'Appointment',
+            attendee_emails: [],
+            start_datetime: '2026-06-20 16:00',
+            end_datetime: '2026-06-20 16:30',
+            theme_id: 0,
+            theme_area_id: 0,
+            status_id: 0,
+            type_id: 0,
+            class_id: 0,
+            category_id: 0,
+        );
+
+        $this->assertSame('success', $created['status'], json_encode($created));
+    }
+
+    public function testCreateCalendarEventStillRefusesAPartialConfiguration(): void
+    {
+        [, , $lead] = $this->bootstrap();
+        $catalogs = $this->withTenant(new EventConfigurationTool())->__invoke($lead->getId())['event_configuration'];
+
+        $created = $this->withTenant(new CalendarEventTool())->__invoke(
+            lead_id: $lead->getId(),
+            title: 'Appointment',
+            attendee_emails: [],
+            start_datetime: '2026-06-20 16:00',
+            end_datetime: '2026-06-20 16:30',
+            theme_id: $catalogs['themes'][0]['id'],
+            theme_area_id: 0,
+            status_id: 0,
+            type_id: 0,
+            class_id: 0,
+            category_id: 0,
+        );
+
+        $this->assertSame('error', $created['status']);
+        $this->assertStringContainsString('Incomplete Event configuration', $created['message']);
+    }
+
     public function testRescheduleMovesAppointmentAndFreesOldSlot(): void
     {
         [$app, $company, $lead] = $this->bootstrap();

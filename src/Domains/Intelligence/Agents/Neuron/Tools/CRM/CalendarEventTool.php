@@ -193,14 +193,20 @@ class CalendarEventTool extends Tool
             ];
         }
 
-        $configurationIds = [
-            'theme_id' => $theme_id,
-            'theme_area_id' => $theme_area_id,
-            'status_id' => $status_id,
-            'type_id' => $type_id,
-            'class_id' => $class_id,
-            'category_id' => $category_id,
-        ];
+        // Models that can't see get_event_configuration (it isn't active on every agent) send 0
+        // for each id rather than leaving them out; 0 is never a real id, so it counts as unset
+        // and those calls take the default-configuration path instead of failing on theme_id.
+        $configurationIds = array_map(
+            static fn (?int $id): ?int => $id !== null && $id > 0 ? $id : null,
+            [
+                'theme_id' => $theme_id,
+                'theme_area_id' => $theme_area_id,
+                'status_id' => $status_id,
+                'type_id' => $type_id,
+                'class_id' => $class_id,
+                'category_id' => $category_id,
+            ],
+        );
         $providedConfigurationIds = array_filter($configurationIds, static fn (?int $id): bool => $id !== null);
 
         // Keep the legacy all-default path temporarily, but never allow a partially specified configuration.
@@ -255,12 +261,12 @@ class CalendarEventTool extends Tool
             'name' => $title,
             'description' => $fullDescription !== '' ? $fullDescription : null,
             'meeting_link' => $meeting_link,
-            'theme_id' => $theme_id,
-            'theme_area_id' => $theme_area_id,
-            'status_id' => $status_id,
-            'type_id' => $type_id,
-            'class_id' => $class_id,
-            'category_id' => $category_id,
+            'theme_id' => $configurationIds['theme_id'],
+            'theme_area_id' => $configurationIds['theme_area_id'],
+            'status_id' => $configurationIds['status_id'],
+            'type_id' => $configurationIds['type_id'],
+            'class_id' => $configurationIds['class_id'],
+            'category_id' => $configurationIds['category_id'],
             'resource' => $lead,
             'participants' => $this->leadParticipants($lead),
             'start_at' => $start,
