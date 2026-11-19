@@ -42,13 +42,19 @@ class StoreMessageSidAction
         $errorCode = data_get($providerResponse, 'twilio_error_code');
         $errorMessage = data_get($providerResponse, 'error');
 
-        if (is_int($errorCode) || (is_string($errorCode) && $errorCode !== '')) {
-            $this->message->set(CustomFieldEnum::LAST_ERROR_CODE->value, (string) $errorCode);
+        $hasErrorCode = is_int($errorCode) || (is_string($errorCode) && $errorCode !== '');
+
+        // A send refused before it reached Twilio (a failed validation) fails with no error code and
+        // no SID, so no status callback will ever say so: this is the only place it can be marked.
+        if ($hasErrorCode || ($providerResponse['success'] ?? null) === false) {
+            if ($hasErrorCode) {
+                $this->message->set(CustomFieldEnum::LAST_ERROR_CODE->value, (string) $errorCode);
+            }
             $this->message->set(CustomFieldEnum::CURRENT_STATUS->value, 'failed');
             $this->message->set(CustomFieldEnum::LAST_STATUS_AT->value, now()->toAtomString());
             $this->recordDelivery(
                 MessageStatusEnum::FAILED,
-                errorCode: (string) $errorCode,
+                errorCode: $hasErrorCode ? (string) $errorCode : null,
                 errorMessage: is_string($errorMessage) ? Str::trimToNull($errorMessage) : null,
             );
         }

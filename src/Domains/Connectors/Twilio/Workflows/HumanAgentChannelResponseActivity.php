@@ -8,7 +8,6 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Guild\Leads\Actions\FollowLeadOnMessageAction;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -16,6 +15,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Workflows\Concerns\DeliversLeadReply;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
@@ -43,6 +43,8 @@ use Kanvas\Workflow\KanvasActivity;
 )]
 class HumanAgentChannelResponseActivity extends KanvasActivity
 {
+    use DeliversLeadReply;
+
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -182,7 +184,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 // Message::user is a UserFullTableName, which caches its settings under another Redis key
                 // than the one a signature is saved to: read the signature off the Users row itself.
-                $result = new SendMessageToLeadAction($lead)
+                $result = $this->sender($lead)
                     ->sentByUser(Users::where('id', $message->users_id)->notDeleted()->first())
                     ->execute(
                         $channelType,
@@ -193,6 +195,11 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                         $files->isNotEmpty() ? $files : null
                     );
                 new StoreMessageSidAction($message)->execute($result);
+
+                $unsent = $this->failUnsentReply($result, $channelType, $messageContext);
+                if ($unsent !== null) {
+                    return $unsent;
+                }
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
                 new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: true);

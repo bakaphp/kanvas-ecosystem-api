@@ -57,7 +57,27 @@ class SendMessageToLeadAction
     private const int TWILIO_UNSUBSCRIBED_RECIPIENT_CODE = 21610;
     private const int DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH = 1600;
     private const array APPROVED_A2P_REGISTRATION_STATUSES = ['approved', 'registered', 'verified', 'active'];
-    private const string SMS_ALLOWED_LINE_TYPE = 'mobile';
+    private const string VOIP_WITHOUT_SMS = 'VOIP without SMS';
+    private const string SMS_MOBILE_LINE_TYPE = 'mobile';
+    private const array SMS_VOIP_LINE_TYPES = ['fixedvoip', 'nonfixedvoip'];
+
+    /**
+     * Lookup classifies a VoIP line but cannot say whether texting is enabled on it; the carrier
+     * behind the number is the only hint it gives. These are the wholesale networks behind the VoIP
+     * numbers people really text from (Google Voice, TextNow...), plus the "SVR" marker of a
+     * messaging-enabled line.
+     */
+    private const array SMS_VOIP_CARRIER_KEYWORDS = [
+        'svr',
+        'bandwidth',
+        'onvoy',
+        'sinch',
+        'twilio',
+        'telnyx',
+        'peerless',
+        'level 3',
+        'enflick',
+    ];
 
     /**
      * Default media items per Twilio MMS API call. Override per-app via
@@ -83,6 +103,10 @@ class SendMessageToLeadAction
     protected ?string $attemptedFrom = null;
     protected ?string $attemptedTo = null;
     protected ?string $attemptedProvider = null;
+
+    /** @var array{line_type: string, carrier_name: string}|null */
+    protected ?array $refusedLine = null;
+
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
     protected bool $sentByHuman = false;
@@ -215,7 +239,7 @@ class SendMessageToLeadAction
             'from' => $this->attemptedFrom,
             'to' => $this->attemptedTo,
             'provider' => $this->attemptedProvider,
-        ], $classification);
+        ], $this->refusedLine ?? [], $classification);
 
         if ($channel === LeadCommunicationChannelEnum::SMS->value) {
             $this->recordTwilioAttempt($result);
@@ -543,7 +567,6 @@ class SendMessageToLeadAction
         // }
 
         $route = $this->validateTwilioSenderRoute($from);
-        $client = Client::getInstanceByCompany($this->lead->company);
 
         $cellphone = ($to !== null && $to !== '')
             ? $to
@@ -558,6 +581,7 @@ class SendMessageToLeadAction
         $this->attemptedFrom = $route['from'] ?? null;
         $this->attemptedTo = $cellphone;
         $this->guardSmsDestination($cellphone, $route['from'] ?? null);
+        $client = Client::getInstanceByCompany($this->lead->company);
         $cellphone = $this->lookupPhoneNumber($client, $cellphone);
 
         $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
@@ -781,11 +805,12 @@ class SendMessageToLeadAction
         }
 
         // Allow-list on purpose: a type Twilio adds later, or a number it could not classify, must not slip through.
-        if ($lineType !== self::SMS_ALLOWED_LINE_TYPE) {
+        $isVoip = in_array($lineType, self::SMS_VOIP_LINE_TYPES, true);
+        if ($lineType !== self::SMS_MOBILE_LINE_TYPE && ! $isVoip) {
             $lookupErrorCode = $phoneNumber->lineTypeIntelligence['error_code'] ?? null;
 
             throw new LeadMissingContactException(sprintf(
-                'Lead cellphone number %s has line type %s; our policy only allows SMS to mobile numbers',
+                'Lead cellphone number %s has line type %s; our policy only allows SMS to mobile and VoIP numbers',
                 $cellphone,
                 match (true) {
                     $lineType !== '' => $receivedLineType,
@@ -793,6 +818,15 @@ class SendMessageToLeadAction
                     default => 'unknown (Twilio returned no line type)',
                 },
             ));
+        }
+
+        $carrierName = trim((string) ($phoneNumber->lineTypeIntelligence['carrier_name'] ?? ''));
+        if ($isVoip && ! Str::contains(strtolower($carrierName), self::SMS_VOIP_CARRIER_KEYWORDS)) {
+            // The person who wrote the text reads this reason as is; what the Lookup said travels
+            // beside it in the failed result.
+            $this->refusedLine = ['line_type' => $receivedLineType, 'carrier_name' => $carrierName];
+
+            throw new LeadMissingContactException(self::VOIP_WITHOUT_SMS);
         }
 
         $lineStatus = strtolower((string) ($phoneNumber->lineStatus['status'] ?? 'unknown'));
@@ -862,6 +896,14 @@ class SendMessageToLeadAction
         }
 
         $this->guardDestinationOptOut($cellphone, LeadCommunicationChannelEnum::SMS->value);
+
+        // Checked here, ahead of the Lookup: a number already known to be dead costs nothing more.
+        if ($this->lead->people?->isPhoneUndeliverable($cellphone) === true) {
+            throw new LeadMissingContactException(sprintf(
+                'Lead cellphone number %s is marked invalid; no further SMS is sent to it',
+                $cellphone,
+            ));
+        }
     }
 
     protected function getTwilioStatusCallbackUrl(): ?string

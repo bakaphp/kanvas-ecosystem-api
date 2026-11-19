@@ -98,10 +98,30 @@ The status job finds the message by its stored SID; a send that skips either ste
 delivery status. The agent's reply (`AgentChannelResponderAction::dispatchMessage`) calls the API
 directly, so it does both itself; the URL comes from `TwilioReceiverService::statusCallbackUrl()`.
 
-**Outbound SMS to a lead only goes to `mobile`.** `SendMessageToLeadAction::lookupPhoneNumber` is an
-allow-list: any other Lookup line type (`fixedVoip`, `tollFree`, `unknown`...), a missing type or a
-`line_type_intelligence` error throws `LeadMissingContactException` before `messages->create`. Keep it
-an allow-list — a block-list lets every type Twilio adds later through.
+**Outbound SMS to a lead only goes to `mobile`, and to `fixedVoip` / `nonFixedVoip` on a carrier known
+to carry texts.** `SendMessageToLeadAction::lookupPhoneNumber` is an allow-list: any other Lookup line
+type (`landline`, `tollFree`, `unknown`...), a missing type or a `line_type_intelligence` error throws
+`LeadMissingContactException` before `messages->create`. Keep it an allow-list — a block-list lets
+every type Twilio adds later through. Lookup cannot say whether a VoIP number has texting enabled, so
+a VoIP line passes only when its `carrier_name` contains one of `SMS_VOIP_CARRIER_KEYWORDS` (a fixed
+list in that class, not a setting); no carrier name is a refusal. That refusal's reason is exactly
+`VOIP without SMS` — it is what the person who wrote the text reads, so do not add the number or the
+carrier to it; they travel beside it in the failed result as `line_type` and `carrier_name`.
+
+**A number a carrier failure marked invalid accepts no more texts.** `guardSmsDestination` refuses,
+before the Lookup, any destination whose phone contact is a permanent failure
+(`People::isPhoneUndeliverable`) — the mark `30003` / `30005` / `30006` leave, and also what a CRM
+rejection or the agent's `mark_invalid` leave. Nothing in the SMS flow clears it: `Contact::markValid()`
+is the only way back. The agent's own reply (`AgentChannelResponderAction`) does not go through this
+guard.
+
+**A send refused before it reaches Twilio is marked failed at send time.** A validation failure (the
+line-type Lookup, a missing cellphone, do-not-contact) has no SID, so no status callback will ever
+report it. `StoreMessageSidAction` writes the failed `delivery` (reason in `error_message`, no
+`error_code`) for any result with `success: false`, and the human / external-AI reply activities return
+`failWorkflow` instead of "Message sent" and skip the responded and stakeholder steps — one check for
+both, `DeliversLeadReply::failUnsentReply`. It reads `success`, not the channel, so an email or WhatsApp
+send the lead action gave up on fails the activity the same way.
 
 **Two receivers, two Twilio URLs.** The status receiver is only ever reached through the
 `statusCallback` set per outbound message; the Messaging Service's *incoming-message* URL must point

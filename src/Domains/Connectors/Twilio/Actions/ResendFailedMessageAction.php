@@ -19,7 +19,7 @@ use Kanvas\Social\Messages\Models\Message;
  * from the sender of its last attempt. The new SID replaces the old one, so the status callbacks, the
  * `delivery` body key and the Pusher push all follow the new attempt.
  *
- * Every send guard still applies (do-not-contact, opt-out, the mobile-only Lookup) — a resend is a
+ * Every send guard still applies (do-not-contact, opt-out, the line-type Lookup) — a resend is a
  * person deciding to try again, not a way around a stop request.
  */
 class ResendFailedMessageAction

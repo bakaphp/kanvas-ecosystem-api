@@ -77,4 +77,34 @@ final class StoreMessageSidActionTest extends TestCaseUnit
 
         $this->assertNull($sid);
     }
+
+    public function testMarksASendRefusedBeforeTwilioAsFailed(): void
+    {
+        $reason = 'Lead cellphone number +15551234567 has line type landline; '
+            . 'our policy only allows SMS to mobile and VoIP numbers';
+
+        $message = Mockery::mock(Message::class);
+        $message->shouldNotReceive('set')->with(CustomFieldEnum::LAST_ERROR_CODE->value, Mockery::any());
+        $message->shouldReceive('set')
+            ->once()
+            ->with(CustomFieldEnum::CURRENT_STATUS->value, 'failed');
+        $message->shouldReceive('set')
+            ->once()
+            ->with(CustomFieldEnum::LAST_STATUS_AT->value, Mockery::type('string'));
+        $message->shouldReceive('set')
+            ->once()
+            ->with(CustomFieldEnum::LAST_ERROR_MESSAGE->value, $reason);
+
+        $sid = new StoreMessageSidAction($message)->execute([
+            'status' => 'error',
+            'success' => false,
+            'channel' => 'sms',
+            'classification' => 'validation_failed',
+            'twilio_error_code' => null,
+            'error' => $reason,
+            'messages' => [],
+        ]);
+
+        $this->assertNull($sid);
+    }
 }
