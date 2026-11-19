@@ -823,7 +823,8 @@ class CodingChatTest extends TestCase
 
     /**
      * A ticket's design and logic share a branch. A design run whose worktree outlived it held the branch, and
-     * the logic step's launch failed on it.
+     * the logic step's launch failed on it. The release waits for the retry a minute later: the design run is
+     * closed a moment after its task is done, and the logic step can launch in that moment.
      */
     public function testALaunchFreesItsBranchFromAFinishedRunThenTriesOnceMore(): void
     {
@@ -832,7 +833,6 @@ class CodingChatTest extends TestCase
         $designRun = $this->startFactoryRun($design);
         new RunTaskWorkerJob($logic->refresh())->handle();
         $logicRun = $this->factoryRunOf($logic);
-        // Both steps work on the same Mac; the design run finished on the ticket's branch.
         $designRun->forceFill([
             'branch' => 'ticket/12-login-screen',
             'status' => HarnessStatusEnum::COMPLETED->value,
@@ -858,16 +858,20 @@ class CodingChatTest extends TestCase
 
         new LaunchCodingChatJob(app(Apps::class), $logicRun->getId(), 'the brief')->handle();
 
-        $released = collect($factory->commands)->first(fn (string $command): bool => str_contains($command, "'release'"));
-        $this->assertNotNull($released, 'the finished run on the branch was released');
-        $this->assertStringContainsString($designRun->uuid, (string) $released);
+        $this->assertEmpty(array_filter($factory->commands, fn (string $command): bool => str_contains($command, "'release'")));
         $this->assertTrue($logicRun->refresh()->isLive(), 'the launch is tried again, not failed');
         Queue::assertPushed(
             LaunchCodingChatJob::class,
-            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $logicRun->getId() && $job->retriedAfterRelease
+            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $logicRun->getId()
+                && $job->retriedAfterRelease
+                && $job->delay !== null
         );
 
         new LaunchCodingChatJob(app(Apps::class), $logicRun->getId(), 'the brief', retriedAfterRelease: true)->handle();
+
+        $released = collect($factory->commands)->first(fn (string $command): bool => str_contains($command, "'release'"));
+        $this->assertNotNull($released, 'the finished run on the branch was released before trying again');
+        $this->assertStringContainsString($designRun->uuid, (string) $released);
 
         $this->assertStringContainsString('Could not start', (string) $logicRun->refresh()->error_message, 'only once');
     }
