@@ -39,7 +39,7 @@ class AzulPaymentProcessor
                 channel: $this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC',
                 store: $this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? '',
                 trxType: TransactionTypeEnum::SALE,
-                amount: $this->toAzulAmount($order->getTotalAmount()),
+                amount: $this->toAzulAmount($order->getTotalDueAmount()),
                 itbis: $this->toAzulAmount($order->getTotalTaxAmount()),
                 customOrderId: (string) $order->id,
                 cardNumber: $dataVaultToken ? null : $paymentMethod->getMetadata('card_number'),
@@ -75,7 +75,7 @@ class AzulPaymentProcessor
             $payment->addLog('azul_charge_success', [
                 'order_id' => $order->id,
                 'azul_order_id' => $response->azulOrderId,
-                'amount' => $order->getTotalAmount(),
+                'amount' => $order->getTotalDueAmount(),
             ]);
 
             return [
@@ -137,7 +137,7 @@ class AzulPaymentProcessor
 
             $response = $this->service->refund(
                 azulOrderId: (string) $azulOrderId,
-                amount: $this->toAzulAmount($order->getTotalAmount()),
+                amount: $this->toAzulAmount($order->getTotalDueAmount()),
                 itbis: $this->toAzulAmount($order->getTotalTaxAmount()),
                 customOrderId: (string) $order->id,
             );
