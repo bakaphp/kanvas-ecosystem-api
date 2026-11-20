@@ -151,7 +151,7 @@ class RunVoiceAgentToolAction
                 continue;
             }
 
-            $handler = self::buildHandler($handlerClass);
+            $handler = $this->buildHandler($handlerClass);
             if ($handler !== null && $handler->getName() === $this->toolName) {
                 return $handler;
             }
@@ -160,7 +160,7 @@ class RunVoiceAgentToolAction
         $fallback = null;
 
         foreach ($remaining as [$catalogTool, $handlerClass]) {
-            $handler = self::buildHandler($handlerClass);
+            $handler = $this->buildHandler($handlerClass);
             if ($handler === null) {
                 continue;
             }
@@ -198,10 +198,10 @@ class RunVoiceAgentToolAction
     }
 
     /**
-     * A handler that can't be built is skipped, not fatal. VoiceAgentSpecService
-     * builds through this too, so run-time selection matches advertise-time.
+     * A handler that can't be built is skipped, not fatal — mirrors
+     * VoiceAgentSpecService, so run-time selection matches advertise-time.
      */
-    public static function buildHandler(string $handlerClass): ?NeuronTool
+    private function buildHandler(string $handlerClass): ?NeuronTool
     {
         try {
             $handler = app($handlerClass);

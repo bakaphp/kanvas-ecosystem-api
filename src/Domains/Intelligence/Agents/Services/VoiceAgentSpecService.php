@@ -8,13 +8,14 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Intelligence\Agents\Actions\Voice\RunVoiceAgentToolAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
+use NeuronAI\Tools\Tool as NeuronTool;
 use stdClass;
+use Throwable;
 
 /**
  * Compiles an Agent into the "voice agent spec" the external voice runtime
@@ -108,8 +109,13 @@ class VoiceAgentSpecService
                 continue;
             }
 
-            $handler = RunVoiceAgentToolAction::buildHandler($handlerClass);
-            if ($handler === null) {
+            try {
+                $handler = app($handlerClass);
+            } catch (Throwable) {
+                continue;
+            }
+
+            if (! $handler instanceof NeuronTool) {
                 continue;
             }
 
