@@ -195,8 +195,9 @@ class CalendarableMapper
         Carbon $correctionCutoff,
     ): array {
         $metadata = [
-            // Kanvas reads capacity from this exact key (EventVersion::getMaxCapacity()).
-            'max_capacity' => (int) ($row->occupancy ?? 0),
+            // Kanvas reads capacity from this exact key (EventVersion::getMaxCapacity()). A class
+            // without one is null (no limit), not 0: the site shows a 0-seat class as sold out.
+            'max_capacity' => (int) ($row->occupancy ?? 0) > 0 ? (int) $row->occupancy : null,
             'bc_calendarable_id' => (int) $row->id,
             'bc_calendarable_type' => $morph->value,
             'bc_studio_id' => $studioId,

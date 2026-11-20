@@ -38,6 +38,9 @@ enum CustomFieldEnum: string
     case BRUSHCRAZY_SALE_ITEM_ID = 'BRUSHCRAZY_SALE_ITEM_ID';
     case BRUSHCRAZY_MEDIA_ID = 'BRUSHCRAZY_MEDIA_ID';
     case BRUSHCRAZY_LOOKUP_KEY = 'BRUSHCRAZY_LOOKUP_KEY';
+
+    /** Hash of the source rows a product was last written from; equal means the pass skips it. */
+    case BRUSHCRAZY_SYNC_FINGERPRINT = 'BRUSHCRAZY_SYNC_FINGERPRINT';
     case BRUSHCRAZY_SHIFT_ID = 'BRUSHCRAZY_SHIFT_ID';
     case BRUSHCRAZY_UNKNOWN_GUEST = 'BRUSHCRAZY_UNKNOWN_GUEST';
 
@@ -55,6 +58,36 @@ enum CustomFieldEnum: string
     case BRUSHCRAZY_STUDIO_SOCIAL = 'BRUSHCRAZY_STUDIO_SOCIAL';
     case BRUSHCRAZY_STUDIO_LAT = 'BRUSHCRAZY_STUDIO_LAT';
     case BRUSHCRAZY_STUDIO_LNG = 'BRUSHCRAZY_STUDIO_LNG';
+
+    /** What the studio's landing page shows: contact, address, hours, licenses, description. */
+    case BRUSHCRAZY_STUDIO_PROFILE = 'BRUSHCRAZY_STUDIO_PROFILE';
+
+    /** `studio_contents`: shop availability slots, brush rental fee, delivery fees and hours. */
+    case BRUSHCRAZY_STUDIO_CONTENT = 'BRUSHCRAZY_STUDIO_CONTENT';
+
+    /** `studio_slides`: the homepage carousel, title and order per slide; photos are `slide-{id}` files. */
+    case BRUSHCRAZY_STUDIO_SLIDES = 'BRUSHCRAZY_STUDIO_SLIDES';
+
+    /**
+     * Read by the public site under these exact names, so not BRUSHCRAZY_-prefixed: the
+     * brushcrazy.com/locations/{slug} segment (old links resolve to the studio) and the weekly
+     * hours with their holiday exceptions, as BrushCrazy stores them.
+     */
+    case LEGACY_LOCATION_SLUG = 'legacy_location_slug';
+    case OPERATING_HOURS = 'operating_hours';
+
+    /** `pos_settings`: add-on and art-formula prices the shop charges (global in BrushCrazy). */
+    case BRUSHCRAZY_POS_SETTINGS = 'BRUSHCRAZY_POS_SETTINGS';
+
+    /**
+     * On the customer's Kanvas User: how BrushCrazy created the account, and whether its password is
+     * one the customer never chose (an automatic account), so the launch email asks them to set one.
+     */
+    case BRUSHCRAZY_REGISTRATION_METHOD = 'BRUSHCRAZY_REGISTRATION_METHOD';
+    case BRUSHCRAZY_NEEDS_PASSWORD = 'BRUSHCRAZY_NEEDS_PASSWORD';
+
+    /** A category's GL account name, `transferable` flag and cost-to-MSRP formula tiers. */
+    case BRUSHCRAZY_CATEGORY_SETTINGS = 'BRUSHCRAZY_CATEGORY_SETTINGS';
     case BRUSHCRAZY_DISPLAY_NAME = 'BRUSHCRAZY_DISPLAY_NAME';
     /** `users.birthday` is a month (1-12) — BrushCrazy only ever compares it with isSameMonth(). */
     case BRUSHCRAZY_BIRTHDAY_MONTH = 'BRUSHCRAZY_BIRTHDAY_MONTH';
