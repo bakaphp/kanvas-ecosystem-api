@@ -100,23 +100,25 @@ class ProposeBillFromPdfAction
             return null;
         }
 
-        // Path 3 — vendor bill_number dedup. If the LLM extracted a bill_number and we already have
-        // a non-voided Bill with the same number for this tenant, return the existing Bill instead
-        // of creating a duplicate. The orchestrator marks the log as IGNORED_DUPLICATE.
-        $billNumberCandidate = $this->trimOrDefault($this->extracted['bill_number'] ?? null, null);
-        if ($billNumberCandidate !== null) {
-            $existing = $this->findExistingBillByNumber($billNumberCandidate);
-            if ($existing !== null) {
-                return $existing;
-            }
-        }
-
         $vendorDisplayName = $this->trimOrDefault(
             $this->extracted['vendor_name'] ?? null,
             $this->fromEmail !== null ? "Vendor ({$this->fromEmail})" : 'Unknown vendor',
         );
 
         $vendor = $this->resolveVendor($vendorDisplayName);
+
+        // Path 3 — vendor bill_number dedup. If the LLM extracted a bill_number and this vendor already has
+        // a non-voided Bill with the same number, return the existing Bill instead of creating a duplicate.
+        // The orchestrator marks the log as IGNORED_DUPLICATE. Two vendors may reuse a number, so with no
+        // vendor to compare against nothing is ignored: a review draft beats a lost invoice.
+        $billNumberCandidate = $this->trimOrDefault($this->extracted['bill_number'] ?? null, null);
+        if ($vendor !== null && $billNumberCandidate !== null) {
+            $existing = $this->findExistingBillByNumber($billNumberCandidate, $vendor);
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
+
         $coding = new ExpenseAccountCodingService()->code(
             $this->app,
             $this->company,
@@ -521,14 +523,15 @@ class ProposeBillFromPdfAction
     }
 
     /**
-     * Path 3 — look up an existing non-voided Bill for this tenant with the same bill_number.
+     * Path 3 — look up an existing non-voided Bill from this vendor with the same bill_number.
      * Voided bills are excluded (a void implies the user intentionally rejected the prior copy).
      */
-    private function findExistingBillByNumber(string $billNumber): ?Bill
+    private function findExistingBillByNumber(string $billNumber, Organization $vendor): ?Bill
     {
         return Bill::query()
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
+            ->where('vendor_organization_id', $vendor->getId())
             ->where('bill_number', $billNumber)
             ->where('document_status', '!=', BillDocumentStatusEnum::VOIDED->value)
             ->where('is_deleted', false)
