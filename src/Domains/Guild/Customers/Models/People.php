@@ -582,6 +582,17 @@ class People extends BaseModel implements ExposesTemplateData
         return $this->phoneContactsMatching($phoneNumber)->contains(fn (Contact $contact): bool => $contact->isLandline() === true);
     }
 
+    /**
+     * A dead number, whoever marked it (a carrier failure, a CRM rejection, an agent). An opt-out is
+     * not this: that is the consent check's answer.
+     */
+    public function isPhoneUndeliverable(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(
+            fn (Contact $contact): bool => $contact->validation_status?->isPermanentFailure() === true
+        );
+    }
+
     public function markEmailBounced(string $email): int
     {
         return $this->emailContactsMatching($email)
