@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Http\SafeUrl;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 
@@ -56,14 +57,33 @@ final readonly class BrushCrazyApi
      */
     public function post(string $path, array $payload): array
     {
+        $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $decoded = $this->send($path, $body)->throw()->json();
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * Proves the write-back works without writing: a correctly signed empty body. Every endpoint
+     * validates its required fields before touching the database, so 422 means the route is up
+     * and the secret matches, and 401 means the secret does not.
+     *
+     * @throws ConnectionException on a timeout or refused connection
+     */
+    public function probe(string $path): int
+    {
+        return $this->send($path, '{}')->status();
+    }
+
+    private function send(string $path, string $body): Response
+    {
         $url = $this->baseUrl . '/' . ltrim($path, '/');
 
         SafeUrl::assertSafe($url);
 
-        $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $timestamp = (string) time();
 
-        $response = Http::timeout(self::TIMEOUT_SECONDS)
+        return Http::timeout(self::TIMEOUT_SECONDS)
             ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
             ->acceptJson()
             ->withHeaders([
@@ -71,11 +91,6 @@ final readonly class BrushCrazyApi
                 'X-Kanvas-Signature' => self::signature($timestamp, $body, $this->secret),
             ])
             ->withBody($body, 'application/json')
-            ->post($url)
-            ->throw();
-
-        $decoded = $response->json();
-
-        return is_array($decoded) ? $decoded : [];
+            ->post($url);
     }
 }

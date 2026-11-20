@@ -46,6 +46,13 @@ enum ConfigurationEnum: string
     case BRUSHCRAZY_API_SECRET = 'BRUSHCRAZY_API_SECRET';
 
     /**
+     * On, every push only proves the connection (BrushCrazyApi::probe) and the real body is never
+     * sent. For a Kanvas environment pointed at a BrushCrazy it must not write to, such as dev
+     * against BrushCrazy production.
+     */
+    case BRUSHCRAZY_API_DRY_RUN = 'BRUSHCRAZY_API_DRY_RUN';
+
+    /**
      * The branch every imported customer's Kanvas login joins (a dedicated customers company, never
      * a studio's: a member of a studio company can read its data). Unset, no logins are created.
      */
