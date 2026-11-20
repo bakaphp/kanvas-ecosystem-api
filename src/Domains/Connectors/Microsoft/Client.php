@@ -244,8 +244,6 @@ class Client
         array $ccRecipients = [],
         bool $saveToSentItems = true
     ): void {
-        $client = new GuzzleClient();
-
         $toArray = array_map(fn (string $email) => [
             'emailAddress' => ['address' => $email],
         ], $toRecipients);
@@ -270,14 +268,10 @@ class Client
             $payload['message']['ccRecipients'] = $ccArray;
         }
 
-        $client->post('https://graph.microsoft.com/v1.0/me/sendMail', [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $accessToken,
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ],
-            'json' => $payload,
-        ]);
+        Http::withToken($accessToken)
+            ->acceptJson()
+            ->post('https://graph.microsoft.com/v1.0/me/sendMail', $payload)
+            ->throw();
     }
 
     /**

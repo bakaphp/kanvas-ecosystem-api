@@ -293,7 +293,7 @@ class WakeAgentForProjectJob implements ShouldQueue
         $owner = $this->project->user ?? $agent?->user;
         $isProjectPm = $agent === null || $agent->getId() === $this->project->agent_id;
 
-        return $this->firstOrCreateWakeSession(
+        return Session::firstOrCreateForEntity(
             $this->project,
             create: [
                 'agents_id' => $agent?->getId() ?? $this->project->agent_id,

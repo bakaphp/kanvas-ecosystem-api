@@ -47,6 +47,7 @@ class PrepareRoadsideAssistanceCaseAction
             'case_id' => $assistanceCase['case_id'] ?? (string) Str::uuid(),
             'status' => MovipassOrderStatusEnum::REQUEST_SUBMITTED->value,
             'requested_at' => $assistanceCase['requested_at'] ?? Carbon::now()->toISOString(),
+            'prepared_at' => Carbon::now()->toISOString(),
             'user' => [
                 'id' => $user->getId(),
                 'uuid' => $user->uuid,
@@ -56,6 +57,9 @@ class PrepareRoadsideAssistanceCaseAction
             'service_type' => $serviceType?->value,
             'intake' => $intake,
             'location' => $location,
+            // Only Asistencia Regional sends a drop-off (it bills tows by distance).
+            ...(is_array($assistanceCase['destination'] ?? null) ? ['destination' => $assistanceCase['destination']] : []),
+            ...array_intersect_key($assistanceCase, array_flip(['terms_accepted', 'terms_accepted_at', 'terms_version'])),
             'notes' => $assistanceCase['notes'] ?? null,
             'provider_id' => $providerId,
             'provider_name' => $providerName !== '' ? $providerName : null,

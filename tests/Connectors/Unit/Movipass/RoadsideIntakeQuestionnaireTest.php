@@ -78,7 +78,7 @@ final class RoadsideIntakeQuestionnaireTest extends TestCase
 
             $this->assertStringContainsString('Locksmith', $message);
             $this->assertStringContainsString('Contact phone number', $message);
-            $this->assertStringContainsString('Where are the keys?', $message);
+            $this->assertStringContainsString('Were the keys left in the cabin or the trunk?', $message);
             $this->assertStringNotContainsString('Contact name', $message);
         }
     }
@@ -90,13 +90,14 @@ final class RoadsideIntakeQuestionnaireTest extends TestCase
             [...$this->generalAnswers(), ...[
                 'fuel_type' => ' regular ',
                 'fuel_gallons' => '2',
-                'payment_method' => 'CASH',
+                'confirms_fuel_type' => 'yes',
+                'authorizes_fuel_charge' => true,
             ]],
         )->execute();
 
         $this->assertSame('regular', $answers['fuel_type']);
         $this->assertSame(2, $answers['fuel_gallons']);
-        $this->assertSame('cash', $answers['payment_method']);
+        $this->assertTrue($answers['confirms_fuel_type']);
         $this->assertSame(2019, $answers['vehicle_year']);
         $this->assertStringContainsString('2026', $answers['incident_time']);
     }
@@ -106,8 +107,8 @@ final class RoadsideIntakeQuestionnaireTest extends TestCase
         $answers = new ValidateRoadsideIntakeAction(
             RoadsideServiceTypeEnum::MOTORCYCLE_TOW,
             [...$this->generalAnswers(), ...[
-                'failure_description' => 'Will not start',
-                'engine_displacement' => '150cc',
+                'failure_type' => 'Mechanical',
+                'engine_displacement' => '150',
                 'has_top_case' => 'sí',
                 'accompanies_transfer' => 'no',
             ]],
@@ -122,6 +123,8 @@ final class RoadsideIntakeQuestionnaireTest extends TestCase
         $answers = new ValidateRoadsideIntakeAction(
             RoadsideServiceTypeEnum::JUMP_START,
             [...$this->generalAnswers(), ...[
+                'is_electric' => false,
+                'is_heavy_vehicle' => 'no',
                 'lights_turn_on' => false,
                 'air_conditioning_works' => false,
                 'stalled_context' => 'parked',
@@ -136,6 +139,8 @@ final class RoadsideIntakeQuestionnaireTest extends TestCase
     public function testDependentQuestionIsOnlyDemandedWhenItsParentAnswersTrue(): void
     {
         $base = [...$this->generalAnswers(), ...[
+            'is_electric' => false,
+            'is_heavy_vehicle' => false,
             'lights_turn_on' => true,
             'air_conditioning_works' => true,
             'stalled_context' => 'while_driving',
@@ -162,14 +167,15 @@ final class RoadsideIntakeQuestionnaireTest extends TestCase
     public function testChoiceRejectsAValueOutsideItsOptions(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessageMatches('/Payment.*transfer, cash/');
+        $this->expectExceptionMessageMatches('/Fuel type.*regular, super, diesel/');
 
         new ValidateRoadsideIntakeAction(
             RoadsideServiceTypeEnum::FUEL_DELIVERY,
             [...$this->generalAnswers(), ...[
                 'fuel_type' => 'premium',
                 'fuel_gallons' => 1,
-                'payment_method' => 'crypto',
+                'confirms_fuel_type' => true,
+                'authorizes_fuel_charge' => true,
             ]],
         )->execute();
     }
@@ -179,14 +185,37 @@ final class RoadsideIntakeQuestionnaireTest extends TestCase
         $answers = new ValidateRoadsideIntakeAction(
             RoadsideServiceTypeEnum::LOCKSMITH,
             [...$this->generalAnswers(), ...[
-                'keys_location' => 'Locked inside the vehicle',
-                'incident_kind' => 'lost_keys',
-                'vehicle_engine_state' => 'off',
+                'keys_location' => 'cabin',
+                'only_opening_required' => true,
+                'owner_declaration' => true,
                 'operator_extra_note' => 'Client is in an underground parking garage',
             ]],
         )->execute();
 
         $this->assertSame('Client is in an underground parking garage', $answers['operator_extra_note']);
+    }
+
+    public function testAnOtherChoiceDemandsItsFreeTextDetail(): void
+    {
+        $base = [...$this->generalAnswers(), ...[
+            'engine_displacement' => 125,
+            'has_top_case' => false,
+            'accompanies_transfer' => false,
+        ]];
+
+        $answers = new ValidateRoadsideIntakeAction(
+            RoadsideServiceTypeEnum::MOTORCYCLE_TOW,
+            [...$base, 'failure_type' => 'electrical'],
+        )->execute();
+
+        $this->assertArrayNotHasKey('failure_description', $answers);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessageMatches('/Describe the failure/');
+        new ValidateRoadsideIntakeAction(
+            RoadsideServiceTypeEnum::MOTORCYCLE_TOW,
+            [...$base, 'failure_type' => 'other'],
+        )->execute();
     }
 
     private function generalAnswers(): array

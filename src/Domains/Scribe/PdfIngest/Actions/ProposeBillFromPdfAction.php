@@ -23,6 +23,7 @@ use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\DataTransferObject\ExpenseAccountCoding;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
+use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\ExpenseAccountCodingService;
 use Kanvas\Scribe\Bills\Services\VendorByTaxIdResolverService;
@@ -73,6 +74,7 @@ class ProposeBillFromPdfAction
     public const string REVIEW_GL = 'gl_unresolved';
     public const string REVIEW_NCF = 'ncf_invalid';
     public const string REVIEW_RNC = 'rnc_not_registered';
+    public const string REVIEW_TOTAL = 'total_mismatch';
 
     public function __construct(
         public readonly AppInterface $app,
@@ -150,6 +152,12 @@ class ProposeBillFromPdfAction
 
         $lines = $this->buildLines($expenseAccountId, $subtotal, $taxNative);
 
+        $mismatch = $this->totalMismatch($lines, $total);
+        if ($mismatch !== null) {
+            $reviewCode ??= self::REVIEW_TOTAL;
+            $reviewReason = trim(($reviewReason ?? '') . ' ' . $mismatch);
+        }
+
         $data = new BillData(
             app: $this->app,
             company: $this->company,
@@ -186,7 +194,12 @@ class ProposeBillFromPdfAction
             pdf_ingest_log_id: $this->pdfIngestLogId,
         );
 
-        $bill = new CreateBillAction(data: $data, user: $this->user)->execute();
+        try {
+            $bill = new CreateBillAction(data: $data, user: $this->user)->execute();
+        } catch (DuplicateBillNumberException $e) {
+            // The number matched loosely (case or punctuation), so the exact lookup above missed it.
+            return $e->existing ?? throw $e;
+        }
 
         // The snapshot shows the extracted spelling up-front; ReceiveBill re-freezes it from the linked
         // Guild Org at the moment of receipt.
@@ -309,6 +322,23 @@ class ProposeBillFromPdfAction
                 . 'bills to learn one from; the lines sit on a placeholder account until someone codes them.'],
             default => [null, null],
         };
+    }
+
+    /**
+     * @param list<BillLineData> $lines
+     */
+    private function totalMismatch(array $lines, float $printedTotal): ?string
+    {
+        $linesTotal = round(array_sum(array_map(
+            static fn (BillLineData $line): float => $line->lineTotalNative(),
+            $lines,
+        )), 2);
+
+        if (abs($linesTotal - $printedTotal) <= 0.01) {
+            return null;
+        }
+
+        return sprintf('The lines add up to %.2f but the invoice total is %.2f.', $linesTotal, $printedTotal);
     }
 
     private function glSource(?ExpenseAccountCoding $coding): string
@@ -460,6 +490,10 @@ class ProposeBillFromPdfAction
             $lineTotal = $this->floatOrNull($item['line_total'] ?? null) ?? ($qty * $unitPrice);
             if ($lineTotal <= 0) {
                 continue;
+            }
+            // A line the model gave only a line_total for would otherwise be saved at 0.
+            if ($unitPrice <= 0 && $qty > 0) {
+                $unitPrice = $lineTotal / $qty;
             }
             $out[] = new BillLineData(
                 description: (string) ($item['description'] ?? 'Line'),

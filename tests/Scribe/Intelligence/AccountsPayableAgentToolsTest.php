@@ -588,6 +588,36 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertTrue($second['is_deleted']);
     }
 
+    public function test_the_same_invoice_number_typed_with_other_punctuation_or_case_is_a_duplicate(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $createInvoice = fn (string $number): array => new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 100.0,
+                gl_account_number: $accountCode,
+                memo: 'Freight',
+                invoice_number: $number,
+                approve_immediately: false,
+            );
+
+        $first = $createInvoice('INV-0042');
+
+        foreach (['inv 0042', 'INV0042', 'Inv/0042.'] as $variant) {
+            $again = $createInvoice($variant);
+
+            $this->assertFalse($again['created'], $variant);
+            $this->assertSame('duplicate_invoice', $again['reason'], $variant);
+            $this->assertSame($first['bill_id'], $again['bill_id'], $variant);
+        }
+
+        $this->assertTrue($createInvoice('INV-0043')['created']);
+        $this->assertTrue($createInvoice('INV-É0042')['created'], 'An accented letter is part of the number, not punctuation.');
+    }
+
     public function test_a_duplicate_bill_number_is_client_safe_and_not_reported(): void
     {
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');

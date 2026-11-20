@@ -209,6 +209,17 @@ final class MicrosoftIntegrationsTest extends TestCase
         $this->assertSame('app-token', $this->appStore()->get(ConfigurationEnum::ACCESS_TOKEN));
     }
 
+    public function test_a_profile_graph_cannot_read_does_not_fail_a_completed_consent(): void
+    {
+        $receiver = $this->receiverOf($this->save($this->companyAccount, []));
+
+        $result = $this->completeConsent($receiver, 'company-token', profileStatus: 502);
+
+        $this->assertSame('Successfully connected to Microsoft', $result['message']);
+        $this->assertSame('', $result['user']['id']);
+        $this->assertSame('company-token', $this->companyStore()->get(ConfigurationEnum::ACCESS_TOKEN));
+    }
+
     public function test_disconnecting_one_connection_leaves_the_other(): void
     {
         $app = $this->save($this->appDrive, ['root_folder' => '/Compartido']);
@@ -288,7 +299,7 @@ final class MicrosoftIntegrationsTest extends TestCase
     /**
      * A fresh client per consent: Http::fake() stubs accumulate, and the first one would answer both.
      */
-    private function completeConsent(ReceiverWebhook $receiver, string $accessToken): void
+    private function completeConsent(ReceiverWebhook $receiver, string $accessToken, int $profileStatus = 200): array
     {
         Http::swap(new HttpFactory());
         Http::fake([
@@ -298,10 +309,12 @@ final class MicrosoftIntegrationsTest extends TestCase
                 'expires_in' => 3600,
                 'scope' => MicrosoftScopes::ONEDRIVE,
             ]),
-            'graph.microsoft.com/v1.0/me' => Http::response(['id' => 'u1', 'displayName' => 'Owner']),
+            'graph.microsoft.com/v1.0/me' => $profileStatus === 200
+                ? Http::response(['id' => 'u1', 'displayName' => 'Owner'])
+                : Http::response(['error' => ['code' => 'UnknownError', 'message' => '']], $profileStatus),
         ]);
 
-        new MicrosoftOAuthProvider()->handleCallback($receiver, $this->kanvasApp, new Request(['code' => 'abc']));
+        return new MicrosoftOAuthProvider()->handleCallback($receiver, $this->kanvasApp, new Request(['code' => 'abc']));
     }
 
     private function remove(array $saved): void
