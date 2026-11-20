@@ -6,6 +6,7 @@ namespace Kanvas\ActionEngine\Tasks\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Collection;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
@@ -73,16 +74,19 @@ class ProcessMessageTaskUpdatesAction
             ];
         }
 
-        $taskListItems = $this->findTaskListItems($messageData, $companyAction);
+        $taskListItems = $this->withoutTwinsOfRequestedItem(
+            $this->findTaskListItems($messageData, $companyAction)->get(),
+            $messageData,
+        );
 
-        if ($taskListItems->count() === 0) {
+        if ($taskListItems->isEmpty()) {
             return [
                 'success' => false,
                 'message' => 'No task list items found for the given verb and checklist ID.',
             ];
         }
 
-        foreach ($taskListItems->get() as $taskListItem) {
+        foreach ($taskListItems as $taskListItem) {
             $result = $this->processTaskListItem($taskListItem, $messageData);
             if ($result) {
                 $results[] = $result;
@@ -154,6 +158,47 @@ class ProcessMessageTaskUpdatesAction
         return $query->whereRaw($this->coBuyerConfigPredicate('config', $isCoBuyer));
     }
 
+    /**
+     * Main-buyer and co-buyer items for one document share every key the query filters on; the
+     * request's `taskItemId` is the only thing that says which one was asked for.
+     *
+     * @param Collection<int, TaskListItem> $items
+     *
+     * @return Collection<int, TaskListItem>
+     */
+    protected function withoutTwinsOfRequestedItem(Collection $items, array $messageData): Collection
+    {
+        if (in_array($messageData['verb'], self::COBUYER_AWARE_VERBS, true)) {
+            return $items;
+        }
+
+        $requestedId = $messageData['taskItemId'] ?? $this->parentMessageData()['taskItemId'] ?? null;
+
+        if (! is_numeric($requestedId)) {
+            return $items;
+        }
+
+        $requested = $items->firstWhere('id', (int) $requestedId);
+
+        if (! $requested instanceof TaskListItem) {
+            return $items;
+        }
+
+        $documentTypeId = $this->documentTypeIdOf($requested);
+
+        return $items
+            ->reject(
+                fn (TaskListItem $item): bool => $item->getId() !== $requested->getId()
+                    && $this->documentTypeIdOf($item) === $documentTypeId
+            )
+            ->values();
+    }
+
+    protected function parentMessageData(): array
+    {
+        return $this->message->parent ? $this->message->parent->getMessage() : [];
+    }
+
     protected function getCheckListId(array $messageData): ?int
     {
         $verb = $messageData['verb'];
@@ -164,9 +209,7 @@ class ProcessMessageTaskUpdatesAction
             return $messageData['checkListId'] ?? $this->lead->company->get('default_checklist_id');
         }
 
-        // Check parent message for checklist ID
-        $parentData = $this->message->parent ? $this->message->parent->getMessage() : [];
-        $parentChecklistId = $parentData['checkListId'] ?? null;
+        $parentChecklistId = $this->parentMessageData()['checkListId'] ?? null;
 
         if ($parentChecklistId && (int) $parentChecklistId > 0) {
             return (int) $parentChecklistId;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Tasks\Traits;
 
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+
 /**
  * Shared extraction of the document-type ids a get-docs message submitted.
  *
@@ -36,5 +38,11 @@ trait ExtractsSubmittedDocumentTypes
         }
 
         return array_values(array_unique($ids));
+    }
+
+    /** Empty string when the item is not tied to a document type. */
+    protected function documentTypeIdOf(TaskListItem $item): string
+    {
+        return (string) ($item->config['id'] ?? '');
     }
 }
