@@ -124,6 +124,10 @@ class ReceiverController extends BaseController
         // response envelope) stay in the body and HTTP defaults to 200.
         $status = is_int($response['status'] ?? null) ? $response['status'] : 200;
 
+        if (is_string($response['html_response'] ?? null)) {
+            return response($response['html_response'], $status, ['Content-Type' => 'text/html; charset=UTF-8']);
+        }
+
         return response()->json(
             array_merge(['message' => 'Receiver processed'], $response),
             $status
