@@ -6,9 +6,9 @@ namespace Kanvas\Connectors\BrushCrazy\Concerns;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 
