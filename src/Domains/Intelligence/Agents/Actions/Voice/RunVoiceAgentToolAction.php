@@ -128,7 +128,7 @@ class RunVoiceAgentToolAction
      * by reflection without building the tool, so only the match is instantiated
      * (an agent can carry dozens of tools, each with its own constructor
      * dependencies). Slow path, only when that finds nothing: build the remaining
-     * handlers and ask each for getName(), as before — this keeps a tool whose name
+     * handlers and ask each for getName() — this keeps a tool whose name
      * is set at construction time (no literal default) callable, so run-time
      * selection still matches what VoiceAgentSpecService advertised.
      */

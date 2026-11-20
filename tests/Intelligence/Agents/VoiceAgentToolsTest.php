@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
 use Kanvas\Intelligence\Agents\Services\VoiceAgentSpecService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
@@ -39,7 +40,7 @@ final class VoiceAgentToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'inventory'];
 
     private Apps $testApp;
     private Companies $company;
@@ -147,12 +148,43 @@ final class VoiceAgentToolsTest extends TestCase
         ));
         $tool = new VariantDetailTool()->withContext($this->testApp, $this->company, auth()->user());
 
-        $this->assertSame($variant->getId(), $tool->__invoke(variant_id: $variant->getId())['id']);
+        $detail = $tool->__invoke(variant_id: $variant->getId());
+        $this->assertSame($variant->getId(), $detail['id']);
+        $this->assertArrayNotHasKey('cost', $detail['inventory'][0] ?? [], 'cost is internal; agents talk to customers');
 
         // The same id, owned by another company, reads nothing.
-        Variants::withoutSyncingToSearch(fn () => $variant->forceFill(['companies_id' => $this->company->getId() + 1_000_000])->saveQuietly());
+        Variants::withoutSyncingToSearch(
+            fn () => $variant->forceFill(['companies_id' => $this->company->getId() + 1_000_000])
+                ->saveQuietly()
+        );
 
         $this->assertSame('not_found', $tool->__invoke(variant_id: $variant->getId())['status']);
+    }
+
+    public function testVariantDetailOpensAnotherCompanysVariantWhenTheAppSharesThem(): void
+    {
+        $variant = Products::withoutSyncingToSearch(fn () => Variants::withoutSyncingToSearch(
+            fn () => Products::factory()->company($this->company->getId())->create()->variants()->first()
+        ));
+        Variants::withoutSyncingToSearch(
+            fn () => $variant->forceFill(['companies_id' => $this->company->getId() + 1_000_000])
+                ->saveQuietly()
+        );
+        $tool = new VariantDetailTool()->withContext($this->testApp, $this->company, auth()->user());
+        $originalFlag = $this->testApp->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
+        try {
+            // A marketplace app: list_available_products offers every company's products.
+            $this->testApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, true);
+
+            $this->assertSame($variant->getId(), $tool->__invoke(variant_id: $variant->getId())['id']);
+        } finally {
+            // App settings live in Redis too, so the transaction doesn't undo them, and set(null)
+            // is a no-op: an unset flag has to be deleted or it leaks into every later test.
+            $originalFlag === null
+                ? $this->testApp->del(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)
+                : $this->testApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, $originalFlag);
+        }
     }
 
     /**
@@ -211,7 +243,14 @@ final class CrashingVoiceTool extends NeuronTool
 
     protected function properties(): array
     {
-        return [new ToolProperty(name: 'kind', type: PropertyType::STRING, description: 'crash or validation', required: true)];
+        return [
+            new ToolProperty(
+                name: 'kind',
+                type: PropertyType::STRING,
+                description: 'crash or validation',
+                required: true,
+            ),
+        ];
     }
 
     public function __invoke(string $kind = 'crash'): array

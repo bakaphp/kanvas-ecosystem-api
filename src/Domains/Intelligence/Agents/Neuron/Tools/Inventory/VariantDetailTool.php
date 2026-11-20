@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Kanvas\Souk\Services\StorefrontProductUrlService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,15 +17,13 @@ use Override;
 #[AgentTool(name: 'Variant Detail', category: 'inventory', readOnly: true)]
 class VariantDetailTool extends Tool
 {
-    // The variant is read within the agent's company scope, so an id from another
-    // company reads nothing (the voice runtime hands this tool the agent's tenant).
     use HasKanvasContext;
 
     protected string $name = 'variant_detail';
 
     protected ?string $description = 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), '
         . 'descriptions, weight, publish state, parent product, inventory per warehouse '
-        . '(stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. '
+        . '(stock, price, flags) including the channels priced on each warehouse, attributes and media. '
         . 'Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.';
 
     #[Override]
@@ -46,14 +45,19 @@ class VariantDetailTool extends Tool
             return ['status' => 'error', ...$this->tenantContextMissingError('variant detail')];
         }
 
-        // Scoped to the agent's app AND company scope: looking up by id within the app
-        // alone let one company's agent read another company's variant by guessing ids.
+        // The agent's own company, unless the app shares variants across companies — the same
+        // rule list_available_products lists by, so every product it offers can be opened here.
+        // An explicit where, not fromCompany(): under an app key (the voice runtime) that scope
+        // widens to every company in the app.
         /** @var Variants|null $variant */
         $variant = Variants::query()
             ->where('id', $variant_id)
             ->fromApp($this->app)
-            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
+            ->when(
+                ! $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value),
+                fn ($query) => $query->where('companies_id', $this->company->getId()),
+            )
             ->first();
 
         if ($variant === null) {
@@ -96,7 +100,6 @@ class VariantDetailTool extends Tool
                 'sku' => $vw->sku,
                 'stock' => (int) $vw->quantity,
                 'price' => (float) $vw->price,
-                'cost' => (float) $vw->cost,
                 'is_new' => (bool) $vw->is_new,
                 'is_oversellable' => (bool) $vw->is_oversellable,
                 'is_on_sale' => (bool) $vw->is_on_sale,
