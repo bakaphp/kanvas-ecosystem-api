@@ -65,6 +65,14 @@ enum CustomFieldEnum: string
     /** `studio_slides`: the homepage carousel, title and order per slide; photos are `slide-{id}` files. */
     case BRUSHCRAZY_STUDIO_SLIDES = 'BRUSHCRAZY_STUDIO_SLIDES';
 
+    /**
+     * Read by the public site under these exact names, so not BRUSHCRAZY_-prefixed: the
+     * brushcrazy.com/locations/{slug} segment (old links resolve to the studio) and the weekly
+     * hours with their holiday exceptions, as BrushCrazy stores them.
+     */
+    case LEGACY_LOCATION_SLUG = 'legacy_location_slug';
+    case OPERATING_HOURS = 'operating_hours';
+
     /** `pos_settings`: add-on and art-formula prices the shop charges (global in BrushCrazy). */
     case BRUSHCRAZY_POS_SETTINGS = 'BRUSHCRAZY_POS_SETTINGS';
 

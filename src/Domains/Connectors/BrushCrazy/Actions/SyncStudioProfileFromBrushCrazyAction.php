@@ -96,12 +96,20 @@ class SyncStudioProfileFromBrushCrazyAction
     ): void {
         $company = $this->company();
 
+        $postalCode = Str::trimToNull($studio->postal_code ?? null);
+
+        // The site formats every class time in `timezone`; CreateCompaniesAction never writes it.
         $company->forceFill(array_filter([
             'email' => Str::trimToNull(self::firstLine($studio->email ?? null)),
             'phone' => Str::trimToNull($studio->phone_number ?? null),
             'address' => Str::trimToNull(self::streetAddress($studio)),
-            'zipcode' => Str::trimToNull($studio->postal_code ?? null),
+            'address_2' => Str::trimToNull($studio->suite ?? null),
+            'city' => Str::trimToNull($studio->locality ?? null),
+            'state' => Str::trimToNull($studio->administrative_area_level_1 ?? null),
+            'zip' => $postalCode,
+            'zipcode' => $postalCode,
             'country_code' => Str::trimToNull($studio->country_code ?? null),
+            'timezone' => Str::trimToNull($this->context->timezone),
         ], fn ($value) => $value !== null));
 
         if ($company->isDirty()) {
@@ -128,6 +136,18 @@ class SyncStudioProfileFromBrushCrazyAction
             'creative_juices' => (bool) ($studio->creative_juices ?? false),
             'description' => $studio->description ?? null,
         ]);
+        // The two the public site reads, so they are written public (custom_fields only returns
+        // those). The rest of the profile keeps the contact person and fax private.
+        $this->setField(
+            CustomFieldEnum::LEGACY_LOCATION_SLUG,
+            self::legacySlug($studio),
+            isPublic: true
+        );
+        $this->setField(
+            CustomFieldEnum::OPERATING_HOURS,
+            Str::jsonToArray($studio->operating_hours ?? null),
+            isPublic: true
+        );
         $this->setField(CustomFieldEnum::BRUSHCRAZY_STUDIO_SETTINGS, Str::jsonToArray($studio->settings ?? null));
         $this->setField(CustomFieldEnum::BRUSHCRAZY_STUDIO_SALES_TAX, Str::jsonToArray($studio->sales_tax ?? null));
         $this->setField(CustomFieldEnum::BRUSHCRAZY_STUDIO_OCCUPANCY, $studio->occupancy !== null ? (int) $studio->occupancy : null);
@@ -211,16 +231,40 @@ class SyncStudioProfileFromBrushCrazyAction
         return $files;
     }
 
-    protected function setField(CustomFieldEnum $field, mixed $value): void
+    /**
+     * A public field is always written: the equality shortcut would leave a row first stored
+     * private (is_public is part of the upsert) invisible to the site for good.
+     */
+    protected function setField(CustomFieldEnum $field, mixed $value, bool $isPublic = false): void
     {
         $company = $this->company();
 
-        if ($company->get($field->value) == $value) {
+        if (! $isPublic && $company->get($field->value) == $value) {
             return;
         }
 
         $company->disableWorkflows();
-        $company->set($field->value, $value);
+        $company->set($field->value, $value, $isPublic);
+    }
+
+    /**
+     * BrushCrazy's own `Studio::getSlugAttribute()`, the segment of every brushcrazy.com/locations
+     * URL: locality-state, plus the community when the studio has one. Null for Corporate, which
+     * has no locality and no public page.
+     */
+    public static function legacySlug(object $studio): ?string
+    {
+        $locality = Str::slug((string) ($studio->locality ?? ''));
+
+        if ($locality === '') {
+            return null;
+        }
+
+        return implode('-', array_filter([
+            $locality,
+            Str::slug((string) ($studio->administrative_area_level_1 ?? ''), ''),
+            Str::slug((string) ($studio->community ?? ''), ''),
+        ], fn (string $part) => $part !== ''));
     }
 
     protected function company(): Companies
@@ -230,12 +274,7 @@ class SyncStudioProfileFromBrushCrazyAction
 
     protected static function streetAddress(object $studio): string
     {
-        return implode(', ', array_filter([
-            trim(($studio->street_number ?? '') . ' ' . ($studio->route ?? '')),
-            Str::trimToNull($studio->suite ?? null),
-            Str::trimToNull($studio->locality ?? null),
-            Str::trimToNull($studio->administrative_area_level_1 ?? null),
-        ]));
+        return trim(($studio->street_number ?? '') . ' ' . ($studio->route ?? ''));
     }
 
     /**

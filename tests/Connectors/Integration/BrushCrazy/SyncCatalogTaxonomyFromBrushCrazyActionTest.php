@@ -13,8 +13,9 @@ use Kanvas\Connectors\BrushCrazy\Enums\SaleLineKindEnum;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Products\Models\ProductsCategories;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Tests\TestCase;
 
@@ -147,6 +148,30 @@ final class SyncCatalogTaxonomyFromBrushCrazyActionTest extends TestCase
         $this->assertSame(12, (int) $stock()->quantity);
     }
 
+    public function testVariantIsPricedOnTheDefaultChannelAndGenericLinesStayHidden(): void
+    {
+        $catalog = $this->catalog($this->taxonomy());
+        $catalog->syncProductRows([$this->product()]);
+
+        $channel = Channels::getDefault($this->context->company, app(Apps::class));
+        $this->assertNotNull($channel);
+
+        $row = fn (int $variantId) => VariantsChannels::where('products_variants_id', $variantId)
+            ->where('channels_id', $channel->getId())
+            ->first();
+
+        $priced = $row($catalog->variantFor($this->id, SaleLineKindEnum::MISC)->getId());
+        $this->assertEquals(19.99, (float) $priced->price);
+        $this->assertTrue((bool) $priced->is_published);
+
+        $catalog->syncProductRows([$this->product(['msrp' => '{"amount":2499,"currency":"USD"}'])]);
+        $this->assertEquals(24.99, (float) $row($catalog->variantFor($this->id, SaleLineKindEnum::MISC)->getId())->price);
+
+        $generic = $row($catalog->genericVariant(SaleLineKindEnum::MISC)->getId());
+        $this->assertFalse((bool) $generic->is_published);
+        $this->assertFalse((bool) $catalog->genericVariant(SaleLineKindEnum::MISC)->product->is_published);
+    }
+
     private function taxonomy(): SyncCatalogTaxonomyFromBrushCrazyAction
     {
         return new SyncCatalogTaxonomyFromBrushCrazyAction(app(Apps::class), auth()->user(), $this->context);
@@ -180,13 +205,14 @@ final class SyncCatalogTaxonomyFromBrushCrazyActionTest extends TestCase
     }
 
     /**
+     * Through the relation the storefront reads, which does not filter the pivot's is_deleted.
+     *
      * @return array<int, int>
      */
     private function liveCategoryIds(Products $product): array
     {
-        return ProductsCategories::where('products_id', $product->getId())
-            ->where('is_deleted', 0)
-            ->pluck('categories_id')
+        return $product->categories()
+            ->pluck('categories.id')
             ->map(fn ($id) => (int) $id)
             ->all();
     }

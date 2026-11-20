@@ -173,7 +173,7 @@ trait UpsertsMirroredRows
                 return $row;
             }
 
-            $existing->forceFill($attributes);
+            $existing->forceFill($this->attributesOverExisting($existing, $attributes));
 
             $deleted = $sourceDeleted !== null ? $this->mirroredDeletedState($existing, $sourceDeleted) : null;
 
@@ -198,6 +198,19 @@ trait UpsertsMirroredRows
         }
 
         return $row;
+    }
+
+    /**
+     * What an update writes over a row that already exists. The mirror owns every column it maps,
+     * so by default its values replace the row's; a syncer overrides this to leave room for what
+     * Kanvas itself writes into the same row.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    protected function attributesOverExisting(Model $existing, array $attributes): array
+    {
+        return $attributes;
     }
 
     /**

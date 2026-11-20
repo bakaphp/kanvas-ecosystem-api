@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\BrushCrazy\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\ScalarCoercionTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -20,11 +21,15 @@ use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
 use Kanvas\Connectors\BrushCrazy\Support\PaintingRelations;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use RuntimeException;
@@ -75,6 +80,13 @@ class SyncCommerceCatalogFromBrushCrazyAction
     protected ?Warehouses $warehouse = null;
 
     protected bool $warehouseResolved = false;
+
+    protected ?Channels $channel = null;
+
+    protected bool $channelResolved = false;
+
+    /** @var array<int, Products> products whose channel price changed in this call, keyed by id */
+    protected array $pricedProducts = [];
 
     /** @var array<int, bool> products already looked up at the source and not found there */
     protected array $missingProducts = [];
@@ -279,6 +291,8 @@ class SyncCommerceCatalogFromBrushCrazyAction
             array_keys($rows),
         );
 
+        $synced = [];
+
         foreach ($rows as $bcProductId => $row) {
             $mapped = ProductMapper::map(
                 $row,
@@ -322,7 +336,19 @@ class SyncCommerceCatalogFromBrushCrazyAction
                 $mapped['price'],
                 $mapped['stock']
             );
+
+            $synced[] = $product;
         }
+
+        // Written with model events off, so Scout and the GraphQL cache never saw these saves. Last,
+        // because the search document is built from the channel prices written above.
+        new EloquentCollection($synced)->searchable();
+
+        foreach ($this->pricedProducts as $product) {
+            $product->clearLightHouseCache(withKanvasConfiguration: false);
+        }
+
+        $this->pricedProducts = [];
 
         return count($rows);
     }
@@ -435,8 +461,11 @@ class SyncCommerceCatalogFromBrushCrazyAction
 
     /**
      * The product's links to BrushCrazy categories (its category and its group) end up exactly
-     * $categoryIds: a link the source dropped is soft-deleted, a missing one added. Links to
-     * categories made in Kanvas are left alone.
+     * $categoryIds: a link the source dropped is removed, a missing one added. Links to categories
+     * made in Kanvas are left alone.
+     *
+     * Removed, not soft-deleted: Products::categories() does not filter the pivot's is_deleted, so a
+     * soft-deleted link keeps the product listed under its old category on the storefront.
      *
      * @param  array<int, int>  $categoryIds
      */
@@ -454,16 +483,26 @@ class SyncCommerceCatalogFromBrushCrazyAction
             )
             ->get();
 
-        foreach ($links as $link) {
-            $isDeleted = ! in_array((int) $link->categories_id, $categoryIds, true);
+        $stale = [];
 
-            if ((bool) $link->is_deleted !== $isDeleted) {
-                $link->is_deleted = $isDeleted;
+        foreach ($links as $link) {
+            if (! in_array((int) $link->categories_id, $categoryIds, true)) {
+                $stale[] = (int) $link->categories_id;
+            } elseif ($link->is_deleted) {
+                $link->is_deleted = false;
                 $link->saveQuietly();
             }
         }
 
-        $linked = $links->map(fn ($link) => (int) $link->categories_id)->all();
+        if ($stale !== []) {
+            ProductsCategories::withTrashed()
+                ->where('products_id', $product->getId())
+                ->whereIn('categories_id', $stale)
+                ->toBase()
+                ->delete();
+        }
+
+        $linked = array_diff($links->map(fn ($link) => (int) $link->categories_id)->all(), $stale);
 
         foreach (array_diff($categoryIds, $linked) as $categoryId) {
             $link = new ProductsCategories();
@@ -524,9 +563,70 @@ class SyncCommerceCatalogFromBrushCrazyAction
             if (! $warehouseRow->exists || $warehouseRow->isDirty()) {
                 $warehouseRow->saveQuietly();
             }
+
+            $this->publishToChannel(
+                $product,
+                $variant,
+                $warehouseRow,
+                $price
+            );
         }
 
         return $this->variants[$lookupKey] = $variant;
+    }
+
+    /**
+     * The storefront, the cart and Souk's order lines all price a variant from its default-channel
+     * row, not the warehouse one. Written only when it changed: AddVariantToChannelAction records a
+     * price-history row on every call. An unpublished product (the generic sale lines) gets an
+     * unpublished row, so the action never republishes it.
+     */
+    protected function publishToChannel(
+        Products $product,
+        Variants $variant,
+        VariantsWarehouses $warehouseRow,
+        float $price
+    ): void {
+        $channel = $this->channel();
+
+        if ($channel === null) {
+            return;
+        }
+
+        $isPublished = (bool) $product->is_published && $price > 0;
+
+        $current = VariantsChannels::withTrashed()
+            ->where('product_variants_warehouse_id', $warehouseRow->getId())
+            ->where('channels_id', $channel->getId())
+            ->first();
+
+        if ($current !== null
+            && ! $current->is_deleted
+            && (bool) $current->is_published === $isPublished
+            && round((float) $current->price, 2) === round($price, 2)) {
+            return;
+        }
+
+        new AddVariantToChannelAction(
+            $warehouseRow,
+            $channel,
+            new VariantChannel(price: $price, is_published: $isPublished),
+        )->execute();
+
+        $this->pricedProducts[$product->getId()] = $product;
+        $variant->clearLightHouseCache(withKanvasConfiguration: false);
+    }
+
+    protected function channel(): ?Channels
+    {
+        if (! $this->channelResolved) {
+            $this->region();
+            $channel = Channels::getDefault($this->context->company, $this->app);
+            $this->channel = $channel instanceof Channels ? $channel : null;
+            $this->channelResolved = true;
+        }
+
+        return $this->channel;
     }
 
     /**

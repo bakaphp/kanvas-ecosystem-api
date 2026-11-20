@@ -145,10 +145,10 @@ class SyncCustomerAccountFromBrushCrazyAction
 
         $user = $creator->execute();
 
-        if ($mapped['dob'] !== null) {
-            $user->dob = $mapped['dob'];
-            $user->saveOrFail();
-        }
+        // Always written: CreateUserAction stamps today's date, which the site shows as the
+        // customer's birthday month. No month at the source means no dob, not the import date.
+        $user->dob = $mapped['dob'];
+        $user->saveOrFail();
 
         return $user;
     }
