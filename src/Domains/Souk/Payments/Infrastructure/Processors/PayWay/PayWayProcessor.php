@@ -635,7 +635,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             'clienteUsuario' => $clienteUsuario,
             'clienteIp' => $clienteIp,
             'concepto' => $concepto,
-            'monto' => number_format((float) $order->getTotalAmount(), 2, '.', ''),
+            'monto' => number_format((float) $order->getTotalDueAmount(), 2, '.', ''),
             'traceId' => (string) $payment->idempotency_key,
             'datosAuxiliares' => [
                 'datoAuxiliar1' => (string) $order->order_number,
