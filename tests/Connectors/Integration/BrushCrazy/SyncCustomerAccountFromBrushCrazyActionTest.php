@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\BrushCrazy;
 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -13,7 +15,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\BrushCrazy\Actions\SyncCustomerAccountFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\CustomerAccountMapper;
+use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\TestCase;
 
 final class SyncCustomerAccountFromBrushCrazyActionTest extends TestCase
@@ -55,6 +59,23 @@ final class SyncCustomerAccountFromBrushCrazyActionTest extends TestCase
 
         Notification::assertNothingSent();
         Mail::assertNothingSent();
+    }
+
+    /**
+     * A login queues none of the app-wide user/company recounts, and those listeners are back after.
+     */
+    public function testANewLoginQueuesNoRecounts(): void
+    {
+        $dispatcher = Model::getEventDispatcher();
+        $events = ['eloquent.created: ' . UsersAssociatedApps::class, 'eloquent.created: ' . UserCompanyApps::class];
+        $before = array_map(fn (string $event) => $dispatcher->getRawListeners()[$event] ?? [], $events);
+
+        $user = $this->action()->fromRow($this->row(['birthday' => 3]));
+
+        $this->assertNotEmpty($user->uuid);
+        $this->assertSame('1900-03-01', substr((string) $user->fresh()->dob, 0, 10));
+        Queue::assertNotPushed(CallQueuedListener::class);
+        $this->assertSame($before, array_map(fn (string $event) => $dispatcher->getRawListeners()[$event] ?? [], $events));
     }
 
     /** Someone who signed up on the new site owns their password; BrushCrazy only refreshes balances. */

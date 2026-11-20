@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\BrushCrazy\Actions;
 
 use Baka\Contracts\AppInterface;
+use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -17,6 +19,7 @@ use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\CustomerAccountMapper;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\UserConfig;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -164,7 +167,10 @@ class SyncCustomerAccountFromBrushCrazyAction
         }
 
         $user = Cache::lock('brushcrazy-account:' . $this->app->getId() . ':' . $mapped['email'], self::LOCK_SECONDS)
-            ->block(self::LOCK_WAIT_SECONDS, fn () => $this->upsertUser($mapped, $branch));
+            ->block(
+                self::LOCK_WAIT_SECONDS,
+                fn () => $this->withoutMembershipRecounts(fn () => $this->upsertUser($mapped, $branch))
+            );
 
         $this->writeFields($user, $mapped['custom_fields']);
 
@@ -207,10 +213,51 @@ class SyncCustomerAccountFromBrushCrazyAction
 
         // Always written: CreateUserAction stamps today's date, which the site shows as the
         // customer's birthday month. No month at the source means no dob, not the import date.
+        // Quietly: a plain save fires the `updated` workflow, which pushes the user to BrushCrazy.
         $user->dob = $mapped['dob'];
-        $user->saveOrFail();
+        $user->saveQuietly();
 
         return $user;
+    }
+
+    /**
+     * Every new app membership and company assignment queues a recount of the app's whole user and
+     * company totals (UsersAssociatedAppsObserver, UsersAssociatedCompaniesObserver). For ~96k
+     * imported logins that is ~96k jobs each counting up to ~96k users. Those two listeners are
+     * taken off for the duration of one login and put back after it; the totals are display
+     * figures the observers recompute from scratch on the next ordinary sign-up.
+     *
+     * Only these two events, only in this process: Model::withoutEvents() would also drop the
+     * `creating` hook that gives the user its uuid.
+     */
+    protected function withoutMembershipRecounts(Closure $create): Users
+    {
+        $dispatcher = Model::getEventDispatcher();
+
+        if ($dispatcher === null) {
+            return $create();
+        }
+
+        $events = [
+            'eloquent.created: ' . UsersAssociatedApps::class,
+            'eloquent.created: ' . UserCompanyApps::class,
+        ];
+        $saved = [];
+
+        foreach ($events as $event) {
+            $saved[$event] = $dispatcher->getRawListeners()[$event] ?? [];
+            $dispatcher->forget($event);
+        }
+
+        try {
+            return $create();
+        } finally {
+            foreach ($saved as $event => $listeners) {
+                foreach ($listeners as $listener) {
+                    $dispatcher->listen($event, $listener);
+                }
+            }
+        }
     }
 
     /**
