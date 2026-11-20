@@ -51,7 +51,7 @@ class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
 
         return [
             'message' => 'Transaction id received',
-            'html' => '<script>window.parent.postMessage({type: "payment_complete", status: "success", message: "Transaction id received"}, "*"); window.close();</script>',
+            'html_response' => '<script>window.parent.postMessage({type: "payment_complete", status: "success", message: "Transaction id received"}, "*"); window.close();</script>',
         ];
     }
 }
