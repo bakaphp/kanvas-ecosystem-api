@@ -538,10 +538,6 @@ class SyncSaleFromBrushCrazyAction
     }
 
     /**
-     * A sale with no customer, or whose user is gone from the source, belongs to the studio's
-     * unknown guest — Souk requires a buyer on every order.
-     */
-    /**
      * The site lists a customer's history as the orders their login owns, so a sale is owned by
      * the buyer's Kanvas user once they have one, and by the import user until then (a guest sale,
      * or a buyer whose login is not made yet; the next sync moves it).
@@ -562,6 +558,10 @@ class SyncSaleFromBrushCrazyAction
         return $this->buyerAccounts[$bcUserId] ?? $this->user->getId();
     }
 
+    /**
+     * A sale with no customer, or whose user is gone from the source, belongs to the studio's
+     * unknown guest — Souk requires a buyer on every order.
+     */
     protected function buyerId(SaleRows $sale): int
     {
         $bcUserId = isset($sale->sale->customer_id) ? (int) $sale->sale->customer_id : null;
