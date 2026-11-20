@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\BrushCrazy\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\ScalarCoercionTrait;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -18,6 +17,7 @@ use Kanvas\Connectors\BrushCrazy\Enums\SaleLineKindEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
 use Kanvas\Connectors\BrushCrazy\Mappers\ProductMapper;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use Kanvas\Connectors\BrushCrazy\Support\PaintingRelations;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -69,6 +69,9 @@ class SyncCommerceCatalogFromBrushCrazyAction
     public const string INVENTORY_ITEM_MORPH = 'inventory-item';
 
     public const string FEATURED_TAG = 'featured';
+
+    /** Bump when the write path changes what it writes, so the next pass rewrites every product. */
+    private const int FINGERPRINT_VERSION = 1;
 
     protected IdMapRepository $idMaps;
 
@@ -130,6 +133,7 @@ class SyncCommerceCatalogFromBrushCrazyAction
 
         foreach (array_chunk($productIds, 500) as $chunk) {
             $synced += $this->syncProducts($chunk);
+            ImportPace::pauseBetweenChunks();
         }
 
         foreach (SaleLineKindEnum::cases() as $kind) {
@@ -290,16 +294,43 @@ class SyncCommerceCatalogFromBrushCrazyAction
             CustomFieldEnum::BRUSHCRAZY_PRODUCT_ID,
             array_keys($rows),
         );
+        $fingerprints = $this->idMaps->loadReverse(
+            $this->context->companyId(),
+            Products::class,
+            CustomFieldEnum::BRUSHCRAZY_SYNC_FINGERPRINT,
+            array_values($knownProducts),
+        );
 
         $synced = [];
 
         foreach ($rows as $bcProductId => $row) {
+            $knownProductId = $knownProducts[(string) $bcProductId] ?? null;
+            $categoryIds = array_values(array_filter([
+                $this->taxonomy()->categoryIdFor($this->intOrNull($row->category_id ?? null)),
+                $this->taxonomy()->groupCategoryIdFor($this->intOrNull($row->group_id ?? null)),
+            ]));
+            $fingerprint = self::fingerprint([
+                $row,
+                $settingsByProductId[$bcProductId] ?? null,
+                $inventoryByProductId[$bcProductId] ?? null,
+                $photosByProductId === null ? 'photos-untouched' : ($photosByProductId[$bcProductId] ?? null),
+                $featuredProductIds === null ? 'featured-untouched' : in_array($bcProductId, $featuredProductIds, true),
+                $categoryIds,
+            ]);
+
+            // Unchanged at the source since the last write: the ~10 reads and writes below would
+            // all come back equal. Every full pass (catalog, then sales) walks the whole catalog.
+            if ($knownProductId !== null
+                && ($fingerprints[(int) $knownProductId] ?? null) === $fingerprint
+                && isset($this->variants()[SaleLineKindEnum::productLookupKey($bcProductId)])) {
+                continue;
+            }
+
             $mapped = ProductMapper::map(
                 $row,
                 $settingsByProductId[$bcProductId] ?? null,
                 $inventoryByProductId[$bcProductId] ?? null,
             );
-            $knownProductId = $knownProducts[(string) $bcProductId] ?? null;
 
             $product = $this->writeQuietly(
                 Products::class,
@@ -324,10 +355,7 @@ class SyncCommerceCatalogFromBrushCrazyAction
                 $this->syncFeatured($product, in_array($bcProductId, $featuredProductIds, true));
             }
 
-            $this->syncCategories($product, array_filter([
-                $this->taxonomy()->categoryIdFor($this->intOrNull($row->category_id ?? null)),
-                $this->taxonomy()->groupCategoryIdFor($this->intOrNull($row->group_id ?? null)),
-            ]));
+            $this->syncCategories($product, $categoryIds);
 
             $this->upsertVariant(
                 SaleLineKindEnum::productLookupKey($bcProductId),
@@ -337,12 +365,15 @@ class SyncCommerceCatalogFromBrushCrazyAction
                 $mapped['stock']
             );
 
+            // Last: a write that failed above leaves the old fingerprint, so the next pass retries.
+            $product->disableWorkflows();
+            $product->set(CustomFieldEnum::BRUSHCRAZY_SYNC_FINGERPRINT->value, $fingerprint);
+
             $synced[] = $product;
         }
 
-        // Written with model events off, so Scout and the GraphQL cache never saw these saves. Last,
-        // because the search document is built from the channel prices written above.
-        new EloquentCollection($synced)->searchable();
+        // After the variants: the search document is built from the channel prices written above.
+        ImportPace::indexChanged($synced, array_values($this->pricedProducts));
 
         foreach ($this->pricedProducts as $product) {
             $product->clearLightHouseCache(withKanvasConfiguration: false);
@@ -351,6 +382,17 @@ class SyncCommerceCatalogFromBrushCrazyAction
         $this->pricedProducts = [];
 
         return count($rows);
+    }
+
+    /**
+     * Everything one product's write is built from: its source rows (each carries its own
+     * `updated_at`), whether its photo and featured flag are being synced, and its category ids.
+     *
+     * @param  array<int, mixed>  $inputs
+     */
+    public static function fingerprint(array $inputs): string
+    {
+        return self::FINGERPRINT_VERSION . ':' . md5((string) json_encode($inputs));
     }
 
     /**

@@ -172,6 +172,21 @@ final class SyncCatalogTaxonomyFromBrushCrazyActionTest extends TestCase
         $this->assertFalse((bool) $catalog->genericVariant(SaleLineKindEnum::MISC)->product->is_published);
     }
 
+    public function testAnUnchangedProductIsSkippedAndAChangedOneRewritten(): void
+    {
+        $catalog = $this->catalog($this->taxonomy());
+        $catalog->syncProductRows([$this->product()]);
+
+        $product = $this->savedProduct();
+        $product->forceFill(['name' => 'Renamed in Kanvas'])->saveQuietly();
+
+        $catalog->syncProductRows([$this->product()]);
+        $this->assertSame('Renamed in Kanvas', $product->fresh()->name);
+
+        $catalog->syncProductRows([$this->product(['name' => 'Canvas 16x20'])]);
+        $this->assertSame('Canvas 16x20', $product->fresh()->name);
+    }
+
     private function taxonomy(): SyncCatalogTaxonomyFromBrushCrazyAction
     {
         return new SyncCatalogTaxonomyFromBrushCrazyAction(app(Apps::class), auth()->user(), $this->context);

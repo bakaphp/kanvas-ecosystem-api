@@ -6,13 +6,13 @@ namespace Kanvas\Connectors\BrushCrazy\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Concerns\PullsSourceInChunks;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use Kanvas\Connectors\BrushCrazy\Support\SaleSource;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Souk\Orders\Models\Order;
@@ -108,12 +108,13 @@ class PullSalesFromBrushCrazyAction
                     }
                 }
 
-                // The sync writes with model events off, so Scout never saw these Order saves.
-                new EloquentCollection($orders)->searchable();
+                ImportPace::indexChanged($orders);
 
                 if ($onProgress !== null) {
                     $onProgress($rows->count());
                 }
+
+                ImportPace::pauseBetweenChunks();
             },
             'sales.id',
             'id'

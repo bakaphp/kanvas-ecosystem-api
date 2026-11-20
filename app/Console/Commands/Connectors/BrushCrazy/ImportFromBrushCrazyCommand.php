@@ -23,6 +23,7 @@ use Kanvas\Connectors\BrushCrazy\Actions\SyncStudioProfileFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\SyncEntityEnum;
 use Kanvas\Connectors\BrushCrazy\Support\CorrectionCutoff;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -61,6 +62,7 @@ class ImportFromBrushCrazyCommand extends Command
                             {--incremental : Resume each studio from its own cursor instead of a full pass}
                             {--correction-cutoff= : Pin the timezone correction cutoff (UTC); first run only, defaults to now}
                             {--chunk=500 : Source rows per chunk}
+                            {--pause-ms=0 : Wait this long after each chunk, to spread a full pass over time}
                             {--force : Run even though the BRUSHCRAZY_CUTOVER_AT kill switch is on}
                             {--show-secrets : Print each receiver signing secret, for configuring BrushCrazy}';
 
@@ -86,6 +88,9 @@ class ImportFromBrushCrazyCommand extends Command
 
             return self::FAILURE;
         }
+
+        // This process only: the scheduled incremental run passes no --pause-ms and stays at 0.
+        config([ImportPace::PAUSE_CONFIG_KEY => max(0, (int) $this->option('pause-ms'))]);
 
         $this->cutoverAt = CorrectionCutoff::cutoverAt($app);
 

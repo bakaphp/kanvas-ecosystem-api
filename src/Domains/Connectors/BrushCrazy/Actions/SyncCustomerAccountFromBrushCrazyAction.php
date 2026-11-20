@@ -15,9 +15,11 @@ use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\CustomerAccountMapper;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\UserConfig;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
 
 /**
@@ -46,6 +48,12 @@ class SyncCustomerAccountFromBrushCrazyAction
     protected ?CompaniesBranches $branch = null;
 
     protected bool $branchResolved = false;
+
+    /** @var array<string, Users|null> email => user, for the chunk preload() was given; null = none */
+    protected array $preloadedUsers = [];
+
+    /** @var array<int, true> ids of preloaded users already in this app */
+    protected array $preloadedMembers = [];
 
     public function __construct(
         protected AppInterface $app,
@@ -86,6 +94,56 @@ class SyncCustomerAccountFromBrushCrazyAction
         return $this->branch() !== null;
     }
 
+    /**
+     * One chunk's existing users and their membership of this app in two queries, instead of two
+     * per customer. A customer missing from the preload (the webhook path, or one created since)
+     * is still looked up one by one.
+     *
+     * @param  array<int, object>  $rows
+     */
+    public function preload(array $rows): void
+    {
+        $this->preloadedUsers = [];
+        $this->preloadedMembers = [];
+
+        if (! $this->enabled()) {
+            return;
+        }
+
+        $emails = [];
+
+        foreach ($rows as $row) {
+            $email = Str::lower(trim((string) ($row->email ?? '')));
+
+            if ($email !== '') {
+                $emails[$email] = true;
+            }
+        }
+
+        if ($emails === []) {
+            return;
+        }
+
+        $this->preloadedUsers = array_fill_keys(array_keys($emails), null);
+
+        foreach (Users::notDeleted()->whereIn('email', array_keys($emails))->get() as $user) {
+            $this->preloadedUsers[Str::lower((string) $user->email)] = $user;
+        }
+
+        $userIds = array_map(
+            fn (Users $user) => $user->getKey(),
+            array_values(array_filter($this->preloadedUsers))
+        );
+
+        $this->preloadedMembers = UsersAssociatedApps::query()
+            ->whereIn('users_id', $userIds)
+            ->where('apps_id', $this->app->getId())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->pluck('users_id')
+            ->mapWithKeys(fn ($usersId) => [(int) $usersId => true])
+            ->all();
+    }
+
     public function fromRow(object $row): ?Users
     {
         $branch = $this->branch();
@@ -118,7 +176,9 @@ class SyncCustomerAccountFromBrushCrazyAction
      */
     protected function upsertUser(array $mapped, CompaniesBranches $branch): Users
     {
-        $existing = Users::notDeleted()->where('email', $mapped['email'])->first();
+        $existing = array_key_exists($mapped['email'], $this->preloadedUsers)
+            ? $this->preloadedUsers[$mapped['email']]
+            : Users::notDeleted()->where('email', $mapped['email'])->first();
 
         if ($existing !== null && $this->belongsToApp($existing)) {
             return $existing;
@@ -179,6 +239,10 @@ class SyncCustomerAccountFromBrushCrazyAction
 
     protected function belongsToApp(Users $user): bool
     {
+        if (isset($this->preloadedMembers[(int) $user->getKey()])) {
+            return true;
+        }
+
         try {
             UsersRepository::belongsToThisApp($user, $this->appModel());
 

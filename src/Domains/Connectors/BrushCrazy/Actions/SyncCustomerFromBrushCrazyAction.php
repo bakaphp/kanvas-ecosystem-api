@@ -107,6 +107,9 @@ class SyncCustomerFromBrushCrazyAction
         }
 
         $this->adoptable = $this->findAdoptable(array_values(array_unique($emails)));
+
+        $this->accounts ??= new SyncCustomerAccountFromBrushCrazyAction($this->app);
+        $this->accounts->preload($rows);
     }
 
     public function fromRow(stdClass $row): People

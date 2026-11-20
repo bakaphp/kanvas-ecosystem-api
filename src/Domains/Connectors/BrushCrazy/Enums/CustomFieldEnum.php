@@ -38,6 +38,9 @@ enum CustomFieldEnum: string
     case BRUSHCRAZY_SALE_ITEM_ID = 'BRUSHCRAZY_SALE_ITEM_ID';
     case BRUSHCRAZY_MEDIA_ID = 'BRUSHCRAZY_MEDIA_ID';
     case BRUSHCRAZY_LOOKUP_KEY = 'BRUSHCRAZY_LOOKUP_KEY';
+
+    /** Hash of the source rows a product was last written from; equal means the pass skips it. */
+    case BRUSHCRAZY_SYNC_FINGERPRINT = 'BRUSHCRAZY_SYNC_FINGERPRINT';
     case BRUSHCRAZY_SHIFT_ID = 'BRUSHCRAZY_SHIFT_ID';
     case BRUSHCRAZY_UNKNOWN_GUEST = 'BRUSHCRAZY_UNKNOWN_GUEST';
 
