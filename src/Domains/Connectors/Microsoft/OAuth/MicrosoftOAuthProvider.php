@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Microsoft\OAuth;
 
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\OAuthProviderInterface;
@@ -76,7 +77,13 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
 
         MicrosoftClient::storeTokens($store, $tokenData);
 
-        $userProfile = MicrosoftClient::getUserProfile($tokenData['access_token']);
+        // The tokens are stored: the profile only labels the answer, so Graph failing to read it
+        // must not turn a completed consent into an error the user would retry.
+        try {
+            $userProfile = MicrosoftClient::getUserProfile($tokenData['access_token']);
+        } catch (RequestException) {
+            $userProfile = [];
+        }
 
         return [
             'message' => 'Successfully connected to Microsoft',

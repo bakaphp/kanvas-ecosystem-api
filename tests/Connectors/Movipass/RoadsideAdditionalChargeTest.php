@@ -98,7 +98,9 @@ final class RoadsideAdditionalChargeTest extends TestCase
 
         $this->assertSame(PaymentStatusEnum::PAID->value, $chargeOrder->payment_status);
 
-        $result = $this->runEvent($chargeOrder, WorkflowEnum::UPDATED);
+        // Reloaded as the queue hands it over: the instance above may carry a `parent` loaded
+        // before the charge was attached to the case.
+        $result = $this->runEvent($chargeOrder->fresh(), WorkflowEnum::UPDATED);
 
         $this->assertSame('success', $result['status']);
         $this->assertSame('Additional charge approved', $result['message'], json_encode($result));
