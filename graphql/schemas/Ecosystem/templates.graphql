@@ -10,6 +10,11 @@ type Template {
     template: Mixed!
     template_variables: [TemplateVariables!]
         @hasMany(relation: "templateVariables")
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
     created_at: String
     updated_at: String
     is_deleted: Int
@@ -26,6 +31,7 @@ input TemplateInput {
     title: String
     subject: String
     is_system: Boolean
+    tags: [TagInput!]
 }
 
 type TemplateVariables {

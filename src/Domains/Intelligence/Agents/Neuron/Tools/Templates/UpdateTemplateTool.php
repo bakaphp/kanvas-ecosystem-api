@@ -7,9 +7,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Templates;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\Templates\ManagesTemplatesTrait;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ToolPropertyInterface;
 use Override;
 
 #[AgentTool(name: 'Update Template', category: 'templates')]
@@ -27,7 +29,7 @@ class UpdateTemplateTool extends Tool
         . '({{ entity.name }}, {% if %}, {% for %}; no functions or method calls), same as create_template.';
 
     /**
-     * @return array<int, ToolProperty>
+     * @return array<int, ToolPropertyInterface>
      */
     #[Override]
     protected function properties(): array
@@ -57,6 +59,12 @@ class UpdateTemplateTool extends Tool
                 description: 'New title. Omit to leave unchanged.',
                 required: false,
             ),
+            new ArrayProperty(
+                name: 'tags',
+                description: 'Optional list of tag names to assign to the template. Replaces current tags.',
+                required: false,
+                items: new ToolProperty(name: 'tag', type: PropertyType::STRING, description: 'A tag name.'),
+            ),
         ];
     }
 
@@ -67,7 +75,8 @@ class UpdateTemplateTool extends Tool
         int $template_id,
         ?string $html = null,
         ?string $subject = null,
-        ?string $title = null
+        ?string $title = null,
+        ?array $tags = null,
     ): array {
         return $this->updateTemplateRecord(
             $this->app,
@@ -76,7 +85,8 @@ class UpdateTemplateTool extends Tool
             $template_id,
             $html,
             $subject,
-            $title
+            $title,
+            $tags,
         );
     }
 }

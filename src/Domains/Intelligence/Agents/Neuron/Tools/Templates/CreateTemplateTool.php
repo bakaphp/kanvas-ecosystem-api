@@ -7,9 +7,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Templates;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\Templates\ManagesTemplatesTrait;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ToolPropertyInterface;
 use Override;
 
 #[AgentTool(name: 'Create Template', category: 'templates')]
@@ -29,7 +31,7 @@ class CreateTemplateTool extends Tool
         . 'deliverable. If the name already exists, revise it with update_template instead of renaming.';
 
     /**
-     * @return array<int, ToolProperty>
+     * @return array<int, ToolPropertyInterface>
      */
     #[Override]
     protected function properties(): array
@@ -60,6 +62,12 @@ class CreateTemplateTool extends Tool
                 description: 'Optional title stored with the template.',
                 required: false,
             ),
+            new ArrayProperty(
+                name: 'tags',
+                description: 'Optional list of tag names to attach to the template.',
+                required: false,
+                items: new ToolProperty(name: 'tag', type: PropertyType::STRING, description: 'A tag name.'),
+            ),
         ];
     }
 
@@ -70,7 +78,8 @@ class CreateTemplateTool extends Tool
         string $name,
         string $html,
         ?string $subject = null,
-        ?string $title = null
+        ?string $title = null,
+        ?array $tags = null,
     ): array {
         return $this->createTemplateRecord(
             $this->app,
@@ -79,7 +88,8 @@ class CreateTemplateTool extends Tool
             $name,
             $html,
             $subject,
-            $title
+            $title,
+            $tags,
         );
     }
 }

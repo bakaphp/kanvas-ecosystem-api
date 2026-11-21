@@ -45,6 +45,7 @@ class CreateTemplateTool implements KanvasToolInterface
             (string) $request->string('html'),
             $this->nullableString($request, 'subject'),
             $this->nullableString($request, 'title'),
+            $request->all()['tags'] ?? null,
         );
 
         return (string) json_encode($result, JSON_PRETTY_PRINT);
@@ -69,6 +70,10 @@ class CreateTemplateTool implements KanvasToolInterface
             'title' => $schema
                 ->string()
                 ->description('Optional title stored with the template.'),
+            'tags' => $schema
+                ->array()
+                ->items($schema->string())
+                ->description('Optional list of tag names to assign to the template.'),
         ];
     }
 }

@@ -46,6 +46,7 @@ class UpdateTemplateTool implements KanvasToolInterface
             $this->nullableString($request, 'html'),
             $this->nullableString($request, 'subject'),
             $this->nullableString($request, 'title'),
+            $request->all()['tags'] ?? null,
         );
 
         return (string) json_encode($result, JSON_PRETTY_PRINT);
@@ -68,6 +69,10 @@ class UpdateTemplateTool implements KanvasToolInterface
             'title' => $schema
                 ->string()
                 ->description('New title. Omit to leave unchanged.'),
+            'tags' => $schema
+                ->array()
+                ->items($schema->string())
+                ->description('Optional list of tag names to assign to the template.'),
         ];
     }
 }
