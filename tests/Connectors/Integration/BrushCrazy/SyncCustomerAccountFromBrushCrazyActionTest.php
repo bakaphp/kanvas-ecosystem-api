@@ -66,9 +66,19 @@ final class SyncCustomerAccountFromBrushCrazyActionTest extends TestCase
      */
     public function testANewLoginQueuesNoRecounts(): void
     {
+        // Booted first: #[ObservedBy] registers on boot, so an unbooted model has no listeners to compare.
+        new UsersAssociatedApps();
+        new UserCompanyApps();
+
         $dispatcher = Model::getEventDispatcher();
-        $events = ['eloquent.created: ' . UsersAssociatedApps::class, 'eloquent.created: ' . UserCompanyApps::class];
+        $events = [
+            'eloquent.created: ' . UsersAssociatedApps::class,
+            'eloquent.updated: ' . UsersAssociatedApps::class,
+            'eloquent.created: ' . UserCompanyApps::class,
+        ];
         $before = array_map(fn (string $event) => $dispatcher->getRawListeners()[$event] ?? [], $events);
+
+        $this->assertNotSame([], array_filter($before));
 
         $user = $this->action()->fromRow($this->row(['birthday' => 3]));
 

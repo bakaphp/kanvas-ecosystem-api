@@ -223,11 +223,14 @@ class SyncCustomerAccountFromBrushCrazyAction
     /**
      * Every new app membership and company assignment queues a recount of the app's whole user and
      * company totals (UsersAssociatedAppsObserver, UsersAssociatedCompaniesObserver). For ~96k
-     * imported logins that is ~96k jobs each counting up to ~96k users. Those two listeners are
+     * imported logins that is ~96k jobs each counting up to ~96k users. Those listeners are
      * taken off for the duration of one login and put back after it; the totals are display
      * figures the observers recompute from scratch on the next ordinary sign-up.
      *
-     * Only these two events, only in this process: Model::withoutEvents() would also drop the
+     * The membership's `updated` goes too: assigning the role writes `user_role` on the row just
+     * created, and the queued observer would spend a job per login deciding it has nothing to do.
+     *
+     * Only these events, only in this process: Model::withoutEvents() would also drop the
      * `creating` hook that gives the user its uuid.
      */
     protected function withoutMembershipRecounts(Closure $create): Users
@@ -240,9 +243,15 @@ class SyncCustomerAccountFromBrushCrazyAction
 
         $events = [
             'eloquent.created: ' . UsersAssociatedApps::class,
+            'eloquent.updated: ' . UsersAssociatedApps::class,
             'eloquent.created: ' . UserCompanyApps::class,
         ];
         $saved = [];
+
+        // #[ObservedBy] registers on first boot: a model not yet booted would add its observer
+        // back in the middle of the create, after the listeners were taken off.
+        new UsersAssociatedApps();
+        new UserCompanyApps();
 
         foreach ($events as $event) {
             $saved[$event] = $dispatcher->getRawListeners()[$event] ?? [];
