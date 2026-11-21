@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Taxes\Actions;
 
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -96,7 +97,7 @@ class EstimateCartTaxAction
             || $result->treatment === TaxTreatmentEnum::EXEMPT;
 
         $totalTax = (float) $result->totalTax;
-        $conditionValue = $isInclusive ? '+0' : '+' . number_format($totalTax, 2, '.', '');
+        $conditionValue = $isInclusive ? '+0' : '+' . Number::fixed($totalTax);
         $mode = $isInclusive ? 'inclusive' : 'exclusive';
 
         $components = array_map(fn ($component) => [

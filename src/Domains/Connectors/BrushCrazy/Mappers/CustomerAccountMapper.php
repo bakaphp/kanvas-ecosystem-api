@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\BrushCrazy\Mappers;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Support\Money;
@@ -85,6 +86,6 @@ class CustomerAccountMapper
 
     protected static function dollars(mixed $money): string
     {
-        return number_format(Money::fromRaw($money)->dollars(), 2, '.', '');
+        return Number::fixed(Money::fromRaw($money)->dollars());
     }
 }

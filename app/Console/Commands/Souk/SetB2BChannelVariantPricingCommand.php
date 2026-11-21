@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Souk;
 
+use Baka\Support\Number;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
@@ -77,8 +78,8 @@ class SetB2BChannelVariantPricingCommand extends Command
                 }
 
                 $variantChannel = VariantChannel::from([
-                                'price' => number_format($variantChannelPrice, 2, '.', ''),
-                                'discounted_price' => number_format($variantChannelPrice, 2, '.', ''),
+                                'price' => Number::fixed($variantChannelPrice),
+                                'discounted_price' => Number::fixed($variantChannelPrice),
                                 'is_published' => 1,
                     ]);
                 (new AddVariantToChannelAction(

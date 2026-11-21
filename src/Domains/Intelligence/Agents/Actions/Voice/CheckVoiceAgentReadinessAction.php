@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Kanvas\Connectors\Twilio\Actions\DescribeCompanyTwilioAction;
 use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
@@ -107,7 +108,7 @@ class CheckVoiceAgentReadinessAction
         $balance = match (true) {
             isset($problems['balance']) => $this->error('balance', $problems['balance']),
             $twilio['balance'] === null => $this->warning('balance', 'Twilio did not report the balance; check it in the Twilio console.'),
-            default => $this->ok('balance', number_format($twilio['balance'], 2) . " {$twilio['currency']}."),
+            default => $this->ok('balance', Number::withCurrencyCode($twilio['balance'], $twilio['currency'] ?? 'USD') . '.'),
         };
 
         return [$account, $balance];

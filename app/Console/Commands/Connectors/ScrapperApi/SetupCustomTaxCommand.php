@@ -90,7 +90,7 @@ class SetupCustomTaxCommand extends Command
                 $rows[] = [
                     $tax['description'] . ' (' . $tax['rate'] . '%)',
                     Number::currency($tax['amount_usd'], 'USD'),
-                    'RD$' . number_format($tax['amount_rd'], 2),
+                    Number::currency($tax['amount_rd'], 'DOP', 'es_DO'),
                 ];
             }
 
@@ -98,7 +98,7 @@ class SetupCustomTaxCommand extends Command
             $rows[] = [
                 'TOTAL TAX',
                 Number::currency($result['customTax'], 'USD'),
-                'RD$' . number_format($result['customTaxRD'], 2),
+                Number::currency($result['customTaxRD'], 'DOP', 'es_DO'),
             ];
 
             $this->table(['Tax Component', 'USD', 'RD$'], $rows);
@@ -111,7 +111,7 @@ class SetupCustomTaxCommand extends Command
                     ['Arancel Code', $result['arancelCode'] ?? 'sin clasificar'],
                     ['Description', $result['arancelDescription'] ?? 'N/A'],
                     ['Resolved From', $result['arancelSource'] ?? 'N/A'],
-                    ['CIF Value', Number::currency($result['cif'], 'USD') . ' / RD$' . number_format($result['cifRD'], 2)],
+                    ['CIF Value', Number::currency($result['cif'], 'USD') . ' / ' . Number::currency($result['cifRD'], 'DOP', 'es_DO')],
                     ['Elapsed', number_format($elapsed, 2) . ' ms'],
                 ]
             );

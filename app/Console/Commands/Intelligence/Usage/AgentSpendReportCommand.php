@@ -294,7 +294,7 @@ class AgentSpendReportCommand extends Command
             number_format($bucket['turns']),
             number_format($bucket['sessions']),
             number_format($bucket['tokens']),
-            number_format($bucket['cost'], 2),
+            Number::grouped($bucket['cost'], 2),
         ];
 
         return match ($group) {
@@ -321,7 +321,7 @@ class AgentSpendReportCommand extends Command
                     implode(',', array_keys($bucket['runtimes'])),
                     number_format(count($bucket['agents'])),
                     number_format($bucket['tokens']),
-                    number_format($bucket['cost'], 2),
+                    Number::grouped($bucket['cost'], 2),
                 ],
                 $buckets
             )

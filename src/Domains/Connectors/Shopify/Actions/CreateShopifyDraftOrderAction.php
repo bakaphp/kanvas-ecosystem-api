@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Number;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
@@ -88,7 +89,7 @@ class CreateShopifyDraftOrderAction
 
             // Calculate final price
             $finalPrice = $applyDiscount ? ($variantPrice - $itemPrice) : $itemPrice;
-            $formattedPrice = number_format($finalPrice, 2, '.', '');
+            $formattedPrice = Number::fixed($finalPrice);
 
             $discount = $applyDiscount ? [
                 'description' => 'Custom Price',

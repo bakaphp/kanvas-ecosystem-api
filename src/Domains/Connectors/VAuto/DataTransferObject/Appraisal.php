@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VAuto\DataTransferObject;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn;
 use Kanvas\Connectors\SalesAssist\Services\MessageNoteService;
@@ -94,6 +95,6 @@ class Appraisal extends Data
 
     public function formattedLienPayoff(): ?string
     {
-        return $this->lienPayoff > 0 ? number_format($this->lienPayoff, 2, '.', '') : null;
+        return $this->lienPayoff > 0 ? Number::fixed($this->lienPayoff) : null;
     }
 }

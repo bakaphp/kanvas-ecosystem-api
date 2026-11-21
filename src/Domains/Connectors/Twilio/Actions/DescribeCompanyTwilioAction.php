@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Actions;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
@@ -110,7 +111,7 @@ class DescribeCompanyTwilioAction
         }
 
         if ($description['balance'] !== null && $description['balance'] <= 0) {
-            $amount = number_format($description['balance'], 2) . " {$description['currency']}";
+            $amount = Number::withCurrencyCode($description['balance'], $description['currency'] ?? 'USD');
             $problems[] = $this->problem('balance', 'error', "The balance is {$amount}, so Twilio refuses calls and texts until it is topped up.");
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions;
 
+use Baka\Support\Number;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\DataTransferObject\VehiclePrice;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureChannelEnum;
@@ -106,6 +107,6 @@ class RenderPriceDisclosureAction
 
     private static function money(float $amount): string
     {
-        return number_format($amount, 2, '.', ',');
+        return Number::grouped($amount, 2);
     }
 }

@@ -181,20 +181,20 @@ class CalculateCustomTaxAction
             '🛒 Producto: ' . $productName,
             '📦 Código Arancelario: ' . ($tariff->code ?? 'sin clasificar') . ' — ' . $tariff->name,
             '📍 País de Origen: US',
-            sprintf('💵 Valor CIF: %s / RD$%s (tasa %s)', Number::currency($cif, 'USD'), number_format($cif * $exchangeRate, 2), $exchangeRate),
+            sprintf('💵 Valor CIF: %s / %s (tasa %s)', Number::currency($cif, 'USD'), Number::currency($cif * $exchangeRate, 'DOP', 'es_DO'), $exchangeRate),
         ];
 
         foreach ($taxes as $tax) {
             $lines[] = sprintf(
-                '%s (%s%%): %s / RD$%s',
+                '%s (%s%%): %s / %s',
                 $tax['description'],
                 $tax['rate'],
                 Number::currency($tax['amount_usd'], 'USD'),
-                number_format($tax['amount_rd'], 2)
+                Number::currency($tax['amount_rd'], 'DOP', 'es_DO')
             );
         }
 
-        $lines[] = sprintf('Total Impuestos: %s / RD$%s', Number::currency($total, 'USD'), number_format($total * $exchangeRate, 2));
+        $lines[] = sprintf('Total Impuestos: %s / %s', Number::currency($total, 'USD'), Number::currency($total * $exchangeRate, 'DOP', 'es_DO'));
 
         return implode("\n", $lines);
     }

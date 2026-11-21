@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Taxes\DataTransferObject;
 
 use Baka\Support\Money;
+use Baka\Support\Number;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Taxes\Enums\TaxCategoryEnum;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
@@ -37,7 +38,7 @@ class TaxableLine extends Data
         return new self(
             lineId: $lineId,
             reference: $reference,
-            unitPrice: number_format($unitPrice, 2, '.', ''),
+            unitPrice: Number::fixed($unitPrice),
             quantity: $quantity,
             isTaxable: self::variantIsTaxable($variant, $creditReplacesPrice, $taxCategory),
             taxCategory: $taxCategory,
@@ -50,7 +51,7 @@ class TaxableLine extends Data
         return new self(
             lineId: 'shipping',
             reference: $reference,
-            unitPrice: number_format($amount, 2, '.', ''),
+            unitPrice: Number::fixed($amount),
             quantity: 1,
             isTaxable: true,
             isShipping: true,

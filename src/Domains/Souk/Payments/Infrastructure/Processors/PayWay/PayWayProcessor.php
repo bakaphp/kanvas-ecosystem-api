@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\PayWay;
 
+use Baka\Support\Number;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Str;
@@ -635,7 +636,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             'clienteUsuario' => $clienteUsuario,
             'clienteIp' => $clienteIp,
             'concepto' => $concepto,
-            'monto' => number_format((float) $order->getTotalDueAmount(), 2, '.', ''),
+            'monto' => Number::fixed((float) $order->getTotalDueAmount()),
             'traceId' => (string) $payment->idempotency_key,
             'datosAuxiliares' => [
                 'datoAuxiliar1' => (string) $order->order_number,

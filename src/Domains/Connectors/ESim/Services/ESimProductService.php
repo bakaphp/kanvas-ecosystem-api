@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\Services;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
@@ -265,7 +266,7 @@ class ESimProductService
                         'value' => $variantByPriceRange['days'],
                     ];
 
-                    $price = number_format($variantByPriceRange['public_price'], 2, '.', '');
+                    $price = Number::fixed($variantByPriceRange['public_price']);
                     $sku = Str::simpleSlug($variant['sku'] . '-' . $variantByPriceRange['days']);
                     $sourceId = $variant['id'] . '-' . $variantByPriceRange['days'];
 
@@ -301,7 +302,7 @@ class ESimProductService
                     ];
                 }
             } else {
-                $price = number_format($variant['public_price'], 2, '.', '');
+                $price = Number::fixed($variant['public_price']);
                 $productVariants[] = [
                     'name' => $variantName,
                     'description' => $variant['description'],

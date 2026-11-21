@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Insurance\Services;
 
+use Baka\Support\Number;
+
 class InsuranceQuoteSignature
 {
     public static function sign(
@@ -21,8 +23,8 @@ class InsuranceQuoteSignature
             $planId,
             $provider,
             $quoteNumber,
-            number_format($total, 4, '.', ''),
-            number_format($tax, 4, '.', ''),
+            Number::fixed($total, 4),
+            Number::fixed($tax, 4),
             $vehicleVariantId,
         ];
 

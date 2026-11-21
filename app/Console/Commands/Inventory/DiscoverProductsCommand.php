@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Inventory;
 
+use Baka\Support\Number;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -118,7 +119,7 @@ class DiscoverProductsCommand extends Command
             '  <info>%2d.</info> %-52s %10s  %s',
             $rank,
             mb_strimwidth((string) $result['product']['name'], 0, 50, '…'),
-            $price > 0 ? number_format((float) $price, 2) : 'no price',
+            $price > 0 ? Number::grouped((float) $price, 2) : 'no price',
             ($channel['is_available'] ?? false) ? 'available' : 'unavailable',
         ));
 

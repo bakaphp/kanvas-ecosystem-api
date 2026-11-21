@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Baka\Support\Money;
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
@@ -508,7 +509,7 @@ class CreateArInvoiceTool extends Tool
                 . 'the customer twice. Work with that invoice.',
                 $customer,
                 $invoice->getId(),
-                number_format((float) $invoice->total_native, 2, '.', ''),
+                Number::fixed((float) $invoice->total_native),
                 $invoice->currency,
                 $state
             ),
@@ -615,7 +616,7 @@ class CreateArInvoiceTool extends Tool
                 $customer,
                 $quote->getId(),
                 $quote->status->value,
-                number_format((float) $quote->total_native, 2, '.', ''),
+                Number::fixed((float) $quote->total_native),
                 $quote->currency,
                 $next
             ),

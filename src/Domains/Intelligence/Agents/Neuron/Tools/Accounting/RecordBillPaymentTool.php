@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Baka\Support\DateHelper;
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -243,7 +244,7 @@ class RecordBillPaymentTool extends Tool
 
     private function derivedReference(Bill $bill, Carbon $paidAt, float $amount): string
     {
-        return 'agent:' . $bill->getId() . ':' . $paidAt->toDateString() . ':' . number_format($amount, 2, '.', '');
+        return 'agent:' . $bill->getId() . ':' . $paidAt->toDateString() . ':' . Number::fixed($amount);
     }
 
     private function parkedMovementFor(
