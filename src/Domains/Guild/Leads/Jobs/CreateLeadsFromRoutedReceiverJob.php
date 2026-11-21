@@ -23,7 +23,7 @@ class CreateLeadsFromRoutedReceiverJob extends CreateLeadsFromReceiverJob
     protected function loadReceiver(): LeadReceiver
     {
         return LeadReceiver::getByIdFromCompanyApp(
-            $this->routedReceiverId() ?? $this->receiver->configuration['receiver_id'],
+            $this->routedReceiverId() ?? $this->configuredReceiverId(),
             $this->receiver->company,
             $this->receiver->app,
         );
