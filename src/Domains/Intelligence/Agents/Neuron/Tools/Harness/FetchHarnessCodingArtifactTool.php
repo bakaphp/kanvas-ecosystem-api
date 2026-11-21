@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 use Baka\Support\Str;
 use Baka\Support\TempFile;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Number;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -231,8 +232,8 @@ class FetchHarnessCodingArtifactTool extends Tool implements RequiresSystemAgent
 
             if ($size > self::MAX_BYTES) {
                 return $this->invalidArgs(
-                    'That file is ' . round($size / 1024 / 1024) . 'MB, over the '
-                        . (self::MAX_BYTES / 1024 / 1024) . 'MB limit.',
+                    'That file is ' . Number::fileSize($size) . ', over the '
+                        . Number::fileSize(self::MAX_BYTES) . ' limit.',
                     guidance: 'Ask the job to write a smaller summary file instead of fetching this one.'
                 );
             }

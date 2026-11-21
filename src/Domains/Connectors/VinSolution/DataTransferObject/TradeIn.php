@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 
 use Baka\Support\Str;
+use Illuminate\Support\Number;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn as SalesAssistTradeIn;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -145,7 +146,7 @@ class TradeIn extends Data
      */
     public function getFormattedValue(): string
     {
-        return '$' . number_format($this->value, 2);
+        return Number::currency($this->value, 'USD');
     }
 
     /**
@@ -153,6 +154,6 @@ class TradeIn extends Data
      */
     public function getFormattedPayoff(): string
     {
-        return '$' . number_format($this->payOff, 2);
+        return Number::currency($this->payOff, 'USD');
     }
 }
