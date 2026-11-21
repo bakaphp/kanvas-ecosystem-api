@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 use Kanvas\Connectors\OpenCode\Actions\ReapOrphanCodingContainersAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -112,10 +113,10 @@ class ReapCodingAgentRuntimeCommand extends Command
         $line = sprintf(
             '%s  disk  total=%s  opencode_home=%s  free=%s%s',
             $machine->name,
-            $this->humanBytes($disk['total']),
-            $this->humanBytes($disk['home']),
-            $this->humanBytes($disk['available']),
-            $disk['xcode'] > 0 ? '  xcode=' . $this->humanBytes($disk['xcode']) : '',
+            Number::fileSize($disk['total'], 1),
+            Number::fileSize($disk['home'], 1),
+            Number::fileSize($disk['available'], 1),
+            $disk['xcode'] > 0 ? '  xcode=' . Number::fileSize($disk['xcode'], 1) : '',
         );
 
         $this->line($line);
@@ -128,18 +129,6 @@ class ReapCodingAgentRuntimeCommand extends Command
             'available_bytes' => $disk['available'],
             'xcode_bytes' => $disk['xcode'],
         ]);
-    }
-
-    private function humanBytes(int $bytes): string
-    {
-        if ($bytes <= 0) {
-            return '?';
-        }
-
-        $units = ['B', 'K', 'M', 'G', 'T'];
-        $power = min((int) floor(log($bytes, 1024)), count($units) - 1);
-
-        return round($bytes / 1024 ** $power, 1) . $units[$power];
     }
 
     /**

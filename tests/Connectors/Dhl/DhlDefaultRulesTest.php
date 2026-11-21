@@ -32,7 +32,10 @@ final class DhlDefaultRulesTest extends TestCase
     use DatabaseTransactions;
     use InventoryCases;
 
-    protected $connectionsToTransact = [null, 'workflow', 'inventory'];
+    // `commerce` matters to the siblings, not only to this file: left out, the delivery statuses
+    // commit one by one, and a parallel test whose snapshot predates them hits the unique key on
+    // insert and then cannot read the row it collided with.
+    protected $connectionsToTransact = [null, 'workflow', 'inventory', 'commerce', 'crm'];
 
     private Companies $company;
     private IntegrationsCompany $integrationCompany;

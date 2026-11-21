@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\OpenCode\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Number;
 use Kanvas\Connectors\OpenCode\DataTransferObject\SessionAttachment;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -88,7 +89,7 @@ class SessionAttachmentService
 
             if (strlen($bytes) > self::MAX_BYTES) {
                 throw new ValidationException(
-                    'Attachment ' . $file->getId() . ' is larger than ' . (self::MAX_BYTES / 1024 / 1024) . 'MB.'
+                    'Attachment ' . $file->getId() . ' is larger than ' . Number::fileSize(self::MAX_BYTES) . '.'
                 );
             }
 

@@ -98,7 +98,9 @@ class Message extends BaseModel
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
     use HasPermissions;
-    use AsTree;
+    use AsTree {
+        rebuildSubtreePaths as rebuildDescendantPaths;
+    }
     use CanUseWorkflow;
     use HasLightHouseCache;
     use HasFilesystemTrait;
@@ -195,7 +197,35 @@ class Message extends BaseModel
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+        return $this->belongsToMany(
+            Users::class,
+            'user_messages',
+            'messages_id',
+            'users_id'
+        );
+    }
+
+    /**
+     * The tree's rebuild is a range update (`path like '<id>.%'`) that gap-locks the `path` index,
+     * and concurrent message inserts land in that gap: two inbound deliveries deadlock (1213) and
+     * one loses its chaining. A message nobody has replied to has no range to rewrite, so it is
+     * moved by primary key; only a real subtree pays for the range.
+     */
+    protected function rebuildSubtreePaths(): void
+    {
+        $hasChildren = static::withoutGlobalScopes()
+            ->where($this->getParentKeyName(), $this->getKey())
+            ->exists();
+
+        if ($hasChildren) {
+            $this->rebuildDescendantPaths();
+
+            return;
+        }
+
+        $this->newQuery()
+            ->whereKey($this->getKey())
+            ->update([$this->getPathColumn() => $this->buildPath()->getValue()]);
     }
 
     public function childrenByType(string $verb): HasMany
