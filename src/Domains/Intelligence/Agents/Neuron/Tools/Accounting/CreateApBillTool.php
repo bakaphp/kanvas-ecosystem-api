@@ -710,16 +710,7 @@ class CreateApBillTool extends Tool
             return null;
         }
 
-        $subaccountModel = Subaccount::firstOrCreate(
-            [
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->company->getId(),
-                'sub_code' => trim($subaccount),
-            ],
-            ['source' => 'kanvas'],
-        );
-
-        return (int) $subaccountModel->getKey();
+        return (int) Subaccount::resolveByCode($this->app, $this->company, $subaccount)->getKey();
     }
 
     /**
