@@ -21,6 +21,7 @@ use App\Console\Commands\Connectors\WebPos\PullWebPosReceivedEcfsCommand;
 use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
 use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
+use App\Console\Commands\Ecosystem\KanvasAppKeyAlertPendingSourcesCommand;
 use App\Console\Commands\Ecosystem\PruneModelCacheTagsCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
@@ -42,6 +43,7 @@ use App\Console\Commands\Souk\CheckoutReconcileCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Kanvas\Apps\Models\AppKeySource;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
@@ -75,6 +77,10 @@ class Kernel extends ConsoleKernel
         // never one statement.
         $schedule->command('model:prune', ['--model' => [StoredWorkflow::class]])->dailyAt('03:30')
             ->withoutOverlapping(1380)->onOneServer();
+        $schedule->command('model:prune', ['--model' => [AppKeySource::class]])->dailyAt('03:45')
+            ->withoutOverlapping(120)->onOneServer();
+        $schedule->command(KanvasAppKeyAlertPendingSourcesCommand::class)->everyTenMinutes()
+            ->withoutOverlapping(20)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(AlertUnverifiedOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(PollDhlTrackingCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();

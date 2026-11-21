@@ -23,6 +23,7 @@ use Override;
  * @property string $scope
  * @property string $last_used_date
  * @property ?string $expires_at = null
+ * @property bool $alert_on_new_source
  * @property string $created_at
  * @property ?string $updated_at = null
  * @property int $is_deleted
@@ -45,6 +46,14 @@ class AppKey extends BaseModel
      * @var array
      */
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'alert_on_new_source' => 'boolean',
+        ];
+    }
 
     protected $primaryKey = 'client_id';
     public $incrementing = false;
