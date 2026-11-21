@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use Baka\Support\Str;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Queue\RedisQueue;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Number;
 use Throwable;
 
 class KanvasStatusCommand extends Command
@@ -168,11 +168,11 @@ class KanvasStatusCommand extends Command
             default => 'green',
         };
         $usage = $memory['percent'] === null
-            ? Str::humanBytes($memory['used'], 2) . ' used, limit unknown'
+            ? Number::fileSize($memory['used'], 2) . ' used, limit unknown'
             : sprintf(
                 '%s of %s (%s%%)',
-                Str::humanBytes($memory['used'], 2),
-                Str::humanBytes($memory['limit'], 2),
+                Number::fileSize($memory['used'], 2),
+                Number::fileSize($memory['limit'], 2),
                 $memory['percent']
             );
 
@@ -181,7 +181,7 @@ class KanvasStatusCommand extends Command
             $color,
             $usage,
             $memory['has_max_memory'] || $memory['percent'] === null ? '' : ' — no maxmemory set, measured against host memory',
-            Str::humanBytes((int) ($info['used_memory_peak'] ?? 0), 2),
+            Number::fileSize((int) ($info['used_memory_peak'] ?? 0), 2),
             $info['maxmemory_policy'] ?? '?',
             (int) ($info['evicted_keys'] ?? 0)
         ));

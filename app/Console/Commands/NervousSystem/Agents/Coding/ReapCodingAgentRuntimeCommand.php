@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
-use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 use Kanvas\Connectors\OpenCode\Actions\ReapOrphanCodingContainersAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -113,10 +113,10 @@ class ReapCodingAgentRuntimeCommand extends Command
         $line = sprintf(
             '%s  disk  total=%s  opencode_home=%s  free=%s%s',
             $machine->name,
-            Str::humanBytes($disk['total']),
-            Str::humanBytes($disk['home']),
-            Str::humanBytes($disk['available']),
-            $disk['xcode'] > 0 ? '  xcode=' . Str::humanBytes($disk['xcode']) : '',
+            Number::fileSize($disk['total'], 1),
+            Number::fileSize($disk['home'], 1),
+            Number::fileSize($disk['available'], 1),
+            $disk['xcode'] > 0 ? '  xcode=' . Number::fileSize($disk['xcode'], 1) : '',
         );
 
         $this->line($line);
