@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Number;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Connectors\OpenCode\Services\CodingPolicy;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -340,12 +341,12 @@ class FinalizeHarnessSessionAction
         $usage = $this->session->usage();
 
         return sprintf(
-            '%s · %ds · %s in / %s out · ~$%s',
+            '%s · %ds · %s in / %s out · ~%s',
             $this->session->model ?? 'unknown model',
             $this->session->elapsedSeconds(),
             number_format($usage->inputTokens),
             number_format($usage->outputTokens),
-            number_format((float) $this->session->estimated_cost, 4)
+            Number::currency((float) $this->session->estimated_cost, 'USD', precision: 4)
         );
     }
 }

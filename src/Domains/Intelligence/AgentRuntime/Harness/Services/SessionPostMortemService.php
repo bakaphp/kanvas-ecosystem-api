@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Harness\Services;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Number;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -34,7 +35,7 @@ class SessionPostMortemService
             'Coding job ' . $session->task_id . ' hit its ' . $limit . '.',
             '',
             'Model: ' . ($session->model ?? 'unknown') . ' · running ' . intdiv($session->elapsedSeconds(), 60) . ' min'
-                . ' · ~$' . number_format((float) $session->estimated_cost, 2)
+                . ' · ~' . Number::currency((float) $session->estimated_cost, 'USD')
                 . ' · ' . number_format($session->input_tokens) . ' in / ' . number_format($session->output_tokens) . ' out',
             'Last agent message: ' . $this->silenceLine($silentMinutes),
             'Files changed: ' . $this->filesLine($files),

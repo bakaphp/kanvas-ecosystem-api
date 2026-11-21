@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Number;
 use Kanvas\Approvals\Actions\CancelApprovalAction;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
@@ -174,7 +175,7 @@ class PollHarnessSessionJob implements ShouldQueue
             return false;
         }
 
-        $this->reachLimit($session, $tick, 'cost limit of $' . number_format($cap, 2));
+        $this->reachLimit($session, $tick, 'cost limit of ' . Number::currency($cap, 'USD'));
 
         return true;
     }

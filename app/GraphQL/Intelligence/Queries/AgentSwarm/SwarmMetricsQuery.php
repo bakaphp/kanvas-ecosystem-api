@@ -6,6 +6,7 @@ namespace App\GraphQL\Intelligence\Queries\AgentSwarm;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentSwarmDailyCycle;
@@ -83,9 +84,9 @@ class SwarmMetricsQuery
                 'reason' => 'BUDGET_EXHAUSTED',
                 'severity' => 'critical',
                 'message' => sprintf(
-                    'Monthly budget reached 100%%. Spent $%s of $%s — raise the cap or wait for the period to reset.',
-                    number_format($snapshot['spent_usd'], 2),
-                    number_format((float) ($snapshot['monthly_cost_cap_usd'] ?? 0), 2),
+                    'Monthly budget reached 100%%. Spent %s of %s — raise the cap or wait for the period to reset.',
+                    Number::currency($snapshot['spent_usd'], 'USD'),
+                    Number::currency((float) ($snapshot['monthly_cost_cap_usd'] ?? 0), 'USD'),
                 ),
             ];
         }
