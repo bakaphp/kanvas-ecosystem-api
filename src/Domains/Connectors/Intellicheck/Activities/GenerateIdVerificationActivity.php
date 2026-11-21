@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Intellicheck\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
-use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
+use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdInNewEngagementAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -17,14 +17,14 @@ use Throwable;
 
 #[WorkflowAction(
     name: 'Generate ID Verification',
-    description: 'Scores an Intellicheck ID-verification payload and attaches the report to the '
-        . 'engagement the scan came from, so it lands in the folder that already holds the licence '
-        . 'images instead of a new one. Shared entry point for web, mobile and the Intellicheck receiver.',
+    description: 'Scores an Intellicheck ID-verification payload and files it as a new submitted '
+        . 'ID-verification engagement with the licence images and the report. With `eid` it threads '
+        . 'under that engagement. Shared entry point for web, mobile and the Intellicheck receiver.',
     integration: IntegrationsEnum::INTELLICHECK,
     params: [
         'eid' => 'Id or uuid of the ID-verification engagement the scan belongs to. Send it whenever '
-            . 'the caller knows it — the report then threads under that message instead of relying on '
-            . "the person's newest submitted engagement. Mobile does not have it.",
+            . 'the caller knows it — the report then threads under that message; without it every run '
+            . 'files a new engagement of its own. Mobile does not have it.',
         'people_uuid' => 'Uuid of the person verified. Omit for the main buyer; a co-buyer scan must '
             . 'send it or the result lands on the main buyer.',
         'intellicheck' => 'The Intellicheck result, unwrapped: idcheck / OCR / ocr_match / facial / ipqs.',
@@ -71,7 +71,7 @@ class GenerateIdVerificationActivity extends KanvasActivity
                     return $this->failWorkflow(['message' => 'No person to attach the verification to']);
                 }
 
-                return new VerifyPeopleIdAction($people, $lead)->execute(
+                return new VerifyPeopleIdInNewEngagementAction($people, $lead)->execute(
                     verificationData: $verificationData,
                     parentEngagement: $engagement,
                     images: $this->resolveImages($params),
