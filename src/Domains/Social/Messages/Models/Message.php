@@ -197,7 +197,12 @@ class Message extends BaseModel
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+        return $this->belongsToMany(
+            Users::class,
+            'user_messages',
+            'messages_id',
+            'users_id'
+        );
     }
 
     /**
