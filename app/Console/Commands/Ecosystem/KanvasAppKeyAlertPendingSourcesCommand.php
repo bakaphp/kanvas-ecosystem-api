@@ -44,7 +44,11 @@ class KanvasAppKeyAlertPendingSourcesCommand extends Command
 
                     $this->overwriteAppService($key->app);
 
-                    new AlertAppKeyNewSourceAction($key, $source)->execute() ? $delivered++ : $owed++;
+                    if (new AlertAppKeyNewSourceAction($key, $source)->execute()) {
+                        $delivered++;
+                    } else {
+                        $owed++;
+                    }
                 }
             }
         );

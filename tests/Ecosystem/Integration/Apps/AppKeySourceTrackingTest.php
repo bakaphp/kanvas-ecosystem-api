@@ -140,7 +140,7 @@ final class AppKeySourceTrackingTest extends TestCase
     {
         $action = new RecordAppKeySourceAction($this->appKey, '203.0.113.9', 'first');
         $action->execute();
-        Cache::forget($action->seenKey());
+        Cache::forget($action->markerKey());
         new RecordAppKeySourceAction($this->appKey, '203.0.113.9', 'second')->execute();
 
         $this->assertSame(1, $this->sources());
@@ -160,15 +160,14 @@ final class AppKeySourceTrackingTest extends TestCase
         $action->execute();
 
         $this->assertSame(0, $this->sources());
-        $this->assertFalse(Cache::has($action->seenKey()));
-        $this->assertTrue(Cache::has($action->retryKey()));
+        $this->assertSame(RecordAppKeySourceAction::RETRY, Cache::get($action->markerKey()));
 
         $failing = false;
-        Cache::forget($action->retryKey());
+        Cache::forget($action->markerKey());
         $action->execute();
 
         $this->assertSame(1, $this->sources());
-        $this->assertTrue(Cache::has($action->seenKey()));
+        $this->assertSame(RecordAppKeySourceAction::SETTLED, Cache::get($action->markerKey()));
     }
 
     public function testANewSourceAlertsOnlyWhenTheKeyIsWatched(): void
@@ -220,10 +219,10 @@ final class AppKeySourceTrackingTest extends TestCase
 
         $this->assertTrue($this->source()->email_alert_pending);
         $this->assertFalse($this->source()->sentry_alert_pending, 'the channel that went out is not owed again');
-        $this->assertFalse(Cache::has($action->seenKey()));
+        $this->assertSame(RecordAppKeySourceAction::RETRY, Cache::get($action->markerKey()));
 
         Notification::fake();
-        Cache::forget($action->retryKey());
+        Cache::forget($action->markerKey());
         $action->execute();
 
         Notification::assertSentOnDemand(AppKeyNewSourceNotification::class);
@@ -233,7 +232,7 @@ final class AppKeySourceTrackingTest extends TestCase
             'the retry does not repeat the Sentry alert'
         );
         $this->assertFalse($this->source()->hasPendingAlert());
-        $this->assertTrue(Cache::has($action->seenKey()));
+        $this->assertSame(RecordAppKeySourceAction::SETTLED, Cache::get($action->markerKey()));
     }
 
     public function testASentryEventThatWasNotAcceptedStaysOwed(): void
@@ -247,7 +246,7 @@ final class AppKeySourceTrackingTest extends TestCase
 
         $this->assertTrue($this->source()->sentry_alert_pending);
         $this->assertFalse($this->source()->email_alert_pending);
-        $this->assertFalse(Cache::has($action->seenKey()));
+        $this->assertSame(RecordAppKeySourceAction::RETRY, Cache::get($action->markerKey()));
     }
 
     public function testAnAlertOwedByASourceThatNeverReturnsIsDeliveredByTheScheduledCommand(): void

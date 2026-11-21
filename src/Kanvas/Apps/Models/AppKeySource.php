@@ -7,6 +7,7 @@ namespace Kanvas\Apps\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
+use Override;
 
 /**
  * @property int $id
@@ -30,6 +31,7 @@ class AppKeySource extends Model
     protected $guarded = [];
     public $timestamps = false;
 
+    #[Override]
     protected function casts(): array
     {
         return [
@@ -46,7 +48,9 @@ class AppKeySource extends Model
     public function scopeWithPendingAlert(Builder $query): Builder
     {
         return $query->where(
-            fn (Builder $query) => $query->where('sentry_alert_pending', true)->orWhere('email_alert_pending', true)
+            fn (Builder $query) => $query
+                ->where('sentry_alert_pending', true)
+                ->orWhere('email_alert_pending', true)
         );
     }
 

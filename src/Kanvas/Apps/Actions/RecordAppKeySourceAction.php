@@ -16,6 +16,9 @@ class RecordAppKeySourceAction
     private const int RETRY_TTL_SECONDS = 300;
     private const string UNKNOWN_IP = 'unknown';
 
+    public const string SETTLED = 'settled';
+    public const string RETRY = 'retry';
+
     private readonly string $ip;
 
     /**
@@ -34,14 +37,14 @@ class RecordAppKeySourceAction
      * Runs on every request that carries an app key, so it must stay one cache read for a known
      * source and must never fail the request it is observing.
      *
-     * The day-long marker is written only once the row is saved and its alert delivered. Anything
-     * short of that leaves the short retry marker instead, so a failed write or a failed alert is
-     * tried again in minutes rather than hidden for a day.
+     * The marker lasts a day only once the row is saved and its alert delivered. Anything short of
+     * that leaves a short-lived one, so a failed write or a failed alert is tried again in minutes
+     * rather than hidden for a day.
      */
     public function execute(): void
     {
         try {
-            if (Cache::has($this->seenKey()) || Cache::has($this->retryKey())) {
+            if (Cache::has($this->markerKey())) {
                 return;
             }
 
@@ -52,49 +55,49 @@ class RecordAppKeySourceAction
         }
 
         try {
-            $settled
-                ? Cache::put($this->seenKey(), 1, self::SEEN_TTL_SECONDS)
-                : Cache::put($this->retryKey(), 1, self::RETRY_TTL_SECONDS);
+            Cache::put(
+                $this->markerKey(),
+                $settled ? self::SETTLED : self::RETRY,
+                $settled ? self::SEEN_TTL_SECONDS : self::RETRY_TTL_SECONDS
+            );
         } catch (Throwable $e) {
             report($e);
         }
     }
 
-    public function seenKey(): string
+    public function markerKey(): string
     {
         return 'app-key-source:' . $this->appKey->client_id . ':' . sha1($this->ip);
     }
 
-    public function retryKey(): string
-    {
-        return $this->seenKey() . ':retry';
-    }
-
     private function record(): bool
     {
+        $seen = [
+            'user_agent' => $this->userAgent(),
+            'last_seen_at' => now(),
+        ];
+        // null on a key instance built before the column was read back, which the column refuses
+        $watched = (bool) $this->appKey->alert_on_new_source;
+
         $source = AppKeySource::firstOrCreate(
             [
                 'client_id' => $this->appKey->client_id,
                 'ip' => $this->ip,
             ],
             [
+                ...$seen,
                 'apps_id' => $this->appKey->apps_id,
-                'user_agent' => $this->userAgent(),
-                'first_seen_at' => now(),
-                'last_seen_at' => now(),
-                'sentry_alert_pending' => (bool) $this->appKey->alert_on_new_source,
-                'email_alert_pending' => (bool) $this->appKey->alert_on_new_source,
+                'first_seen_at' => $seen['last_seen_at'],
+                'sentry_alert_pending' => $watched,
+                'email_alert_pending' => $watched,
             ]
         );
 
         if (! $source->wasRecentlyCreated) {
-            $source->update([
-                'user_agent' => $this->userAgent(),
-                'last_seen_at' => now(),
-            ]);
+            $source->update($seen);
         }
 
-        if (! $source->hasPendingAlert() || ! $this->appKey->alert_on_new_source) {
+        if (! $source->hasPendingAlert() || ! $watched) {
             return true;
         }
 
