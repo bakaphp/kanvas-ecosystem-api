@@ -7,8 +7,9 @@ namespace Baka\Support;
 use Illuminate\Support\Number as IlluminateNumber;
 
 /**
- * Typed and catalog numbers → floats, without `intl`. Laravel's parse()/parseFloat()
- * hard-require the extension, which this image lacks, so calling them throws.
+ * The one Number the codebase imports: Laravel's helpers plus ours. toFloat() and friends parse
+ * typed and catalog numbers by hand because Laravel's parse()/parseFloat() do not read "20.000"
+ * or "45k" the way a shopper writes them.
  */
 class Number extends IlluminateNumber
 {
@@ -49,6 +50,35 @@ class Number extends IlluminateNumber
     public static function ratio(int|float $part, int|float $whole, int $precision = 4): ?float
     {
         return $whole > 0 ? round($part / $whole, $precision) : null;
+    }
+
+    /**
+     * "1,234.50". Fixed en-US grouping whatever locale Number is set to: this text goes into
+     * emails, PDFs and agent prompts that must read the same for every tenant.
+     */
+    public static function grouped(int|float $number, int $precision = 0): string
+    {
+        return number_format($number, $precision);
+    }
+
+    /** "1234.50", no grouping: the form payloads, signatures and dedupe keys are compared in. */
+    public static function fixed(int|float $number, int $precision = 2): string
+    {
+        return number_format($number, $precision, '.', '');
+    }
+
+    /**
+     * "$1,234.50 USD": the symbol currency() prints plus the code. The symbol alone is not enough,
+     * "$" is also how pesos are written, so a tenant that bills in DOP and USD could not tell the
+     * two apart. A currency with no symbol in this locale already prints as its code ("DOP 1,234.50").
+     *
+     * Rounded here first: ICU rounds half to even (0.125 → 0.12), money is displayed half-up.
+     */
+    public static function withCurrencyCode(int|float $amount, string $currency, int $precision = 2): string
+    {
+        $formatted = str_replace("\u{00A0}", ' ', (string) self::currency(round($amount, $precision), $currency, precision: $precision));
+
+        return str_contains($formatted, $currency) ? $formatted : $formatted . ' ' . $currency;
     }
 
     /** MULTIPLIERS as a regex alternation, so no pattern matches a suffix applyMultiplier() ignores. */

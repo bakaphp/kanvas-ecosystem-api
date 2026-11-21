@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Exports;
 
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Kanvas\Souk\Orders\Exports\Concerns\DrawsHeaderLogos;
 use Maatwebsite\Excel\Concerns\FromArray;

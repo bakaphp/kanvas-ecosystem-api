@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Illuminate\Support\Number;
+use Baka\Support\Number;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;

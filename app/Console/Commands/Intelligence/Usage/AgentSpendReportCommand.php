@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence\Usage;
 
+use Baka\Support\Number;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;

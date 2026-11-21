@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Services;
 
+use Baka\Support\Number;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Number;
 use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 use Kanvas\Intelligence\Sessions\Models\Session;

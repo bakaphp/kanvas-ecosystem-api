@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Banking\Services;
 
+use Baka\Support\Number;
 use Kanvas\Scribe\Banking\DataTransferObject\BankStatementLine;
 use Kanvas\Scribe\Banking\DataTransferObject\ParsedBankStatement;
 use Kanvas\Scribe\Banking\Enums\BankStatementRejectionEnum;
@@ -105,9 +106,9 @@ class BankStatementBalanceValidatorService
                     'Row %d (%s, %s) shows a running balance of %s, but the previous balance plus this movement is %s.',
                     $index + 1,
                     $line->date->toDateString(),
-                    number_format($line->amount, 2, '.', ''),
-                    number_format($line->runningBalance, 2, '.', ''),
-                    number_format($balance, 2, '.', ''),
+                    Number::fixed($line->amount),
+                    Number::fixed($line->runningBalance),
+                    Number::fixed($balance),
                 );
             }
 
@@ -131,12 +132,12 @@ class BankStatementBalanceValidatorService
                 BankStatementRejectionEnum::BALANCE_MISMATCH,
                 sprintf(
                     'Opening %s + credits %s − debits %s = %s, but the statement closes at %s (difference %s).',
-                    number_format($opening, 2, '.', ''),
-                    number_format($credits, 2, '.', ''),
-                    number_format($debits, 2, '.', ''),
-                    number_format($computed, 2, '.', ''),
-                    number_format($closing, 2, '.', ''),
-                    number_format($closing - $computed, 2, '.', ''),
+                    Number::fixed($opening),
+                    Number::fixed($credits),
+                    Number::fixed($debits),
+                    Number::fixed($computed),
+                    Number::fixed($closing),
+                    Number::fixed($closing - $computed),
                 ),
             );
         }

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence\Usage;
 
+use Baka\Support\Number;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Number;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;

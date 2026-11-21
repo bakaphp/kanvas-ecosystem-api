@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\Banking\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
@@ -251,9 +252,9 @@ class IngestBankStatementAction
             : 'h:' . sha1(implode('|', [
                 $account->getId(),
                 $line->date->toDateString(),
-                number_format($line->amount, 2, '.', ''),
+                Number::fixed($line->amount),
                 Str::lowerTrim(preg_replace('/\s+/', ' ', (string) $line->description)),
-                $line->runningBalance === null ? '' : number_format($line->runningBalance, 2, '.', ''),
+                $line->runningBalance === null ? '' : Number::fixed($line->runningBalance),
             ]));
 
         $occurrences[$base] = ($occurrences[$base] ?? 0) + 1;
@@ -336,9 +337,9 @@ class IngestBankStatementAction
     {
         $rows = array_map(fn (BankStatementLine $line): string => implode('|', [
             $line->date->toDateString(),
-            number_format($line->amount, 2, '.', ''),
+            Number::fixed($line->amount),
             (string) $line->reference,
-            $line->runningBalance === null ? '' : number_format($line->runningBalance, 2, '.', ''),
+            $line->runningBalance === null ? '' : Number::fixed($line->runningBalance),
         ]), $validated->lines);
 
         return sha1($account->getId() . "\n" . implode("\n", $rows));

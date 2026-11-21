@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Queries\AgentSwarm;
 
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentSwarmDailyCycle;

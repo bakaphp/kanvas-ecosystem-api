@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
+use Baka\Support\Number;
 use Illuminate\Console\Command;
-use Illuminate\Support\Number;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
 /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Recommendations\Enrichment\Services;
 
-use Illuminate\Support\Number;
+use Baka\Support\Number;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
 /**

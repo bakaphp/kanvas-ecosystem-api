@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\ScrapperApi;
 
+use Baka\Support\Number;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Actions\CalculateCustomTaxAction;
 use Kanvas\Connectors\ScrapperApi\Enums\CustomTaxEnum;

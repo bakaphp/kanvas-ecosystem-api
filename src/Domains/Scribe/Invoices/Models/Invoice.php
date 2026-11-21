@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Contracts\EngageableInterface;
 use Baka\Contracts\PayableInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Support\Number;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -361,8 +362,8 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
     {
         $customer = $this->billable_display_name ?? $this->customer?->name ?? 'Unknown customer';
 
-        return "You have an AR invoice pending approval:\nCustomer: {$customer}\nAmount: {$this->currency} "
-            . number_format((float) $this->total_native, 2)
+        return "You have an AR invoice pending approval:\nCustomer: {$customer}\nAmount: "
+            . Number::withCurrencyCode((float) $this->total_native, $this->currency)
             . ($this->notes !== null && $this->notes !== '' ? "\nMemo: {$this->notes}" : '')
             . "\nInvoice ID (Kanvas): {$this->getKey()}";
     }

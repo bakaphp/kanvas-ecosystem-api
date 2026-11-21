@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Quotes\Sow\Services;
 
 use Baka\Support\DateHelper;
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\PaymentTerms\Models\PaymentTerm;
 use Kanvas\Scribe\Quotes\Models\Quote;
@@ -227,6 +228,6 @@ final class SowConsistencyService
 
     private function number(float $value): string
     {
-        return number_format($value, 2, '.', '');
+        return Number::fixed($value);
     }
 }

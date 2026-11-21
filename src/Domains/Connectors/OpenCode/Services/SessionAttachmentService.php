@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\OpenCode\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Support\Number;
+use Baka\Support\Number;
 use Kanvas\Connectors\OpenCode\DataTransferObject\SessionAttachment;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;

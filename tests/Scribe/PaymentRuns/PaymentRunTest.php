@@ -187,7 +187,7 @@ final class PaymentRunTest extends AccountingOperationsTestCase
         $this->assertTrue($result['built']);
         $this->assertSame(static::$cachedUser->email, $result['sent_to']);
         $this->assertSame('sent', $result['status']);
-        $this->assertStringContainsString('USD 300.00', $result['summary']);
+        $this->assertStringContainsString('$300.00 USD', $result['summary']);
         $this->assertStringContainsString('enough cash', $result['summary']);
         Notification::assertSentTo(static::$cachedUser, Blank::class);
     }

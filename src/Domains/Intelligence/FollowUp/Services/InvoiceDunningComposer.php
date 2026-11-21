@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Services;
 
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
@@ -74,7 +75,7 @@ class InvoiceDunningComposer
             '',
             'Invoice: ' . $invoice->invoice_number,
             'Customer: ' . ($invoice->billable_display_name ?? ''),
-            'Balance due: ' . $invoice->currency . ' ' . number_format((float) $invoice->balance_due_native, 2),
+            'Balance due: ' . Number::withCurrencyCode((float) $invoice->balance_due_native, $invoice->currency),
             'Due date: ' . ($due?->toDateString() ?? 'none') . ' (' . $timing . ')',
             $opened,
             '',

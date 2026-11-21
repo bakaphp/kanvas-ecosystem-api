@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Number;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Connectors\OpenCode\Services\CodingPolicy;
 use Kanvas\Filesystem\Models\Filesystem;

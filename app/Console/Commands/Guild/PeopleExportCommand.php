@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Guild;
 
+use Baka\Support\Number;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\ContactType;

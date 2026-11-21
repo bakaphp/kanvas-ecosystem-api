@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Bills\Models;
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Support\Number;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -195,11 +196,11 @@ class Bill extends BaseModel implements PayableInterface, DeliversApprovalNotice
         $vendor = $this->vendor_display_name ?? $this->vendor?->name ?? 'Unknown vendor';
         $lines = $this->lines()->with('expenseAccount')->orderBy('sort_order')->get()
             ->map(fn (BillLine $line): string => '- ' . ($line->expenseAccount?->account_number ?? '?') . ' '
-                . $this->currency . ' ' . number_format((float) $line->line_total_native, 2) . ' ' . $line->description)
+                . Number::withCurrencyCode((float) $line->line_total_native, $this->currency) . ' ' . $line->description)
             ->implode("\n");
 
-        return "You have an AP bill pending approval:\nVendor: {$vendor}\nAmount: {$this->currency} "
-            . number_format((float) $this->total_native, 2)
+        return "You have an AP bill pending approval:\nVendor: {$vendor}\nAmount: "
+            . Number::withCurrencyCode((float) $this->total_native, $this->currency)
             . ($this->bill_number !== null ? "\nVendor invoice #: {$this->bill_number}" : '')
             . ($lines !== '' ? "\nLines:\n{$lines}" : '')
             . ($this->notes !== null && $this->notes !== '' ? "\nMemo: {$this->notes}" : '')

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
-use Illuminate\Support\Number;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn as SalesAssistTradeIn;
 use Kanvas\Guild\Leads\Models\Lead;

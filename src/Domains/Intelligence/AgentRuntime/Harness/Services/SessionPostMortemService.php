@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Services;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Number;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;

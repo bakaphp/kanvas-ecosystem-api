@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use Baka\Support\Number;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Queue\RedisQueue;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Number;
 use Throwable;
 
 class KanvasStatusCommand extends Command

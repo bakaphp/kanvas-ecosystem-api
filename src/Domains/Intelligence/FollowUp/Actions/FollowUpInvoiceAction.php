@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -214,7 +215,7 @@ class FollowUpInvoiceAction
             $this->invoice,
             DocumentSignalEnum::DUNNING_ESCALATED,
             "{$ownerLabel} to step in on invoice {$this->invoice->invoice_number} ({$this->invoice->billable_display_name}, "
-            . "{$this->invoice->currency} " . number_format((float) $this->invoice->balance_due_native, 2)
+            . Number::withCurrencyCode((float) $this->invoice->balance_due_native, $this->invoice->currency)
             . ", {$daysPastDue} days past due, every reminder sent): tell them with send_email_to_user and what the "
             . 'customer has said so far'
         );

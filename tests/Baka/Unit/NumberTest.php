@@ -36,4 +36,18 @@ class NumberTest extends TestCase
         $this->assertNull(Number::ratio(0, 0));
         $this->assertNull(Number::ratio(3, 0));
     }
+
+    public function testDisplayAndWireFormsOfAnAmount(): void
+    {
+        $this->assertSame('1,235', Number::grouped(1234.5));
+        $this->assertSame('1,234.50', Number::grouped(1234.5, 2));
+        $this->assertSame('1234.50', Number::fixed(1234.5));
+        $this->assertSame('0.3333', Number::fixed(1 / 3, 4));
+        $this->assertSame('$1,234.50 USD', Number::withCurrencyCode(1234.5, 'USD'));
+        $this->assertSame('€1,234.50 EUR', Number::withCurrencyCode(1234.5, 'EUR'));
+        $this->assertSame('DOP 1,234.50', Number::withCurrencyCode(1234.5, 'DOP'));
+        $this->assertSame('DOP 1,235', Number::withCurrencyCode(1234.5, 'DOP', 0));
+        $this->assertSame('$0.13 USD', Number::withCurrencyCode(0.125, 'USD'));
+        $this->assertSame('-$5.00 USD', Number::withCurrencyCode(-5, 'USD'));
+    }
 }

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
+use Baka\Support\Number;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Number;
 use Kanvas\Connectors\OpenCode\Actions\ReapOrphanCodingContainersAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
