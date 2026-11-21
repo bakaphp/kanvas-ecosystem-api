@@ -246,13 +246,16 @@ final class OutlookSendEmailToolTest extends TestCase
         $draft = $this->tool()->__invoke(to: $contact, subject: 'Propuesta', body: 'Adjunto la propuesta.');
         $this->tool()->__invoke(draft_id: $draft['draft_id']);
 
+        // One message, filed on both the person's email channel and their own conversation channel.
         $person = Contact::query()->where('value', $contact)->firstOrFail()->people;
         $sent = Channel::query()
             ->where('entity_namespace', People::class)
             ->where('entity_id', $person->getId())
             ->get()
             ->flatMap(fn (Channel $channel) => $channel->messages()->get())
+            ->unique('id')
             ->map(fn ($message) => $message->message['content'])
+            ->values()
             ->all();
 
         $this->assertSame(['Adjunto la propuesta.'], $sent);
