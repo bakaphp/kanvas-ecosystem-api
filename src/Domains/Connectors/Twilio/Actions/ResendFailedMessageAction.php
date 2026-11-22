@@ -15,7 +15,7 @@ use Kanvas\Social\Messages\Models\Message;
  * body and attachments go to the same number from the same connection, and the outcome is written
  * back onto this message.
  *
- * Every send guard still applies (do-not-contact, opt-out, the mobile-only Lookup) — a resend is a
+ * Every send guard still applies (do-not-contact, opt-out, the line-type Lookup) — a resend is a
  * person deciding to try again, not a way around a stop request.
  */
 class ResendFailedMessageAction

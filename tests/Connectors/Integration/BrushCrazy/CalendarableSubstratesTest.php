@@ -90,6 +90,21 @@ final class CalendarableSubstratesTest extends TestCase
         $this->assertSame(35.0, (float) $version->fresh()->price_per_ticket);
     }
 
+    /** The site keeps a class's ticket variants in the same column; a resync must not drop them. */
+    public function testAResyncKeepsTheMetadataTheSiteWrote(): void
+    {
+        $version = $this->sync->fromRow(CalendarableTypeEnum::LESSON, $this->lesson([$this->substrate(1, '16x20 Canvas', 3500)]));
+        $version->metadata = $version->metadata + ['brushcrazy_booking' => ['allowed_variant_ids' => ['42']]];
+        $version->saveQuietly();
+
+        $row = $this->lesson([$this->substrate(1, '16x20 Canvas', 3500)]);
+        $row->occupancy = 30;
+        $version = $this->sync->fromRow(CalendarableTypeEnum::LESSON, $row)->fresh();
+
+        $this->assertSame(['allowed_variant_ids' => ['42']], $version->metadata['brushcrazy_booking']);
+        $this->assertSame(30, $version->metadata['max_capacity']);
+    }
+
     /**
      * @param  array<int, object>  $substrates
      */

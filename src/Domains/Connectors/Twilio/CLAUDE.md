@@ -33,11 +33,22 @@ shared resource; a plain number on its own `smsUrl`.
 Every text goes through `Communication::send()` / `reply()` and `SmsTransport`. Nothing else calls
 the Messages API.
 
-- **Only mobile numbers are texted.** `SmsTransport::refusalForLine()` is an allow-list on the Lookup
-  line type: any other type (`fixedVoip`, `tollFree`, `unknown`...), a missing type or a
-  `line_type_intelligence` error is refused before the Messages API is called. Keep it an
-  allow-list — a block-list lets every type Twilio adds later through. A reply is not looked up:
-  someone who texted us is reachable on that number.
+- **Only `mobile` numbers, and `fixedVoip` / `nonFixedVoip` on a carrier known to carry texts, are
+  texted.** `SmsTransport::refusalForLine()` is an allow-list on the Lookup line type: any other type
+  (`landline`, `tollFree`, `unknown`...), a missing type or a `line_type_intelligence` error is refused
+  before the Messages API is called. Keep it an allow-list — a block-list lets every type Twilio adds
+  later through. Lookup cannot say whether a VoIP number has texting enabled, so a VoIP line passes
+  only when its `carrier_name` contains one of `VOIP_CARRIER_KEYWORDS` (a fixed list in that class,
+  not a setting); no carrier name is a refusal. That refusal's reason is exactly `VOIP without SMS`
+  (code `voip_without_sms`) — it is what the person who wrote the text reads, so do not add the
+  number or the carrier to it. A reply is not looked up: someone who texted us is reachable on that
+  number.
+- **A number marked invalid accepts no more texts.** `refusalForLine()` refuses,
+  before the Lookup, any destination whose phone contact is a permanent failure
+  (`People::isPhoneUndeliverable`, code `undeliverable_number`) — the mark `30003` / `30005` / `30006`
+  leave, and also what a CRM rejection or the agent's `mark_invalid` leave. Nothing in the SMS flow
+  clears it: `Contact::markValid()` is the only way back. A reply skips this with the rest of the
+  lookup.
 - **`21610` is an opt-out, not a fault.** The recipient texted STOP to Twilio, which unsubscribed
   them itself. The transport flags it, the ledger opts the phone out, and the lead send leaves a
   note. It is never retried.

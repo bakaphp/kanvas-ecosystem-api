@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Number;
 use Kanvas\Connectors\ScrapperApi\DataTransferObject\TariffRate;
 use Kanvas\Connectors\ScrapperApi\Enums\CustomTaxEnum;
 use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
@@ -180,20 +181,20 @@ class CalculateCustomTaxAction
             '🛒 Producto: ' . $productName,
             '📦 Código Arancelario: ' . ($tariff->code ?? 'sin clasificar') . ' — ' . $tariff->name,
             '📍 País de Origen: US',
-            sprintf('💵 Valor CIF: $%s / RD$%s (tasa %s)', number_format($cif, 2), number_format($cif * $exchangeRate, 2), $exchangeRate),
+            sprintf('💵 Valor CIF: %s / RD$%s (tasa %s)', Number::currency($cif, 'USD'), number_format($cif * $exchangeRate, 2), $exchangeRate),
         ];
 
         foreach ($taxes as $tax) {
             $lines[] = sprintf(
-                '%s (%s%%): $%s / RD$%s',
+                '%s (%s%%): %s / RD$%s',
                 $tax['description'],
                 $tax['rate'],
-                number_format($tax['amount_usd'], 2),
+                Number::currency($tax['amount_usd'], 'USD'),
                 number_format($tax['amount_rd'], 2)
             );
         }
 
-        $lines[] = sprintf('Total Impuestos: $%s / RD$%s', number_format($total, 2), number_format($total * $exchangeRate, 2));
+        $lines[] = sprintf('Total Impuestos: %s / RD$%s', Number::currency($total, 'USD'), number_format($total * $exchangeRate, 2));
 
         return implode("\n", $lines);
     }

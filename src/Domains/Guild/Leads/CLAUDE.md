@@ -83,3 +83,12 @@ Every action that talks to the customer through the Communication domain, or fil
 goes there. The intake emails (`SendLeadEmailsAction`, `SendRotationEmailsAction`,
 `SendLeadConfirmationToContactAction`) stay in `Actions/`: they are notifications of the receiver flow above,
 not conversation messages.
+
+## One endpoint, several receivers
+
+[`CreateLeadsFromRoutedReceiverJob`](Jobs/CreateLeadsFromRoutedReceiverJob.php) is for a source that posts
+every product line to one URL (LendingTree: working capital and commercial real estate). The webhook's
+`configuration.routes` picks the lead receiver from the payload; the lead then gets that receiver's
+template, rotation, source and name, and no match falls back to `receiver_id`. A route's `field` is read
+before any template, so it names the source's own key, not the Kanvas one. Prefer a second receiver uuid
+when the source can post to two URLs; that needs no route at all.

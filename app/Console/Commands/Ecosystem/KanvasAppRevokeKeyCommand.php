@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Ecosystem;
 
+use App\Console\Commands\Ecosystem\Concerns\ResolvesAppKey;
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Carbon\Exceptions\InvalidFormatException;
@@ -15,6 +16,7 @@ use Kanvas\Apps\Models\Apps;
 class KanvasAppRevokeKeyCommand extends Command
 {
     use KanvasJobsTrait;
+    use ResolvesAppKey;
 
     protected $signature = 'kanvas:app-key-revoke
                             {app_id}
@@ -70,31 +72,6 @@ class KanvasAppRevokeKeyCommand extends Command
                 $key->is_deleted ? 'yes' : 'no',
             ])->all()
         );
-    }
-
-    private function resolveKey(Apps $app): ?AppKey
-    {
-        $identifier = $this->option('key');
-        $name = $this->option('name');
-
-        if ($identifier === null && $name === null) {
-            return null;
-        }
-
-        $query = AppKey::notDeleted()->where('apps_id', $app->getId());
-
-        if ($identifier !== null) {
-            $query->where(
-                fn ($query) => $query->where('client_id', $identifier)
-                    ->orWhere('client_secret_id', $identifier)
-            );
-        }
-
-        if ($name !== null) {
-            $query->where('name', $name);
-        }
-
-        return $query->first();
     }
 
     private function expireKey(AppKey $key): int

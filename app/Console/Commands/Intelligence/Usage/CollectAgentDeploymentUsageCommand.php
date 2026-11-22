@@ -7,6 +7,7 @@ namespace App\Console\Commands\Intelligence\Usage;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
@@ -67,11 +68,11 @@ class CollectAgentDeploymentUsageCommand extends Command
 
                 $successCount++;
                 $this->line(sprintf(
-                    '[%d] %s: %d tokens, $%s → snapshot #%d',
+                    '[%d] %s: %d tokens, %s → snapshot #%d',
                     $deployment->id,
                     $deployment->provider ?? '?',
                     $snapshot->total_tokens,
-                    number_format((float) $snapshot->cost_usd, 4),
+                    Number::currency((float) $snapshot->cost_usd, 'USD', precision: 4),
                     $snapshot->getId(),
                 ));
             } catch (Throwable $e) {

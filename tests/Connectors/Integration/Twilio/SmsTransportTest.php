@@ -11,9 +11,12 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Enums\OperationKindEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Connectors\Twilio\Actions\ApplyDestinationRemediationAction;
 use Kanvas\Connectors\Twilio\SmsTransport;
+use Kanvas\Guild\Customers\Actions\Communication\SendMessageToPeopleAction;
 use Mockery;
 use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
@@ -52,15 +55,114 @@ final class SmsTransportTest extends TestCase
         $this->assertSame('SM100', $result->externalId);
     }
 
+    public function testAVoipNumberOnACarrierKnownToCarryTextsIsTexted(): void
+    {
+        $delivery = $this->queuedDelivery();
+        $lines = [
+            ['type' => 'nonFixedVoip', 'carrier_name' => 'Bandwidth.com CLEC, LLC - IL'],
+            ['type' => 'nonFixedVoip', 'carrier_name' => 'Twilio - SMS/MMS'],
+            ['type' => 'fixedVoip', 'carrier_name' => 'Enflick - 360 Networks'],
+            ['type' => 'fixedVoip', 'carrier_name' => 'Some Local Exchange - SVR'],
+            ['type' => 'nonFixedVoip', 'carrier_name' => 'Onvoy, LLC'],
+            ['type' => 'nonFixedVoip', 'carrier_name' => 'Sinch Voice'],
+            ['type' => 'nonFixedVoip', 'carrier_name' => 'Telnyx LLC'],
+            ['type' => 'fixedVoip', 'carrier_name' => 'Peerless Network of Texas'],
+            ['type' => 'fixedVoip', 'carrier_name' => 'Level 3 Communications, LLC'],
+            // The carrier of a mobile is not looked at.
+            ['type' => 'mobile', 'carrier_name' => 'Comcast'],
+        ];
+        $this->messages->shouldReceive('create')->times(count($lines))->andReturn((object) ['sid' => 'SM-voip']);
+
+        foreach ($lines as $intelligence) {
+            $this->line = (object) ['valid' => true, 'lineTypeIntelligence' => $intelligence, 'lineStatus' => ['status' => 'active']];
+
+            $this->assertSame('SM-voip', $this->transport()->send($delivery, Content::text('Hello'))->externalId);
+        }
+    }
+
     /**
-     * Allow-list: anything Twilio does not call mobile is refused before the Messages API is called.
+     * The reason is what the person who wrote the text reads, so it is that string and nothing more.
      */
-    public function testOnlyAMobileNumberIsTexted(): void
+    public function testAVoipNumberOnAnyOtherCarrierIsRefusedAsVoipWithoutSms(): void
+    {
+        $delivery = $this->queuedDelivery();
+        $this->messages->shouldNotReceive('create');
+        $lines = [
+            ['type' => 'fixedVoip', 'carrier_name' => 'Comcast'],
+            ['type' => 'nonFixedVoip', 'carrier_name' => 'Some VoIP Co'],
+            ['type' => 'nonFixedVoip'],
+            ['type' => 'fixedVoip', 'carrier_name' => '  '],
+        ];
+
+        foreach ($lines as $intelligence) {
+            $this->line = (object) ['valid' => true, 'lineTypeIntelligence' => $intelligence, 'lineStatus' => ['status' => 'active']];
+            $result = $this->transport()->send($delivery, Content::text('Hello'));
+
+            $this->assertSame('voip_without_sms', $result->errorCode);
+            $this->assertSame('VOIP without SMS', $result->error);
+        }
+    }
+
+    /**
+     * The mark a carrier failure leaves on the number is what the next text is refused on, before
+     * the lookup is paid for.
+     */
+    #[DataProvider('codesThatMarkANumberInvalid')]
+    public function testANumberWhoseDeliveryFailedAcceptsNoMoreTexts(string $errorCode): void
+    {
+        $delivery = $this->queuedDelivery();
+        $people = $delivery->request->people;
+        $email = $people->addEmail('still-reachable-' . $people->getId() . '@example.com');
+        $this->messages->shouldReceive('create')->once()->andReturn((object) ['sid' => 'SM-before']);
+
+        $transport = $this->transport();
+        $this->assertSame('SM-before', $transport->send($delivery, Content::text('Hello'))->externalId);
+        $this->assertSame(1, $transport->lookups);
+
+        new ApplyDestinationRemediationAction(
+            $delivery->app,
+            $delivery->company,
+            '+18095550199',
+            $errorCode
+        )->execute();
+
+        $transport = $this->transport();
+        $result = $transport->send($delivery->fresh(), Content::text('Hello again'));
+
+        $this->assertSame('undeliverable_number', $result->errorCode);
+        $this->assertSame(
+            '+18095550199 is marked invalid; no further texts are sent to it.',
+            $result->error
+        );
+        $this->assertSame(0, $transport->lookups);
+
+        $this->assertTrue($email->fresh()->isDeliverable(), 'the dead number says nothing about their email');
+        $this->assertSame(
+            $email->value,
+            new SendMessageToPeopleAction($people->fresh())->addressFor(ChannelTypeEnum::EMAIL)
+        );
+    }
+
+    public static function codesThatMarkANumberInvalid(): array
+    {
+        return [
+            'unreachable handset' => ['30003'],
+            'unknown destination' => ['30005'],
+            'landline or unreachable carrier' => ['30006'],
+        ];
+    }
+
+    /**
+     * Allow-list: anything Twilio does not call mobile or VoIP is refused before the Messages API is called.
+     */
+    public function testOnlyAMobileOrVoipNumberIsTexted(): void
     {
         $delivery = $this->queuedDelivery();
         $this->messages->shouldNotReceive('create');
 
-        foreach ([['type' => 'fixedVoip'], ['type' => null, 'error_code' => 60600], []] as $intelligence) {
+        $lines = [['type' => 'tollFree'], ['type' => ''], ['type' => null, 'error_code' => 60600], []];
+
+        foreach ($lines as $intelligence) {
             $this->line = (object) ['valid' => true, 'lineTypeIntelligence' => $intelligence, 'lineStatus' => ['status' => 'active']];
 
             $this->assertSame('not_mobile', $this->transport()->send($delivery, Content::text('Hello'))->errorCode);
@@ -240,6 +342,8 @@ final class SmsTransportTest extends TestCase
         }
 
         return new class ($client, $this->line) extends SmsTransport {
+            public int $lookups = 0;
+
             public function __construct(
                 private readonly TwilioClient $twilio,
                 private readonly object $line
@@ -248,6 +352,8 @@ final class SmsTransportTest extends TestCase
 
             protected function lineOf(Delivery $delivery, string $number): object
             {
+                $this->lookups++;
+
                 return $this->line;
             }
 

@@ -14,6 +14,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Models\BaseModel;
+use Override;
 
 /**
  * @property int $id
@@ -72,6 +73,15 @@ class AgentMachine extends BaseModel
     protected $hidden = [
         'ssh_private_key',
     ];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+            'is_connected' => 'boolean',
+        ];
+    }
 
     public function deployments(): HasMany
     {

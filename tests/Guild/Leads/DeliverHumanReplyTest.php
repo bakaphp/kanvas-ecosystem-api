@@ -247,6 +247,32 @@ final class DeliverHumanReplyTest extends TestCase
         $this->assertStringContainsString('Yes, come by', $notes->first()->message['content']);
     }
 
+    /**
+     * A text the pre-send lookup refuses (here a VoIP line with no texting carrier) never reaches the
+     * carrier, so no status callback will report it: the person who wrote it sees it failed, with the
+     * reason, on the message itself.
+     */
+    public function testAReplyRefusedBeforeItIsSentIsMarkedFailedOnTheMessage(): void
+    {
+        $this->defaultSmsConnection(number: '+18095550726');
+        $lead = $this->leadOf($this->personWithCellphone('+18095550727'));
+        $channel = $this->conversationChannel($lead);
+        $reply = $this->written($channel, $lead, 'Yes, come by');
+        $reason = 'VOIP without SMS';
+        $this->transport->sendResult = TransportResult::failed('voip_without_sms', $reason);
+
+        [$activity, $result] = $this->runActivity($channel, $reply);
+
+        $this->assertSame(StatusEnum::FAILED, $activity->workflowStatus());
+        $this->assertSame($reason, $result['message']);
+
+        $reply->refresh();
+        $this->assertSame('failed', $reply->message['delivery']['status'] ?? null);
+        $this->assertSame('voip_without_sms', $reply->message['delivery']['error_code'] ?? null);
+        $this->assertSame($reason, $reply->message['delivery']['error_message'] ?? null);
+        $this->assertFalse((bool) $reply->is_un_response, 'a refused reply answers nothing');
+    }
+
     public function testACompanyThatCannotSendOnThatMediumSendsNothing(): void
     {
         $lead = $this->leadOf($this->personWithCellphone('+18095550705'));

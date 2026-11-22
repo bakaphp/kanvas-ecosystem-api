@@ -27,6 +27,7 @@ use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleType;
 use stdClass;
+use Throwable;
 
 /**
  * Writes one BrushCrazy user into one studio company as a People. The bulk import, the mirror
@@ -69,6 +70,7 @@ class SyncCustomerFromBrushCrazyAction
         protected StudioContext $context,
         ?IdMapRepository $idMaps = null,
         protected ?StudioCredits $credits = null,
+        protected ?SyncCustomerAccountFromBrushCrazyAction $accounts = null,
     ) {
         $this->idMaps = $idMaps ?? new IdMapRepository();
     }
@@ -105,6 +107,9 @@ class SyncCustomerFromBrushCrazyAction
         }
 
         $this->adoptable = $this->findAdoptable(array_values(array_unique($emails)));
+
+        $this->accounts ??= new SyncCustomerAccountFromBrushCrazyAction($this->app);
+        $this->accounts->preload($rows);
     }
 
     public function fromRow(stdClass $row): People
@@ -135,7 +140,28 @@ class SyncCustomerFromBrushCrazyAction
             ]
         );
 
+        $this->syncAccount($row);
+
         return $people;
+    }
+
+    /**
+     * The login is a side of the customer, not the customer: a login that cannot be made (a bad
+     * email, a race the lock lost) must not undo the People this row already wrote.
+     */
+    protected function syncAccount(stdClass $row): void
+    {
+        $this->accounts ??= new SyncCustomerAccountFromBrushCrazyAction($this->app);
+
+        try {
+            $this->accounts->fromRow($row);
+        } catch (Throwable $e) {
+            Log::warning('BrushCrazy customer login not synced', [
+                'app_id' => $this->app->getId(),
+                'brushcrazy_user_id' => (int) $row->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

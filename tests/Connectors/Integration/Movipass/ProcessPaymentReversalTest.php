@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EchoPayCustomFieldEnum;
+use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Connectors\Movipass\Jobs\RetryPaymentReversalJob;
 use Kanvas\Guild\Customers\Models\People;
@@ -17,6 +19,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Mockery;
+use ReflectionProperty;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -55,6 +58,55 @@ final class ProcessPaymentReversalTest extends TestCase
             RetryPaymentReversalJob::class,
             fn (RetryPaymentReversalJob $job) => $job->payment->getId() === $payment->getId() && $job->delay !== null
         );
+    }
+
+    public function testDoesNotReverseWhenBookkeepingFailsAfterTheGatewayCaptured(): void
+    {
+        Bus::fake([RetryPaymentReversalJob::class]);
+
+        [$app, $order, $payment, $bankTransaction] = $this->makeAuthorizedOrder();
+
+        $client = Mockery::mock(EchoPayService::class);
+        $client->shouldReceive('capturePayment')
+            ->once()
+            ->andReturn(['id' => $bankTransaction, 'status' => 'CAPTURED']);
+
+        $processor = Mockery::mock(PortalPaymentProcessor::class)
+            ->makePartial()
+            ->shouldAllowMockingProtectedMethods();
+        $processor->shouldReceive('processPayment')
+            ->once()
+            ->andReturn(['status' => 'success', 'message' => 'Payment successful', 'data' => []]);
+        $processor->shouldReceive('setupMerchantAuthentication')
+            ->andReturn(MerchantDetail::from([
+                'id' => 'merchant',
+                'key' => 'key',
+                'secretKey' => 'secret',
+                'merchantDefinedInformation' => null,
+            ]));
+        $processor->shouldNotReceive('reversePayment');
+        new ReflectionProperty(PortalPaymentProcessor::class, 'client')->setValue($processor, $client);
+
+        $redisFull = true;
+        Payments::updated(function () use (&$redisFull) {
+            if ($redisFull) {
+                $redisFull = false;
+
+                throw new RuntimeException("OOM command not allowed when used memory > 'maxmemory'.");
+            }
+        });
+
+        $result = new ProcessPaymentAction($app, $payment, $order, $processor)
+            ->execute($this->consumerAuthentication());
+
+        $this->assertSame('success', $result['status']);
+
+        $payment->refresh();
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
+        $this->assertArrayNotHasKey(RetryPaymentReversalJob::PENDING_KEY, $payment->metadata ?? []);
+        $this->assertFalse($payment->paymentLogs()->where('event_type', 'payment_reversal')->exists());
+
+        Bus::assertNotDispatched(RetryPaymentReversalJob::class);
     }
 
     public function testRetryJobClearsPendingFlagWhenGatewayAcceptsTheReversal(): void

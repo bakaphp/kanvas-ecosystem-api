@@ -207,7 +207,13 @@ final class AppOwnerEscalationTest extends TestCase
         $app = app(Apps::class);
         $keyOwner = $this->createUser();
         $key = new CreateAppKeyAction(new AppKeyInput('carry-' . uniqid(), $app, $keyOwner), createUserInApp: false)->execute();
-        $otherUsersToken = $this->createUser()->createToken('test')->toArray()['token'];
+        $otherUser = $this->createUser();
+        $otherUsersToken = $otherUser->createToken('test')->toArray()['token'];
+
+        // The guard already holds a user in tests, so the bearer token alone decides nothing: without
+        // this the request runs as the suite's shared user, and an Owner role another test left on
+        // that user is a legitimate pass through the key check.
+        $this->actingAs($otherUser, 'api');
 
         return $this->graphQL(
             /** @lang GraphQL */

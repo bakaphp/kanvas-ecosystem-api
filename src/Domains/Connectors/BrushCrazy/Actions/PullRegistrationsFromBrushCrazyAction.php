@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Concerns\PullsSourceInChunks;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 
 /**
@@ -78,6 +79,8 @@ class PullRegistrationsFromBrushCrazyAction
                     if ($onProgress !== null) {
                         $onProgress($morph, $rows->count());
                     }
+
+                    ImportPace::pauseBetweenChunks();
                 },
                 $table . '.id',
                 'id'

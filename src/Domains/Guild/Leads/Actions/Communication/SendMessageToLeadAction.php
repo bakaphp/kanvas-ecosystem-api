@@ -60,6 +60,7 @@ class SendMessageToLeadAction
     protected ?string $attemptedProvider = null;
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
+    protected bool $sentByHuman = false;
     protected ?CampaignRecipient $campaignRecipient = null;
     protected string $emailTemplate = EmailComposer::DEFAULT_TEMPLATE;
     protected ?Agent $speakingAgent = null;
@@ -80,6 +81,18 @@ class SendMessageToLeadAction
     public function withSignatureOwner(?Users $user): self
     {
         $this->signatureOwner = $user;
+
+        return $this;
+    }
+
+    /**
+     * A person wrote and sent this themselves, so their own opt-in signature closes the email — no
+     * agent's signing grant is involved (see UserEmailSignature::forSender() for agent sends).
+     */
+    public function sentByUser(?Users $user): self
+    {
+        $this->signatureOwner = $user;
+        $this->sentByHuman = $user !== null;
 
         return $this;
     }
@@ -724,7 +737,8 @@ class SendMessageToLeadAction
                 trackOpens: true
             ),
             fromAgent: $this->speakingAgent,
-            signatureOwner: $this->signatureOwner
+            signatureOwner: $this->signatureOwner,
+            writtenByOwner: $this->sentByHuman
         );
         $template = $content->email->template;
 

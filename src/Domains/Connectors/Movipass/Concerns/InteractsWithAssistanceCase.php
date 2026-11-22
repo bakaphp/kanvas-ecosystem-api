@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Concerns;
 
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\RoadsideAdditionalChargeStatusEnum;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -71,6 +72,17 @@ trait InteractsWithAssistanceCase
             MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
             MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug(),
         ], true);
+    }
+
+    protected function hasOutstandingAdditionalCharges(array $assistanceCase): bool
+    {
+        foreach ($assistanceCase['additional_charges'] ?? [] as $charge) {
+            if (RoadsideAdditionalChargeStatusEnum::tryFrom((string) ($charge['status'] ?? ''))?->isOutstanding()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

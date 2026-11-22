@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Number;
 use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -91,7 +92,7 @@ class PlanBudgetService
         $cost = $this->spend($plan)['cost_usd'];
 
         return $cost >= $cap
-            ? sprintf('Plan spend $%.2f reached its $%.2f ceiling.', $cost, $cap)
+            ? sprintf('Plan spend %s reached its %s ceiling.', Number::currency($cost, 'USD'), Number::currency($cap, 'USD'))
             : null;
     }
 

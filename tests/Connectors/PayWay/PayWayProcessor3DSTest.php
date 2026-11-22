@@ -90,6 +90,62 @@ class PayWayProcessor3DSTest extends TestCase
         $this->assertArrayNotHasKey('tarjetaUuid', $calls[0]['payload']);
     }
 
+    public function testStartChallengeSendsNetAmountAfterOrderDiscount(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value);
+        $order = $this->buildOrderMock(gross: 100.00, net: 70.00);
+
+        $this->fakeClient->queueResponse('payUsing3ds', PayWayResponse::fromArray([
+            'returnCode' => '01',
+            'message' => 'Step 1 — device data required',
+            'success' => false,
+            'tokenAcceso' => 'token-abc-123',
+            'urlColeccionDatoDispositivo' => 'https://payway.sv/collect',
+            'referenciaId' => 'ref-999',
+        ]));
+
+        $this->processor->startChallenge($payment, $order, [
+            'card' => [
+                'number' => '4111111111111111',
+                'cvv' => '123',
+                'expiration_date' => '2612',
+                'firstname' => 'John',
+                'lastname' => 'Doe',
+            ],
+        ]);
+
+        $calls = $this->fakeClient->getCalls('payUsing3ds');
+        $this->assertSame('70.00', $calls[0]['payload']['monto']);
+    }
+
+    public function testStartChallengeSendsFullAmountWhenOrderHasNoDiscount(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value);
+        $order = $this->buildOrderMock(gross: 100.00);
+
+        $this->fakeClient->queueResponse('payUsing3ds', PayWayResponse::fromArray([
+            'returnCode' => '01',
+            'message' => 'Step 1 — device data required',
+            'success' => false,
+            'tokenAcceso' => 'token-abc-123',
+            'urlColeccionDatoDispositivo' => 'https://payway.sv/collect',
+            'referenciaId' => 'ref-999',
+        ]));
+
+        $this->processor->startChallenge($payment, $order, [
+            'card' => [
+                'number' => '4111111111111111',
+                'cvv' => '123',
+                'expiration_date' => '2612',
+                'firstname' => 'John',
+                'lastname' => 'Doe',
+            ],
+        ]);
+
+        $calls = $this->fakeClient->getCalls('payUsing3ds');
+        $this->assertSame('100.00', $calls[0]['payload']['monto']);
+    }
+
     public function testStartChallengeSavedCardPathUsesTarjetaUuid(): void
     {
         $paymentMethod = $this->buildPaymentMethodMock('uuid-fixture-value');
@@ -562,7 +618,7 @@ class PayWayProcessor3DSTest extends TestCase
         return $pm;
     }
 
-    private function buildOrderMock(): Order
+    private function buildOrderMock(float $gross = 10.00, ?float $net = null): Order
     {
         $order = Mockery::mock(Order::class)->makePartial();
         $order->exists = true;
@@ -571,11 +627,11 @@ class PayWayProcessor3DSTest extends TestCase
         $order->ip_address = '192.168.1.1';
         $order->user_email = 'test@example.com';
         $order->currency = 'USD';
-        $order->total_gross_amount = 10.00;
-        $order->total_net_amount = 10.00;
+        $order->total_gross_amount = $gross;
+        $order->total_net_amount = $net ?? $gross;
 
         $order->shouldReceive('getTotalAmount')
-            ->andReturn(10.00)
+            ->andReturn($gross)
             ->byDefault();
 
         return $order;

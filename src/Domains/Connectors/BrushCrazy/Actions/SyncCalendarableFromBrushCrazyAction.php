@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\BrushCrazy\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Client;
@@ -231,6 +232,25 @@ class SyncCalendarableFromBrushCrazyAction
         $this->writeMirroredFields($event, [CustomFieldEnum::BRUSHCRAZY_EVENT_GROUP_KEY->value => $mapped['group_key']]);
 
         return $event;
+    }
+
+    /**
+     * A version's metadata is shared: the mirror writes its own keys, and the site writes others
+     * (`brushcrazy_booking`, the ticket variants a class sells). Replacing the whole column on every
+     * sync turned booking off for that class, so the mirror's keys are laid over what is there.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    protected function attributesOverExisting(Model $existing, array $attributes): array
+    {
+        if ($existing instanceof EventVersion
+            && is_array($attributes['metadata'] ?? null)
+            && is_array($existing->metadata)) {
+            $attributes['metadata'] = array_replace($existing->metadata, $attributes['metadata']);
+        }
+
+        return $attributes;
     }
 
     /**

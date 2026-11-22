@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
+use Illuminate\Support\Number;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
@@ -410,7 +411,7 @@ class RunCodingChatAction
         return '**' . $live->repo_slug . '**'
             . ($live->branch !== null ? ' · branch `' . $live->branch . '`' : '')
             . ' · ' . $live->status
-            . ' · ~$' . number_format((float) $live->estimated_cost, 2);
+            . ' · ~' . Number::currency((float) $live->estimated_cost, 'USD');
     }
 
     private function stop(?AgentTaskSession $live): string
