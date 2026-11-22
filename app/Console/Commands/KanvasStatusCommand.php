@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Number;
+use Kanvas\Workflow\Services\WedgedWorkflowService;
 use Throwable;
 
 class KanvasStatusCommand extends Command
@@ -22,7 +23,7 @@ class KanvasStatusCommand extends Command
 
     protected $description = 'Health snapshot of Kanvas: databases, redis and how full it is, queues, failed jobs — is everything good?';
 
-    private const array QUEUES = [
+    public const array QUEUES = [
         'default',
         'kanvas-social',
         'notifications',
@@ -288,7 +289,26 @@ class KanvasStatusCommand extends Command
         $this->table(['Queue', 'Waiting', 'Running', 'Oldest waiting', 'Failed'], $rows);
         $this->line('  Total waiting: ' . $totalPending . '   |   Total failed: ' . $totalFailed);
 
-        return $backlogged || $totalFailed > 0;
+        $spinning = $this->spinningJobs();
+        if ($spinning > 0) {
+            $threshold = WedgedWorkflowService::DEFAULT_MIN_ATTEMPTS;
+            $this->line("  <fg=red>{$spinning} job(s) past {$threshold} attempts</> — released over and over, never failing.");
+            $this->line('  Run <options=bold>kanvas:workflow-wedged</> to see them.');
+        }
+
+        return $backlogged || $totalFailed > 0 || $spinning > 0;
+    }
+
+    /**
+     * A wedged workflow job is invisible in the table above: it is never waiting long and never fails.
+     */
+    private function spinningJobs(): int
+    {
+        try {
+            return app(WedgedWorkflowService::class)->countSpinningJobs(self::QUEUES);
+        } catch (Throwable) {
+            return 0;
+        }
     }
 
     /**

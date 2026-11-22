@@ -133,6 +133,7 @@ trait HasKanvasAgentBehavior
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
     protected ?int $inboundMessageId = null;
+    protected ?string $turnId = null;
 
     /** @var list<int> */
     protected array $inboundMessageIds = [];
@@ -320,6 +321,16 @@ trait HasKanvasAgentBehavior
             $messageId,
             ...$burstMessageIds,
         ]))));
+    }
+
+    public function setTurnId(?string $turnId): void
+    {
+        $this->turnId = $turnId;
+    }
+
+    public function currentTurnId(): ?string
+    {
+        return $this->turnId;
     }
 
     public function setPrivateUserTurn(bool $private): void

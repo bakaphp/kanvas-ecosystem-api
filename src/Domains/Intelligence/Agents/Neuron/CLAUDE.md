@@ -135,6 +135,20 @@ a session uuid, which is how `EntityRollupMessageStore` knows whether to filter 
 `RunNeuronChatAction` binds the session uuid itself when a caller that skips the kernel
 (`RespondToMentionJob`, `DraftCustomerUpdateAction`) hands it an unbound handler.
 
+## Turn id and write confirmation
+
+`RunNeuronChatAction::execute()` stamps a fresh uuid on the handler (`setTurnId()`) for every run, one per
+user turn on every entry point (userChat, channel responders, mentions); a retry inside the run keeps it.
+`MergesRegisteredTools::fillKanvasContext()` hands the thread id and that turn id to a tool that uses
+`Neuron/Tools/Concerns/HasTurnContext` (`withTurn()`); any other tool is untouched. Tools are wired inside
+`chat()`, after the id is set. A sub-agent or a hand-built tool has no turn and fails closed.
+
+A write the person must approve uses `RequiresTurnConfirmation` (needs `confirmingUserId()`): the first call
+returns a preview plus a one-use token from `ToolConfirmationTokens` (cache, 10 min, bound to thread, user,
+tool and exact arguments, plus the preview's turn id); the call that carries the token only executes on a
+LATER turn. Same turn, other thread/user/arguments, expired, reused or no turn context all refuse. Reference:
+`Connectors/Movipass/Neuron/Tools/ProviderAdmin/`.
+
 ## History: `resources()` is the only seam
 
 `Agent::getChatHistory()` is final in v4. The override point is `resources()`, and

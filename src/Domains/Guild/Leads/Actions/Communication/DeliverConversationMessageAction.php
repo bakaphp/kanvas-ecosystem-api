@@ -104,8 +104,15 @@ final class DeliverConversationMessageAction
             ? SmsOptOutNoticeService::appendIfFirstOutbound($this->channel, $content, $this->message)
             : $content;
 
+        $sender = new SendMessageToLeadAction($lead)->inConversationOn($connection);
+
+        if ($this->writtenByPerson) {
+            // Message::user is a UserFullTableName, not the Users a signature is read from.
+            $sender->sentByUser(Users::where('id', $this->message->users_id)->notDeleted()->first());
+        }
+
         try {
-            $result = new SendMessageToLeadAction($lead)->inConversationOn($connection)->execute(
+            $result = $sender->execute(
                 channel: $medium,
                 message: $body,
                 from: $from,
