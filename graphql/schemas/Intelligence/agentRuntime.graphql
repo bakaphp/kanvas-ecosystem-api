@@ -64,7 +64,7 @@ extend type Subscription {
         )
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     agentRuntimeCreateMachine(input: AgentMachineInput!): AgentMachineType!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@create"
@@ -88,7 +88,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@ping"
         )
+}
 
+extend type Mutation @guard {
     agentRuntimeBackupAgent(
         deployment_id: ID!
         include_workspace: Boolean

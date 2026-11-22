@@ -616,24 +616,6 @@ class PortalPaymentProcessor
                 ]),
                 $merchantAuthentication
             );
-
-            $payment->addLog('payment_captured', [
-                'order_id' => $order->id,
-                'transaction_id' => $transactionId,
-                'amount' => $order->getTotalDueAmount(),
-            ]);
-
-            $payment->markAsPaid([
-                'data' => [
-                    'capture_data' => $capturePayment,
-                ],
-            ]);
-
-            return [
-                'status' => 'success',
-                'message' => 'Payment captured successfully',
-                'data' => $capturePayment,
-            ];
         } catch (ConnectException | RequestException $e) {
             // Timeout occurred - provider likely captured but response didn't arrive
             // Assume success and mark as backup_capture for reconciliation
@@ -647,13 +629,11 @@ class PortalPaymentProcessor
                 'assumed_captured' => true,
             ]);
 
-            $payment->markAsPaid([
-                'data' => [
-                    'backup_capture' => true,
-                    'capture_timeout' => [
-                        'timestamp' => now()->toIso8601String(),
-                        'error' => $e->getMessage(),
-                    ],
+            $this->markCaptured($payment, [
+                'backup_capture' => true,
+                'capture_timeout' => [
+                    'timestamp' => now()->toIso8601String(),
+                    'error' => $e->getMessage(),
                 ],
             ]);
 
@@ -695,6 +675,32 @@ class PortalPaymentProcessor
                 'message' => $e->getMessage(),
                 'data' => [],
             ];
+        }
+
+        $payment->addLog('payment_captured', [
+            'order_id' => $order->id,
+            'transaction_id' => $transactionId,
+            'amount' => $order->getTotalDueAmount(),
+        ]);
+
+        $this->markCaptured($payment, ['capture_data' => $capturePayment]);
+
+        return [
+            'status' => 'success',
+            'message' => 'Payment captured successfully',
+            'data' => $capturePayment,
+        ];
+    }
+
+    private function markCaptured(Payments $payment, array $data): void
+    {
+        try {
+            $payment->markAsPaid(['data' => $data]);
+        } catch (Throwable $e) {
+            report($e);
+
+            $payment->status = PaymentStatusEnum::PAID->value;
+            $payment->saveQuietly();
         }
     }
 
