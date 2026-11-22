@@ -33,6 +33,7 @@ use Kanvas\Workflow\Rules\Models\Rule;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\Event\Concerns\BuildsInviteOnlyParking;
 use Tests\Event\Support\PassScanDecisionTestActivity;
+use Tests\Event\Support\PassScannedRecorderTestActivity;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 use Tests\Workflow\Support\BuildsSyncRules;
@@ -455,6 +456,92 @@ class ScanEventPassTest extends TestCase
 
         $this->assertSame(PassScanResultEnum::ADMITTED, $outcome->result);
         $this->assertSame(2, (int) $this->codePassOf($booking)->use_count);
+    }
+
+    public function testAnAdmittedScanFiresPassScannedWithTheUseDetails(): void
+    {
+        $booking = $this->bookDay(0);
+        $this->makeMultiUse($booking, 2);
+        $this->passScannedRule();
+        $code = $this->passCodeOf($booking);
+        $firstScanAt = $this->insideTheWindow(0);
+
+        $this->scan($code, $firstScanAt);
+        $this->scan($code, $firstScanAt->copy()->addHours(2));
+
+        $this->assertCount(2, PassScannedRecorderTestActivity::$calls);
+        [$first, $second] = PassScannedRecorderTestActivity::$calls;
+        $this->assertSame($booking->getId(), $first['entity_id']);
+        $this->assertSame(1, $first['params']['use_number']);
+        $this->assertSame(2, $first['params']['max_uses']);
+        $this->assertSame($firstScanAt->toIso8601String(), $first['params']['scanned_at']);
+        $this->assertSame($this->gatedProduct->getId(), $first['params']['products_id']);
+        $this->assertSame($this->codePassOf($booking)->getId(), $first['params']['participant_passes_id']);
+        $this->assertSame(2, $second['params']['use_number']);
+        $this->assertSame($firstScanAt->copy()->addHours(2)->toIso8601String(), $second['params']['scanned_at']);
+    }
+
+    public function testRejectedScansDoNotFirePassScanned(): void
+    {
+        $booking = $this->bookDay(0);
+        $this->passScannedRule();
+        $code = $this->passCodeOf($booking);
+
+        $this->scan('NOT-A-CODE', $this->insideTheWindow(0));
+        $this->scan($code, $this->days[0]['slot']->start_at->copy()->subHour());
+        $this->assertSame([], PassScannedRecorderTestActivity::$calls);
+
+        $this->scan($code, $this->insideTheWindow(0));
+        $outcome = $this->scan($code, $this->insideTheWindow(0));
+
+        $this->assertSame(PassScanResultEnum::ALREADY_ADMITTED, $outcome->result);
+        $this->assertCount(1, PassScannedRecorderTestActivity::$calls);
+    }
+
+    public function testADeniedLaterUseDoesNotFirePassScanned(): void
+    {
+        $booking = $this->decidedBooking(decisionFromUse: 2);
+        $this->decisionRule($booking, 'deny');
+        $this->passScannedRule();
+        $code = $this->passCodeOf($booking);
+
+        $this->scan($code, $this->insideTheWindow(0));
+        $outcome = $this->scan($code, $this->insideTheWindow(0)->addHour());
+
+        $this->assertSame(PassScanResultEnum::NOT_AUTHORIZED, $outcome->result);
+        $this->assertCount(1, PassScannedRecorderTestActivity::$calls);
+    }
+
+    public function testAFailingPassScannedRuleNeverBreaksTheAdmit(): void
+    {
+        $booking = $this->bookDay(0);
+        $this->createSyncRule(
+            app: $this->apps,
+            event: WorkflowEnum::PASS_SCANNED->value,
+            modelClass: EventVersion::class,
+            activityClass: PassScanDecisionTestActivity::class,
+            company: $this->company,
+            params: ['verdict' => 'boom'],
+            actionName: 'Test Pass Scan Decision',
+        );
+
+        $outcome = $this->scan($this->passCodeOf($booking), $this->insideTheWindow(0));
+
+        $this->assertSame(PassScanResultEnum::ADMITTED, $outcome->result);
+    }
+
+    private function passScannedRule(): Rule
+    {
+        PassScannedRecorderTestActivity::$calls = [];
+
+        return $this->createSyncRule(
+            app: $this->apps,
+            event: WorkflowEnum::PASS_SCANNED->value,
+            modelClass: EventVersion::class,
+            activityClass: PassScannedRecorderTestActivity::class,
+            company: $this->company,
+            actionName: 'Test Pass Scanned Recorder',
+        );
     }
 
     public function testTheDecisionRuleIsNotAskedForTheFirstUse(): void

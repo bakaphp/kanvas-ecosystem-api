@@ -22,6 +22,8 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\OrderProvider;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 class ScanEventPassAction
 {
@@ -136,9 +138,11 @@ class ScanEventPassAction
         ?int $decidedUse
     ): PassScanOutcome {
         $result = PassScanResultEnum::ADMITTED;
+        $scannedAt = Carbon::now();
+        $admittedUse = null;
 
         try {
-            DB::connection('event')->transaction(function () use ($pass, $booking, $decidedUse, &$result): void {
+            DB::connection('event')->transaction(function () use ($pass, $booking, $decidedUse, &$result, &$admittedUse): void {
                 $locked = ParticipantPass::query()->whereKey($pass->getKey())->lockForUpdate()->firstOrFail();
 
                 if ($locked->revoked_at !== null) {
@@ -163,6 +167,7 @@ class ScanEventPassAction
 
                 $locked->use_count = $useNumber;
                 $locked->save();
+                $admittedUse = ['use_number' => $useNumber, 'max_uses' => $locked->max_uses ?? 1];
 
                 $this->record(
                     PassScanResultEnum::ADMITTED,
@@ -190,7 +195,33 @@ class ScanEventPassAction
             $this->record($result, $pass);
         }
 
+        if ($result === PassScanResultEnum::ADMITTED && $admittedUse !== null) {
+            $this->announceScan($pass, $booking, $admittedUse, $scannedAt);
+        }
+
         return new PassScanOutcome($result, $this->summarize($pass, $booking, $timeSlot));
+    }
+
+    private function announceScan(
+        ParticipantPass $pass,
+        EventVersion $booking,
+        array $admittedUse,
+        Carbon $scannedAt
+    ): void {
+        try {
+            $booking->fireWorkflowAfterCommit(
+                WorkflowEnum::PASS_SCANNED->value,
+                [
+                    'app' => $this->app,
+                    ...$admittedUse,
+                    'scanned_at' => $scannedAt->toIso8601String(),
+                    'products_id' => $this->gateProduct->getId(),
+                    'participant_passes_id' => $pass->getId(),
+                ]
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function isLaterUse(ParticipantPass $pass): bool
