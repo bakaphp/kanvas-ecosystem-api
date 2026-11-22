@@ -27,12 +27,11 @@ use Kanvas\Event\Passes\Services\PassScanDecisionGate;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Tests\Connectors\Support\RecordsParkingPayments;
 use Tests\Connectors\Support\ThrowingParkingOperator;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\Event\Concerns\BuildsWalkInParking;
@@ -48,6 +47,7 @@ final class ParkingExitDecisionActivityTest extends TestCase
     use DatabaseTransactions;
     use HasIntegrationCompany;
     use InventoryCases;
+    use RecordsParkingPayments;
 
     protected $apps;
     protected $user;
@@ -112,7 +112,7 @@ final class ParkingExitDecisionActivityTest extends TestCase
     public function testDeniedAndConfirmationRequestedWhenPaidButUnconfirmed(): void
     {
         [$booking, $order] = $this->enteredAndQuoted();
-        $this->addPaidPayment($order);
+        $this->addPaidPaymentForQuote($order);
         Bus::fake();
 
         $result = $this->decide($booking);
@@ -173,7 +173,7 @@ final class ParkingExitDecisionActivityTest extends TestCase
         $this->assertSame(PassScanResultEnum::ADMITTED, $this->scan($code)->result);
         $this->assertSame(PassScanResultEnum::NOT_AUTHORIZED, $this->scan($code)->result);
 
-        $this->addPaidPayment($order);
+        $this->addPaidPaymentForQuote($order);
         $this->assertSame(PassScanResultEnum::NOT_AUTHORIZED, $this->scan($code)->result);
 
         new ConfirmParkingPaymentJob($order->app, $order)->handle();
@@ -243,7 +243,7 @@ final class ParkingExitDecisionActivityTest extends TestCase
 
     private function payAndConfirm(Order $order): void
     {
-        $this->addPaidPayment($order);
+        $this->addPaidPaymentForQuote($order);
         new ConfirmParkingPaymentJob($order->app, $order)->handle();
         $order->refresh();
         $this->assertNotEmpty(ParkingMetadata::of($order)[ParkingMetadata::PAYMENT_CONFIRMED_AT]);
@@ -264,26 +264,5 @@ final class ParkingExitDecisionActivityTest extends TestCase
     private function scan(string $code): PassScanOutcome
     {
         return new ScanEventPassAction($this->apps, $this->user, $this->company, $this->gatedProduct)->execute($code);
-    }
-
-    private function addPaidPayment(Order $order): Payments
-    {
-        $payment = new Payments();
-        $payment->apps_id = $order->apps_id;
-        $payment->companies_id = $order->companies_id;
-        $payment->users_id = $order->users_id;
-        $payment->payment_methods_id = 0;
-        $payment->payable_id = $order->getId();
-        $payment->payable_type = Order::class;
-        $payment->concept = 'Parking exit';
-        $payment->payment_date = date('Y-m-d');
-        $payment->amount = ParkingMetadata::of($order->refresh())[ParkingMetadata::QUOTE]['amount_due'];
-        $payment->currency = 'USD';
-        $payment->status = PaymentStatusEnum::PAID->value;
-        $payment->processor = 'test';
-        $payment->metadata = ['data' => []];
-        $payment->saveOrFail();
-
-        return $payment;
     }
 }

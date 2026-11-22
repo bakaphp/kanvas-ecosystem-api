@@ -18,11 +18,9 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\ParkingPassScannedActivity;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Regions\Models\Regions;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
-use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Tests\Connectors\Support\RecordsParkingPayments;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\Event\Concerns\BuildsWalkInParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -35,6 +33,7 @@ final class ParkingPassScannedActivityTest extends TestCase
     use DatabaseTransactions;
     use HasIntegrationCompany;
     use InventoryCases;
+    use RecordsParkingPayments;
 
     private const string SCANNED_AT = '2026-11-22T10:00:00+00:00';
     private const string EXITED_AT = '2026-11-22T11:00:00+00:00';
@@ -118,7 +117,7 @@ final class ParkingPassScannedActivityTest extends TestCase
     {
         [$booking, $order] = $this->walkInBooking();
         $this->runActivity($booking, useNumber: 1);
-        $this->addPaidPayment($order);
+        $this->addPayment($order, 0.75);
 
         $this->runActivity($booking, useNumber: 2, scannedAt: self::EXITED_AT);
 
@@ -179,7 +178,7 @@ final class ParkingPassScannedActivityTest extends TestCase
     {
         [$booking, $order] = $this->walkInBooking();
         $this->runActivity($booking, useNumber: 1);
-        $this->addPaidPayment($order);
+        $this->addPayment($order, 0.75);
         $order->refresh();
         OrderStatusTransitions::where('from_status_id', $order->order_status_id)->delete();
 
@@ -208,7 +207,7 @@ final class ParkingPassScannedActivityTest extends TestCase
     {
         [$booking, $order] = $this->walkInBooking();
         $this->runActivity($booking, useNumber: 1);
-        $this->addPaidPayment($order);
+        $this->addPayment($order, 0.75);
 
         $this->runActivity($booking, useNumber: 2, scannedAt: self::EXITED_AT);
         $this->runActivity($booking, useNumber: 2, scannedAt: self::EXITED_AT);
@@ -264,26 +263,5 @@ final class ParkingPassScannedActivityTest extends TestCase
                 'scanned_at' => $scannedAt,
             ]
         );
-    }
-
-    private function addPaidPayment(Order $order): Payments
-    {
-        $payment = new Payments();
-        $payment->apps_id = $order->apps_id;
-        $payment->companies_id = $order->companies_id;
-        $payment->users_id = $order->users_id;
-        $payment->payment_methods_id = 0;
-        $payment->payable_id = $order->getId();
-        $payment->payable_type = Order::class;
-        $payment->concept = 'Parking exit';
-        $payment->payment_date = date('Y-m-d');
-        $payment->amount = 0.75;
-        $payment->currency = 'USD';
-        $payment->status = PaymentStatusEnum::PAID->value;
-        $payment->processor = 'test';
-        $payment->metadata = ['data' => []];
-        $payment->saveOrFail();
-
-        return $payment;
     }
 }

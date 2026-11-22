@@ -21,9 +21,9 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Support\RecordsParkingPayments;
 use Tests\Connectors\Traits\CreatesMovipassParkingOrder;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -35,6 +35,7 @@ final class ParkingQuoteAndPayTest extends TestCase
     use CreatesMovipassParkingOrder;
     use HasIntegrationCompany;
     use InventoryCases;
+    use RecordsParkingPayments;
     use PaymentCases;
 
     private const string ENTRY = '2026-11-22T10:00:00+00:00';
@@ -82,27 +83,6 @@ final class ParkingQuoteAndPayTest extends TestCase
         Carbon::setTestNow(Carbon::parse(self::ENTRY)->addMinutes($minutes));
         new QuoteParkingExitAction($order)->execute();
         $order->refresh();
-    }
-
-    private function addPayment(Order $order, float $amount, PaymentStatusEnum $status): Payments
-    {
-        $payment = new Payments();
-        $payment->apps_id = $order->apps_id;
-        $payment->companies_id = $order->companies_id;
-        $payment->users_id = $order->users_id;
-        $payment->payment_methods_id = 0;
-        $payment->payable_id = $order->getId();
-        $payment->payable_type = Order::class;
-        $payment->concept = 'Parking exit';
-        $payment->payment_date = date('Y-m-d');
-        $payment->amount = $amount;
-        $payment->currency = 'USD';
-        $payment->status = $status->value;
-        $payment->processor = 'test';
-        $payment->metadata = ['data' => []];
-        $payment->saveOrFail();
-
-        return $payment;
     }
 
     private function forceOutcome(Order $order, string $outcome): void

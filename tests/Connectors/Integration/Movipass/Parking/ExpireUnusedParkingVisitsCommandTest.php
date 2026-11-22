@@ -27,10 +27,9 @@ use Kanvas\Event\Support\Setup;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use RuntimeException;
+use Tests\Connectors\Support\RecordsParkingPayments;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\Event\Concerns\BuildsWalkInParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -42,6 +41,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
     use DatabaseTransactions;
     use HasIntegrationCompany;
     use InventoryCases;
+    use RecordsParkingPayments;
 
     private const string COMMAND = 'kanvas-movipass:expire-unused-parking-visits';
 
@@ -167,7 +167,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
         [$booking, $order] = $this->walkInBooking();
         $this->enter($booking, $order);
         ParkingMetadata::put($order, [ParkingMetadata::QUOTE => ['amount_due' => 0.75]]);
-        $this->addPaidPayment($order, 0.75);
+        $this->addPayment($order, 0.75);
 
         Bus::fake();
         $this->runCommand();
@@ -183,7 +183,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
             ParkingMetadata::QUOTE => ['amount_due' => 0.75],
             ParkingMetadata::PAYMENT_CONFIRMED_AT => now()->toIso8601String(),
         ]);
-        $this->addPaidPayment($order, 0.75);
+        $this->addPayment($order, 0.75);
 
         Bus::fake();
         $this->runCommand();
@@ -212,7 +212,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
     public function testAnOrderWithAPaymentIsNeverExpired(): void
     {
         [, $order] = $this->walkInBooking(['expire_unused_minutes' => 20]);
-        $this->addPaidPayment($order, 1.0);
+        $this->addPayment($order, 1.0);
 
         Carbon::setTestNow(now()->addHours(2));
         $this->runCommand();
@@ -326,26 +326,5 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
     private function passOf(EventVersion $booking): ParticipantPass
     {
         return ParticipantPass::query()->where('event_version_id', $booking->getId())->firstOrFail();
-    }
-
-    private function addPaidPayment(Order $order, float $amount): Payments
-    {
-        $payment = new Payments();
-        $payment->apps_id = $order->apps_id;
-        $payment->companies_id = $order->companies_id;
-        $payment->users_id = $order->users_id;
-        $payment->payment_methods_id = 0;
-        $payment->payable_id = $order->getId();
-        $payment->payable_type = Order::class;
-        $payment->concept = 'Parking exit';
-        $payment->payment_date = date('Y-m-d');
-        $payment->amount = $amount;
-        $payment->currency = 'USD';
-        $payment->status = PaymentStatusEnum::PAID->value;
-        $payment->processor = 'test';
-        $payment->metadata = ['data' => []];
-        $payment->saveOrFail();
-
-        return $payment;
     }
 }

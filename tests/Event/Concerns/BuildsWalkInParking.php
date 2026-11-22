@@ -12,6 +12,7 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Passes\DataTransferObject\WalkInAccess;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 
 trait BuildsWalkInParking
 {
@@ -27,6 +28,16 @@ trait BuildsWalkInParking
         $this->gatedVariant = $this->gatedProduct->variants()->first();
         $this->makeVariantSellable($this->gatedVariant);
         $this->configureBookingOrderType();
+    }
+
+    private function configureOwnedWalkInOrderType(?array $config = null): OrderTypes
+    {
+        $orderType = $this->configureBookingOrderType('movipass');
+        $orderType->companies_id = $this->company->getId();
+        $orderType->config = $config;
+        $orderType->saveOrFail();
+
+        return $orderType;
     }
 
     private function startedSlot(): TimeSlots
