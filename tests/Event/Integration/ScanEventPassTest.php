@@ -22,19 +22,25 @@ use Kanvas\Event\Passes\Actions\FindPassByCodeAction;
 use Kanvas\Event\Passes\Actions\ScanEventPassAction;
 use Kanvas\Event\Passes\DataTransferObject\PassScanOutcome;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
+use Kanvas\Event\Passes\Services\PassScanDecisionGate;
 use Kanvas\Event\Reports\Repositories\TimeSlotOccupancyRepository;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Rules\Models\Rule;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\Event\Concerns\BuildsInviteOnlyParking;
+use Tests\Event\Support\PassScanDecisionTestActivity;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
+use Tests\Workflow\Support\BuildsSyncRules;
 
 class ScanEventPassTest extends TestCase
 {
     use BuildsInviteOnlyParking;
+    use BuildsSyncRules;
     use DatabaseTransactions;
     use InventoryCases;
 
@@ -46,7 +52,7 @@ class ScanEventPassTest extends TestCase
 
     protected function connectionsToTransact(): array
     {
-        return [null, 'event', 'commerce'];
+        return [null, 'event', 'commerce', 'workflow'];
     }
 
     public function setUp(): void
@@ -436,6 +442,177 @@ class ScanEventPassTest extends TestCase
 
         $this->assertSame(PassScanResultEnum::ALREADY_ADMITTED, $outcome->result);
         $this->assertSame(0, (int) $codePass->fresh()->use_count);
+    }
+
+    public function testALaterUseIsAdmittedWhenTheOnlySyncRuleAllows(): void
+    {
+        $booking = $this->decidedBooking(decisionFromUse: 2);
+        $this->decisionRule($booking, 'allow');
+        $code = $this->passCodeOf($booking);
+        $this->scan($code, $this->insideTheWindow(0));
+
+        $outcome = $this->scan($code, $this->insideTheWindow(0)->addHour());
+
+        $this->assertSame(PassScanResultEnum::ADMITTED, $outcome->result);
+        $this->assertSame(2, (int) $this->codePassOf($booking)->use_count);
+    }
+
+    public function testTheDecisionRuleIsNotAskedForTheFirstUse(): void
+    {
+        $booking = $this->decidedBooking(decisionFromUse: 2);
+        $this->decisionRule($booking, 'boom');
+
+        $outcome = $this->scan($this->passCodeOf($booking), $this->insideTheWindow(0));
+
+        $this->assertSame(PassScanResultEnum::ADMITTED, $outcome->result);
+    }
+
+    public function testAPassWithoutADecisionUseNeverFiresTheEvent(): void
+    {
+        $booking = $this->bookDay(0);
+        $this->makeMultiUse($booking, 2);
+        $this->decisionRule($booking, 'deny');
+        $code = $this->passCodeOf($booking);
+        $this->scan($code, $this->insideTheWindow(0));
+
+        $outcome = $this->scan($code, $this->insideTheWindow(0)->addHour());
+
+        $this->assertSame(PassScanResultEnum::ADMITTED, $outcome->result);
+    }
+
+    public function testALaterUseIsDeniedWhenTheRuleDenies(): void
+    {
+        $this->assertDeniedLaterUse(['deny']);
+    }
+
+    public function testALaterUseIsDeniedWhenNoRuleExists(): void
+    {
+        $this->assertDeniedLaterUse([]);
+    }
+
+    public function testALaterUseIsDeniedWhenTheOnlyRuleIsAsync(): void
+    {
+        $this->assertDeniedLaterUse(['allow'], async: true);
+    }
+
+    public function testALaterUseIsDeniedWhenOneOfTwoSyncRulesDenies(): void
+    {
+        $this->assertDeniedLaterUse(['allow', 'deny']);
+    }
+
+    public function testALaterUseIsDeniedWhenTheRuleThrows(): void
+    {
+        $this->assertDeniedLaterUse(['boom']);
+    }
+
+    public function testALaterUseIsDeniedWhenTheRuleAnswersInAnotherShape(): void
+    {
+        $this->assertDeniedLaterUse(['truthy']);
+    }
+
+    public function testALaterUseIsDeniedWhenTheRuleNeverAnswersTheDecision(): void
+    {
+        $this->assertDeniedLaterUse(['silent']);
+    }
+
+    public function testAnEntryScanThatRacedPastTheGateCannotBecomeTheExitUse(): void
+    {
+        $booking = $this->decidedBooking(decisionFromUse: 2);
+        $this->decisionRule($booking, 'allow');
+        $code = $this->passCodeOf($booking);
+        $armed = true;
+        ParticipantPass::retrieved(function (ParticipantPass $pass) use (&$armed) {
+            if ($armed && DB::connection('event')->transactionLevel() > 1) {
+                $pass->use_count = 1;
+            }
+        });
+
+        $outcome = $this->scan($code, $this->insideTheWindow(0));
+        $armed = false;
+
+        $this->assertSame(PassScanResultEnum::NOT_AUTHORIZED, $outcome->result);
+        $this->assertSame(0, (int) $this->codePassOf($booking)->use_count);
+        $this->assertSame(0, RateLimiter::attempts('event-pass-scan:user:' . $this->user->getId()));
+        $this->assertFalse(ParticipantPassScan::where('result', PassScanResultEnum::ADMITTED)->where('participant_passes_id', $this->codePassOf($booking)->getId())->exists());
+    }
+
+    public function testAMultiUsePassWithAnUnreadablePayloadIsDenied(): void
+    {
+        $booking = $this->bookDay(0);
+        $this->makeMultiUse($booking, 2);
+        ParticipantPass::where('event_version_id', $booking->getId())->update(['payload' => '{broken']);
+        $this->decisionRule($booking, 'allow');
+
+        $outcome = $this->scan($this->passCodeOf($booking), $this->insideTheWindow(0));
+
+        $this->assertSame(PassScanResultEnum::NOT_AUTHORIZED, $outcome->result);
+        $this->assertSame(0, (int) $this->codePassOf($booking)->use_count);
+    }
+
+    public function testTheDecisionUseIsReadFromAnArrayPayloadToo(): void
+    {
+        $pass = new ParticipantPass(['max_uses' => 2]);
+        $pass->payload = ['decision_from_use' => 2];
+
+        $this->assertSame(2, PassScanDecisionGate::decisionFromUse($pass));
+    }
+
+    private function assertDeniedLaterUse(array $verdicts, bool $async = false): void
+    {
+        $booking = $this->decidedBooking(decisionFromUse: 2);
+
+        foreach ($verdicts as $verdict) {
+            $this->decisionRule($booking, $verdict, $async);
+        }
+
+        $code = $this->passCodeOf($booking);
+        $this->scan($code, $this->insideTheWindow(0));
+        $attemptsBefore = RateLimiter::attempts('event-pass-scan:user:' . $this->user->getId());
+
+        $outcome = $this->scan($code, $this->insideTheWindow(0)->addHour());
+
+        $this->assertSame(PassScanResultEnum::NOT_AUTHORIZED, $outcome->result);
+        $this->assertSame(1, (int) $this->codePassOf($booking)->use_count);
+        $this->assertSame($attemptsBefore, RateLimiter::attempts('event-pass-scan:user:' . $this->user->getId()));
+        $this->assertTrue(
+            ParticipantPassScan::where('result', PassScanResultEnum::NOT_AUTHORIZED)
+                ->where('participant_passes_id', $this->codePassOf($booking)->getId())
+                ->exists()
+        );
+    }
+
+    private function decidedBooking(int $decisionFromUse): EventVersion
+    {
+        $booking = $this->bookDay(0);
+        $this->makeMultiUse($booking, 2);
+        ParticipantPass::where('event_version_id', $booking->getId())
+            ->update(['payload' => json_encode(['decision_from_use' => $decisionFromUse])]);
+
+        return $booking;
+    }
+
+    private function decisionRule(EventVersion $booking, string $verdict, bool $async = false): Rule
+    {
+        $rule = $this->createSyncRule(
+            app: $this->apps,
+            event: WorkflowEnum::PASS_SCAN_REQUESTED->value,
+            modelClass: EventVersion::class,
+            activityClass: PassScanDecisionTestActivity::class,
+            company: $this->company,
+            params: ['verdict' => $verdict],
+            actionName: 'Test Pass Scan Decision',
+        );
+        $rule->is_async = $async;
+        $rule->saveQuietly();
+
+        return $rule;
+    }
+
+    private function codePassOf(EventVersion $booking): ParticipantPass
+    {
+        return ParticipantPass::where('event_version_id', $booking->getId())
+            ->whereNull('participant_id')
+            ->firstOrFail();
     }
 
     private function makeMultiUse(EventVersion $booking, int $maxUses): void

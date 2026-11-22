@@ -17,6 +17,7 @@ use Kanvas\Event\Participants\Models\ParticipantPassScan;
 use Kanvas\Event\Passes\DataTransferObject\PassScanOutcome;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
 use Kanvas\Event\Passes\Services\PassAttemptLimiter;
+use Kanvas\Event\Passes\Services\PassScanDecisionGate;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -83,15 +84,61 @@ class ScanEventPassAction
             return $this->reject(PassScanResultEnum::OUTSIDE_WINDOW, $pass);
         }
 
-        return $this->admit($pass, $booking, $timeSlot);
+        $decidedUse = $this->decideUse($pass, $booking);
+
+        if ($decidedUse === false) {
+            return $this->reject(PassScanResultEnum::NOT_AUTHORIZED, $pass);
+        }
+
+        return $this->admit($pass, $booking, $timeSlot, $decidedUse);
     }
 
-    private function admit(ParticipantPass $pass, EventVersion $booking, TimeSlots $timeSlot): PassScanOutcome
+    private function decideUse(ParticipantPass $pass, EventVersion $booking): int|false|null
     {
+        $decisionFromUse = PassScanDecisionGate::decisionFromUse($pass);
+
+        if ($decisionFromUse === null) {
+            return null;
+        }
+
+        $useNumber = $pass->use_count + 1;
+
+        if ($decisionFromUse === PassScanDecisionGate::UNREADABLE) {
+            return false;
+        }
+
+        if ($useNumber < $decisionFromUse) {
+            return null;
+        }
+
+        $allowed = new PassScanDecisionGate($this->app, $this->scanner, $this->gateProduct)
+            ->allows($pass, $booking, $useNumber);
+
+        return $allowed ? $useNumber : false;
+    }
+
+    private function lacksDecisionFor(ParticipantPass $locked, int $useNumber, ?int $decidedUse): bool
+    {
+        $decisionFromUse = PassScanDecisionGate::decisionFromUse($locked);
+
+        if ($decisionFromUse === null) {
+            return false;
+        }
+
+        return $decisionFromUse === PassScanDecisionGate::UNREADABLE
+            || ($useNumber >= $decisionFromUse && $useNumber !== $decidedUse);
+    }
+
+    private function admit(
+        ParticipantPass $pass,
+        EventVersion $booking,
+        TimeSlots $timeSlot,
+        ?int $decidedUse
+    ): PassScanOutcome {
         $result = PassScanResultEnum::ADMITTED;
 
         try {
-            DB::connection('event')->transaction(function () use ($pass, $booking, &$result): void {
+            DB::connection('event')->transaction(function () use ($pass, $booking, $decidedUse, &$result): void {
                 $locked = ParticipantPass::query()->whereKey($pass->getKey())->lockForUpdate()->firstOrFail();
 
                 if ($locked->revoked_at !== null) {
@@ -107,6 +154,13 @@ class ScanEventPassAction
                 }
 
                 $useNumber = $locked->use_count + 1;
+
+                if ($this->lacksDecisionFor($locked, $useNumber, $decidedUse)) {
+                    $result = PassScanResultEnum::NOT_AUTHORIZED;
+
+                    return;
+                }
+
                 $locked->use_count = $useNumber;
                 $locked->save();
 
@@ -128,7 +182,7 @@ class ScanEventPassAction
             $result = PassScanResultEnum::ALREADY_ADMITTED;
         }
 
-        if ($result === PassScanResultEnum::NOT_ACTIVE) {
+        if ($result === PassScanResultEnum::NOT_ACTIVE || $result === PassScanResultEnum::NOT_AUTHORIZED) {
             return $this->reject($result, $pass);
         }
 
