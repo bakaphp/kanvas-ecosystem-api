@@ -162,10 +162,8 @@ class CreditApp extends Data
     }
 
     /**
-     * The business form keeps the company under `personal` and the signing officer, with housing
-     * and employment flattened together, under `cojoint`. VinSolution has one contact screen for
-     * both, so the officer is reshaped into the consumer sections. The officer's previous_* keys
-     * are a home address; left in `financial` they would be read as a previous employer's.
+     * The business form flattens the officer under `cojoint`. Their previous_* keys are a home
+     * address; left in `financial` they would be read as a previous employer's.
      */
     protected static function businessFormAsCreditApp(array $formData): array
     {
