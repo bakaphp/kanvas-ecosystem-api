@@ -6,6 +6,7 @@ namespace Tests\Communication\Setup;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
+use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\BurstConfigEnum as MetaBurstConfigEnum;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Communication\Connections\Actions\EnsureAutoReplyRuleAction;
@@ -59,6 +60,7 @@ use Kanvas\Workflow\Services\WorkflowActionCatalog;
 use PHPUnit\Framework\Attributes\Group;
 use Spatie\LaravelData\DataCollection;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
+use Tests\Communication\Concerns\RefusesParallelRuns;
 use Tests\TestCase;
 
 /**
@@ -71,6 +73,7 @@ final class SetupCompanyDefaultsTest extends TestCase
 {
     use BuildsCommunicationFixtures;
     use DatabaseTransactions;
+    use RefusesParallelRuns;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
@@ -92,6 +95,7 @@ final class SetupCompanyDefaultsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->refuseParallelRun();
 
         foreach ([...array_column(SetupSettingEnum::cases(), 'value'), IntelligenceConfigurationEnum::USE_LEAD_FOLLOW_UP_V2->value] as $setting) {
             $this->appSettings[$setting] = $this->currentApp()->get($setting);
@@ -159,6 +163,22 @@ final class SetupCompanyDefaultsTest extends TestCase
         } catch (SetupBlockedException $blocked) {
             $this->assertSame('missing_agent_template', $blocked->reason);
             $this->assertStringContainsString(DefaultAgentEnum::POLLY->value, $blocked->getMessage());
+        }
+
+        $this->assertNull($this->companyAgent(DefaultAgentEnum::SALLY));
+    }
+
+    public function testACompanyWithoutAnOwnerBlocksSetupBeforeAnythingIsCopied(): void
+    {
+        $this->globalAgentTemplates();
+        $this->company->forceFill(['users_id' => 0])->saveOrFail();
+        $this->company->unsetRelation('user');
+
+        try {
+            $this->setupDefaults();
+            $this->fail('setup ran for a company with no owner');
+        } catch (SetupBlockedException $blocked) {
+            $this->assertSame('missing_company_owner', $blocked->reason);
         }
 
         $this->assertNull($this->companyAgent(DefaultAgentEnum::SALLY));
@@ -293,6 +313,14 @@ final class SetupCompanyDefaultsTest extends TestCase
 
         $this->assertNotContains(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $written);
         $this->assertContains(ConversationAgentEnum::SETTING->value, $written);
+    }
+
+    public function testInboundWhatsAppIsAnsweredWithoutWaiting(): void
+    {
+        new SetupCompanySettingsAction($this->currentApp(), $this->company)->execute();
+
+        $this->assertSame(0, MetaBurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->company));
+        $this->assertSame(0, MetaBurstConfigEnum::BURST_JITTER_SECONDS->getInt($this->company));
     }
 
     public function testASwitchTheCompanyAlreadySetIsLeftAlone(): void

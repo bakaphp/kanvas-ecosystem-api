@@ -34,6 +34,12 @@ enum ConfigurationEnum: string
     case APP_SECRET = 'meta_app_secret';
 
     /**
+     * App setting: the Meta app's id. With the secret it turns an embedded signup's code into the
+     * company's business token.
+     */
+    case APP_ID = 'meta_app_id';
+
+    /**
      * App setting: what Meta echoes back when it verifies a callback URL. Generated on first use.
      */
     case WEBHOOK_VERIFY_TOKEN = 'meta_webhook_verify_token';

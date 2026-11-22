@@ -20,6 +20,7 @@ use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\InboundClaim;
+use Kanvas\Communication\Connections\Models\SharedRegistration;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\ConversationAgentEnum;
@@ -32,10 +33,12 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Actions\RemoveIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
@@ -43,6 +46,7 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
+use Tests\Communication\Concerns\RefusesParallelRuns;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -56,6 +60,7 @@ final class MetaWhatsAppProviderTest extends TestCase
 {
     use BuildsCommunicationFixtures;
     use DatabaseTransactions;
+    use RefusesParallelRuns;
 
     protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
@@ -75,6 +80,7 @@ final class MetaWhatsAppProviderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->refuseParallelRun();
 
         Queue::fake();
         config(['communication.providers' => [MetaWhatsAppHandler::class]]);
@@ -408,6 +414,45 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->assertSame([['override_callback_uri' => $receiverUrl, 'verify_token' => 'verify-me']], $subscribed);
         $this->assertSame($connection->getId(), InboundClaim::query()->where('provider', 'meta')->where('inbound_identity', self::OUR_NUMBER)->value('connection_id'));
         Queue::assertPushed(SetupPeopleChannelsJob::class, 1);
+    }
+
+    /**
+     * Removing deletes the company's token, so the WABA has to be unsubscribed before that, while
+     * Meta can still be reached with it.
+     */
+    public function testRemovingTheIntegrationUnsubscribesTheWabaWithTheCompanysToken(): void
+    {
+        $this->globalAgentTemplates();
+        Queue::fake([SetupPeopleChannelsJob::class]);
+        $receiverUrl = MetaInbound::callbackUrl();
+        $subscribed = false;
+        Http::fake(function (HttpRequest $request) use (&$subscribed, $receiverUrl) {
+            if (str_contains($request->url(), '/subscribed_apps')) {
+                return match ($request->method()) {
+                    'POST' => Http::response(['success' => $subscribed = true]),
+                    'DELETE' => Http::response(['success' => ! ($subscribed = false)]),
+                    default => Http::response(['data' => $subscribed ? [['override_callback_uri' => $receiverUrl]] : []]),
+                };
+            }
+
+            return Http::response(['id' => self::PHONE_NUMBER_ID, 'display_phone_number' => '+1 809-555-0100']);
+        });
+        $integrationCompany = $this->integrationCompany();
+        $integrationCompany->forceFill(['region_id' => Regions::getDefault($this->currentCompany(), $this->currentApp())->getId()])->save();
+        new EnsureCommunicationSetupAction($this->currentApp(), $integrationCompany)->execute();
+        $this->assertTrue($subscribed);
+
+        new RemoveIntegrationCompanyAction($integrationCompany, $this->currentApp())->execute();
+
+        Http::assertSent(fn (HttpRequest $request): bool => $request->method() === 'DELETE'
+            && str_ends_with($request->url(), self::WABA_ID . '/subscribed_apps')
+            && $request->hasHeader('Authorization', 'Bearer company-token'));
+        $this->assertFalse($subscribed);
+        $this->assertSame(
+            SharedRegistration::RELEASED,
+            SharedRegistration::query()->where('provider', 'meta')->where('resource_key', self::WABA_ID)->value('status')
+        );
+        $this->assertNull($this->currentCompany()->get(ConfigurationEnum::ACCESS_TOKEN->value));
     }
 
     public function testAWabaAlreadySendingToAnotherKanvasReceiverIsNotTakenOver(): void

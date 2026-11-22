@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Setup\Actions;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\BurstConfigEnum as MetaBurstConfigEnum;
 use Kanvas\Communication\Messages\Enums\ConversationAgentEnum;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
@@ -50,6 +51,9 @@ final class SetupCompanySettingsAction
                 : null,
             CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value => $reachOut?->getId(),
             CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value => self::MESSAGE_MINUTES_INTERVAL,
+            // Answered at once: no window collecting a flurry into one turn, no random delay.
+            MetaBurstConfigEnum::BURST_IDLE_SECONDS->value => 0,
+            MetaBurstConfigEnum::BURST_JITTER_SECONDS->value => 0,
         ];
 
         $written = [];
