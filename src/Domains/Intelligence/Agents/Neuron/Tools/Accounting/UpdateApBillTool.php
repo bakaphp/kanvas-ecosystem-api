@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\DateHelper;
 use Baka\Support\Str;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\AnnouncesAgentEdits;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Bills\Actions\UpdateBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
+use Kanvas\Scribe\Bills\Exceptions\InvalidBillTransitionException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -20,6 +23,7 @@ use Kanvas\Scribe\Ledger\Models\Subaccount;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -27,7 +31,10 @@ use Throwable;
 #[AgentTool(name: 'Update AP Bill', category: 'accounting')]
 class UpdateApBillTool extends Tool
 {
+    use AnnouncesAgentEdits;
     use HasKanvasContext;
+    use ReportsToolOutcome;
+    use TrackByInputs;
 
     protected string $name = 'update_ap_bill';
 
@@ -60,7 +67,7 @@ class UpdateApBillTool extends Tool
             new ToolProperty(
                 name: 'subaccount',
                 type: PropertyType::STRING,
-                description: 'Subaccount code to put on every line.',
+                description: 'Subaccount code to put on every line. A code that does not exist yet is created.',
                 required: false,
             ),
             new ToolProperty(
@@ -105,22 +112,23 @@ class UpdateApBillTool extends Tool
         try {
             $bill = Bill::getByIdFromCompanyApp($bill_id, $this->company, $this->app);
         } catch (ExceptionsModelNotFoundException) {
-            return [
-                'updated' => false,
-                'reason' => 'bill_not_found',
-                'message' => "No bill with id {$bill_id} for this app/company.",
-            ];
+            return $this->notFound(
+                ['updated' => false, 'reason' => 'bill_not_found'],
+                "No bill with id {$bill_id} for this app/company.",
+            );
         }
 
         if ($bill->document_status !== BillDocumentStatusEnum::DRAFT) {
-            return [
-                'updated' => false,
-                'bill_id' => $bill->getId(),
-                'reason' => 'not_a_draft',
-                'document_status' => $bill->document_status->value,
-                'message' => "Bill {$bill_id} is {$bill->document_status->value}; only a draft can be edited. "
-                    . 'Do not work around it: tell the person.',
-            ];
+            return $this->denied(
+                "Bill {$bill_id} is {$bill->document_status->value}; only a draft can be edited.",
+                [
+                    'updated' => false,
+                    'bill_id' => $bill->getId(),
+                    'reason' => 'not_a_draft',
+                    'document_status' => $bill->document_status->value,
+                ],
+                'Do not work around it: tell the person.',
+            );
         }
 
         $changes = [];
@@ -130,23 +138,13 @@ class UpdateApBillTool extends Tool
             $account = Account::activeByNumber($this->app->getId(), $this->company->getId(), $glAccountNumber);
 
             if ($account === null) {
-                return [
-                    'updated' => false,
-                    'reason' => 'account_not_found',
-                    'message' => "No active GL account with number \"{$glAccountNumber}\" for this app/company.",
-                ];
+                return $this->invalidArgs(
+                    "No active GL account with number \"{$glAccountNumber}\" for this app/company.",
+                    ['updated' => false, 'reason' => 'account_not_found'],
+                );
             }
 
             $changes['expense_account_id'] = $account->getId();
-        }
-
-        $subaccountCode = Str::trimToNull($subaccount);
-        if ($subaccountCode !== null) {
-            $changes['subaccount_id'] = (int) Subaccount::resolveByCode(
-                $this->app,
-                $this->company,
-                $subaccountCode,
-            )->getKey();
         }
 
         foreach (['bill_number' => $invoice_number, 'notes' => $notes] as $field => $value) {
@@ -162,79 +160,85 @@ class UpdateApBillTool extends Tool
                 continue;
             }
 
-            $date = $this->strictDate($text);
+            $date = DateHelper::parseYmd($text);
             if ($date === null) {
-                return [
-                    'updated' => false,
-                    'reason' => 'invalid_date',
-                    'message' => "\"{$text}\" is not a valid date; use YYYY-MM-DD.",
-                ];
+                return $this->invalidArgs(
+                    "\"{$text}\" is not a valid date; use YYYY-MM-DD.",
+                    ['updated' => false, 'reason' => 'invalid_date'],
+                );
             }
 
-            $changes[$field] = $date;
+            $changes[$field] = $date->format('Y-m-d');
         }
 
-        if ($changes === []) {
-            return [
-                'updated' => false,
-                'reason' => 'nothing_to_change',
-                'message' => 'Pass at least one of gl_account_number, subaccount, invoice_number, invoice_date, '
-                    . 'due_date or notes.',
-            ];
+        $subaccountCode = Str::trimToNull($subaccount);
+
+        if ($changes === [] && $subaccountCode === null) {
+            return $this->invalidArgs(
+                'Pass at least one of gl_account_number, subaccount, invoice_number, invoice_date, due_date or notes.',
+                ['updated' => false, 'reason' => 'nothing_to_change'],
+            );
+        }
+
+        // Last, so a request refused above never leaves a new subaccount behind.
+        $subaccountCreated = false;
+        if ($subaccountCode !== null) {
+            $subaccountModel = Subaccount::firstOrCreateByCode($this->app, $this->company, $subaccountCode);
+            $subaccountCreated = $subaccountModel->wasRecentlyCreated;
+            $changes['subaccount_id'] = (int) $subaccountModel->getKey();
         }
 
         try {
             $updated = new UpdateBillAction(
                 bill: $bill,
-                data: BillData::forUpdate($bill, $this->app, $this->company, $changes),
+                data: BillData::forUpdate($bill, $changes),
                 user: $this->user,
             )->execute();
         } catch (UniqueConstraintViolationException) {
-            return [
-                'updated' => false,
-                'bill_id' => $bill->getId(),
-                'reason' => 'duplicate_invoice',
-                'message' => "Invoice number {$changes['bill_number']} is already recorded for this vendor. "
-                    . 'Nothing was changed.',
-            ];
+            return $this->denied(
+                'Invoice number ' . ($changes['bill_number'] ?? '') . ' is already recorded for this vendor.',
+                ['updated' => false, 'bill_id' => $bill->getId(), 'reason' => 'duplicate_invoice'],
+                'Nothing was changed.',
+            );
+        } catch (InvalidBillTransitionException $e) {
+            return $this->denied(
+                $e->getMessage(),
+                ['updated' => false, 'bill_id' => $bill->getId(), 'reason' => 'not_a_draft'],
+            );
         } catch (Throwable $e) {
-            return [
-                'updated' => false,
-                'bill_id' => $bill->getId(),
-                'reason' => 'update_failed',
-                'message' => 'Could not update the bill: ' . $e->getMessage(),
-            ];
+            report($e);
+
+            return $this->failed(
+                'Could not update the bill.',
+                ['updated' => false, 'bill_id' => $bill->getId(), 'reason' => 'update_failed'],
+                'Nothing was changed.',
+            );
         }
 
-        return [
-            'updated' => true,
-            'bill_id' => $updated->getId(),
-            'bill_number' => $updated->bill_number,
-            'document_status' => $updated->document_status->value,
-            'amount' => (float) $updated->total_native,
-            'currency' => $updated->currency,
-            'bill_date' => $updated->bill_date?->toDateString(),
-            'due_date' => $updated->due_date?->toDateString(),
-            'gl_accounts' => $updated->lines
-                ->map(fn (BillLine $line): string => (string) $line->expenseAccount?->account_number)
-                ->unique()
-                ->values()
-                ->all(),
-            'changed' => array_keys($changes),
-            'next' => 'The draft was corrected and is still a draft: it has NOT been sent for approval. '
-                . 'Call submit_ap_bill_for_approval when the person says to send it.',
-        ];
-    }
+        $this->announceAgentEdit($updated);
 
-    /** `Carbon::parse` would roll 2026-02-31 over to March, so the parsed date must print back as typed. */
-    private function strictDate(string $value): ?string
-    {
-        try {
-            $date = Carbon::createFromFormat('!Y-m-d', $value);
-        } catch (Throwable) {
-            return null;
-        }
-
-        return $date !== false && $date->format('Y-m-d') === $value ? $date->toDateString() : null;
+        return $this->ok(
+            [
+                'updated' => true,
+                'bill_id' => $updated->getId(),
+                'bill_number' => $updated->bill_number,
+                'document_status' => $updated->document_status->value,
+                'amount' => (float) $updated->total_native,
+                'currency' => $updated->currency,
+                'bill_date' => $updated->bill_date?->toDateString(),
+                'due_date' => $updated->due_date?->toDateString(),
+                'gl_accounts' => $updated->lines
+                    ->map(fn (BillLine $line): string => (string) $line->expenseAccount?->account_number)
+                    ->unique()
+                    ->values()
+                    ->all(),
+                'changed' => array_keys($changes),
+                'subaccount_created' => $subaccountCreated,
+                'inbox_review_reason' => $updated->inboxReviewReason(),
+            ],
+            'The draft was corrected and is still a draft: it has NOT been sent for approval. '
+                . 'Call submit_ap_bill_for_approval when the person says to send it.'
+                . ($subaccountCreated ? " Subaccount {$subaccountCode} did not exist and was created: say so." : ''),
+        );
     }
 }

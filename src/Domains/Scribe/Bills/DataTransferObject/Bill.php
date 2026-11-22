@@ -66,12 +66,8 @@ class Bill extends Data
      *
      * @param  array<string, mixed>  $changes
      */
-    public static function forUpdate(
-        BillModel $bill,
-        AppInterface $app,
-        CompanyInterface $company,
-        array $changes,
-    ): self {
+    public static function forUpdate(BillModel $bill, array $changes): self
+    {
         $lines = new DataCollection(BillLine::class, $bill->lines->map(
             fn (BillLineModel $line): BillLine => new BillLine(
                 description: (string) $line->description,
@@ -84,7 +80,8 @@ class Bill extends Data
                 discount_amount_native: (float) $line->discount_amount_native,
                 tax_rate: $line->tax_rate !== null ? (float) $line->tax_rate : null,
                 tax_amount_native: (float) $line->tax_amount_native,
-                expense_account_id: (int) ($changes['expense_account_id'] ?? $line->expense_account_id),
+                expense_account_id: $changes['expense_account_id']
+                    ?? ($line->expense_account_id !== null ? (int) $line->expense_account_id : null),
                 subaccount_id: $changes['subaccount_id']
                     ?? ($line->subaccount_id !== null ? (int) $line->subaccount_id : null),
                 tax_metadata: $line->tax_metadata,
@@ -113,8 +110,8 @@ class Bill extends Data
             : $bill->due_date;
 
         return new self(
-            app: $app,
-            company: $company,
+            app: $bill->app,
+            company: $bill->company,
             vendor: $bill->vendor,
             lines: $lines,
             currency: (string) $bill->currency,

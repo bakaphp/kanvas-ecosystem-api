@@ -1366,7 +1366,14 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             ->withCompanyId($this->company->getId())
             ->create(['agent_type_id' => $agentType->getId(), 'user_id' => $agentOwnUser->getId()]);
 
-        $gated = ['record_bill_payment', 'ingest_bank_statement', 'respond_to_vendor_ecf', 'settle_from_suspense'];
+        $gated = [
+            'record_bill_payment',
+            'ingest_bank_statement',
+            'respond_to_vendor_ecf',
+            'settle_from_suspense',
+            'update_ap_bill',
+            'submit_ap_bill_for_approval',
+        ];
         $toolNames = static fn (AccountsPayableAgent $handler): array => array_map(
             static fn ($tool): string => $tool->getName(),
             $handler->getTools()

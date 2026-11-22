@@ -9,12 +9,14 @@ use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -23,6 +25,8 @@ use Throwable;
 class SubmitApBillTool extends Tool
 {
     use HasKanvasContext;
+    use ReportsToolOutcome;
+    use TrackByInputs;
 
     protected string $name = 'submit_ap_bill_for_approval';
 
@@ -55,41 +59,38 @@ class SubmitApBillTool extends Tool
         try {
             $bill = Bill::getByIdFromCompanyApp($bill_id, $this->company, $this->app);
         } catch (ExceptionsModelNotFoundException) {
-            return [
-                'submitted' => false,
-                'reason' => 'bill_not_found',
-                'message' => "No bill with id {$bill_id} for this app/company.",
-            ];
+            return $this->notFound(
+                ['submitted' => false, 'reason' => 'bill_not_found'],
+                "No bill with id {$bill_id} for this app/company.",
+            );
         }
 
         if ($bill->document_status === BillDocumentStatusEnum::PENDING_APPROVAL) {
-            return [
-                'submitted' => false,
-                'bill_id' => $bill->getId(),
-                'reason' => 'already_pending_approval',
-                'message' => "Bill {$bill_id} is already waiting for approval.",
-            ];
+            return $this->noop(
+                ['submitted' => false, 'bill_id' => $bill->getId(), 'reason' => 'already_pending_approval'],
+                "Bill {$bill_id} is already waiting for approval.",
+            );
         }
 
         if ($bill->document_status !== BillDocumentStatusEnum::DRAFT) {
-            return [
-                'submitted' => false,
-                'bill_id' => $bill->getId(),
-                'reason' => 'not_a_draft',
-                'document_status' => $bill->document_status->value,
-                'message' => "Bill {$bill_id} is {$bill->document_status->value}; only a draft can be sent "
-                    . 'for approval.',
-            ];
+            return $this->denied(
+                "Bill {$bill_id} is {$bill->document_status->value}; only a draft can be sent for approval.",
+                [
+                    'submitted' => false,
+                    'bill_id' => $bill->getId(),
+                    'reason' => 'not_a_draft',
+                    'document_status' => $bill->document_status->value,
+                ],
+            );
         }
 
         if ($bill->vendor_organization_id === null) {
-            return [
-                'submitted' => false,
-                'bill_id' => $bill->getId(),
-                'reason' => 'vendor_required',
-                'message' => 'This bill has no vendor yet, so nobody can approve it. The vendor has to be set on '
-                    . 'the bill first (create_organization / the bill screen); this tool does not change the vendor.',
-            ];
+            return $this->denied(
+                'This bill has no vendor yet, so nobody can approve it.',
+                ['submitted' => false, 'bill_id' => $bill->getId(), 'reason' => 'vendor_required'],
+                'The vendor has to be set on the bill first (create_organization / the bill screen); this tool '
+                    . 'does not change the vendor.',
+            );
         }
 
         try {
@@ -98,26 +99,30 @@ class SubmitApBillTool extends Tool
                 fn (): Bill => new SubmitBillForApprovalAction($bill, $this->user)->execute(),
             );
         } catch (Throwable $e) {
-            return [
-                'submitted' => false,
-                'bill_id' => $bill->getId(),
-                'reason' => 'submit_failed',
-                'message' => 'Could not send the bill for approval: ' . $e->getMessage(),
-            ];
+            report($e);
+
+            return $this->failed(
+                'Could not send the bill for approval.',
+                ['submitted' => false, 'bill_id' => $bill->getId(), 'reason' => 'submit_failed'],
+                'Check the bill with find_bill before saying anything about its status.',
+            );
         }
 
         $request = $submitted->pendingApproval();
         $routed = $request !== null && ! $request->isUnassigned();
 
-        return [
-            'submitted' => true,
-            'bill_id' => $submitted->getId(),
-            'bill_number' => $submitted->bill_number,
-            'document_status' => $submitted->document_status->value,
-            'amount' => (float) $submitted->total_native,
-            'currency' => $submitted->currency,
-            'approved_by_flag' => $routed || $request === null ? '' : 'NOT IN APPROVER LIST',
-            'next' => match (true) {
+        return $this->ok(
+            [
+                'submitted' => true,
+                'bill_id' => $submitted->getId(),
+                'bill_number' => $submitted->bill_number,
+                'document_status' => $submitted->document_status->value,
+                'amount' => (float) $submitted->total_native,
+                'currency' => $submitted->currency,
+                'approved_by_flag' => $routed || $request === null ? '' : 'NOT IN APPROVER LIST',
+                'inbox_review_reason' => $submitted->inboxReviewReason(),
+            ],
+            match (true) {
                 $request === null => 'The bill is pending approval; no approval step was applied.',
                 $routed => 'Sent for approval (status: pending_approval); the approver was notified and decides '
                     . 'in the approvals window.',
@@ -125,6 +130,6 @@ class SubmitApBillTool extends Tool
                     . 'notified. Tell the person to have an admin set the vendor\'s approver (or the accounting '
                     . 'default approver).',
             },
-        ];
+        );
     }
 }

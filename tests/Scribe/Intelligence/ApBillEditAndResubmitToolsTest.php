@@ -13,6 +13,7 @@ use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillTaxLine as BillTaxLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Spatie\LaravelData\DataCollection;
@@ -55,6 +56,51 @@ class ApBillEditAndResubmitToolsTest extends ScribeTestCase
         $this->assertSame([100.0, 50.0], $lines->pluck('unit_price_native')->map(floatval(...))->all());
     }
 
+    public function test_update_keeps_taxed_amounts_the_inbox_metadata_and_an_uncoded_line(): void
+    {
+        $bill = $this->draftBill('Round Trip LLC', 'EDT-006');
+        $firstLine = $bill->lines->first();
+        BillLine::query()->whereKey($firstLine->getKey())->update([
+            'tax_amount_native' => 18.0,
+            'discount_amount_native' => 5.0,
+            'line_total_native' => 113.0,
+            'expense_account_id' => null,
+        ]);
+        $bill->metadata = ['ingest' => ['review_reason' => 'No expense account could be coded.']];
+        $bill->total_native = 163.0;
+        $bill->save();
+
+        $result = $this->updateTool()->__invoke(bill_id: $bill->getId(), due_date: '2026-12-15');
+
+        $this->assertTrue($result['updated'], json_encode($result));
+        $this->assertSame('ok', $result['outcome']);
+        $this->assertSame('No expense account could be coded.', $result['inbox_review_reason']);
+
+        $fresh = Bill::getById($bill->getId());
+        $this->assertSame(163.0, (float) $fresh->total_native);
+        $this->assertSame(18.0, (float) $fresh->tax_native);
+        $this->assertSame(5.0, (float) $fresh->discount_native);
+        $this->assertSame('No expense account could be coded.', $fresh->inboxReviewReason());
+        $this->assertNull($fresh->lines->first()->expense_account_id);
+    }
+
+    public function test_update_sets_a_subaccount_on_every_line_and_says_when_it_created_it(): void
+    {
+        $bill = $this->draftBill('Subaccount Vendor LLC', 'EDT-007');
+        $code = 'OPS-' . $bill->getId();
+
+        $created = $this->updateTool()->__invoke(bill_id: $bill->getId(), subaccount: $code);
+        $reused = $this->updateTool()->__invoke(bill_id: $bill->getId(), subaccount: $code);
+
+        $this->assertTrue($created['subaccount_created'], json_encode($created));
+        $this->assertFalse($reused['subaccount_created']);
+        $subaccountCodes = Bill::getById($bill->getId())->lines
+            ->map(fn (BillLine $line) => $line->subaccount?->sub_code)
+            ->unique()
+            ->all();
+        $this->assertSame([$code], $subaccountCodes);
+    }
+
     public function test_update_refuses_a_bill_that_is_no_longer_a_draft(): void
     {
         $bill = $this->draftBill('Pending Vendor LLC', 'EDT-002');
@@ -63,6 +109,8 @@ class ApBillEditAndResubmitToolsTest extends ScribeTestCase
         $result = $this->updateTool()->__invoke(bill_id: $bill->getId(), invoice_number: 'EDT-002-CHANGED');
 
         $this->assertFalse($result['updated']);
+        $this->assertFalse($result['success']);
+        $this->assertSame('denied', $result['outcome']);
         $this->assertSame('not_a_draft', $result['reason']);
         $this->assertSame('EDT-002', Bill::getById($bill->getId())->bill_number);
     }

@@ -51,7 +51,7 @@ class Subaccount extends BaseModel
         'metadata' => Json::class,
     ];
 
-    public static function resolveByCode(AppInterface $app, CompanyInterface $company, string $subCode): self
+    public static function firstOrCreateByCode(AppInterface $app, CompanyInterface $company, string $subCode): self
     {
         return self::firstOrCreate(
             [
