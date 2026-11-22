@@ -544,3 +544,24 @@ extend type Mutation @guard {
         @guardByAdmin
         @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\RoadsideRegionalMutation@updateTariffs")
 }
+
+enum ParkingState {
+    IN_PROGRESS @enum(value: "in_progress")
+    PAYMENT_APPROVED @enum(value: "payment_approved")
+    PENDING_CONFIRMATION @enum(value: "pending_confirmation")
+    EXIT_ENABLED @enum(value: "exit_enabled")
+    FINISHED @enum(value: "finished")
+    CANCELLED @enum(value: "cancelled")
+}
+
+extend type Order {
+    parking_state: ParkingState
+        @field(resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\ParkingStateField")
+}
+
+extend type Mutation @guard {
+    quoteParkingExit(order_id: ID!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\ParkingExitMutation@quote"
+        )
+}
