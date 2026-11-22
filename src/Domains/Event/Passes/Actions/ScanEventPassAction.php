@@ -67,7 +67,9 @@ class ScanEventPassAction
             return $this->reject(PassScanResultEnum::FORBIDDEN, $pass);
         }
 
-        if (! $this->isActive($pass, $booking)) {
+        $laterUse = $this->isLaterUse($pass);
+
+        if (! $this->isActive($pass, $booking, $laterUse)) {
             return $this->reject(PassScanResultEnum::NOT_ACTIVE, $pass);
         }
 
@@ -77,7 +79,7 @@ class ScanEventPassAction
             return $this->reject(PassScanResultEnum::WRONG_RESOURCE, $pass);
         }
 
-        if (! Carbon::now()->betweenIncluded($timeSlot->start_at, $timeSlot->end_at)) {
+        if (! $laterUse && ! Carbon::now()->betweenIncluded($timeSlot->start_at, $timeSlot->end_at)) {
             return $this->reject(PassScanResultEnum::OUTSIDE_WINDOW, $pass);
         }
 
@@ -86,22 +88,60 @@ class ScanEventPassAction
 
     private function admit(ParticipantPass $pass, EventVersion $booking, TimeSlots $timeSlot): PassScanOutcome
     {
-        try {
-            DB::connection('event')->transaction(function () use ($pass, $booking) {
-                $this->record(PassScanResultEnum::ADMITTED, $pass, $booking->getId());
+        $result = PassScanResultEnum::ADMITTED;
 
-                ParticipantPass::query()
-                    ->where('event_version_id', $booking->getId())
-                    ->whereNull('used_date')
-                    ->update(['used_date' => Carbon::now()]);
+        try {
+            DB::connection('event')->transaction(function () use ($pass, $booking, &$result): void {
+                $locked = ParticipantPass::query()->whereKey($pass->getKey())->lockForUpdate()->firstOrFail();
+
+                if ($locked->revoked_at !== null) {
+                    $result = PassScanResultEnum::NOT_ACTIVE;
+
+                    return;
+                }
+
+                if ($locked->use_count >= ($locked->max_uses ?? 1)) {
+                    $result = PassScanResultEnum::ALREADY_ADMITTED;
+
+                    return;
+                }
+
+                $useNumber = $locked->use_count + 1;
+                $locked->use_count = $useNumber;
+                $locked->save();
+
+                $this->record(
+                    PassScanResultEnum::ADMITTED,
+                    $pass,
+                    $useNumber === 1 ? $booking->getId() : null,
+                    $useNumber
+                );
+
+                if ($useNumber === 1) {
+                    ParticipantPass::query()
+                        ->where('event_version_id', $booking->getId())
+                        ->whereNull('used_date')
+                        ->update(['used_date' => Carbon::now()]);
+                }
             });
-            $result = PassScanResultEnum::ADMITTED;
         } catch (UniqueConstraintViolationException) {
-            $this->record(PassScanResultEnum::ALREADY_ADMITTED, $pass);
             $result = PassScanResultEnum::ALREADY_ADMITTED;
         }
 
+        if ($result === PassScanResultEnum::NOT_ACTIVE) {
+            return $this->reject($result, $pass);
+        }
+
+        if ($result === PassScanResultEnum::ALREADY_ADMITTED) {
+            $this->record($result, $pass);
+        }
+
         return new PassScanOutcome($result, $this->summarize($pass, $booking, $timeSlot));
+    }
+
+    private function isLaterUse(ParticipantPass $pass): bool
+    {
+        return ($pass->max_uses ?? 1) > 1 && $pass->use_count >= 1;
     }
 
     private function reject(PassScanResultEnum $result, ?ParticipantPass $pass = null): PassScanOutcome
@@ -111,8 +151,12 @@ class ScanEventPassAction
         return new PassScanOutcome($result);
     }
 
-    private function record(PassScanResultEnum $result, ?ParticipantPass $pass, ?int $admittedBookingId = null): void
-    {
+    private function record(
+        PassScanResultEnum $result,
+        ?ParticipantPass $pass,
+        ?int $admittedBookingId = null,
+        ?int $useNumber = null
+    ): void {
         ParticipantPassScan::create([
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->scannerCompany->getId(),
@@ -122,6 +166,7 @@ class ScanEventPassAction
             'users_id' => $this->scanner->getId(),
             'result' => $result,
             'admitted_event_version_id' => $admittedBookingId,
+            'use_number' => $useNumber,
             'scanned_at' => Carbon::now(),
         ]);
     }
@@ -138,9 +183,11 @@ class ScanEventPassAction
             ->exists();
     }
 
-    private function isActive(ParticipantPass $pass, EventVersion $booking): bool
+    private function isActive(ParticipantPass $pass, EventVersion $booking, bool $ignoreExpiry): bool
     {
-        return $pass->isValid()
+        $passIsUsable = $ignoreExpiry ? $pass->revoked_at === null : $pass->isValid();
+
+        return $passIsUsable
             && EventVersion::query()->whereKey($booking->getId())->live()->exists()
             && ! $booking->event->orders()->whereIn('status', OrderStatusEnum::closedValues())->exists();
     }

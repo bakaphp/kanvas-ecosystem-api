@@ -8,6 +8,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -17,9 +18,11 @@ use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantPassScan;
+use Kanvas\Event\Passes\Actions\FindPassByCodeAction;
 use Kanvas\Event\Passes\Actions\ScanEventPassAction;
 use Kanvas\Event\Passes\DataTransferObject\PassScanOutcome;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
+use Kanvas\Event\Reports\Repositories\TimeSlotOccupancyRepository;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Models\Products;
@@ -303,6 +306,141 @@ class ScanEventPassTest extends TestCase
 
         $this->assertSame('ALREADY_ADMITTED', $second->json('data.scanEventPass.result'));
         $this->assertFalse($second->json('data.scanEventPass.admitted'));
+    }
+
+    public function testTwoUsePassAdmitsTwiceAndRejectsTheThirdScan(): void
+    {
+        $booking = $this->bookDay(0);
+        $code = $this->passCodeOf($booking);
+        $this->makeMultiUse($booking, 2);
+
+        $first = $this->scan($code, $this->insideTheWindow(0));
+        $second = $this->scan($code, $this->insideTheWindow(0)->addMinutes(30));
+        $third = $this->scan($code, $this->insideTheWindow(0)->addMinutes(60));
+
+        $this->assertSame(PassScanResultEnum::ADMITTED, $first->result);
+        $this->assertSame(PassScanResultEnum::ADMITTED, $second->result);
+        $this->assertSame(PassScanResultEnum::ALREADY_ADMITTED, $third->result);
+        $scans = ParticipantPassScan::where('event_version_id', $booking->getId())->orderBy('id')->get();
+        $this->assertSame([1, 2, null], $scans->map(fn (ParticipantPassScan $scan) => $scan->use_number)->all());
+        $this->assertSame(1, $scans->whereNotNull('admitted_event_version_id')->count());
+    }
+
+    public function testUseCountNeverExceedsMaxUses(): void
+    {
+        $booking = $this->bookDay(0);
+        $code = $this->passCodeOf($booking);
+        $this->makeMultiUse($booking, 2);
+
+        foreach (range(1, 5) as $attempt) {
+            $this->scan($code, $this->insideTheWindow(0)->addMinutes($attempt));
+        }
+
+        $passId = new FindPassByCodeAction($this->apps, $this->company, $code)->execute()->getId();
+        $this->assertSame(2, (int) ParticipantPass::findOrFail($passId)->use_count);
+        $this->assertSame(
+            2,
+            ParticipantPassScan::where('event_version_id', $booking->getId())->where('result', PassScanResultEnum::ADMITTED)->count()
+        );
+    }
+
+    public function testTheExitUseIsAdmittedAfterTheWindowAndTheExpiry(): void
+    {
+        $booking = $this->bookDay(0);
+        $code = $this->passCodeOf($booking);
+        $this->makeMultiUse($booking, 2);
+        $this->scan($code, $this->insideTheWindow(0));
+
+        $exit = $this->scan($code, $this->days[0]['slot']->end_at->copy()->addDays(5));
+
+        $this->assertSame(PassScanResultEnum::ADMITTED, $exit->result);
+    }
+
+    public function testTheFirstUseOfAMultiUsePassStillNeedsTheWindow(): void
+    {
+        $booking = $this->bookDay(0);
+        $this->makeMultiUse($booking, 2);
+
+        $outcome = $this->scan($this->passCodeOf($booking), $this->days[0]['slot']->end_at->copy()->addHours(2));
+
+        $this->assertSame(PassScanResultEnum::OUTSIDE_WINDOW, $outcome->result);
+    }
+
+    public function testTheExitUseIsRejectedWhenThePassIsRevokedOrTheBookingCancelled(): void
+    {
+        $revoked = $this->bookDay(0);
+        $revokedCode = $this->passCodeOf($revoked);
+        $this->makeMultiUse($revoked, 2);
+        $this->scan($revokedCode, $this->insideTheWindow(0));
+        ParticipantPass::where('event_version_id', $revoked->getId())->update(['revoked_at' => Carbon::now()]);
+
+        $cancelled = $this->bookDay(1);
+        $cancelledCode = $this->passCodeOf($cancelled);
+        $this->makeMultiUse($cancelled, 2);
+        $this->scan($cancelledCode, $this->insideTheWindow(1));
+        new CancelEventAction($cancelled)->withoutNotifications()->disableWorkflow()->execute();
+
+        $this->assertSame(PassScanResultEnum::NOT_ACTIVE, $this->scan($revokedCode, $this->insideTheWindow(0))->result);
+        $this->assertSame(PassScanResultEnum::NOT_ACTIVE, $this->scan($cancelledCode, $this->insideTheWindow(1))->result);
+    }
+
+    public function testATwoUsePassCountsAsOneVisitInOccupancy(): void
+    {
+        $booking = $this->bookDay(0);
+        $code = $this->passCodeOf($booking);
+        $this->makeMultiUse($booking, 2);
+        $this->scan($code, $this->insideTheWindow(0));
+        $this->scan($code, $this->insideTheWindow(0)->addHour());
+
+        $occupancy = TimeSlotOccupancyRepository::occupancy(
+            $this->apps,
+            $this->company,
+            $this->days[0]['slot']->start_at->copy()->startOfDay(),
+            $this->days[0]['slot']->start_at->copy()->endOfDay()
+        );
+
+        $this->assertSame(1, $occupancy['admitted']);
+    }
+
+    public function testAPassRevokedBetweenTheReadAndTheLockIsNotActiveAndCountsAsAFailure(): void
+    {
+        $booking = $this->bookDay(0);
+        $code = $this->passCodeOf($booking);
+        $armed = true;
+        ParticipantPass::retrieved(function (ParticipantPass $pass) use (&$armed) {
+            if ($armed && DB::connection('event')->transactionLevel() > 1) {
+                $pass->revoked_at = Carbon::now();
+            }
+        });
+
+        $outcome = $this->scan($code, $this->insideTheWindow(0));
+        $armed = false;
+
+        $this->assertSame(PassScanResultEnum::NOT_ACTIVE, $outcome->result);
+        $this->assertSame(1, RateLimiter::attempts('event-pass-scan:user:' . $this->user->getId()));
+        $this->assertFalse(ParticipantPassScan::where('admitted_event_version_id', $booking->getId())->exists());
+        $this->assertSame(0, (int) ParticipantPass::where('event_version_id', $booking->getId())->max('use_count'));
+    }
+
+    public function testAMultiUsePassWhoseSiblingWasAdmittedIsAlreadyAdmittedAndKeepsItsUseCount(): void
+    {
+        $booking = $this->bookDay(0);
+        $this->makeMultiUse($booking, 2);
+        $passes = ParticipantPass::where('event_version_id', $booking->getId())->orderBy('id')->get();
+        $codePass = $passes->first(fn (ParticipantPass $pass) => $pass->participant_id === null);
+        $sibling = $passes->first(fn (ParticipantPass $pass) => $pass->participant_id !== null);
+        $this->scan(decrypt($sibling->code), $this->insideTheWindow(0));
+        $this->assertSame(1, (int) $sibling->fresh()->use_count);
+
+        $outcome = $this->scan($this->passCodeOf($booking), $this->insideTheWindow(0)->addMinutes(5));
+
+        $this->assertSame(PassScanResultEnum::ALREADY_ADMITTED, $outcome->result);
+        $this->assertSame(0, (int) $codePass->fresh()->use_count);
+    }
+
+    private function makeMultiUse(EventVersion $booking, int $maxUses): void
+    {
+        ParticipantPass::where('event_version_id', $booking->getId())->update(['max_uses' => $maxUses]);
     }
 
     private function bookDay(int $day, array $metadata = []): EventVersion
