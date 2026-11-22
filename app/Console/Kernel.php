@@ -30,6 +30,7 @@ use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Insurance\SendInsurancePolicyRemindersCommand;
 use App\Console\Commands\Intelligence\Agents\PruneAgentMemoryCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
+use App\Console\Commands\Movipass\ExpireUnusedParkingVisitsCommand;
 use App\Console\Commands\NervousSystem\Agents\Coding\ReapCodingAgentRuntimeCommand;
 use App\Console\Commands\NervousSystem\Agents\Coding\SweepCodingSessionsCommand;
 use App\Console\Commands\NervousSystem\Mcp\RefreshMcpToolCacheCommand;
@@ -113,6 +114,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping(120);
+        $schedule->command(ExpireUnusedParkingVisitsCommand::class)->everyFiveMinutes()->withoutOverlapping(10)->onOneServer();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
         $schedule->command(CheckoutReconcileCommand::class)->everyFiveMinutes()->withoutOverlapping(10)->onOneServer();
 
