@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 
 use Baka\Support\Str;
 use DateTime;
+use Illuminate\Support\Arr;
+use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Support\Phone;
 use Kanvas\Guild\Customers\Models\People;
@@ -28,6 +30,11 @@ class CreditApp extends Data
         $company = $message->company;
         $message = $message->getMessage();
         $formData = $message['data']['form'];
+
+        if (($message['verb'] ?? '') === ActionEnum::BUSINESS_CREDIT_APP->value) {
+            $formData = static::businessFormAsCreditApp($formData);
+        }
+
         $durationAtAddress = explode('.', $formData['housing']['time_at_address'] ?? '');
         $durationAtJob = explode('.', $formData['financial']['years_at_current_employment'] ?? '');
         $durationAtPreviousJob = explode('.', $formData['financial']['years_at_previous_employment'] ?? '');
@@ -152,6 +159,29 @@ class CreditApp extends Data
             personalInformation: $result['personalInformation'],
             licenseData: $result['licenseData']
         );
+    }
+
+    /**
+     * The business form keeps the company under `personal` and the signing officer, with housing
+     * and employment flattened together, under `cojoint`. VinSolution has one contact screen for
+     * both, so the officer is reshaped into the consumer sections. The officer's previous_* keys
+     * are a home address; left in `financial` they would be read as a previous employer's.
+     */
+    protected static function businessFormAsCreditApp(array $formData): array
+    {
+        $officer = $formData['cojoint'] ?? [];
+
+        return [
+            'personal' => $officer,
+            'housing' => $officer,
+            'financial' => [
+                ...Arr::except($officer, ['previous_state', 'previous_city', 'previous_zip_code']),
+                'current_employer_address_line1' => $officer['current_employment_address'] ?? '',
+                'city' => $officer['current_employment_city'] ?? '',
+                'state' => $officer['current_employment_state'] ?? null,
+                'zip_code' => $officer['current_employment_zip_code'] ?? '',
+            ],
+        ];
     }
 
     /**
