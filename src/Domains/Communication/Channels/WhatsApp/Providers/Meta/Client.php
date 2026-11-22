@@ -55,7 +55,7 @@ class Client
 
         $graphVersion = (string) ($app->get(ConfigurationEnum::GRAPH_API_VERSION->value) ?? self::DEFAULT_GRAPH_VERSION);
 
-        return (string) Http::acceptJson()
+        $token = (string) Http::acceptJson()
             ->timeout(30)
             ->get('https://graph.facebook.com/' . $graphVersion . '/oauth/access_token', [
                 'client_id' => $appId,
@@ -64,6 +64,12 @@ class Client
             ])
             ->throw()
             ->json('access_token');
+
+        if ($token === '') {
+            throw new RuntimeException('Meta answered the signup code without a business token.');
+        }
+
+        return $token;
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers;
 
 use Baka\Support\Str;
 use Carbon\CarbonInterval;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use InvalidArgumentException;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Client;
@@ -185,6 +186,9 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
                 'Meta rejected the signup code: '
                 . ($exception->response->json('error.message') ?? $exception->getMessage())
             );
+        } catch (ConnectionException) {
+            // Its message carries the request URL, and the app secret travels in that query string.
+            throw new ValidationException('Meta could not be reached to finish the signup. Try again.');
         }
     }
 

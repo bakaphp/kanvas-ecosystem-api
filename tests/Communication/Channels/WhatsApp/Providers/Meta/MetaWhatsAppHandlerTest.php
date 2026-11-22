@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Communication\Channels\WhatsApp\Providers\Meta;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
@@ -144,6 +145,41 @@ final class MetaWhatsAppHandlerTest extends TestCase
             }
 
             Http::assertNothingSent();
+        });
+    }
+
+    #[Group('serial')]
+    public function testAnUnreachableMetaNeverPutsTheAppSecretInTheError(): void
+    {
+        $this->withAppMeta(['meta-app-id', 'meta-app-secret'], function (): void {
+            Http::fake(fn (Request $request) => throw new ConnectionException(
+                'cURL error 28: timed out for ' . $request->url()
+            ));
+
+            try {
+                $this->handler(['phone_number_id' => self::PHONE_NUMBER_ID, 'waba_id' => self::WABA_ID, 'code' => 'signup-code'])->setup();
+                $this->fail('An unreachable Meta cannot finish a signup.');
+            } catch (ValidationException $exception) {
+                $this->assertStringNotContainsString('meta-app-secret', $exception->getMessage());
+                $this->assertStringNotContainsString('signup-code', $exception->getMessage());
+            }
+        });
+    }
+
+    #[Group('serial')]
+    public function testACodeMetaAnswersWithoutATokenIsRefusedBeforeTheNumberIsRead(): void
+    {
+        $this->withAppMeta(['meta-app-id', 'meta-app-secret'], function (): void {
+            Http::fake(['graph.facebook.com/*/oauth/access_token*' => Http::response(['token_type' => 'bearer'])]);
+
+            try {
+                $this->handler(['phone_number_id' => self::PHONE_NUMBER_ID, 'waba_id' => self::WABA_ID, 'code' => 'signup-code'])->setup();
+                $this->fail('A signup without a token cannot be saved.');
+            } catch (ValidationException $exception) {
+                $this->assertStringContainsString('without a business token', $exception->getMessage());
+            }
+
+            Http::assertSentCount(1);
         });
     }
 
