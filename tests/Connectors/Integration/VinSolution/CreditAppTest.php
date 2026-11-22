@@ -278,6 +278,185 @@ class CreditAppTest extends TestCase
         $this->assertEquals($creditApp->personalInformation, $stored['personalInformation']);
     }
 
+    public function testBusinessCreditAppMapsTheOfficerToTheSameFields(): void
+    {
+        $company = Companies::first();
+        $company->set(ConfigurationEnum::DEFAULT_STATE_KEY->value, 'FL');
+
+        $creditApp = CreditApp::fromMessage(
+            $this->buildMessageFromPayload($this->businessPayload(), $company)
+        );
+
+        $this->assertSame(
+            [
+                [
+                    'AddressId' => 0,
+                    'AddressType' => 'Primary',
+                    'StreetAddress' => '200 Officer Dr',
+                    'StreetAddress2' => '',
+                    'City' => 'Testville',
+                    'State' => 'IL',
+                    'PostalCode' => '60002',
+                    'Duration' => '5.0',
+                ],
+            ],
+            $creditApp->address
+        );
+
+        $this->assertSame(
+            [
+                'ContactId' => 0,
+                'Ssn' => '000000000',
+                'PersonalDates' => [
+                    ['DateType' => 'DateOfBirth', 'DateValue' => '1970-03-15T00:00:00Z'],
+                ],
+                'HousingInformation' => [
+                    'HousingType' => 'Homeowner',
+                    'DurationYears' => 5,
+                    'DurationMonths' => 0,
+                    'Expense' => 1000.0,
+                ],
+                'CurrentEmploymentInformation' => [
+                    'JobTitle' => 'Manager',
+                    'EmploymentStatusType' => 'Employed',
+                    'DurationYears' => 3,
+                    'DurationMonths' => 0,
+                    'EmployerName' => 'Fixture Trading LLC',
+                    'IncomeType' => 'Monthly',
+                    'Income' => 50000.0,
+                    'EmployerContactPhone' => '5555550101',
+                    'EmployerAddress' => [
+                        'StreetAddress' => '1 Fixture Ave',
+                        'StreetAddress2' => '',
+                        'City' => 'Worktown',
+                        'State' => 'IL',
+                        'PostalCode' => '600850001',
+                    ],
+                ],
+                'PreviousEmploymentInformation' => [
+                    'EmployerName' => '',
+                    'DurationYears' => 0,
+                    'DurationMonths' => 0,
+                    'EmployerContactPhone' => '',
+                    'EmployerAddress' => [
+                        'StreetAddress' => '',
+                        'StreetAddress2' => '',
+                        'City' => '',
+                        'State' => '',
+                        'PostalCode' => '',
+                    ],
+                ],
+                'BankInformation' => [
+                    'OtherMonthlyIncome' => 500.0,
+                    'OtherMonthlyIncomeSource' => 'Rental Income ',
+                ],
+            ],
+            $creditApp->personalInformation
+        );
+
+        $this->assertSame(
+            [
+                'DateOfBirth' => '1970-03-15T00:00:00Z',
+                'State' => 'IL',
+            ],
+            $creditApp->licenseData
+        );
+    }
+
+    public function testBusinessOfficerPreviousHomeIsNotReadAsPreviousEmployer(): void
+    {
+        $payload = $this->businessPayload();
+        $payload['data']['form']['cojoint']['previous_address'] = '500 Old Lane';
+        $payload['data']['form']['cojoint']['previous_state'] = ['id' => '3625', 'name' => 'Illinois', 'code' => 'IL'];
+        $payload['data']['form']['cojoint']['previous_city'] = ['name' => 'Oldtown'];
+        $payload['data']['form']['cojoint']['previous_zip_code'] = '60644';
+        $payload['data']['form']['cojoint']['previous_time_at_address'] = '2.0';
+
+        $creditApp = CreditApp::fromMessage($this->buildMessageFromPayload($payload));
+
+        $this->assertSame('500 Old Lane', $creditApp->address[1]['StreetAddress']);
+        $this->assertSame('Oldtown', $creditApp->address[1]['City']);
+        $this->assertSame(
+            [
+                'StreetAddress' => '',
+                'StreetAddress2' => '',
+                'City' => '',
+                'State' => '',
+                'PostalCode' => '',
+            ],
+            $creditApp->personalInformation['PreviousEmploymentInformation']['EmployerAddress']
+        );
+    }
+
+    /**
+     * Mirrors a production business-credit-app submission: the company under `personal`, the
+     * officer flattened under `cojoint`. PII replaced with synthetic values.
+     */
+    protected function businessPayload(): array
+    {
+        $illinois = ['id' => '3625', 'name' => 'Illinois', 'code' => 'IL'];
+
+        return [
+            'visitor_id' => '00000000-0000-0000-0000-000000000000',
+            'verb' => 'business-credit-app',
+            'status' => 'submitted',
+            'data' => [
+                'form' => [
+                    'personal' => [
+                        'business_name' => 'Fixture Trading LLC',
+                        'tax_id' => '000000000',
+                        'business_officer_ownership_percent' => '0',
+                        'business_phone_number' => '5555550101',
+                        'address' => '1 Fixture Ave',
+                        'state' => $illinois,
+                        'city' => 'Worktown',
+                        'county' => 'Test',
+                        'zip_code' => '60085',
+                    ],
+                    'cojoint' => [
+                        'last_name' => 'Customer',
+                        'first_name' => 'Test',
+                        'middle_name' => 'Q',
+                        'ssn' => '000000000',
+                        'dob' => '15-March-1970',
+                        'relationship_type' => 'Self',
+                        'address' => '200 Officer Dr',
+                        'city' => 'Testville',
+                        'state' => $illinois,
+                        'zip_code' => '60002',
+                        'home_number' => '5555550100',
+                        'mobile_number' => '5555550100',
+                        'email' => 'test+officer@example.test',
+                        'residence_type' => 'Own',
+                        'rent' => '1000',
+                        'time_at_address' => '5.0',
+                        'previous_address' => '',
+                        'previous_state' => '',
+                        'previous_city' => '',
+                        'previous_zip_code' => '',
+                        'previous_time_at_address' => '',
+                        'employment_status' => 'Full Time',
+                        'current_employment_title' => 'Manager',
+                        'current_employer' => 'Fixture Trading LLC',
+                        'current_employer_phone' => '5555550101',
+                        'years_at_current_employment' => '3.0',
+                        'current_employment_address' => '1 Fixture Ave',
+                        'current_employment_city' => 'Worktown',
+                        'current_employment_state' => $illinois,
+                        'current_employment_zip_code' => '60085-0001',
+                        'gross_income' => '50000',
+                        'other_income' => '500',
+                        'other_income_source' => 'Rental Income ',
+                    ],
+                    'signature' => [
+                        'id' => 1,
+                        'name' => 'business-credit-app-signature.png',
+                    ],
+                ],
+            ],
+        ];
+    }
+
     /**
      * Mirrors the production payload that exposed the missing-key warnings: employment step never
      * filled, blank previous-address keys. PII replaced with synthetic values.
