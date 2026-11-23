@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Approvals\Models;
 
 use Baka\Casts\Json;
+use Baka\Support\Money;
 use Baka\Support\Str;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Contracts\DescribesApprovalDetailsInterface;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
@@ -379,7 +381,7 @@ class ApprovalRequest extends BaseModel
 
         $moduleName = $this->systemModule?->name;
 
-        return [
+        $summary = [
             'id' => $entity->getKey(),
             // Some apps store the model class as the module name.
             'type' => $moduleName === null || str_contains($moduleName, '\\') ? class_basename($entity) : $moduleName,
@@ -389,13 +391,19 @@ class ApprovalRequest extends BaseModel
                 ?? $entity->expense_number
                 ?? (string) $entity->getKey(),
         ];
+
+        if ($entity instanceof DescribesApprovalDetailsInterface) {
+            $summary['details'] = $entity->approvalDetails();
+        }
+
+        return $summary;
     }
 
     /**
      * What the approval emails print for one request, as plain values: the template sandbox reads
      * attributes, not methods.
      *
-     * @return array{id: int, name: string, type: string, action: string, approval_type: string, requested_at: ?string}
+     * @return array{id: int, name: string, type: string, action: string, approval_type: string, requested_at: ?string, details: ?string}
      */
     public function emailSummary(): array
     {
@@ -408,11 +416,34 @@ class ApprovalRequest extends BaseModel
             'action' => Str::headline($this->approval_type),
             'approval_type' => $this->approval_type,
             'requested_at' => $this->created_at?->toDateTimeString(),
+            'details' => $this->detailsLine($summary['details'] ?? null),
         ];
     }
 
     public function isUnassigned(): bool
     {
         return (bool) ($this->metadata['unassigned'] ?? false);
+    }
+
+    /**
+     * "Acme Supplies · USD 300.00 · due 2026-12-01", skipping whatever the entity could not say.
+     *
+     * @param array{party: ?string, amount: ?float, currency: ?string, due_date: ?string}|null $details
+     */
+    private function detailsLine(?array $details): ?string
+    {
+        if ($details === null) {
+            return null;
+        }
+
+        $amount = $details['amount'] !== null ? Money::format($details['amount'], $details['currency']) : null;
+        $due = $details['due_date'] !== null ? 'due ' . $details['due_date'] : null;
+
+        $parts = array_filter(
+            [$details['party'], $amount, $due],
+            static fn (?string $part): bool => $part !== null && $part !== ''
+        );
+
+        return $parts === [] ? null : implode(' · ', $parts);
     }
 }

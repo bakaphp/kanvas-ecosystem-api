@@ -10,6 +10,9 @@
                 <td style="padding: 16px;">
                     <div style="font-size: 12px; color: #667085;">{{ approval.type }}</div>
                     <strong style="display: block; margin: 4px 0 8px; font-size: 18px;">{{ approval.name }}</strong>
+                    {% if approval.details %}
+                        <div style="margin-bottom: 8px; font-size: 14px;">{{ approval.details }}</div>
+                    {% endif %}
                     <div style="font-size: 14px;">{{ approval.action }}</div>
                     <div style="margin-top: 4px; font-size: 12px; color: #667085;">Requested {{ approval.requested_at }}</div>
                 </td>
