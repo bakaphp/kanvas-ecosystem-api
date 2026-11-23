@@ -70,11 +70,11 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                 $name = ($record->Name ?? $record->Vendor_Name) ?? $newAgent->name;
 
                 if (empty($record->Member_Number) && $newAgent == null) {
-                    return [
+                    return $this->failWorkflow([
                         'error' => 'Error Member Number not found',
                         'record' => $record->getData(),
                         'newAgent' => $newAgent?->toArray(),
-                    ];
+                    ]);
                 }
 
                 $memberNumber = $record->Member_Number ?? $newAgent->member_id;

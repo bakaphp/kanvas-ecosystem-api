@@ -9,7 +9,6 @@ use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Elead\Actions\AddCoBuyerAction;
 use Kanvas\Connectors\Elead\Actions\AddCreditAppAction;
 use Kanvas\Connectors\Elead\Actions\AddNoteToLeadAction;
 use Kanvas\Connectors\Elead\Actions\AddTradeInAction;
@@ -136,9 +135,6 @@ class PushLeadNotesActivity extends KanvasActivity
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
                     $addCreditApp = new AddCreditAppAction($lead);
                     $result = $addCreditApp->execute($messageData, true);
-
-                    $addCoBuyer = new AddCoBuyerAction($lead);
-                    $addCoBuyer->execute($messageData);
 
                     $lead->set('cobuyer_imported', 1);
                     $this->flagReadyForImport(

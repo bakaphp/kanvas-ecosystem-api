@@ -339,18 +339,19 @@ trait HashTableTrait
      */
     public function deleteHash(string $key): bool
     {
+        // Redis first and regardless of the row: a value cached without one (a rolled-back write)
+        // would otherwise be read back forever.
+        $cached = (bool) Redis::hDel(
+            $this->getSettingsRedisPrimaryKey(),
+            $key
+        );
+
         $this->createSettingsModel();
         if ($record = $this->getSettingsByKey($key)) {
-            // Remove from Redis
-            Redis::hDel(
-                $this->getSettingsRedisPrimaryKey(),
-                $key
-            );
-
             return $record->delete();
         }
 
-        return false;
+        return $cached;
     }
 
     public function del(string $key): bool

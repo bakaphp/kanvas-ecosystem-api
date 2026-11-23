@@ -126,6 +126,7 @@ class PushLeadNotesActivity extends KanvasActivity
 
                 break;
             case ActionEnum::CREDIT_APP->value:
+            case ActionEnum::BUSINESS_CREDIT_APP->value:
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
                     $creditAppAction = new PushCreditAppAction($lead->people, $message);
                     $results['creditApp'] = $creditAppAction->execute();
