@@ -59,8 +59,9 @@ final class DocumentShareRule
         if ($document->status === QuoteStatusEnum::DRAFT) {
             throw new DocumentDeliveryException(
                 DocumentDeliveryException::INVALID_STATUS,
-                "Quote {$document->getId()} is still a draft with no number. Send it with send_quote first; "
-                . 'that numbers it and marks it sent.'
+                "Quote {$document->getId()} is still a draft with no number. send_quote numbers it and marks it "
+                . 'sent: pass deliver=false when the user shares the link themselves and nobody should be '
+                . 'contacted, then ask for the link again.'
             );
         }
     }

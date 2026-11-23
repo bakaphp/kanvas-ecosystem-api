@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Baka\Support\Money;
-use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Exceptions\ApprovalRequiredException;
@@ -13,6 +11,7 @@ use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\PresentsInvoiceTerms;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\TakesInvoiceLines;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
@@ -31,8 +30,6 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\PaymentTerms\Models\PaymentTerm;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
-use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -53,6 +50,7 @@ class CreateArInvoiceTool extends Tool
     use ReadsApprovalSourceFields;
     use ResolvesCustomerForTool;
     use StoresApprovalSourceFields;
+    use TakesInvoiceLines;
     use TrackByInputs;
 
     protected string $name = 'create_ar_invoice';
@@ -72,41 +70,9 @@ class CreateArInvoiceTool extends Tool
     protected function properties(): array
     {
         return [
-            new ArrayProperty(
-                name: 'lines',
-                description: 'One entry per product or service. Prefer this over amount: each line carries its own '
-                    . 'tax. On a company that issues e-CF every line must give tax_rate (18 for ITBIS, 0 when exempt).',
-                required: false,
-                items: new ObjectProperty(
-                    name: 'line',
-                    description: 'One invoice line.',
-                    properties: [
-                        new ToolProperty(
-                            name: 'description',
-                            type: PropertyType::STRING,
-                            description: 'What is billed.',
-                            required: true
-                        ),
-                        new ToolProperty(
-                            name: 'quantity',
-                            type: PropertyType::NUMBER,
-                            description: 'Quantity. Defaults to 1.',
-                            required: false
-                        ),
-                        new ToolProperty(
-                            name: 'unit_price',
-                            type: PropertyType::NUMBER,
-                            description: 'Unit price before tax.',
-                            required: true
-                        ),
-                        new ToolProperty(
-                            name: 'tax_rate',
-                            type: PropertyType::NUMBER,
-                            description: 'Tax rate as a percent (18 for ITBIS, 0 when exempt). The tax is computed from it.',
-                            required: false,
-                        ),
-                    ],
-                ),
+            $this->invoiceLinesProperty(
+                'One entry per product or service. Prefer this over amount: each line carries its own '
+                . 'tax. On a company that issues e-CF every line must give tax_rate (18 for ITBIS, 0 when exempt).'
             ),
             new ToolProperty(
                 name: 'amount',
@@ -410,8 +376,7 @@ class CreateArInvoiceTool extends Tool
     }
 
     /**
-     * A one-line amount carries no tax, so on an e-CF company it would reach DGII as exempt: every line there has to
-     * state its rate, 0 included, so ITBIS is never dropped by omission.
+     * A one-line amount carries no tax, so on an e-CF company it would reach DGII as exempt and is refused there.
      *
      * @param array<int, array<string, mixed>>|null $lines
      * @return list<InvoiceLineData>|string the lines, or why they were refused
@@ -435,30 +400,12 @@ class CreateArInvoiceTool extends Tool
             return [new InvoiceLineData(description: $memo, quantity: 1.0, unit_price_native: $amount)];
         }
 
-        $data = [];
-        foreach ($lines as $line) {
-            $quantity = max(0.01, (float) ($line['quantity'] ?? 1));
-            $unitPrice = (float) ($line['unit_price'] ?? 0);
-            $rate = isset($line['tax_rate']) && is_numeric($line['tax_rate']) ? (float) $line['tax_rate'] : null;
-
-            if ($unitPrice <= 0) {
-                return 'Every line needs a positive unit_price. Nothing was created.';
-            }
-
-            if ($rate === null && $issuesEcf) {
-                return 'This company issues e-CF: every line needs tax_rate (18 for ITBIS, 0 when exempt). Nothing was created.';
-            }
-
-            $data[] = new InvoiceLineData(
-                description: Str::trimToNull((string) ($line['description'] ?? '')) ?? $memo,
-                quantity: $quantity,
-                unit_price_native: $unitPrice,
-                tax_rate: $rate,
-                tax_amount_native: $rate !== null ? Money::cents($quantity * $unitPrice * $rate / 100) : 0.0,
-            );
-        }
-
-        return $data;
+        return $this->invoiceLinesFrom(
+            $lines,
+            $memo,
+            $issuesEcf,
+            'Nothing was created.'
+        );
     }
 
     /**
