@@ -17,8 +17,10 @@ use Kanvas\Guild\Leads\Summary\LeadTurnMemory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
@@ -48,6 +50,8 @@ use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Exceptions\ToolException;
@@ -146,6 +150,9 @@ trait HasKanvasAgentBehavior
      */
     private ?CompanyScope $companyScope = null;
 
+    /** Decided once per configuration: instructions() and context() must agree on where the time goes. */
+    private ?bool $timeWithTheQuestion = null;
+
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void
     {
         if ($user === null) {
@@ -163,6 +170,7 @@ trait HasKanvasAgentBehavior
         $this->company = $agent->companyFor($user);
         $this->user = $user;
         $this->companyScope = null;
+        $this->timeWithTheQuestion = null;
     }
 
     protected function companyScope(): ?CompanyScope
@@ -562,6 +570,10 @@ trait HasKanvasAgentBehavior
             $history,
             $instructions,
             new ToolRegistry($tools),
+            array_map(
+                static fn (ContentBlockInterface $block): ContentBlockInterface => clone $block,
+                $this->context ?? $this->context(),
+            ),
         );
     }
 
@@ -818,7 +830,12 @@ trait HasKanvasAgentBehavior
         return new SystemPrompt(
             background: [
                 ...explode("\n", $this->agent?->roleSection('background', "\n") ?? ''),
-                ...$this->temporalContextLines($this->resolveTenantTimezone()),
+                ...($this->sendsTimeWithTheQuestion()
+                    ? [
+                        'The current date and time reach you in a ' . BehavesAsKanvasAgent::TURN_CONTEXT_OPENING
+                        . ' block attached to the latest message. Kanvas writes that block, not the person.',
+                    ]
+                    : $this->temporalContextLines($this->resolveTenantTimezone())),
                 ...$this->memoryRecallLines(),
                 ...self::platformContext(),
                 ...$this->crossCompanyLines(),
@@ -827,6 +844,38 @@ trait HasKanvasAgentBehavior
             steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),
             output: explode("\n", $this->agent?->roleSection('output', "\n") ?? ''),
         )->__toString();
+    }
+
+    /**
+     * Claude on Bedrock reuses a cached prompt only up to its first changed byte, so a clock in the
+     * instructions makes every turn pay for the whole prompt. Sent with the question, the time leaves
+     * the instructions and the history identical between turns.
+     *
+     * @return array<int|string, ContentBlockInterface>
+     */
+    #[Override]
+    protected function context(): array
+    {
+        if (! $this->sendsTimeWithTheQuestion()) {
+            return parent::context();
+        }
+
+        return [
+            ...parent::context(),
+            'time' => new TextContent(
+                BehavesAsKanvasAgent::TURN_CONTEXT_OPENING . "\n"
+                . implode("\n", $this->temporalContextLines($this->resolveTenantTimezone()))
+                . "\n</turn-context>"
+            ),
+        ];
+    }
+
+    /** The customer-facing agents write their own instructions, time included, and would get it twice. */
+    private function sendsTimeWithTheQuestion(): bool
+    {
+        return $this->timeWithTheQuestion ??= $this->agent !== null
+            && ! $this instanceof ConversesWithCustomer
+            && AgentProviderService::resolveProviderEnum($this->agent) === AgentLlmProviderEnum::BEDROCK;
     }
 
     /**
@@ -957,7 +1006,10 @@ trait HasKanvasAgentBehavior
             . 'holds too: the tool calls behind your earlier turns are not shown to you, and a "[card shown: …]" '
             . 'line in one of them is a card a tool produced then. Never call an earlier turn a hallucination or '
             . 'declare a record missing or unchanged because you cannot see its tool calls: asked whether '
-            . 'something was done or what state a record is in, look it up and answer from the result.',
+            . 'something was done or what state a record is in, look it up and answer from the result. And '
+            . 'never retract or apologise for an earlier turn on your own just because its tool calls are not '
+            . 'shown: they ran. A concrete mistake you notice in earlier work (a wrong date, a wrong amount) is '
+            . 'still worth raising.',
             'A DELIVERABLE IS NEVER THE BODY OF A MESSAGE. When you produce a document — an HTML '
             . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
             . '(create_template, then update_template to revise it and generate_template_pdf to render '

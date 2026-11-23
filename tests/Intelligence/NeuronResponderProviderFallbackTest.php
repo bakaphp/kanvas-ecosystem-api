@@ -10,10 +10,14 @@ use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasBedrock;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Router\RouterProvider;
+use PHPUnit\Framework\Attributes\Group;
 use ReflectionProperty;
 use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\TestCase;
@@ -75,6 +79,67 @@ final class NeuronResponderProviderFallbackTest extends TestCase
             array_search('llm_config_' . $globalFallback->getId(), $order, true),
             array_search('llm_config_' . $companyFallback->getId(), $order, true),
         );
+    }
+
+    #[Group('serial')]
+    public function testABedrockAgentFailsOverToTheSecondBedrockModelUnlessTheAppNamesAnotherProvider(): void
+    {
+        $app = app(Apps::class);
+        $settings = [
+            ConfigurationEnum::AI_PROVIDER->value,
+            ConfigurationEnum::AI_PROVIDER_MODEL->value,
+            ConfigurationEnum::AI_FALLBACK_PROVIDER->value,
+            ConfigurationEnum::AI_FALLBACK_MODEL->value,
+            ConfigurationEnum::GEMINI_KEY->value,
+            ConfigurationEnum::GEMINI_MODEL->value,
+        ];
+        $original = [];
+        foreach ($settings as $key) {
+            $original[$key] = $app->get($key);
+            $app->del($key);
+        }
+        config([
+            'ai.providers.bedrock.key' => 'platform-bedrock-key',
+            'ai.providers.bedrock.models.text.fallback' => 'global.amazon.nova-2-lite-v1:0',
+        ]);
+
+        try {
+            $agent = AgentFactory::new()
+                ->withAppId($app->getId())
+                ->withCompanyId(0)
+                ->create(['config' => []]);
+
+            $this->assertNull(AgentProviderService::appFallbackProvider($agent), 'A Gemini app gains no fallback.');
+
+            $app->set(ConfigurationEnum::AI_PROVIDER->value, AgentLlmProviderEnum::BEDROCK->value);
+            $fallback = AgentProviderService::appFallbackProvider($agent);
+            $this->assertInstanceOf(KanvasBedrock::class, $fallback);
+            $this->assertSame('global.amazon.nova-2-lite-v1:0', $fallback->getModel());
+
+            $wrapped = new NeuronResponderProviderFallback()->wrap(new FakeNeuronProvider(), $agent);
+            $this->assertSame(['primary', 'app_fallback'], new ReflectionProperty(RouterProvider::class, 'fallbackOrder')->getValue($wrapped));
+
+            $app->set(ConfigurationEnum::GEMINI_KEY->value, 'gemini-key');
+            $app->set(ConfigurationEnum::AI_FALLBACK_PROVIDER->value, AgentLlmProviderEnum::GEMINI->value);
+            $fallback = AgentProviderService::appFallbackProvider($agent);
+            $this->assertInstanceOf(KanvasGemini::class, $fallback);
+            $this->assertSame('gemini-3.8-flash', $fallback->getModel());
+
+            $app->set(ConfigurationEnum::AI_FALLBACK_MODEL->value, 'gemini-3.1-flash-lite');
+            $this->assertSame('gemini-3.1-flash-lite', AgentProviderService::appFallbackProvider($agent)->getModel());
+
+            $app->del(ConfigurationEnum::AI_FALLBACK_MODEL->value);
+            $app->set(ConfigurationEnum::AI_FALLBACK_PROVIDER->value, 'none');
+            $this->assertNull(AgentProviderService::appFallbackProvider($agent));
+
+            $app->del(ConfigurationEnum::AI_FALLBACK_PROVIDER->value);
+            $app->set(ConfigurationEnum::AI_PROVIDER_MODEL->value, 'global.amazon.nova-2-lite-v1:0');
+            $this->assertNull(AgentProviderService::appFallbackProvider($agent), 'Never the same model twice.');
+        } finally {
+            foreach ($original as $key => $value) {
+                $value === null || $value === '' ? $app->del($key) : $app->set($key, $value);
+            }
+        }
     }
 
     public function testItDoesNotUseConfigsFromAnotherCompany(): void

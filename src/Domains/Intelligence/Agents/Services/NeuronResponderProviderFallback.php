@@ -11,7 +11,7 @@ use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Router\RouterProvider;
 use Throwable;
 
-/** Build a transient-error failover chain from the tenant's agent_llm_configs. */
+/** Build a transient-error failover chain: the tenant's agent_llm_configs, then the app's fallback provider. */
 final class NeuronResponderProviderFallback
 {
     public function wrap(AIProviderInterface $primary, Agent $agent): AIProviderInterface
@@ -38,6 +38,21 @@ final class NeuronResponderProviderFallback
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        try {
+            $appFallback = AgentProviderService::appFallbackProvider($agent);
+
+            if ($appFallback !== null) {
+                $router->addProvider('app_fallback', $appFallback);
+                $order[] = 'app_fallback';
+            }
+        } catch (Throwable $e) {
+            Log::warning('Skipping invalid app LLM fallback', [
+                'agent_id' => $agent->getId(),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return count($order) === 1
