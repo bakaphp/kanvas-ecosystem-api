@@ -285,10 +285,7 @@ class ImportProductsCrossEnvCommand extends Command
                 $productWarehouseNames[$name] = true;
                 $warehouse['id'] = $this->warehouseMap[$name];
 
-                // Intentionally do NOT pass a per-warehouse 'status'. WarehouseService::addToWarehouses()
-                // has a bug where setting it does `$status = ...->getId()` then `$status->getId()` again
-                // ("Call to a member function getId() on int"). Omitting it falls back to the company
-                // default status, which is what we want for a seed anyway.
+                // No per-warehouse status: a seed takes the target company's default.
                 unset($warehouse['warehouse_name'], $warehouse['status_name']);
                 $warehouses[] = $warehouse;
             }
