@@ -6,13 +6,12 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Exception;
+use Baka\Support\Str;
 use Kanvas\Connectors\NetSuite\Client;
 use NetSuite\Classes\CustomerSearch;
 use NetSuite\Classes\CustomerSearchAdvanced;
 use NetSuite\Classes\CustomerSearchBasic;
-use NetSuite\Classes\SearchRequest;
-use NetSuite\NetSuiteService;
+use NetSuite\Classes\SearchBooleanField;
 
 class NetSuiteCustomerSearchService
 {
@@ -45,49 +44,26 @@ class NetSuiteCustomerSearchService
     }
 
     /**
-     * Execute the advanced customer search and format the results.
+     * @return list<string>
      */
+    public function activeCustomerIds(): array
+    {
+        $basic = new CustomerSearchBasic();
+        $basic->isInactive = new SearchBooleanField();
+        $basic->isInactive->searchValue = false;
+
+        $search = new CustomerSearch();
+        $search->basic = $basic;
+
+        return array_values(array_filter(array_map(
+            fn (object $customer) => Str::trimToNull((string) ($customer->internalId ?? '')),
+            $this->client->searchAll($search)
+        )));
+    }
+
     protected function executeAdvancedSearch(CustomerSearchAdvanced $search): array
     {
-        $searchRequest = new SearchRequest();
-        $searchRequest->searchRecord = $search;
-
-        $response = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchRequest) {
-            return $service->search($searchRequest);
-        });
-
-        if (! $response->searchResult->status->isSuccess) {
-            throw new Exception('Error searching customers: ' . $response->searchResult->status->statusDetail[0]->message);
-        }
-
-        $customers = [];
-        if (isset($response->searchResult->searchRowList->searchRow)) {
-            $customers = $this->mapSearchResultToCustomer($response->searchResult->searchRowList->searchRow);
-        }
-
-        // Handle pagination - fetch remaining pages if they exist
-        $searchId = $response->searchResult->searchId ?? null;
-        $totalPages = $response->searchResult->totalPages ?? 1;
-        $currentPage = $response->searchResult->pageIndex ?? 1;
-
-        if ($searchId && $totalPages > 1) {
-            for ($pageIndex = $currentPage + 1; $pageIndex <= $totalPages; $pageIndex++) {
-                $searchMoreRequest = new \NetSuite\Classes\SearchMoreWithIdRequest();
-                $searchMoreRequest->searchId = $searchId;
-                $searchMoreRequest->pageIndex = $pageIndex;
-
-                $moreResponse = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchMoreRequest) {
-                    return $service->searchMoreWithId($searchMoreRequest);
-                });
-
-                if ($moreResponse->searchResult->status->isSuccess && isset($moreResponse->searchResult->searchRowList->searchRow)) {
-                    $moreCustomers = $this->mapSearchResultToCustomer($moreResponse->searchResult->searchRowList->searchRow);
-                    $customers = array_merge($customers, $moreCustomers);
-                }
-            }
-        }
-
-        return $customers;
+        return $this->mapSearchResultToCustomer($this->client->searchAll($search));
     }
 
     /**

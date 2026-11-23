@@ -19,6 +19,7 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use NetSuite\Classes\InventoryItem;
 
 /**
@@ -42,7 +43,10 @@ class PullNetSuiteProductAction
         $this->priceRefresh = new PullNetSuiteProductPriceAction($app, $company, $user);
     }
 
-    public function execute(string $barcode): Variants
+    /**
+     * Without a warehouse the product lands in the company's default one.
+     */
+    public function execute(string $barcode, ?Warehouses $warehouse = null): Variants
     {
         $existing = $this->findVariantBySku($barcode);
 
@@ -68,6 +72,9 @@ class PullNetSuiteProductAction
                         'custom_fields' => [
                             ['name' => CustomFieldEnum::NET_SUITE_PRODUCT_ID->value, 'data' => $internalId],
                         ],
+                        ...($warehouse !== null ? [
+                            'warehouses' => [['id' => $warehouse->getId(), 'price' => 0, 'quantity' => 0]],
+                        ] : []),
                     ],
                 ],
                 isPublished: ! ($item->isInactive ?? false),

@@ -6,20 +6,15 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Exception;
 use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use NetSuite\Classes\ItemSearch;
 use NetSuite\Classes\ItemSearchAdvanced;
 use NetSuite\Classes\ItemSearchBasic;
-use NetSuite\Classes\LocationSearchBasic;
 use NetSuite\Classes\PricingSearchBasic;
 use NetSuite\Classes\RecordRef;
-use NetSuite\Classes\SearchMoreWithIdRequest;
 use NetSuite\Classes\SearchMultiSelectField;
-use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\SearchStringField;
-use NetSuite\NetSuiteService;
 
 class NetSuiteProductSearchService
 {
@@ -48,15 +43,6 @@ class NetSuiteProductSearchService
         $searchBasic->itemId->operator = 'is';
         $searchBasic->itemId->searchValue = (string) $itemNumber;
 
-        // Location join. If we not filter a new row would appear for every available location
-        $locationBasic = new LocationSearchBasic();
-        $internalIdField = new SearchMultiSelectField();
-        $internalIdField->operator = 'anyOf';
-        $internalIdRef = new RecordRef();
-        $internalIdRef->internalId = (string) $locationId;
-        $internalIdField->searchValue = [$internalIdRef];
-        $locationBasic->internalId = $internalIdField;
-
         $pricingBasic = new PricingSearchBasic();
         $priceLevelField = new SearchMultiSelectField();
         $priceLevelField->operator = 'anyOf';
@@ -68,7 +54,8 @@ class NetSuiteProductSearchService
 
         $itemSearch = new ItemSearch();
         $itemSearch->basic = $searchBasic;
-        $itemSearch->inventoryLocationJoin = $locationBasic;
+        // Without the location filter a row comes back for every location carrying the item.
+        $itemSearch->inventoryLocationJoin = NetSuiteLocationService::joinFilter([$locationId]);
         $itemSearch->pricingJoin = $pricingBasic;
 
         $search->criteria = $itemSearch;
@@ -93,17 +80,9 @@ class NetSuiteProductSearchService
         $search = new ItemSearchAdvanced();
         $search->savedSearchId = (string) $savedSearchId;
 
-        $locationBasic = new LocationSearchBasic();
-        $internalIdField = new SearchMultiSelectField();
-        $internalIdField->operator = 'anyOf';
-        $internalIdRef = new RecordRef();
-        $internalIdRef->internalId = (string) $locationId;
-        $internalIdField->searchValue = [$internalIdRef];
-        $locationBasic->internalId = $internalIdField;
-
         $itemSearch = new ItemSearch();
         $itemSearch->basic = new ItemSearchBasic();
-        $itemSearch->inventoryLocationJoin = $locationBasic;
+        $itemSearch->inventoryLocationJoin = NetSuiteLocationService::joinFilter([$locationId]);
 
         $search->criteria = $itemSearch;
 
@@ -129,50 +108,9 @@ class NetSuiteProductSearchService
         return $this->executeAdvancedSearch($search);
     }
 
-    /**
-     * Execute the advanced product search and format the results.
-     */
     protected function executeAdvancedSearch(ItemSearchAdvanced $search): array
     {
-        $searchRequest = new SearchRequest();
-        $searchRequest->searchRecord = $search;
-
-        $response = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchRequest) {
-            return $service->search($searchRequest);
-        });
-
-        if (! $response->searchResult->status->isSuccess) {
-            throw new Exception('Error searching products: ' . $response->searchResult->status->statusDetail[0]->message);
-        }
-
-        $products = [];
-        if (isset($response->searchResult->searchRowList->searchRow)) {
-            $products = $this->mapSearchResultToProduct($response->searchResult->searchRowList->searchRow);
-        }
-
-        // Handle pagination - fetch remaining pages if they exist
-        $searchId = $response->searchResult->searchId ?? null;
-        $totalPages = $response->searchResult->totalPages ?? 1;
-        $currentPage = $response->searchResult->pageIndex ?? 1;
-
-        if ($searchId && $totalPages > 1) {
-            for ($pageIndex = $currentPage + 1; $pageIndex <= $totalPages; $pageIndex++) {
-                $searchMoreRequest = new SearchMoreWithIdRequest();
-                $searchMoreRequest->searchId = $searchId;
-                $searchMoreRequest->pageIndex = $pageIndex;
-
-                $moreResponse = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchMoreRequest) {
-                    return $service->searchMoreWithId($searchMoreRequest);
-                });
-
-                if ($moreResponse->searchResult->status->isSuccess && isset($moreResponse->searchResult->searchRowList->searchRow)) {
-                    $moreProducts = $this->mapSearchResultToProduct($moreResponse->searchResult->searchRowList->searchRow);
-                    $products = array_merge($products, $moreProducts);
-                }
-            }
-        }
-
-        return $products;
+        return $this->mapSearchResultToProduct($this->client->searchAll($search));
     }
 
     /**

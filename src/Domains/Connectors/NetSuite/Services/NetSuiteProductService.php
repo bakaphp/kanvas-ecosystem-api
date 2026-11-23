@@ -6,13 +6,18 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\NetSuite\Client;
 use NetSuite\Classes\InventoryItem;
 use NetSuite\Classes\ItemSearch;
 use NetSuite\Classes\ItemSearchBasic;
 use NetSuite\Classes\ItemSearchRow;
+use NetSuite\Classes\ItemType;
 use NetSuite\Classes\RecordType;
+use NetSuite\Classes\SearchBooleanField;
+use NetSuite\Classes\SearchEnumMultiSelectField;
+use NetSuite\Classes\SearchEnumMultiSelectFieldOperator;
 use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\SearchStringField;
 use NetSuite\NetSuiteService;
@@ -26,6 +31,37 @@ class NetSuiteProductService
         protected CompanyInterface $company
     ) {
         $this->client = new Client($app, $company);
+    }
+
+    /**
+     * The item number of every active inventory item, or only of those the given locations carry.
+     * Only inventory items: getProductById() reads that record type, so a kit or service item
+     * listed here could never be pulled. A basic search answers one record per item even when it
+     * is carried at several of the locations.
+     *
+     * @param list<string> $locationIds
+     * @return list<string>
+     */
+    public function activeInventoryItemIds(array $locationIds = []): array
+    {
+        $basic = new ItemSearchBasic();
+        $basic->isInactive = new SearchBooleanField();
+        $basic->isInactive->searchValue = false;
+        $basic->type = new SearchEnumMultiSelectField();
+        $basic->type->operator = SearchEnumMultiSelectFieldOperator::anyOf;
+        $basic->type->searchValue = [ItemType::_inventoryItem];
+
+        $search = new ItemSearch();
+        $search->basic = $basic;
+
+        if ($locationIds !== []) {
+            $search->inventoryLocationJoin = NetSuiteLocationService::joinFilter($locationIds);
+        }
+
+        return array_values(array_filter(array_map(
+            fn (object $item) => Str::trimToNull((string) ($item->itemId ?? '')),
+            $this->client->searchAll($search)
+        )));
     }
 
     /**

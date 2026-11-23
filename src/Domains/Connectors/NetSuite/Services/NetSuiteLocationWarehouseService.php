@@ -6,8 +6,10 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
@@ -37,15 +39,24 @@ class NetSuiteLocationWarehouseService
      */
     public function map(): array
     {
-        $warehouses = Warehouses::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->get();
+        $warehouses = $this->warehouses();
+        $map = $this->explicitMap($warehouses);
 
+        return $map !== [] ? $map : $this->legacySingleWarehouseMap($warehouses);
+    }
+
+    /**
+     * Only the warehouses that carry a NET_SUITE_LOCATION_ID of their own, without the company
+     * default fallback.
+     *
+     * @param iterable<int, Warehouses>|null $warehouses
+     * @return array<int, string>
+     */
+    public function explicitMap(?iterable $warehouses = null): array
+    {
         $map = [];
 
-        foreach ($warehouses as $warehouse) {
+        foreach ($warehouses ?? $this->warehouses() as $warehouse) {
             $locationId = $warehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value);
 
             if ($locationId !== null && $locationId !== '') {
@@ -53,11 +64,44 @@ class NetSuiteLocationWarehouseService
             }
         }
 
-        if ($map !== []) {
-            return $map;
-        }
+        return $map;
+    }
 
-        return $this->legacySingleWarehouseMap($warehouses);
+    /**
+     * @param array<int, string>|null $explicitMap a map already read, to avoid reading it per location
+     */
+    public function warehouseFor(string $locationId, ?array $explicitMap = null): ?Warehouses
+    {
+        $warehouseId = array_search($locationId, $explicitMap ?? $this->explicitMap(), true);
+
+        return $warehouseId === false
+            ? null
+            : Warehouses::getByIdFromCompanyApp($warehouseId, $this->company, $this->app);
+    }
+
+    /**
+     * Products and stock are read per location: with nothing mapped, every product would be created
+     * at price 0 and counted as failed, and stock would have nowhere to go.
+     */
+    public function assertMapped(): void
+    {
+        if ($this->map() === []) {
+            throw new ValidationException(
+                'No warehouse of this company is mapped to a NetSuite location. Import the NetSuite locations first.'
+            );
+        }
+    }
+
+    /**
+     * @return Collection<int, Warehouses>
+     */
+    private function warehouses(): Collection
+    {
+        return Warehouses::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->get();
     }
 
     /**

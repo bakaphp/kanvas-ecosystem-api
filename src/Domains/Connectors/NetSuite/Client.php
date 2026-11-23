@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\NetSuite;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Closure;
+use Exception;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -14,6 +15,9 @@ use Kanvas\Exceptions\ValidationException;
 use NetSuite\Classes\GetRequest;
 use NetSuite\Classes\Record;
 use NetSuite\Classes\RecordRef;
+use NetSuite\Classes\SearchMoreWithIdRequest;
+use NetSuite\Classes\SearchRecord;
+use NetSuite\Classes\SearchRequest;
 use NetSuite\NetSuiteService;
 use SoapFault;
 use Throwable;
@@ -94,6 +98,49 @@ class Client
                 'Error retrieving ' . $label . ': ' . $response->readResponse->status->statusDetail[0]->message
             );
         });
+    }
+
+    /**
+     * Every result of a search, across all its pages: SuiteTalk answers the first page from search()
+     * and the rest only through searchMoreWithId on the same searchId. A basic search answers in
+     * records and an advanced (saved) one in rows. A failed page throws rather than being skipped, so
+     * a caller never mistakes a partial result for the whole set.
+     *
+     * @return list<object>
+     */
+    public function searchAll(SearchRecord $searchRecord): array
+    {
+        $request = new SearchRequest();
+        $request->searchRecord = $searchRecord;
+
+        $page = $this->executeWithRateLimit(fn (NetSuiteService $service) => $service->search($request))
+            ->searchResult;
+        $results = $this->pageResults($page);
+        $searchId = $page->searchId ?? null;
+        $totalPages = (int) ($page->totalPages ?? 1);
+
+        for ($pageIndex = (int) ($page->pageIndex ?? 1) + 1; $searchId !== null && $pageIndex <= $totalPages; $pageIndex++) {
+            $moreRequest = new SearchMoreWithIdRequest();
+            $moreRequest->searchId = $searchId;
+            $moreRequest->pageIndex = $pageIndex;
+
+            $more = $this->executeWithRateLimit(fn (NetSuiteService $service) => $service->searchMoreWithId($moreRequest));
+            $results = array_merge($results, $this->pageResults($more->searchResult));
+        }
+
+        return $results;
+    }
+
+    /**
+     * @return list<object>
+     */
+    private function pageResults(object $page): array
+    {
+        if (! $page->status->isSuccess) {
+            throw new Exception('NetSuite search failed: ' . ($page->status->statusDetail[0]->message ?? 'unknown error'));
+        }
+
+        return $page->searchRowList->searchRow ?? $page->recordList->record ?? [];
     }
 
     /**
