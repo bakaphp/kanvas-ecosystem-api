@@ -63,7 +63,7 @@ class CreateMessageFromMicrosoftEmailAction
 
         $channel = null;
         if ($this->lead !== null) {
-            $channel = $this->createLeadChannel();
+            $channel = $this->createLeadChannel($from);
             $newMessage = $this->createMessageWithLead($messageInput);
         } else {
             $newMessage = new CreateMessageAction($messageInput)->execute();
@@ -147,7 +147,7 @@ class CreateMessageFromMicrosoftEmailAction
     /**
      * Create or get the email channel tied to the lead.
      */
-    private function createLeadChannel(): Channel
+    private function createLeadChannel(string $from): Channel
     {
         $this->lead->set(LeadsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'email');
 
@@ -160,7 +160,9 @@ class CreateMessageFromMicrosoftEmailAction
             'name' => 'Email ' . $this->lead->getId(),
             'slug' => SessionChannelService::createChannelSlug(
                 $this->lead->get(LeadsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                $this->lead->email
+                // Copied from the person only when the lead itself is saved, so it is
+                // null for a lead whose person got their address later.
+                $this->lead->email ?? $from
             ),
         ]);
 

@@ -13,6 +13,8 @@ use Kanvas\Connectors\Mailgun\Actions\AttachEmailAttachmentsToLeadAction;
 use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
@@ -108,6 +110,40 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
         new AgentProcessEmailWebhookJob($webhookCall)->execute();
 
         $this->assertTrue($lead->fresh()->tags()->where('name', 'engaged')->exists());
+    }
+
+    /**
+     * `leads.email` is copied from the person only when the lead itself is saved, so the sender can
+     * match a person whose lead still has none.
+     */
+    public function testInboundEmailIsFiledWhenTheLeadHasNoEmailOfItsOwn(): void
+    {
+        $lead = $this->createLead();
+        $email = 'customer-' . uniqid() . '@example.com';
+        $lead->email = null;
+        $lead->saveQuietly();
+        $lead->people->contacts()->create([
+            'contacts_types_id' => 1,
+            'value' => $email,
+            'weight' => 100,
+        ]);
+        $webhookCall = $this->buildWebhookCall([
+            'sender' => $email,
+            'from' => 'Customer <' . $email . '>',
+            'subject' => 'Re: Quote',
+            'body-plain' => 'Did you see this?',
+            'stripped-text' => 'Did you see this?',
+            'Message-Id' => '<no-lead-email-' . uniqid() . '@example.com>',
+        ], []);
+
+        new AgentProcessEmailWebhookJob($webhookCall)->execute();
+
+        $this->assertTrue(
+            Channel::where('entity_id', $lead->getId())
+                ->where('entity_namespace', Lead::class)
+                ->where('slug', SessionChannelService::createChannelSlug('email', $email))
+                ->exists()
+        );
     }
 
     /**
