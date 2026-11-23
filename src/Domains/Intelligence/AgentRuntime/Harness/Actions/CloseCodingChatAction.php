@@ -8,8 +8,10 @@ use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\CodingOutcome;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
+use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\ReleaseFactoryCheckoutJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Throwable;
 
@@ -81,7 +83,11 @@ class CloseCodingChatAction
         // fail, and only this releases it. A refusal (the lock belongs to someone else) is expected.
         try {
             return $factory->release($this->session->repo_slug, $this->session->uuid);
+        } catch (CheckoutInUseException) {
+            return null;
         } catch (HarnessTransportException) {
+            ReleaseFactoryCheckoutJob::dispatch($this->session->app, $this->session->getId())->delay(60);
+
             return null;
         } catch (Throwable $e) {
             report($e);

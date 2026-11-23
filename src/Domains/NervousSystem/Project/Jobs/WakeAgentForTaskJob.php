@@ -65,9 +65,9 @@ class WakeAgentForTaskJob implements ShouldQueue
 
         $this->overwriteAppService($agent->app);
 
-        // A factory agent has no board turn to take: its model is the opencode agent on the factory Mac.
+        // A factory agent has no board turn to take: its model is the opencode agent on the factory machine.
         // The task goes through the worker, which hands it to the factory and records what comes back.
-        if ($agent->is_active && CodingChatSettingEnum::isEnabledFor($agent)) {
+        if ($agent->is_active && CodingChatSettingEnum::runsTaskInFactory($agent, $this->task->fullText())) {
             $this->handToTheFactory();
 
             return;
@@ -77,6 +77,13 @@ class WakeAgentForTaskJob implements ShouldQueue
         // self-drive elsewhere; CRM/Lead-context agents would fatal on a Task entity. assign_task
         // guards this; this is the safety net.
         if (! $agent->is_active || ! $agent->canExecuteBoardWork()) {
+            return;
+        }
+
+        // The factory worker that finishes the step ahead starts this one (RunTaskWorkerJob).
+        if ($this->task->waitsOnEarlierFactoryWork()) {
+            $this->recordQueued();
+
             return;
         }
 
@@ -220,7 +227,9 @@ class WakeAgentForTaskJob implements ShouldQueue
 
     /**
      * Once per task: a task already finished, or already waiting on its factory run, is not handed over
-     * a second time when it is assigned again.
+     * a second time when it is assigned again. A task assigned before the ones ahead of it are done
+     * waits its turn: the worker that finishes the task before it starts it (`RunTaskWorkerJob`), so a
+     * ticket's design, logic and ship steps never run at once on their shared branch.
      */
     private function handToTheFactory(): void
     {
@@ -228,6 +237,21 @@ class WakeAgentForTaskJob implements ShouldQueue
             return;
         }
 
+        if ($this->task->waitsOnEarlierTasks()) {
+            $this->recordQueued();
+
+            return;
+        }
+
         RunTaskWorkerJob::dispatch($this->task);
+    }
+
+    private function recordQueued(): void
+    {
+        $this->task->emitLedgerEvent('plan.task.queued', payload: [
+            'task_id' => $this->task->getId(),
+            'plan_id' => $this->task->plan_id,
+            'sequence' => (int) $this->task->sequence,
+        ]);
     }
 }

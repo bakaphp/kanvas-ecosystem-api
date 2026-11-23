@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Listeners;
 
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 
 class WakeAgentOnPlanChangeListener
 {
@@ -18,6 +20,19 @@ class WakeAgentOnPlanChangeListener
 
     public function handle(PlanBroadcast $event): void
     {
+        // A factory agent ignores plan wakes (WakeAgentForPlanJob), so a reset task of its would sit
+        // pending for good. Its task is what runs.
+        if ($this->reopensAFactoryTask($event)) {
+            $event->plan->emitLedgerEvent(
+                'plan.task.factory_rerun_dispatched',
+                payload: ['task_id' => $event->task->getId(), 'agent_id' => $event->task->agent_id],
+            );
+
+            WakeAgentForTaskJob::dispatch($event->task);
+
+            return;
+        }
+
         if (! $this->shouldWake($event)) {
             return;
         }
@@ -137,6 +152,29 @@ class WakeAgentOnPlanChangeListener
         }
 
         return (bool) ($event->plan->agent?->is_active ?? false);
+    }
+
+    /**
+     * @phpstan-assert-if-true !null $event->task
+     */
+    private function reopensAFactoryTask(PlanBroadcast $event): bool
+    {
+        if ($event->fromSync || $event->changeType !== PlanChangeTypeEnum::TASK_STATUS_CHANGED) {
+            return false;
+        }
+
+        $task = $event->task;
+        $agent = $task?->agent;
+        $owner = $event->plan->agent;
+
+        // The task runs on the Mac, or the plan belongs to a factory agent: either way the plan wake below
+        // reaches an agent that ignores it.
+        return $task !== null
+            && $agent !== null
+            && $task->status === TaskStatusEnum::PENDING->value
+            && in_array((string) $event->previousStatus, self::TERMINAL_TASK_STATUSES, true)
+            && (CodingChatSettingEnum::runsTaskInFactory($agent, $task->fullText())
+                || ($owner !== null && CodingChatSettingEnum::isEnabledFor($owner)));
     }
 
     /**

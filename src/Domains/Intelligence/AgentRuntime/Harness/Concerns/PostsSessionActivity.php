@@ -40,7 +40,7 @@ trait PostsSessionActivity
 
     protected function postQuestion(AgentTaskSession $session, HarnessQuestion $question): void
     {
-        if ($session->isChat()) {
+        if ($this->somebodyIsInTheChat($session)) {
             $this->postToChat($session, '❓ ' . $question->describe() . "\n\nReply here with your answer.");
 
             return;
@@ -57,7 +57,7 @@ trait PostsSessionActivity
 
     protected function postPermissionRequest(AgentTaskSession $session, HarnessPermissionRequest $permission): void
     {
-        if ($session->isChat()) {
+        if ($this->somebodyIsInTheChat($session)) {
             $this->postToChat(
                 $session,
                 "🔐 It wants to run:\n\n`" . $permission->describe() . "`\n\n"
@@ -74,6 +74,12 @@ trait PostsSessionActivity
             'coding_permission',
             'Coding job waiting on a permission',
         );
+    }
+
+    /** A task run is a chat nobody types into: an ask left there is never answered. */
+    private function somebodyIsInTheChat(AgentTaskSession $session): bool
+    {
+        return $session->isChat() && ! $session->isTaskRun();
     }
 
     /**
@@ -126,6 +132,33 @@ trait PostsSessionActivity
 
         $this->postToPlan($session, ($this->mentionFor($plan) ?? '') . $body, $verb);
         $this->notifyTheAsker($plan, $title, $body);
+        $this->alsoAskWhereTheWorkWasRequested($session, $body, $verb);
+    }
+
+    /**
+     * A delegated run (a factory step) works on a plan of its own that nobody reads, and its asker is
+     * the orchestrator's bot user, which `notifyTheAsker` skips. The person who wanted the work is in the
+     * conversation behind the step the run serves, so the ask goes there too, or the run waits unseen.
+     */
+    private function alsoAskWhereTheWorkWasRequested(AgentTaskSession $session, string $body, string $verb): void
+    {
+        try {
+            $requested = $session->task?->parent?->plan;
+
+            if ($requested === null) {
+                return;
+            }
+
+            $who = $session->agent?->name;
+
+            $this->alsoPostToOriginConversation(
+                plan: $requested,
+                body: ($who !== null ? '**' . $who . '** · ' : '') . $body,
+                verb: $verb,
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

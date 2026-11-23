@@ -94,7 +94,7 @@ class PollHarnessSessionJob implements ShouldQueue
         }
 
         if ($session->isChat() && in_array($tick->status, [HarnessStatusEnum::IDLE, HarnessStatusEnum::FAILED], true)) {
-            new DeliverCodingChatTurnAction($session, $tick)->execute();
+            new DeliverCodingChatTurnAction($session, $tick, attempt: $this->attempt)->execute();
 
             return;
         }

@@ -17,6 +17,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
+use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -36,6 +38,7 @@ use Throwable;
  */
 class WakeAgentForProjectJob implements ShouldQueue
 {
+    use AnnouncesPlanOutcome;
     use Dispatchable;
     use DrivesAgentWake;
     use InteractsWithQueue;
@@ -84,6 +87,9 @@ class WakeAgentForProjectJob implements ShouldQueue
      * `mentionMessageId` is the message whose files ride along, resolved when the job RUNS: the
      * comment UI uploads attachments in a second request, so at dispatch they may not exist yet. It is
      * not `triggerMessageId`, which for a threaded mention is the thread root the reply goes under.
+     *
+     * `reportsOn` is the plan whose finish this wake reports. The person who asked for it is in the
+     * conversation they asked in, not on the project channel, so the reply goes there as well.
      */
     public function __construct(
         public readonly Project $project,
@@ -92,12 +98,23 @@ class WakeAgentForProjectJob implements ShouldQueue
         public readonly ?int $triggerMessageId = null,
         public readonly ?Agent $wakeAgent = null,
         public readonly ?int $mentionMessageId = null,
+        public readonly ?Plan $reportsOn = null,
     ) {
         $this->onQueue('nervous-system-project');
 
-        if ($this->reason === self::REASON_MENTION) {
+        if ($this->waitsForTheLock()) {
             $this->tries = self::MENTION_MAX_ATTEMPTS;
         }
+    }
+
+    /**
+     * A person is waiting on this wake's reply, so a collision re-queues it instead of dropping it: a
+     * direct @mention, or the report of a finished plan, whose done alert in the person's conversation
+     * is held back for this answer (`Plan::rememberAnswerIsComing()`).
+     */
+    private function waitsForTheLock(): bool
+    {
+        return $this->reason === self::REASON_MENTION || $this->reportsOn !== null;
     }
 
     private function agentToWake(): ?Agent
@@ -109,9 +126,10 @@ class WakeAgentForProjectJob implements ShouldQueue
      * Serialize wakes per project: two concurrent PM turns waste an LLM call and can race.
      *
      * Automated wakes (ingest/heartbeat/assigned) DROP on collision — the in-flight wake already reads
-     * fresh state and the heartbeat mops up anything mid-run. A human @mention is a DIRECT question,
-     * so it must never be silently dropped: on collision it re-queues and answers as soon as the
-     * in-flight turn frees the lock. The lock TTL guards against a crashed holder wedging the project.
+     * fresh state and the heartbeat mops up anything mid-run. A wake a person is waiting on
+     * ({@see self::waitsForTheLock()}) must never be silently dropped: on collision it re-queues and
+     * answers as soon as the in-flight turn frees the lock. The lock TTL guards against a crashed holder
+     * wedging the project.
      *
      * @return array<int, object>
      */
@@ -121,7 +139,7 @@ class WakeAgentForProjectJob implements ShouldQueue
             ->expireAfter(self::WAKE_LOCK_TTL_SECONDS);
 
         return [
-            $this->reason === self::REASON_MENTION
+            $this->waitsForTheLock()
                 ? $lock->releaseAfter(self::MENTION_RETRY_SECONDS)
                 : $lock->dontRelease(),
         ];
@@ -166,6 +184,8 @@ class WakeAgentForProjectJob implements ShouldQueue
         );
 
         if ($wake === null) {
+            $this->reportsOn?->forgetAnswerIsComing();
+
             return;
         }
 
@@ -183,9 +203,12 @@ class WakeAgentForProjectJob implements ShouldQueue
                 payload: $failurePayload,
                 durationMs: $durationMs,
             );
+            $this->reportsOn?->forgetAnswerIsComing();
 
             return;
         }
+
+        $this->answerWhereThePlanWasAskedFor($agent, $response);
 
         // The PM has a board tool now, so it can answer by commenting on the plan and then be handed
         // the floor again to "reply" — posting the same thing twice, seconds apart, the second one
@@ -220,6 +243,29 @@ class WakeAgentForProjectJob implements ShouldQueue
     }
 
     /**
+     * Only in the voice of the agent that asked for the plan: the conversation is between the person
+     * and that agent, and the reply is its answer to them. Best-effort — the project channel keeps it.
+     */
+    private function answerWhereThePlanWasAskedFor(Agent $agent, string $response): void
+    {
+        if ($this->reportsOn === null || ! $agent->is($this->reportsOn->createdByAgent)) {
+            return;
+        }
+
+        try {
+            $this->alsoPostToOriginConversation(
+                $this->reportsOn,
+                $response,
+                'project-agent-reply',
+                mention: false,
+            );
+        } catch (Throwable $e) {
+            $this->reportsOn->forgetAnswerIsComing();
+            report($e);
+        }
+    }
+
+    /**
      * The wake is being abandoned — retries exhausted, or a mention that never won the lock. Record it on
      * the project, because the queue's failure record carries no project context and an abandoned mention
      * means a human asked the PM something and will never get an answer.
@@ -227,10 +273,16 @@ class WakeAgentForProjectJob implements ShouldQueue
      * `Job::fail()` does not guard this call, so a throw here REPLACES the failure being recorded and
      * escapes the worker's own handling of it. The ledger write is the thing most likely to fail for the
      * same reason the wake did (the DB), so it must never take the real exception down with it.
+     *
+     * The plan it was reporting on is released first: its creator never heard the finish and never
+     * answered, so the done alert and the plan's closing wake have to go out after all.
      */
     public function failed(Throwable $exception): void
     {
         try {
+            $this->reportsOn?->forgetFinishWasReported();
+            $this->reportsOn?->forgetAnswerIsComing();
+
             $this->overwriteAppService($this->project->app);
 
             $this->project->emitLedgerEvent(

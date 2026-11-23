@@ -55,4 +55,11 @@ enum AgentRunConfigurationEnum: string
      * or a COMPANY setting of the same name that wins over it.
      */
     case LEAD_SUMMARY_KEYS = 'agent_lead_summary_keys';
+
+    /**
+     * A chat whose agent handed work to another agent hears "still working" after three silent minutes
+     * (`PostStillWorkingUpdateJob`). Off by default: the update is posted into every such chat of the
+     * app, lands in the agent's transcript and is pushed to Slack or WhatsApp when the chat lives there.
+     */
+    case STILL_WORKING_UPDATES = 'agent_still_working_updates_enabled';
 }

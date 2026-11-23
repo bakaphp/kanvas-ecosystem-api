@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -547,6 +548,38 @@ class MessageTest extends TestCase
                 'deleteMessage' => true,
             ],
         ]);
+    }
+
+    /** A private message is never indexed, so deleting it never reaches the search engine. */
+    public function testDeletingAPrivateMessageNeverTouchesTheSearchIndex(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $created = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) { id }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => fake()->text(),
+                    'message_verb' => $messageType->verb,
+                    'is_public' => 0,
+                ],
+            ]
+        )->json('data.createMessage.id');
+
+        // Where the app has no search key (a local stack), reaching the engine fails the delete.
+        $this->graphQL(
+            '
+                mutation deleteMessage($id: ID!) {
+                    deleteMessage(id: $id)
+                }
+            ',
+            ['id' => $created]
+        )->assertJson(['data' => ['deleteMessage' => true]]);
+
+        $this->assertTrue((bool) DB::connection('social')->table('messages')->where('id', $created)->value('is_deleted'));
     }
 
     public function testRestoreMessage()
