@@ -20,6 +20,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
@@ -41,6 +42,7 @@ use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\Group;
 use ReflectionMethod;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
@@ -434,6 +436,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $this->assertNull($this->lastMessageOn($session->channel_id));
     }
 
+    #[Group('serial')]
     public function testTheSweepQueuesOneUpdatePerChatWithWorkRunning(): void
     {
         Bus::fake();
@@ -441,7 +444,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         [$plan, , $session] = $this->plannedInAConversation();
         $this->runningTask($plan, startedMinutesAgo: 6);
 
-        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+        $this->sweep();
 
         Bus::assertDispatched(
             PostStillWorkingUpdateJob::class,
@@ -449,7 +452,24 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         );
     }
 
+    #[Group('serial')]
+    public function testTheSweepSkipsAnAppThatHasNotTurnedTheUpdatesOn(): void
+    {
+        Bus::fake();
+
+        [$plan, , $session] = $this->plannedInAConversation();
+        $this->runningTask($plan, startedMinutesAgo: 6);
+
+        $this->sweep(enabled: false);
+
+        Bus::assertNotDispatched(
+            PostStillWorkingUpdateJob::class,
+            fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
+        );
+    }
+
     /** A factory run is created in progress and never stamps started_at; it is still running. */
+    #[Group('serial')]
     public function testAFactoryRunWithNoStartTimeStillCounts(): void
     {
         Bus::fake();
@@ -459,7 +479,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $run->agent_id = $plan->agent_id;
         $run->saveOrFail();
 
-        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+        $this->sweep();
 
         Bus::assertDispatched(
             PostStillWorkingUpdateJob::class,
@@ -559,6 +579,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
     }
 
     /** A coding chat is the agent's own plan, and that chat reports its own progress minute by minute. */
+    #[Group('serial')]
     public function testAnAgentWorkingItsOwnPlanIsNotSwept(): void
     {
         Bus::fake();
@@ -568,7 +589,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         $plan->saveQuietly();
         $this->runningTask($plan, startedMinutesAgo: 6);
 
-        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+        $this->sweep();
 
         Bus::assertNotDispatched(
             PostStillWorkingUpdateJob::class,
@@ -576,6 +597,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         );
     }
 
+    #[Group('serial')]
     public function testAStepRunningForHoursIsStuckNotStillWorking(): void
     {
         Bus::fake();
@@ -583,12 +605,30 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         [$plan, , $session] = $this->plannedInAConversation();
         $this->runningTask($plan, startedMinutesAgo: 240);
 
-        $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful();
+        $this->sweep();
 
         Bus::assertNotDispatched(
             PostStillWorkingUpdateJob::class,
             fn (PostStillWorkingUpdateJob $job): bool => $job->session->getId() === $session->getId()
         );
+    }
+
+    /**
+     * The switch is an app setting, written to Redis and the ecosystem database: no transaction here rolls
+     * it back, so it is put back by hand and every test that runs the sweep is in the serial group.
+     */
+    private function sweep(bool $enabled = true): void
+    {
+        $app = app(Apps::class);
+        $key = AgentRunConfigurationEnum::STILL_WORKING_UPDATES->value;
+        $before = $app->get($key);
+        $enabled ? $app->set($key, 1) : $app->del($key);
+
+        try {
+            $this->artisan('kanvas:nervous-system:post-still-working-updates')->assertSuccessful()->run();
+        } finally {
+            $before === null ? $app->del($key) : $app->set($key, $before);
+        }
     }
 
     /** A conversation keyed the way ConversationMessageStore keys one: the session id lives in `title`. */

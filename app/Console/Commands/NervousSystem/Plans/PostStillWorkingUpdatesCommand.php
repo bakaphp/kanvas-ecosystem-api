@@ -6,13 +6,15 @@ namespace App\Console\Commands\NervousSystem\Plans;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Jobs\PostStillWorkingUpdateJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 
 /**
- * Pure dispatcher: it finds the chats with work running for them and queues one job per chat. It does no
- * app-scoped work itself, so it does not call overwriteAppService; the job rebinds to its own app.
+ * Pure dispatcher: it finds the chats with work running for them, in the apps that turned the updates on,
+ * and queues one job per chat. It does no app-scoped work itself, so it does not call overwriteAppService;
+ * the job rebinds to its own app.
  */
 class PostStillWorkingUpdatesCommand extends Command
 {
@@ -28,9 +30,18 @@ class PostStillWorkingUpdatesCommand extends Command
             ->pluck('origin_session_id');
 
         $queued = 0;
+        $enabled = [];
 
         foreach (Session::query()->with('app')->whereIn('id', $sessionIds)->get() as $session) {
-            if (! $session->app instanceof Apps) {
+            $app = $session->app;
+
+            if (! $app instanceof Apps) {
+                continue;
+            }
+
+            $enabled[$app->getId()] ??= $app->getBool(AgentRunConfigurationEnum::STILL_WORKING_UPDATES->value);
+
+            if (! $enabled[$app->getId()]) {
                 continue;
             }
 

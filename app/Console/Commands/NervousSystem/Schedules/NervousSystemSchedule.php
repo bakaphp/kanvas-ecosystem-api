@@ -100,7 +100,8 @@ final class NervousSystemSchedule
             ->runInBackground();
 
         // A chat silent for three minutes while the work it asked for runs hears that it is still
-        // running. Pure dispatcher, one cheap job per chat; the job's own silence check paces it.
+        // running, in apps with `agent_still_working_updates_enabled`. Pure dispatcher, one cheap job per
+        // chat; the job's own silence check paces it.
         $schedule->command(PostStillWorkingUpdatesCommand::class)
             ->everyMinute()
             ->withoutOverlapping(5)
