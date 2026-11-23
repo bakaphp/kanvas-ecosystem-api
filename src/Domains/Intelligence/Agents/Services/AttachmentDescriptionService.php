@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Baka\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\FileTextExtractor;
@@ -46,6 +47,11 @@ class AttachmentDescriptionService
      */
     public const string AUDIO_PROVIDER_BINDING = 'kanvas.agents.audio_provider';
 
+    private const array BEDROCK_AUDIO_MODELS = [
+        'nova-2-omni',
+        'voxtral',
+    ];
+
     public function __construct(
         private readonly AIProviderInterface $provider,
         private readonly bool $allowStructuredText = true,
@@ -61,7 +67,15 @@ class AttachmentDescriptionService
     {
         return $provider instanceof Gemini
             || $provider instanceof Mistral
-            || $provider instanceof BedrockRuntime;
+            || ($provider instanceof BedrockRuntime && self::bedrockModelHearsAudio($provider->getModel()));
+    }
+
+    /**
+     * Bedrock is a catalogue, not a model: Claude and GPT behind it take no audio block.
+     */
+    private static function bedrockModelHearsAudio(string $model): bool
+    {
+        return Str::contains($model, self::BEDROCK_AUDIO_MODELS);
     }
 
     /**

@@ -388,9 +388,32 @@ is safe only while nothing enables parallel calls or deferred tools.
 - `KanvasGemini::createToolCallMessage()` re-indexes the function-call parts: upstream collects them
   with a key-preserving `array_filter` and reads the thought signature off key 0, so a thinking model's
   thought part ahead of the call loses the signature and Gemini rejects the next request.
-- `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) keeps the agent's
-  `SystemMessage` as given; `neuron-core/router` 2.1.0 stores it in a `?string` and throws a TypeError
-  on the first turn of any tenant with a fallback LLM config. Drop it when the package fixes the type.
+- `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) teaches the router that a
+  Bedrock failure is an AWS SDK exception, not Neuron's `HttpException`: the stock strategy fails over
+  only on the latter, so a throttled or down Bedrock model never reached its fallback. It needs
+  `neuron-core/router` 2.1.2 or later (the lock's version); 2.1.0 stored the prompt in a `?string` and
+  threw a TypeError on the first turn of any failover chain.
+
+## Claude on Bedrock caches only an unchanged prefix
+
+Claude reads its prompt cache up to the first changed byte, in the order tools, instructions,
+messages, and only where `KanvasBedrock::createPayLoad()` put a marker (four at most). Anything that
+changes per turn and sits early makes every later token full price.
+
+- **Per-turn text goes in `context()`, never in `instructions()`.** Neuron appends the context blocks
+  to the turn's question on a copy and never stores them, so the instructions and the replayed history
+  stay identical between turns. On Bedrock the clock travels that way, in a `<turn-context>` block
+  (`HasKanvasAgentBehavior::context()`); it sat near the top of the instructions before and a
+  105K-token agent paid for the whole prompt on every message.
+- **The marker goes before the question's context, not after it.** The next turn replays the question
+  without its context, so a prefix that ends after the context never matches again. The provider finds
+  the context by its opening tag (`<turn-context>`, Neuron's `<EXTRA-CONTEXT>` for retrieved
+  documents); a new kind of context block needs its tag in `TURN_CONTEXT_OPENINGS`.
+- **Not covered:** the customer-facing agents (`SalesAgent`, `ReceptionistAgent`,
+  `ShoppingAssistantAgent`) write their own instructions with the time and the lead in them, so they
+  still miss between turns. A history that is trimmed from the front misses too; one that is
+  summarised in batches hits between summaries. The cache lives five minutes.
+- A hit shows as `cache_read` in the turn's `usage`, with `input_tokens` down to what was new.
 
 ## Unknown tool calls have two halves
 

@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DeliversToBillingContacts;
@@ -19,6 +20,7 @@ use Kanvas\Scribe\Delivery\Exceptions\DocumentDeliveryException;
 use Kanvas\Scribe\Delivery\Services\BillingContactResolverService;
 use Kanvas\Scribe\Quotes\Actions\SendQuoteAction;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
+use Kanvas\Scribe\Quotes\Models\Quote;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -44,7 +46,9 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
         . 'its billing schedule on its own. You see when they open, accept or decline it. Call it again on a sent '
         . 'quote to resend. With no person_id it goes to the quote\'s contact, else to every billing contact of the '
         . 'customer, each with their own link; recipients lists who got it. If it answers no_billing_contact, '
-        . 'ask who should receive it and call again with their person_id.';
+        . 'ask who should receive it and call again with their person_id. When the user wants to share the quote '
+        . 'themselves, pass deliver=false: it numbers the draft and marks it sent without contacting anyone, and '
+        . 'get_document_link then gives the link. Nothing is accepted or invoiced by either.';
 
     /**
      * @return array<int, ToolProperty>
@@ -79,6 +83,13 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
                 description: 'Optional short note to the customer, in their language. The link is added for you.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'deliver',
+                type: PropertyType::BOOLEAN,
+                description: 'False to number the quote and mark it sent without contacting the customer, when the '
+                    . 'user shares the link themselves. Leave empty to send it.',
+                required: false,
+            ),
         ];
     }
 
@@ -89,7 +100,8 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
         int $quote_id,
         ?int $person_id = null,
         ?string $channel = null,
-        ?string $message = null
+        ?string $message = null,
+        ?bool $deliver = null,
     ): array {
         $quote = $this->resolveQuote($quote_id);
 
@@ -117,6 +129,10 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
 
         if (is_array($customer)) {
             return ['sent' => false, 'reason' => 'customer_not_found', ...$customer];
+        }
+
+        if ($deliver === false) {
+            return $this->markSentWithoutContact($quote, $customer);
         }
 
         $channel = LeadCommunicationChannelEnum::tryFrom((string) Str::trimToNull($channel));
@@ -165,6 +181,41 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
             'valid_until' => $sent->valid_until?->toDateString(),
             'recipients' => $result['recipients'],
             'failed' => $result['failed'],
+        ];
+    }
+
+    /**
+     * The status-only path the UI's "mark as sent" uses, so a user sharing the link by hand never needs
+     * answer_quote's accepted_outside_kanvas, which numbers a draft too but also accepts it and bills.
+     *
+     * @return array<string, mixed>
+     */
+    private function markSentWithoutContact(Quote $quote, Organization $customer): array
+    {
+        try {
+            $sent = new SendQuoteAction(
+                quote: $quote,
+                billable: $customer,
+                user: $this->contextUser(),
+            )->execute();
+        } catch (InvalidQuoteTransitionException $e) {
+            return [
+                'sent' => false,
+                'reason' => 'invalid_transition',
+                'message' => $e->getMessage(),
+            ];
+        }
+
+        return [
+            'sent' => false,
+            'marked_sent' => true,
+            'quote_id' => $sent->getId(),
+            'quote_number' => $sent->quote_number,
+            'status' => $sent->status->value,
+            'valid_until' => $sent->valid_until?->toDateString(),
+            'recipients' => [],
+            'message' => 'Numbered and marked sent; nobody was contacted and nothing was accepted or invoiced. '
+                . 'Call get_document_link for the link the user shares.',
         ];
     }
 }

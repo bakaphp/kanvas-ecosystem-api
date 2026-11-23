@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -220,6 +221,34 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->assertFalse($sent['sent']);
         $this->assertSame('customer_not_found', $sent['reason']);
         $this->assertSame(QuoteStatusEnum::DRAFT, Quote::getById($created['quote_id'])->status);
+    }
+
+    /**
+     * A user who shares the quote themselves needs it numbered with nobody contacted, and must not have
+     * to reach for accepted_outside_kanvas, which also accepts the quote and bills it.
+     */
+    public function test_send_quote_without_delivery_numbers_the_draft_and_contacts_and_accepts_nothing(): void
+    {
+        $organization = $this->seedTestOrganization('Hand Shared Co');
+        $contact = $this->seedOrganizationContact($organization, 'Hana', 'Share');
+        $created = $this->createQuote('Hand Shared Co', [['description' => 'Work', 'unit_price' => 500.0]]);
+        $link = new GetDocumentLinkTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $refused = $link->__invoke(document_type: 'quote', document_id: $created['quote_id'], person_id: $contact->getId());
+        $this->assertFalse($refused['success']);
+        $this->assertStringContainsString('deliver=false', $refused['error']);
+
+        $marked = new SendQuoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $created['quote_id'], deliver: false);
+
+        $quote = Quote::getById($created['quote_id']);
+        $this->assertTrue($marked['marked_sent']);
+        $this->assertSame([], $marked['recipients']);
+        $this->assertSame(QuoteStatusEnum::SENT, $quote->status);
+        $this->assertNotEmpty($quote->quote_number);
+        $this->assertNull($quote->accepted_at);
+        $this->assertSame(0, $quote->invoices()->count());
     }
 
     /** A model that repeats itself must not renumber the quote the customer already has. */

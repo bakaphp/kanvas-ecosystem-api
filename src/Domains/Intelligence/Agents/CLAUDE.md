@@ -277,8 +277,9 @@ Connectors set two protected props on their class:
 
 ## Voice notes: a model that cannot listen gets words
 
-Audio reaches a Neuron agent as an `AudioContent` block, and only Gemini, Mistral and Bedrock take
-one; Anthropic's and OpenAI's mappers drop it, so the agent would answer a customer it never heard.
+Audio reaches a Neuron agent as an `AudioContent` block, and only Gemini, Mistral and the Bedrock
+models listed in `BEDROCK_AUDIO_MODELS` take one (Bedrock is a catalogue: Claude and GPT behind it do
+not); Anthropic's and OpenAI's mappers drop it, so the agent would answer a customer it never heard.
 `AttachmentDescriptionService::providerHearsAudio()` is the one place that knows which is which.
 
 - **On the turn** (`RunNeuronChatAction`): when the agent's provider cannot hear, the voice note is

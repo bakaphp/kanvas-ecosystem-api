@@ -21,6 +21,9 @@ use NeuronAI\Chat\Messages\Message;
  */
 interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies, AgentTypeHandler
 {
+    /** Opens the block of a turn's own context (the time) that travels with the question, not the instructions. */
+    public const string TURN_CONTEXT_OPENING = '<turn-context>';
+
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void;
 
     public function setSession(?Session $session): void;
