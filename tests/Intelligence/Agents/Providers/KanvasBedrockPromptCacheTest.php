@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Providers;
 
+use Aws\BedrockRuntime\BedrockRuntimeClient;
+use Aws\Result;
+use GuzzleHttp\Promise\Create;
+use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasBedrock;
 use Kanvas\Intelligence\Agents\Services\BedrockClientService;
+use Mockery;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -106,6 +111,38 @@ final class KanvasBedrockPromptCacheTest extends TestCase
         $this->assertSame(['cachePoint' => ['type' => 'default']], end($payload['toolConfig']['tools']));
         $this->assertSame(['cachePoint' => ['type' => 'default']], end($payload['system']));
         $this->assertSame(['cachePoint' => ['type' => 'default']], end($payload['messages'][12]['content']));
+    }
+
+    /**
+     * Bedrock reports cache writes apart from the input count. Folded into it, a prompt written to the
+     * cache is costed as plain input and the write rate is never charged in our own reports.
+     */
+    public function testCacheWritesReachTheUsageRowOnTheirOwnLine(): void
+    {
+        $client = Mockery::mock(BedrockRuntimeClient::class);
+        $client->shouldReceive('converseAsync')->once()->andReturn(Create::promiseFor(new Result([
+            'output' => ['message' => ['content' => [['text' => 'ok']]]],
+            'stopReason' => 'end_turn',
+            'usage' => [
+                'inputTokens' => 100,
+                'outputTokens' => 5,
+                'cacheReadInputTokens' => 200,
+                'cacheWriteInputTokens' => 300,
+            ],
+        ])));
+        $provider = new KanvasBedrock($client, 'global.anthropic.claude-haiku-5-5');
+
+        $message = $provider->chat(new UserMessage('hello'))->message();
+
+        $this->assertSame(
+            [
+                'input_tokens' => 100,
+                'output_tokens' => 5,
+                'cache_read' => 200,
+                'cache_write' => 300,
+            ],
+            ConversationUsageSqlHelper::neuronUsageRow($message),
+        );
     }
 
     public function testAModelThatCachesOnItsOwnGetsNoMarker(): void

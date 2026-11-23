@@ -9,6 +9,8 @@ use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DiscardDraftInvoiceTool;
 use Kanvas\Scribe\Approvals\Actions\SeedScribeApprovalPoliciesAction;
+use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
+use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -47,6 +49,21 @@ class DiscardDraftInvoiceTest extends EcfTestCase
         $this->assertNull(Invoice::query()->whereKey($draft->getId())->notDeleted()->first(), 'gone from every list');
         $this->assertSame(ApprovalStatusEnum::CANCELLED, $request->refresh()->status);
         $this->assertSame('not_found', $this->tool()->__invoke(invoice_id: $draft->getId())['outcome'], 'discarding it again finds nothing');
+    }
+
+    /** With no approval policy the request sits on the legacy queue, where approving it later would fail on a deleted invoice. */
+    public function test_a_draft_waiting_on_the_legacy_queue_takes_its_request_with_it(): void
+    {
+        $draft = $this->draftInvoice($this->customer(), null);
+        new SubmitInvoiceForApprovalAction($draft, static::$cachedUser)->execute();
+        /** @var ApprovalQueueItem $queued */
+        $queued = $draft->pendingLegacyApprovals()->sole();
+
+        $result = $this->tool()->__invoke(invoice_id: $draft->getId(), reason: 'wrong lines');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(ApprovalQueueStatusEnum::EXPIRED, $queued->refresh()->status);
+        $this->assertSame('wrong lines', $queued->reason);
     }
 
     public function test_an_issued_invoice_is_refused_and_pointed_at_void(): void
