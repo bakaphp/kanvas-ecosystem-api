@@ -288,20 +288,20 @@ final class ReceiveMessageAction
             return null;
         }
 
-        $name = Str::trimToNull($this->inbound->fromName);
+        $name = $this->personName($existing, $address);
 
         $person = new PeopleDto(
             app: $this->receiver->app,
             branch: $this->company->defaultBranch,
             user: $this->user,
-            firstname: $existing !== null ? $existing->firstname : ($name ?? $address),
+            firstname: $name['firstname'],
             contacts: Contact::collect([[
                 'value' => $address,
                 'contacts_types_id' => $byPhone ? ContactTypeEnum::CELLPHONE->value : ContactTypeEnum::EMAIL->value,
                 'weight' => 100,
             ]], DataCollection::class),
             address: Address::collect([], DataCollection::class),
-            lastname: $existing !== null ? $existing->lastname : '',
+            lastname: $name['lastname'],
             custom_fields: $this->inbound->personCustomFields,
             tags: $this->inbound->personTags,
             // We only know the address the message came from — anything else the person has (email,
@@ -312,6 +312,33 @@ final class ReceiveMessageAction
         return $existing !== null
             ? new UpdatePeopleAction($existing, $person)->execute()
             : new CreatePeopleAction($person)->execute();
+    }
+
+    /**
+     * The name a message carries is one the sender typed themselves, so it only fills a gap: a new
+     * person, or one still filed under their number. A name someone put on the record stays.
+     *
+     * @return array{firstname: string, lastname: string|null}
+     */
+    private function personName(?People $existing, string $address): array
+    {
+        $sent = Str::trimToNull($this->inbound->fromName);
+
+        if ($sent !== null && ($existing === null || $this->isFiledUnderTheirNumber($existing))) {
+            return Str::parseFullName($sent);
+        }
+
+        return [
+            'firstname' => $existing !== null ? $existing->firstname : $address,
+            'lastname' => $existing !== null ? $existing->lastname : '',
+        ];
+    }
+
+    private function isFiledUnderTheirNumber(People $person): bool
+    {
+        return Str::trimToNull($person->lastname) === null
+            && Str::digitsOnly($person->firstname) !== ''
+            && preg_match('/\p{L}/u', (string) $person->firstname) !== 1;
     }
 
     /**

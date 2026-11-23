@@ -25,8 +25,11 @@ use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Connectors\Meta\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Meta\Enums\PersonCustomFieldEnum;
 use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Connectors\Meta\MetaInbound;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -244,6 +247,69 @@ final class MetaWhatsAppProviderTest extends TestCase
         $result = $this->deliver($this->inboundPayload('wamid.IN8', '18095550208', 'Hola'));
 
         $this->assertSame($this->currentCompany()->getId(), (int) Message::query()->findOrFail($result[0]['message_id'])->companies_id);
+    }
+
+    public function testTheSendersProfileNamesANewPersonAndTheirLead(): void
+    {
+        $this->metaConnection();
+
+        $people = $this->personBehind($this->deliver($this->inboundFrom('wamid.NAME1', '18095550210', [
+            'profile' => ['name' => 'Max Castro', 'username' => 'kaiokenmc'],
+            'user_id' => 'DO.2404917373305418',
+        ])));
+
+        $this->assertSame('Max', $people->firstname);
+        $this->assertSame('Castro', $people->lastname);
+        $this->assertSame('kaiokenmc', $people->get(PersonCustomFieldEnum::USERNAME->value));
+        $this->assertSame('DO.2404917373305418', $people->get(PersonCustomFieldEnum::USER_ID->value));
+        $this->assertSame(
+            'Max Castro Meta Opp',
+            Lead::query()->where('people_id', $people->getId())->firstOrFail()->title
+        );
+    }
+
+    public function testAPersonFiledUnderTheirNumberTakesTheProfileNameOnTheirNextMessage(): void
+    {
+        $this->metaConnection();
+
+        $unnamed = $this->personBehind($this->deliver($this->inboundFrom('wamid.NAME2', '18095550211', [])));
+        $this->assertSame('8095550211', $unnamed->firstname);
+
+        $named = $this->personBehind($this->deliver($this->inboundFrom('wamid.NAME3', '18095550211', [
+            'profile' => ['name' => 'Max Castro'],
+        ])));
+
+        $this->assertSame($unnamed->getId(), $named->getId());
+        $this->assertSame('Max', $named->firstname);
+        $this->assertSame('Castro', $named->lastname);
+    }
+
+    public function testAProfileListedUnderMetasUserIdStillNamesThePerson(): void
+    {
+        $this->metaConnection();
+        $payload = $this->inboundFrom('wamid.NAME6', '18095550213', [
+            'wa_id' => '18095550999',
+            'user_id' => 'DO.77',
+            'profile' => ['name' => 'Max Castro'],
+        ]);
+        $payload['entry'][0]['changes'][0]['value']['messages'][0]['from_user_id'] = 'DO.77';
+
+        $this->assertSame('Max', $this->personBehind($this->deliver($payload))->firstname);
+    }
+
+    public function testANameAlreadyOnFileIsNotReplacedByTheProfileName(): void
+    {
+        $this->metaConnection();
+
+        $this->deliver($this->inboundFrom('wamid.NAME4', '18095550212', [
+            'profile' => ['name' => 'Ana Perez'],
+        ]));
+        $people = $this->personBehind($this->deliver($this->inboundFrom('wamid.NAME5', '18095550212', [
+            'profile' => ['name' => 'Max Castro'],
+        ])));
+
+        $this->assertSame('Ana', $people->firstname);
+        $this->assertSame('Perez', $people->lastname);
     }
 
     public function testANumberNoWorkspaceClaimsIsNotFiled(): void
@@ -506,6 +572,26 @@ final class MetaWhatsAppProviderTest extends TestCase
             'contacts' => [['profile' => ['name' => 'Ana'], 'wa_id' => $from]],
             'messages' => [['from' => $from, 'id' => $id, 'timestamp' => '1700000000', 'type' => 'text', 'text' => ['body' => $text]]],
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $contact what Meta says about the sender; empty for none at all
+     */
+    private function inboundFrom(string $id, string $from, array $contact): array
+    {
+        $payload = $this->inboundPayload($id, $from, 'Hola');
+        $payload['entry'][0]['changes'][0]['value']['contacts'] = $contact === []
+            ? []
+            : [$contact + ['wa_id' => $from]];
+
+        return $payload;
+    }
+
+    private function personBehind(array $result): People
+    {
+        $channel = Channel::query()->findOrFail($result[0]['channel_id']);
+
+        return People::query()->findOrFail($channel->entity_id);
     }
 
     private function statusPayload(string $id, string $status, int $timestamp): array

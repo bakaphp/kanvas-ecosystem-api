@@ -19,6 +19,7 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Meta\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Meta\Enums\PersonCustomFieldEnum;
 use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
@@ -159,7 +160,8 @@ class MetaInbound implements InboundSource
                 $messages[] = $this->parse(
                     $message,
                     $value['metadata'] ?? [],
-                    $ourNumber
+                    $ourNumber,
+                    $this->contactFor($message, $value['contacts'] ?? [])
                 );
             }
         }
@@ -264,8 +266,35 @@ class MetaInbound implements InboundSource
         return $values;
     }
 
-    private function parse(array $message, array $metadata, string $ourNumber): InboundMessage
+    /**
+     * Meta lists who wrote beside the messages rather than on them, keyed by their number or by
+     * its own id for them.
+     *
+     * @param list<array<string, mixed>> $contacts
+     *
+     * @return array<string, mixed>
+     */
+    private function contactFor(array $message, array $contacts): array
     {
+        foreach ($contacts as $contact) {
+            $sameNumber = (string) ($contact['wa_id'] ?? '') === (string) $message['from'];
+            $sameUser = isset($contact['user_id'], $message['from_user_id'])
+                && $contact['user_id'] === $message['from_user_id'];
+
+            if ($sameNumber || $sameUser) {
+                return $contact;
+            }
+        }
+
+        return [];
+    }
+
+    private function parse(
+        array $message,
+        array $metadata,
+        string $ourNumber,
+        array $contact
+    ): InboundMessage {
         $type = (string) ($message['type'] ?? 'text');
         $from = Str::toE164((string) $message['from']);
         $attachments = [];
@@ -286,7 +315,15 @@ class MetaInbound implements InboundSource
             text: $this->text($type, $message),
             // The number it reached, kept on the message so a reply can find its way back.
             raw: $message + ['metadata' => $metadata],
+            fromName: $contact['profile']['name'] ?? null,
             attachments: $attachments,
+            personCustomFields: array_filter(
+                [
+                    PersonCustomFieldEnum::USERNAME->value => Str::trimToNull($contact['profile']['username'] ?? null),
+                    PersonCustomFieldEnum::USER_ID->value => Str::trimToNull($contact['user_id'] ?? null),
+                ],
+                fn (?string $value): bool => $value !== null
+            ),
             personTags: ['whatsapp', 'meta'],
         );
     }
