@@ -84,7 +84,7 @@ use Throwable;
  * @property string $title
  * @property string $firstname
  * @property string $lastname
- * @property string $email
+ * @property string|null $email
  * @property string $phone
  * @property string|null $description
  * @property string $is_duplicate

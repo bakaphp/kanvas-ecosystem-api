@@ -85,7 +85,9 @@ class CreateMessageFromEmailAction
                       'name' => 'Email ' . $this->lead->getId(),
                       'slug' => SessionChannelService::createChannelSlug(
                           $this->lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                          $this->lead->email
+                          // Copied from the person only when the lead itself is saved, so it is
+                          // null for a lead whose person got their address later.
+                          $this->lead->email ?? $from
                       ),
                   ]);
 
