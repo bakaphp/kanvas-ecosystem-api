@@ -252,9 +252,10 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
     public function burstPolicy(InboundMessage $inbound, Companies $company): BurstPolicy
     {
         $idle = BurstConfigEnum::BURST_IDLE_SECONDS->getInt($company);
+        $sender = $inbound->fromIsVendorId ? $inbound->from : Str::digitsOnly($inbound->from);
 
         return new BurstPolicy(
-            correlationKeys: ['whatsapp:' . ($inbound->fromIsVendorId ? $inbound->from : Str::digitsOnly($inbound->from))],
+            correlationKeys: ['whatsapp:' . $sender],
             chainIdleSeconds: $idle,
             closeIdleSeconds: $idle,
             maxSeconds: BurstConfigEnum::BURST_MAX_SECONDS->getInt($company),

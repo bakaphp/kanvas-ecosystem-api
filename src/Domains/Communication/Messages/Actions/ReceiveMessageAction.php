@@ -234,7 +234,11 @@ final class ReceiveMessageAction
             firstname: $name['firstname'],
             contacts: Contact::collect(
                 $address !== null
-                    ? [['value' => $address, 'contacts_types_id' => ContactTypeEnum::CELLPHONE->value, 'weight' => 100]]
+                    ? [[
+                        'value' => $address,
+                        'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                        'weight' => 100,
+                    ]]
                     : [],
                 DataCollection::class
             ),
@@ -292,14 +296,8 @@ final class ReceiveMessageAction
 
     private function isFiledUnderTheirNumber(People $person): bool
     {
-        if (Str::trimToNull($person->lastname) !== null) {
-            return false;
-        }
-
-        $isTheirNumber = Str::digitsOnly($person->firstname) !== ''
-            && preg_match('/\p{L}/u', (string) $person->firstname) !== 1;
-
-        return $isTheirNumber || $person->firstname === $this->inbound->from;
+        return Str::trimToNull($person->lastname) === null
+            && (Str::isPhoneLike($person->firstname) || $person->firstname === $this->inbound->from);
     }
 
     private function lead(People $people): Lead
