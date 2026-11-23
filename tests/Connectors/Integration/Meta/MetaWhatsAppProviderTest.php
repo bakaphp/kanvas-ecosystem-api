@@ -45,6 +45,7 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Concerns\RefusesParallelRuns;
@@ -69,6 +70,8 @@ final class MetaWhatsAppProviderTest extends TestCase
     private const string OUR_NUMBER = '+18095550100';
     private const string PHONE_NUMBER_ID = '106540352242922';
     private const string WABA_ID = '102290129340398';
+    private const string USER_ID = 'DO.1632950178139894';
+    private const string PARENT_USER_ID = 'US.ENT.11815799212886844830';
 
     /**
      * The app's own Meta settings, put back after each test: the test app is the same app a local
@@ -303,6 +306,172 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->assertSame('Max', $this->personBehind($this->deliver($payload))->firstname);
     }
 
+    /**
+     * Someone with a WhatsApp username: Meta sends its own id for them and no number at all.
+     */
+    public function testAMessageWithoutANumberIsFiledUnderMetasUserId(): void
+    {
+        $connection = $this->metaConnection();
+
+        $result = $this->deliver($this->inboundFromUserId('wamid.BSUID1', self::USER_ID, 'Hola Sally'));
+
+        $message = Message::query()->findOrFail($result[0]['message_id']);
+        $channel = Channel::query()->findOrFail($result[0]['channel_id']);
+        $people = $this->personBehind($result);
+
+        $this->assertSame('Hola Sally', $message->message['content']);
+        $this->assertSame($connection->getId(), $message->message['communication']['connection_id']);
+        $this->assertSame(self::USER_ID, $message->message['communication']['thread']);
+        $this->assertSame('wa-chat-' . self::USER_ID . '-at-swhatsappnet', $channel->slug);
+        $this->assertSame('Beno', $people->firstname);
+        $this->assertSame('Suriano Siu', $people->lastname);
+        $this->assertSame('beno7surianosiu', $people->get(PersonCustomFieldEnum::USERNAME->value));
+        $this->assertSame(self::USER_ID, $people->get(PersonCustomFieldEnum::USER_ID->value));
+        $this->assertSame(0, $people->contacts()->count(), 'the id is not a number to call');
+    }
+
+    public function testTheSameUserIdKeepsItsPersonAndItsConversation(): void
+    {
+        $this->metaConnection();
+
+        $first = $this->deliver($this->inboundFromUserId('wamid.BSUID2', self::USER_ID, 'Hola'));
+        $second = $this->deliver($this->inboundFromUserId('wamid.BSUID3', self::USER_ID, 'Sigues ahi?'));
+
+        $this->assertNotSame($first[0]['message_id'], $second[0]['message_id']);
+        $this->assertSame($first[0]['channel_id'], $second[0]['channel_id']);
+        $this->assertSame($this->personBehind($first)->getId(), $this->personBehind($second)->getId());
+    }
+
+    /**
+     * Meta starts sending the number once the two have talked; that is not a second person.
+     */
+    public function testAUserIdOnFileIsTheSamePersonOnceMetaSendsTheirNumber(): void
+    {
+        $this->metaConnection();
+
+        $known = $this->personBehind($this->deliver($this->inboundFromUserId('wamid.BSUID4', self::USER_ID, 'Hola')));
+        $payload = $this->inboundFrom('wamid.BSUID5', '18095550214', [
+            'profile' => ['name' => 'Beno Suriano Siu'],
+            'user_id' => self::USER_ID,
+        ]);
+        $payload['entry'][0]['changes'][0]['value']['messages'][0]['from_user_id'] = self::USER_ID;
+
+        $people = $this->personBehind($this->deliver($payload));
+
+        $this->assertSame($known->getId(), $people->getId());
+        $this->assertSame('8095550214', $people->contacts()->sole()->value);
+    }
+
+    public function testTheResponderAnswersAUserIdAsTheRecipient(): void
+    {
+        $this->fakeGraph(['messages' => [['id' => 'wamid.REPLY2']]]);
+        $connection = $this->metaConnection();
+        $result = $this->deliver($this->inboundFromUserId('wamid.BSUID6', self::USER_ID, 'Hola Sally'));
+        $connection->forceFill(['config' => [...($connection->config ?? []), 'agent_id' => $this->agent()->getId()]])->saveOrFail();
+
+        new RespondToInboundMessageAction(
+            Channel::query()->findOrFail($result[0]['channel_id']),
+            Message::query()->findOrFail($result[0]['message_id'])
+        )->execute();
+
+        $delivery = Delivery::query()->where('connection_id', $connection->getId())->sole();
+
+        $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->status);
+        $this->assertSame(self::USER_ID, $delivery->to_address);
+        Http::assertSent(fn (HttpRequest $request): bool => str_ends_with($request->url(), '/messages')
+            && $request['recipient'] === self::USER_ID
+            && ! isset($request['to'])
+            && $request['text']['body'] === 'Hola Mundo');
+    }
+
+    #[DataProvider('malformedUserIds')]
+    public function testAUserIdThatIsNotOneOfMetasIsNotFiled(string $userId): void
+    {
+        $this->metaConnection();
+
+        $this->assertSame([], $this->deliver($this->inboundFromUserId('wamid.BSUID7', $userId, 'Hola')));
+    }
+
+    public static function malformedUserIds(): array
+    {
+        return [
+            'digits a number could be read from' => ['DO_18095551234'],
+            'lowercase country' => ['do.1632950178139894'],
+            'no country' => ['1632950178139894'],
+        ];
+    }
+
+    public function testAParentUserIdIsAnsweredAsTheRecipient(): void
+    {
+        $this->fakeGraph(['messages' => [['id' => 'wamid.REPLY3']]]);
+        $this->metaConnection();
+        $result = $this->deliver($this->inboundFromUserId('wamid.BSUID8', self::PARENT_USER_ID, 'Hola'));
+        $inbound = Message::query()->findOrFail($result[0]['message_id']);
+
+        $delivery = $this->communication()
+            ->reply($inbound, 'Hola', sync: true)
+            ->delivery(ChannelTypeEnum::WHATSAPP);
+
+        $this->assertSame(self::PARENT_USER_ID, $inbound->message['communication']['thread']);
+        $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->status);
+        Http::assertSent(fn (HttpRequest $request): bool => $request['recipient'] === self::PARENT_USER_ID && ! isset($request['to']));
+    }
+
+    /**
+     * The id opens its own conversation: nothing in the payload says which number it belongs to,
+     * only the person on file does.
+     */
+    public function testAPersonOnFileByNumberIsTheSameOneWritingUnderTheirUserId(): void
+    {
+        $this->metaConnection();
+        $byNumber = $this->deliver($this->inboundFrom('wamid.BSUID9', '18095550215', [
+            'profile' => ['name' => 'Beno Suriano Siu'],
+            'user_id' => self::USER_ID,
+        ]));
+
+        $byUserId = $this->deliver($this->inboundFromUserId('wamid.BSUID10', self::USER_ID, 'Hola'));
+        $people = $this->personBehind($byUserId);
+
+        $this->assertSame($this->personBehind($byNumber)->getId(), $people->getId());
+        $this->assertSame('8095550215', $people->contacts()->sole()->value, 'the number on file stays');
+        $this->assertNotSame($byNumber[0]['channel_id'], $byUserId[0]['channel_id']);
+        $this->assertSame(
+            'wa-chat-' . self::USER_ID . '-at-swhatsappnet',
+            Channel::query()->findOrFail($byUserId[0]['channel_id'])->slug
+        );
+    }
+
+    public function testAUserIdMetaListsNoContactForIsStillFiled(): void
+    {
+        $this->metaConnection();
+        $payload = $this->inboundFromUserId('wamid.BSUID11', self::USER_ID, 'Hola');
+        $payload['entry'][0]['changes'][0]['value']['contacts'] = [];
+
+        $people = $this->personBehind($this->deliver($payload));
+
+        $this->assertSame(self::USER_ID, $people->firstname);
+        $this->assertSame(self::USER_ID, $people->get(PersonCustomFieldEnum::USER_ID->value));
+        $this->assertSame(0, $people->contacts()->count());
+    }
+
+    public function testAnAddressThatIsNeitherANumberNorAUserIdIsNeverSentToItsDigits(): void
+    {
+        Http::fake();
+        $this->metaConnection();
+        $result = $this->deliver($this->inboundPayload('wamid.IN9', '18095550216', 'Hola'));
+        $inbound = Message::query()->findOrFail($result[0]['message_id']);
+        $inbound->message = array_replace_recursive($inbound->message, ['communication' => ['thread' => 'do.1632950178139894']]);
+        $inbound->saveOrFail();
+
+        $delivery = $this->communication()
+            ->reply($inbound, 'Hola', sync: true)
+            ->delivery(ChannelTypeEnum::WHATSAPP);
+
+        $this->assertSame(DeliveryStatusEnum::FAILED, $delivery->status);
+        $this->assertSame('invalid_address', $delivery->error_code);
+        Http::assertNothingSent();
+    }
+
     public function testANameAlreadyOnFileIsNotReplacedByTheProfileName(): void
     {
         $this->metaConnection();
@@ -365,6 +534,7 @@ final class MetaWhatsAppProviderTest extends TestCase
             && $request->hasHeader('Authorization', 'Bearer company-token')
             && $request['messaging_product'] === 'whatsapp'
             && $request['to'] === '18095550205'
+            && ! isset($request['recipient'])
             && $request['text']['body'] === 'Your quote is ready');
         $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->status);
         $this->assertSame('wamid.OUT1', $delivery->external_id);
@@ -616,6 +786,14 @@ final class MetaWhatsAppProviderTest extends TestCase
         return $this->payload([
             'contacts' => [['profile' => ['name' => 'Ana'], 'wa_id' => $from]],
             'messages' => [['from' => $from, 'id' => $id, 'timestamp' => '1700000000', 'type' => 'text', 'text' => ['body' => $text]]],
+        ]);
+    }
+
+    private function inboundFromUserId(string $id, string $userId, string $text): array
+    {
+        return $this->payload([
+            'contacts' => [['profile' => ['name' => 'Beno Suriano Siu', 'username' => 'beno7surianosiu'], 'user_id' => $userId]],
+            'messages' => [['from_user_id' => $userId, 'id' => $id, 'timestamp' => '1700000000', 'type' => 'text', 'text' => ['body' => $text]]],
         ]);
     }
 

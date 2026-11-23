@@ -32,6 +32,12 @@ class WhatsAppTransport implements Transport
      */
     private const string OUTSIDE_WINDOW_CODE = '131047';
 
+    /**
+     * Meta's own id for someone whose number it keeps to itself: a country code, a period and the
+     * id, with `ENT.` in between for a parent id.
+     */
+    private const string USER_ID_PATTERN = '/^[A-Z]{2}\.[A-Za-z0-9.]+$/';
+
     #[Override]
     public function send(Delivery $delivery, Content $content): TransportResult
     {
@@ -43,6 +49,12 @@ class WhatsAppTransport implements Transport
             }
 
             $warnings[] = 'attachments_dropped';
+        }
+
+        $recipient = self::recipient((string) $delivery->to_address);
+
+        if ($recipient === null) {
+            return TransportResult::failed('invalid_address', 'Not a WhatsApp number or a Meta user id: ' . $delivery->to_address);
         }
 
         $connection = $delivery->connection;
@@ -61,8 +73,7 @@ class WhatsAppTransport implements Transport
         try {
             $response = $client->sendMessage($phoneNumberId, [
                 'recipient_type' => 'individual',
-                // The full international number, digits only; normalizePhoneNumber() would drop a +1.
-                'to' => ltrim(Str::toE164((string) $delivery->to_address), '+'),
+                ...$recipient,
                 'type' => 'text',
                 'text' => ['body' => $content->text, 'preview_url' => false],
             ]);
@@ -103,7 +114,7 @@ class WhatsAppTransport implements Transport
 
     /**
      * An inbound message carries both ends: `metadata.display_phone_number` is our number, `from`
-     * is theirs.
+     * is theirs — or `from_user_id`, when Meta keeps their number to itself.
      */
     #[Override]
     public function conversationOf(Message $message): ?ConversationRef
@@ -113,31 +124,84 @@ class WhatsAppTransport implements Transport
         if ($message->messageType?->verb !== self::MESSAGE_VERB
             || ! is_array($raw)
             || empty($raw['metadata']['display_phone_number'])
-            || empty($raw['from'])
+            || self::senderOf($raw) === null
         ) {
             return null;
         }
 
-        return self::conversationBetween((string) $raw['metadata']['display_phone_number'], (string) $raw['from']);
+        return self::conversationBetween((string) $raw['metadata']['display_phone_number'], self::senderOf($raw));
+    }
+
+    /**
+     * Who wrote a message Meta delivered: their number in E.164, or Meta's id for them when it
+     * sends no number. The number wins when both are there, so a contact already on file keeps
+     * their conversation. Which one it is comes from the field Meta put it in: an id that does not
+     * read as one is nobody, never a number made of its digits.
+     *
+     * @param array<string, mixed> $message
+     */
+    public static function senderOf(array $message): ?string
+    {
+        $number = Str::trimToNull(Str::toE164((string) ($message['from'] ?? '')));
+
+        if ($number !== null) {
+            return $number;
+        }
+
+        $userId = (string) ($message['from_user_id'] ?? '');
+
+        return self::isUserId($userId) ? $userId : null;
+    }
+
+    public static function isUserId(string $address): bool
+    {
+        return preg_match(self::USER_ID_PATTERN, $address) === 1;
+    }
+
+    /**
+     * Meta's id is used whole and as sent; only a number is put in E.164.
+     */
+    public static function address(string $address): string
+    {
+        return self::isUserId($address) ? $address : Str::toE164($address);
+    }
+
+    /**
+     * Meta takes its own id as `recipient`, and a number as `to` — which would win if both were
+     * sent. Anything with a letter in it that is not Meta's id is neither: its digits are someone
+     * else's number.
+     *
+     * @return array{recipient: string}|array{to: string}|null
+     */
+    private static function recipient(string $address): ?array
+    {
+        if (self::isUserId($address)) {
+            return ['recipient' => $address];
+        }
+
+        // The full international number, digits only; normalizePhoneNumber() would drop a +1.
+        $number = ltrim(Str::toE164($address), '+');
+
+        return $number !== '' && preg_match('/\p{L}/u', $address) !== 1 ? ['to' => $number] : null;
     }
 
     /**
      * The slug is the one a contact's WhatsApp channel is opened with, so a conversation lands in
      * the channel the lead already has.
      */
-    public static function channelSlug(string $theirNumber): string
+    public static function channelSlug(string $theirAddress): string
     {
-        return SessionChannelService::createChannelSlug('whatsapp', $theirNumber);
+        return SessionChannelService::createChannelSlug('whatsapp', $theirAddress);
     }
 
-    private static function conversationBetween(string $ourNumber, string $theirNumber): ConversationRef
+    private static function conversationBetween(string $ourNumber, string $theirAddress): ConversationRef
     {
         return new ConversationRef(
             channel: ChannelTypeEnum::WHATSAPP,
             provider: MetaWhatsAppHandler::slug(),
             accountKey: Str::toE164($ourNumber),
-            thread: Str::toE164($theirNumber),
-            channelSlug: self::channelSlug($theirNumber),
+            thread: self::address($theirAddress),
+            channelSlug: self::channelSlug($theirAddress),
             messageVerb: self::MESSAGE_VERB
         );
     }
