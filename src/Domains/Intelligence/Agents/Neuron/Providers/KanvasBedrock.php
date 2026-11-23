@@ -68,8 +68,8 @@ class KanvasBedrock extends BedrockRuntime
 
     /**
      * BedrockRuntime::chatAsync() with the cache writes kept apart: upstream folds them into the input
-     * count and names them nowhere, so a prompt written to the cache was costed as plain input. Same
-     * metadata key as Neuron's Anthropic provider, which is what the usage row reads.
+     * count and names them nowhere, so a prompt written to the cache would be costed as plain input.
+     * Same metadata key as Neuron's Anthropic provider, which is what the usage row reads.
      */
     #[Override]
     public function chatAsync(Message ...$messages): PromiseInterface

@@ -51,7 +51,10 @@ class DiscardDraftInvoiceTest extends EcfTestCase
         $this->assertSame('not_found', $this->tool()->__invoke(invoice_id: $draft->getId())['outcome'], 'discarding it again finds nothing');
     }
 
-    /** With no approval policy the request sits on the legacy queue, where approving it later would fail on a deleted invoice. */
+    /**
+     * With no approval policy the request sits on the legacy queue, where approving it later would fail
+     * on a deleted invoice.
+     */
     public function test_a_draft_waiting_on_the_legacy_queue_takes_its_request_with_it(): void
     {
         $draft = $this->draftInvoice($this->customer(), null);
