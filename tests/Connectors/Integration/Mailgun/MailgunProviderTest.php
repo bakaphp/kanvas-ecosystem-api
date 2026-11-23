@@ -179,7 +179,8 @@ final class MailgunProviderTest extends TestCase
         $this->assertSame('Availability', $message->message['raw_data']['subject']);
         $this->assertSame('email-' . BakaStr::sanitizeEmail('ana@customer.test'), $channel->slug);
         $this->assertInstanceOf(People::class, $person);
-        $this->assertSame('Ana Pérez', $person->firstname);
+        $this->assertSame('Ana', $person->firstname);
+        $this->assertSame('Pérez', $person->lastname);
         $this->assertSame('ana@customer.test', $person->contacts()->where('contacts_types_id', ContactTypeEnum::EMAIL->value)->value('value'));
         $this->assertInstanceOf(Lead::class, $message->entity(Lead::class));
     }
