@@ -102,6 +102,10 @@ enum CodingChatSettingEnum: string
      * Why this agent cannot be handed this task, or null when it can. A task that declares a checkout is
      * worked in it, and the checkouts exist only on the factory machine: an agent that runs in Kanvas
      * would get the task, find nothing to read, and block it.
+     *
+     * Only in a company that has a factory. `Repo:` is read anywhere in the text, so "the repo: see the
+     * wiki" names a repository too; without a factory that line means nothing, and refusing on it would
+     * leave the task with no agent it could ever be given to.
      */
     public static function repositoryRefusal(Agent $agent, string $taskText): ?string
     {
@@ -115,17 +119,21 @@ enum CodingChatSettingEnum: string
             return null;
         }
 
-        $factory = self::factoryAgentsOf($agent->app, $agent->company)
-            ->map(fn (Agent $candidate): string => $candidate->name . ' (agent_id ' . $candidate->getId() . ')')
-            ->implode(', ');
+        $factoryAgents = self::factoryAgentsOf($agent->app, $agent->company);
+
+        if ($factoryAgents->isEmpty()) {
+            return null;
+        }
 
         return sprintf(
             'It works in the repository "%s", which exists only on the factory machine, and %s runs in Kanvas '
-                . 'where no repository can be read. %s An agent in Kanvas that only needs facts from the '
-                . 'repository asks with ask_repository while working its own task.',
+                . 'where no repository can be read. Give it to a factory agent: %s. An agent in Kanvas that only '
+                . 'needs facts from the repository asks with ask_repository while working its own task.',
             $repo,
             $agent->name,
-            $factory !== '' ? 'Give it to a factory agent: ' . $factory . '.' : 'This company has no factory agent to give it to.',
+            $factoryAgents
+                ->map(fn (Agent $candidate): string => $candidate->name . ' (agent_id ' . $candidate->getId() . ')')
+                ->implode(', '),
         );
     }
 

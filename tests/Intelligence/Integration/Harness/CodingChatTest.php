@@ -1424,6 +1424,29 @@ class CodingChatTest extends TestCase
         $this->assertArrayNotHasKey('error', $assign(task_id: $task->getId(), agent_id: $reader->getId()));
     }
 
+    /**
+     * "repo:" in ordinary prose reads as a declared checkout. Without a factory there is no agent a
+     * refusal could send the task to, so the assignment goes through.
+     */
+    public function testATaskThatMentionsARepoIsStillAssignedWhereThereIsNoFactory(): void
+    {
+        Queue::fake();
+        $company = $this->user()->getCurrentCompany();
+        $this->assertTrue(
+            CodingChatSettingEnum::factoryAgentsOf(app(Apps::class), $company)->isEmpty(),
+            'the company must have no factory agent for this test to mean anything'
+        );
+
+        $task = $this->kanvasWorkerTask('Update the docs in the repo: see the wiki.');
+        $writer = $this->kanvasAgent();
+        $assign = new AssignNervousSystemTaskTool()->withContext(app(Apps::class), $company, $this->user());
+
+        $assigned = $assign(task_id: $task->getId(), agent_id: $writer->getId());
+
+        $this->assertArrayNotHasKey('error', $assigned, (string) json_encode($assigned));
+        $this->assertSame($writer->getId(), (int) $task->refresh()->agent_id);
+    }
+
     public function testAnAgentInKanvasIsOfferedTheQuestionAndAFactoryAgentIsNot(): void
     {
         $reader = $this->factoryAgent(defaultRepo: 'SecondLook-app');
