@@ -34,6 +34,12 @@ final readonly class InboundMessage
      *                             filed as the person it stands in for and answered on its own number
      * @param string|null $fromName the name the counterpart goes by, when the medium carries one: a
      *                              mail names its sender, a text only has the number
+     * @param bool $fromIsVendorId `from` is the vendor's own id for the counterpart, sent in place of
+     *                             an address it keeps to itself — a thread to answer on, never a
+     *                             contact to keep on the person
+     * @param string|null $personIdField the entry of $personCustomFields that holds the vendor's id
+     *                                   for the counterpart: the same person whatever address they
+     *                                   write from
      */
     public function __construct(
         public string $provider,
@@ -53,7 +59,9 @@ final readonly class InboundMessage
         public array $personTags = [],
         public ?InboundSenderPolicy $senderPolicy = null,
         public ?string $replyTo = null,
-        public ?string $fromName = null
+        public ?string $fromName = null,
+        public bool $fromIsVendorId = false,
+        public ?string $personIdField = null
     ) {
     }
 }
