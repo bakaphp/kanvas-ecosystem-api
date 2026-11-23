@@ -138,7 +138,12 @@ trait BuildsWalkInParking
         int $maxUses = 2,
         array $extraParams = []
     ): array {
-        $activity = new ParkingPassScannedActivity(0, now()->toDateTimeString(), new StoredWorkflow(), []);
+        $activity = new ParkingPassScannedActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        );
 
         return $activity->execute(
             $booking->refresh(),

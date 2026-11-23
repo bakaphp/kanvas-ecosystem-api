@@ -299,7 +299,12 @@ final class ParkingQuoteAndPayTest extends TestCase
 
         $this->assertSame(MovipassOrderStatusEnum::ACTIVE->slug(), $order->orderStatus?->slug);
 
-        new SyncMovipassActivity(0, now()->toDateTimeString(), new StoredWorkflow(), [])->execute(
+        new SyncMovipassActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $order,
             app(Apps::class),
             ['currentEventTypeName' => WorkflowEnum::UPDATED->value]

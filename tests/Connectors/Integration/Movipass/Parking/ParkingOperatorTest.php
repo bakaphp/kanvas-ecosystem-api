@@ -13,11 +13,13 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use stdClass;
+use Tests\Connectors\Support\ConfiguresParkingRates;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class ParkingOperatorTest extends TestCase
 {
+    use ConfiguresParkingRates;
     use InventoryCases;
 
     private const string ENTRY = '2026-11-22T10:00:00+00:00';
@@ -29,7 +31,7 @@ class ParkingOperatorTest extends TestCase
         parent::setUp();
 
         $this->product = Products::find($this->createProduct()->json('data.createProduct.id'));
-        $this->setHourlyRate(0.75);
+        $this->setHourlyRate($this->product->variants()->firstOrFail(), 0.75);
         Carbon::setTestNow(Carbon::parse(self::ENTRY));
     }
 
@@ -37,13 +39,6 @@ class ParkingOperatorTest extends TestCase
     {
         Carbon::setTestNow();
         parent::tearDown();
-    }
-
-    private function setHourlyRate(mixed $rate): void
-    {
-        $warehouseRow = $this->product->variants()->firstOrFail()->variantWarehouses()->firstOrFail();
-        $warehouseRow->config = ['rates' => ['hourly' => $rate]];
-        $warehouseRow->save();
     }
 
     private function parkingOrder(): Order
@@ -183,7 +178,7 @@ class ParkingOperatorTest extends TestCase
 
     public function testMissingHourlyRateThrows(): void
     {
-        $this->setHourlyRate(null);
+        $this->setHourlyRate($this->product->variants()->firstOrFail(), null);
 
         $this->expectException(ValidationException::class);
 
@@ -192,7 +187,7 @@ class ParkingOperatorTest extends TestCase
 
     public function testNonNumericHourlyRateThrows(): void
     {
-        $this->setHourlyRate('free');
+        $this->setHourlyRate($this->product->variants()->firstOrFail(), 'free');
 
         $this->expectException(ValidationException::class);
 

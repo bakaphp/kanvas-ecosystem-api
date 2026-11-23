@@ -234,7 +234,7 @@ class SetupWalkInParkingAction
             fn ($resource): bool => ScheduleRules::query()
                 ->where('resources_type', $resource->getMorphClass())
                 ->where('resources_id', $resource->getId())
-                ->where('is_deleted', 0)
+                ->notDeleted()
                 ->exists()
         );
     }
