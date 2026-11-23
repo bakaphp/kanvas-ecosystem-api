@@ -19,6 +19,7 @@ use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Override;
 use RuntimeException;
 use Tests\Scribe\ElectronicInvoicing\EcfTestCase;
@@ -98,8 +99,25 @@ class UpdateDraftInvoiceToolTest extends EcfTestCase
         /** @var ApprovalQueueItem $current */
         $current = $draft->pendingLegacyApprovals()->sole();
         $this->assertNotSame($stale->getId(), $current->getId());
-        $this->assertSame($current->getId(), $result['approval_request_id']);
+        $this->assertEqualsWithDelta(250.0, $current->payload['total_native'], 0.001);
         $this->assertTrue($result['approval_pending']);
+        $this->assertNull($result['approval_request_id'], 'a queue row id is not one the approval tools take');
+        $this->assertSame(
+            [
+                'target_type' => 'invoice',
+                'target_id' => $draft->getId(),
+            ],
+            $result['approve_by_target'],
+        );
+        $this->assertSame(
+            $current->getId(),
+            ApprovalQueueItem::query()
+                ->where('target_type', $result['approve_by_target']['target_type'])
+                ->where('target_id', $result['approve_by_target']['target_id'])
+                ->where('status', ApprovalQueueStatusEnum::PENDING->value)
+                ->value('id'),
+            'which is how approve_pending_item finds it',
+        );
 
         try {
             new ResolveApprovalAction($stale, static::$cachedUser)->execute();
@@ -149,6 +167,33 @@ class UpdateDraftInvoiceToolTest extends EcfTestCase
         $this->assertSame(ApprovalStatusEnum::PENDING, $request->refresh()->status);
         $this->assertTrue($result['approval_pending'], 'and the reply says what is really waiting');
         $this->assertSame($request->getId(), $result['approval_request_id']);
+    }
+
+    /**
+     * The action fills the model before its transaction rolls back. A request rebuilt from that model
+     * describes an invoice that does not exist: on the legacy queue it shows one amount and issues another.
+     */
+    public function test_an_edit_that_fails_sends_the_invoice_as_it_really_is_back_to_its_approver(): void
+    {
+        $draft = $this->draftInvoice($this->customer(), null);
+        new SubmitInvoiceForApprovalAction($draft, static::$cachedUser)->execute();
+        InvoiceLine::creating(static fn () => throw new RuntimeException('line insert failed'));
+
+        $result = $this->updateTool()->__invoke(
+            invoice_id: $draft->getId(),
+            lines: [['description' => 'Una línea', 'unit_price' => 250.0]],
+        );
+
+        $draft->refresh();
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('line insert failed', $result['error']);
+        $this->assertEqualsWithDelta(1180.0, (float) $draft->total_native, 0.001, 'rolled back');
+        $this->assertSame(1, $draft->lines()->count());
+        $this->assertSame('requested_again', $result['approval']);
+        /** @var ApprovalQueueItem $current */
+        $current = $draft->pendingLegacyApprovals()->sole();
+        $this->assertEqualsWithDelta(1180.0, $current->payload['total_native'], 0.001, 'not the 250 that was never saved');
+        $this->assertSame(1, $current->payload['line_count']);
     }
 
     public function test_a_draft_nobody_was_asked_about_is_edited_without_opening_an_approval(): void
