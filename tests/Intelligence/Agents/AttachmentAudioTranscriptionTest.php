@@ -6,9 +6,11 @@ namespace Tests\Intelligence\Agents;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasBedrock;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
+use Kanvas\Intelligence\Agents\Services\BedrockClientService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Mockery;
 use NeuronAI\Chat\Messages\AssistantMessage;
@@ -32,6 +34,14 @@ final class AttachmentAudioTranscriptionTest extends TestCase
     {
         $this->assertTrue(AttachmentDescriptionService::providerHearsAudio(new KanvasGemini(key: 'k', model: 'gemini-test')));
         $this->assertFalse(AttachmentDescriptionService::providerHearsAudio(new FakeNeuronProvider('x')));
+    }
+
+    public function testOnBedrockOnlyAModelThatTakesAudioHearsIt(): void
+    {
+        $client = BedrockClientService::make('k');
+
+        $this->assertFalse(AttachmentDescriptionService::providerHearsAudio(new KanvasBedrock($client, 'global.anthropic.claude-haiku-5-5')));
+        $this->assertTrue(AttachmentDescriptionService::providerHearsAudio(new KanvasBedrock($client, 'mistral.voxtral-small-24b-2507')));
     }
 
     public function testTheAudioProviderReusesTheAgentsOwnGeminiWithoutAppCredentials(): void

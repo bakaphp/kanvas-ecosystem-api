@@ -57,6 +57,14 @@ class ModelContextWindowServiceTest extends TestCase
         $this->assertLessThan(1_048_576, $window, 'The budget must leave the provider headroom.');
     }
 
+    public function testABedrockModelIsFoundUnderTheCataloguesOwnProviderName(): void
+    {
+        config(['kanvas.agents.max_history_tokens' => 2_000_000]);
+        $this->catalogue('bedrock_converse', 'global.anthropic.claude-ctxtest', 1_000_000);
+
+        $this->assertGreaterThan(500_000, ModelContextWindowService::forModel('bedrock', 'global.anthropic.claude-ctxtest'));
+    }
+
     public function testANarrowModelKeepsTheLegacyFloor(): void
     {
         $this->catalogue('anthropic', 'claude-narrow-ctxtest', 200_000);

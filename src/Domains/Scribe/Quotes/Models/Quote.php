@@ -19,6 +19,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
+use Kanvas\Scribe\BillingSchedules\Models\BillingSchedule;
 use Kanvas\Scribe\Delivery\Concerns\IsEngageableDocument;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
@@ -147,6 +148,31 @@ class Quote extends BaseModel implements EngageableInterface
             'status' => $invoice->document_status->value,
             'total' => (float) $invoice->total_native,
             'due_date' => $invoice->due_date?->toDateString(),
+        ])->values()->all();
+    }
+
+    /** One per payment of its SOW, created when the quote is accepted. */
+    public function billingSchedules(): HasMany
+    {
+        return $this->hasMany(BillingSchedule::class, 'source_quote_id', 'id')->orderBy('id');
+    }
+
+    /**
+     * A payment already due is invoiced by a queued job, so `invoiceSummaries()` read right after the
+     * acceptance is still empty: this is what says an invoice is on its way.
+     *
+     * @return list<array{name: ?string, status: string, bills_on: ?string, amount: float, billing_now: bool}>
+     */
+    public function billingSummaries(): array
+    {
+        $today = Carbon::today();
+
+        return $this->billingSchedules()->with('lines')->get()->map(fn (BillingSchedule $schedule): array => [
+            'name' => $schedule->name,
+            'status' => $schedule->status->value,
+            'bills_on' => $schedule->next_run_at?->toDateString(),
+            'amount' => $schedule->linesTotal(),
+            'billing_now' => $schedule->isDue($today),
         ])->values()->all();
     }
 
