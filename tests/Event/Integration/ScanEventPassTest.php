@@ -22,7 +22,7 @@ use Kanvas\Event\Passes\Actions\FindPassByCodeAction;
 use Kanvas\Event\Passes\Actions\ScanEventPassAction;
 use Kanvas\Event\Passes\DataTransferObject\PassScanOutcome;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
-use Kanvas\Event\Passes\Services\PassScanDecisionGate;
+use Kanvas\Event\Passes\Gates\PassScanDecisionGate;
 use Kanvas\Event\Reports\Repositories\TimeSlotOccupancyRepository;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Exceptions\ValidationException;

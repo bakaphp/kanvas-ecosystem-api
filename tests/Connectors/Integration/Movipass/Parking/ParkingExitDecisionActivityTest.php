@@ -16,7 +16,7 @@ use Kanvas\Connectors\Movipass\Parking\Support\ParkingQuotePayment;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ParkingExitDecisionActivity;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
-use Kanvas\Event\Passes\Services\PassScanDecisionGate;
+use Kanvas\Event\Passes\Gates\PassScanDecisionGate;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;

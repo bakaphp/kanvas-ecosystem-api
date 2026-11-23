@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Movipass;
+namespace App\Console\Commands\Connectors\Movipass;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;

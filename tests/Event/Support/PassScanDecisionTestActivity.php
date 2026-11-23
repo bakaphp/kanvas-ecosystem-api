@@ -6,7 +6,7 @@ namespace Tests\Event\Support;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Event\Passes\Services\PassScanDecisionGate;
+use Kanvas\Event\Passes\Gates\PassScanDecisionGate;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;

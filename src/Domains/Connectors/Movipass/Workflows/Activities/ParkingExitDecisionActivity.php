@@ -12,7 +12,7 @@ use Kanvas\Connectors\Movipass\Parking\Support\ParkingMetadata;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingQuotePayment;
 use Kanvas\Connectors\Movipass\Support\WalkInOrder;
 use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Passes\Services\PassScanDecisionGate;
+use Kanvas\Event\Passes\Gates\PassScanDecisionGate;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;

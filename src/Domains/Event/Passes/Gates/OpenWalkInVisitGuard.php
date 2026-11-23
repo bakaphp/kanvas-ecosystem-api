@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Event\Passes\Services;
+namespace Kanvas\Event\Passes\Gates;
 
 use Closure;
 use Illuminate\Contracts\Cache\LockTimeoutException;
