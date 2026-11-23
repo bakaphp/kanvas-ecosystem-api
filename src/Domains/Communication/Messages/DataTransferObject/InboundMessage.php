@@ -30,6 +30,7 @@ final readonly class InboundMessage
      * @param list<string> $personTags
      * @param bool $reuseKnownPerson keep a person already on file as they are (a test session that
      *                               stands in for someone else's number)
+     * @param string|null $personName the name the vendor has for the counterpart, when it sends one
      */
     public function __construct(
         public string $provider,
@@ -47,7 +48,8 @@ final readonly class InboundMessage
         public array $attachments = [],
         public array $personCustomFields = [],
         public array $personTags = [],
-        public bool $reuseKnownPerson = false
+        public bool $reuseKnownPerson = false,
+        public ?string $personName = null
     ) {
     }
 }
