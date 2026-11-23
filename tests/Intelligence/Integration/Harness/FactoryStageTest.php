@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
@@ -19,6 +20,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryLearnTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryReleaseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
@@ -500,6 +502,7 @@ final class FactoryStageTest extends TestCase
         $this->assertContains('start_app_kickoff', $tools);
         $this->assertContains('start_factory_ticket', $tools);
         $this->assertContains('start_factory_release', $tools);
+        $this->assertContains('start_factory_learn', $tools);
         $this->assertContains('answer_self_hosted_coding_permission', $tools);
         $this->assertContains('answer_self_hosted_coding_question', $tools);
     }
@@ -598,6 +601,77 @@ final class FactoryStageTest extends TestCase
         $this->assertStringNotContainsString('screenshots', (string) $steps[0]->description);
     }
 
+    public function testALearnRunsOnTheLearnAgentInKanvasWithItsSourcesAndNoCheckout(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $learner = $this->learnAgent($project);
+        $project->set(FactoryProjectSettingEnum::LEARN_AMPLITUDE_PROJECT->value, '843975');
+        $project->set(FactoryProjectSettingEnum::LEARN_SENTRY_PROJECT->value, 'mctekk/fit-max');
+
+        $result = $this->learn()($project->getId(), 'example-app');
+
+        $this->assertTrue($result['success'], json_encode($result));
+        [$read] = $this->stepsOf((int) $result['plan_id']);
+        $this->assertTrue($read->agent?->is($learner));
+        $this->assertNull(TaskDirectives::repo($read->fullText()), 'nothing in a Learn runs on the Mac');
+        $this->assertStringContainsString('Amplitude project 843975', (string) $read->description);
+        $this->assertStringContainsString('Sentry mctekk/fit-max', (string) $read->description);
+        $this->assertStringContainsString(FactoryStage::IMPROVEMENT_HEADING, (string) $read->description);
+        $this->assertStringContainsString('"Rejected:"', (string) $read->description);
+        $this->assertStringContainsString('never a fix', (string) $read->description);
+        Queue::assertPushed(WakeAgentForTaskJob::class, 1);
+    }
+
+    /** A factory agent has a checkout and no data tools: reading Amplitude and Sentry is not its job. */
+    public function testWithoutALearnAgentThatWorksInKanvasNothingIsLearned(): void
+    {
+        Queue::fake();
+        [$project, $builder] = $this->factoryProject();
+
+        $missing = $this->learn()($project->getId(), 'example-app');
+        $project->set(FactoryProjectSettingEnum::LEARN_AGENT->value, $builder->getId());
+        $onTheMac = $this->learn()($project->getId(), 'example-app');
+
+        foreach ([$missing, $onTheMac] as $result) {
+            $this->assertFalse($result['success']);
+            $this->assertStringContainsString(FactoryProjectSettingEnum::LEARN_AGENT->value, json_encode($result));
+        }
+        Queue::assertNotPushed(WakeAgentForTaskJob::class);
+    }
+
+    public function testAFinishedLearnTellsTheOrchestratorToStartItsImprovementsAsTickets(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+        $result = $this->learn()($project->getId(), 'example-app');
+        [$read] = $this->stepsOf((int) $result['plan_id']);
+
+        new UpdateTaskStatusAction($read, TaskStatusEnum::DONE)->execute();
+
+        Queue::assertPushed(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
+                && str_contains((string) $job->triggerMessage, 'start_factory_ticket')
+                && str_contains((string) $job->triggerMessage, trim(FactoryStage::IMPROVEMENT_HEADING))
+        );
+    }
+
+    public function testStartingTheSameLearnAgainReturnsTheOneOnTheBoard(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+
+        $first = $this->learn()($project->getId(), 'example-app');
+        $again = $this->learn()($project->getId(), 'example-app', 'the week-3 reading is due');
+
+        $this->assertFalse($first['reused']);
+        $this->assertTrue($again['reused']);
+        $this->assertSame($first['plan_id'], $again['plan_id']);
+    }
+
     public function testWithoutABuilderNothingIsStarted(): void
     {
         Queue::fake();
@@ -671,6 +745,27 @@ final class FactoryStageTest extends TestCase
         $user = static::$cachedUser;
 
         return new StartAppKickoffTool()->withContext(
+            app(Apps::class),
+            $user->getCurrentCompany(),
+            $user,
+            $this->orchestrator,
+        );
+    }
+
+    private function learnAgent(Project $project): Agent
+    {
+        $agent = $this->makeAgent();
+        $agent->update(['is_active' => true]);
+        $project->set(FactoryProjectSettingEnum::LEARN_AGENT->value, $agent->getId());
+
+        return $agent;
+    }
+
+    private function learn(): StartFactoryLearnTool
+    {
+        $user = static::$cachedUser;
+
+        return new StartFactoryLearnTool()->withContext(
             app(Apps::class),
             $user->getCurrentCompany(),
             $user,

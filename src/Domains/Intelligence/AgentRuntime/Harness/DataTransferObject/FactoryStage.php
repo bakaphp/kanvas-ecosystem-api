@@ -10,6 +10,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Models\Project;
 
@@ -29,6 +30,11 @@ final readonly class FactoryStage
     public const string INTEGRATION_BRANCH = 'factory/integration';
 
     private const string RELEASE_TITLE = 'Release: ';
+
+    private const string LEARN_TITLE = 'Learn: ';
+
+    /** How each improvement starts in the Learn agent's answer, so the orchestrator can count them. */
+    public const string IMPROVEMENT_HEADING = '## Improvement ';
 
     private const string LANDING_PUSH = 'git push origin HEAD:' . self::INTEGRATION_BRANCH;
 
@@ -328,6 +334,92 @@ final readonly class FactoryStage
     private static function mockupSection(int $number): string
     {
         return 'the section `## Ticket ' . $number . ':` in `specs/design/README.md`';
+    }
+
+    /**
+     * Learn & improve: the app already exists, so what to build next comes from what its users do and hit,
+     * not from a brief. One step for the project's Learn agent, which reads the app's product analytics and
+     * production errors with its own tools in Kanvas and answers with ranked improvements; the orchestrator
+     * starts each as a ticket (they skip the go/no-go gate) and releases them, and the next Learn reads what
+     * they did. No `Repo:` line: nothing here runs on the Mac.
+     */
+    public static function learn(Project $project, string $repository, ?string $notes = null): self
+    {
+        $repository = self::folder($repository);
+        $agent = FactoryProjectSettingEnum::learnAgentFor($project) ?? throw new ValidationException(
+            'This project has no Learn agent: set its `' . FactoryProjectSettingEnum::LEARN_AGENT->value
+            . '` to an agent that works in Kanvas with Amplitude and Sentry tools (not a factory agent).'
+        );
+        $amplitude = FactoryProjectSettingEnum::learnSourceFor($project, FactoryProjectSettingEnum::LEARN_AMPLITUDE_PROJECT);
+        $sentry = FactoryProjectSettingEnum::learnSourceFor($project, FactoryProjectSettingEnum::LEARN_SENTRY_PROJECT);
+        $notes = Str::trimToNull($notes);
+        $date = now()->toDateString();
+
+        $text = implode("\n", array_filter([
+            'Learn & improve: what should ' . $repository . ' improve next, judged from what its users do and the '
+                . 'errors they hit in production. You read and decide; the orchestrator builds what you name.',
+            '',
+            'Sources (read only: never change a flag, an issue or any data):',
+            '- Product analytics: Amplitude' . ($amplitude !== null ? ' project ' . $amplitude : '') . '.',
+            '- Production errors: Sentry' . ($sentry !== null ? ' ' . $sentry : '') . ', environment production.',
+            $notes !== null ? "- From the orchestrator:\n" . TaskDirectives::neutralize($notes) : null,
+            '',
+            'Steps:',
+            '1. History first. Read this project\'s plans: every earlier "' . self::LEARN_TITLE . '" plan with its '
+                . 'improvements and readings, every ticket and "' . self::RELEASE_TITLE . '" plan, and every comment '
+                . 'that starts "Rejected:". Never propose what an earlier improvement already did, what is still on '
+                . 'the board, or what a rejection names.',
+            '2. Readings. For each released improvement whose metric you have not read at week 3 or week 6 after '
+                . 'its release, and whose date has come, rerun its query unchanged on the versions since the '
+                . 'release and write "## Reading: <improvement> week <3|6>: <metric> <before> -> <now>, <users>, '
+                . '<date range>. Verdict: keep | iterate | revert". An iterate or revert verdict becomes an '
+                . 'improvement below (a revert turns the change\'s flag off or removes it).',
+            '3. Errors. List the production issues of the last 14 days, each with every version it happened on, '
+                . 'newest first. Only a JS issue with in-app frames that still happens on the newest version can '
+                . 'become an improvement. A warning the app logs on purpose to measure something (a watchdog, a '
+                . 'timeout, a slow response) is never a fix: raising its threshold or silencing it only hides the '
+                . 'measurement. A native crash, ANR or hang goes under "Needs a person", never an improvement.',
+            '4. Product. Start from the outcome that matters (activation, then retention), find the step with the '
+                . 'worst drop and who drops there, check the events you compare exist on every build in the window, '
+                . 'and write the hypothesis as who / where / why, marking why unproven unless the data shows it. '
+                . 'Next to every number give its date range and interval, and compare numbers only when both match.',
+            '5. Budget. Your data tools allow few calls per turn: look names up in one search per source, answer '
+                . 'each question with one grouped query, and never call a vendor\'s own agent or skill tools.',
+            '',
+            'Answer with up to 3 improvements, best first (users affected x confidence / size), never two on the '
+                . 'same screen, each exactly in this shape:',
+            self::IMPROVEMENT_HEADING . '<n>: <a few words, the ticket\'s short name>',
+            '- Problem: what users hit, with the evidence (each number with its query, date range and interval).',
+            '- Change: the behavior before and after, the screens, and the files when you know them; one change, '
+                . 'never "and/or".',
+            '- Has screens: yes | no',
+            '- Flag: a remote flag key, off by default with today\'s behavior as the fallback, when the change is '
+                . 'risky; else "none".',
+            '- Strings: every new user-facing text in English and Spanish.',
+            '- Metric: the event that proves it worked, its baseline, and the read dates (3 and 6 weeks after '
+                . 'release).',
+            '- Does not change: what must stay as it is.',
+            'Then "Needs a person:" with anything only a person can do, if any. With nothing worth building, '
+                . 'answer exactly "No improvement: <why, and what data would change that>".',
+            '',
+            'Never create, assign, approve or merge anything: the orchestrator turns each improvement into a ticket. '
+                . 'Every number must come from a tool call you made in this task; write "unknown" for anything you '
+                . 'could not fetch.',
+        ], fn (?string $line): bool => $line !== null));
+
+        return new self(
+            $project,
+            self::LEARN_TITLE . $repository . ' (' . $date . ')',
+            'What ' . $repository . ' improves next, from its product analytics and production errors.',
+            [new FactoryStep('Learn ' . $date . ': read the data, name the improvements', $text, $agent)],
+            self::LEARN_TITLE . self::likeLiteral($repository) . ' (%',
+        );
+    }
+
+    /** A finished Learn tells the orchestrator to start its improvements, not the next planned ticket. */
+    public static function isLearn(Plan $plan): bool
+    {
+        return str_starts_with((string) $plan->title, self::LEARN_TITLE);
     }
 
     /**

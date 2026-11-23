@@ -41,6 +41,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryLearnTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryReleaseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
@@ -481,6 +482,7 @@ class ProjectManagerAgent extends SystemUserAgent
                 new StartAppKickoffTool($this->session),
                 new StartFactoryTicketTool($this->session),
                 new StartFactoryReleaseTool($this->session),
+                new StartFactoryLearnTool($this->session),
             ]));
             // A factory step that stops on a permission or a question is asked in this conversation; the
             // check tool is where both answer tools read the ids from.

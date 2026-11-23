@@ -294,6 +294,18 @@ Things that bite:
   (API not deployed, a message type to create) lands the ticket with a "Waiting on backend" list instead
   of BLOCKED, and the release pull request gathers them. The branching lives in the task text, not in
   `serve.sh`, so the Mac needs no change for it.
+- **Learn & improve closes the loop for an app that already exists** (`start_factory_learn`,
+  `FactoryStage::learn()`). One step, for the project's Learn agent (`factory_learn_agent_id`): an agent that
+  works in Kanvas with Amplitude and Sentry tools, never a factory agent (it has a checkout, not data
+  tools), so the step has no `Repo:` line. Its text, written here like every stage, carries the method: read
+  the board's history and every "Rejected:" note first, read each released improvement's metric at week 3
+  and week 6, triage production errors (a warning the app logs on purpose is never a fix; native crashes go
+  to a person), find the worst drop in the product funnel, and answer with up to three
+  `## Improvement <n>:` blocks, each with its metric and read dates. The optional
+  `factory_learn_amplitude_project` / `factory_learn_sentry_project` settings name the sources in the
+  text. When it finishes, the orchestrator is told to start each improvement with `start_factory_ticket`
+  (improvements skip the go/no-go gate) and then `start_factory_release`; the next Learn reads what they
+  did. Starting it while one is open returns the open one.
 - **Mixed plans: a Kanvas step waits for the factory step ahead of it** (`Task::waitsOnEarlierFactoryWork()`),
   and the factory worker that finishes starts it. A reopened task on a factory-owned plan, or one that runs
   on the Mac, is woken as a task; its blocked plan unblocks itself (`Plan::resumeIfNothingBlocks()`), only

@@ -74,7 +74,8 @@ trait StartsFactoryStage
                     . 'edit nothing more for them. You are woken when the last step finishes. A kickoff or a ticket '
                     . 'lands on the integration branch: start the next ticket of the approved plan without asking, '
                     . 'or start_factory_release after the last one. A release ends with a pull request into develop: '
-                    . 'give the person its link, the one thing they review and merge.'
+                    . 'give the person its link, the one thing they review and merge. A Learn ends with improvements: '
+                    . 'start each with start_factory_ticket, then release them.'
         );
     }
 }
