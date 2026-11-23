@@ -80,7 +80,14 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   agents hold `send_person_email` for plain correspondence (a vendor statement request, a customer's question) only
   while a real person is asking (`personAsking()`, both read inbound email); it cannot attach a file, and the only
   document reference it can carry is the `get_document_link` engagement link, so a document never leaves untracked.
-  Never grant them a WhatsApp or attachment-capable send. A person may still generate the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
+  Never grant them a WhatsApp or attachment-capable send. A customer-facing agent (Sales on WhatsApp) quotes only
+  through `create_customer_quote` (`CreatePersonQuoteAction`): the customer is the person the conversation is with,
+  billed through their organization or one created under their name (`EnsurePersonOrganizationAction`, never a
+  namesake's), every price is the catalog's default-channel price, and what comes back is the tracked quote link
+  for the agent to pass on, never a PDF. It is granted per agent from the catalog, never added to a baseline; don't
+  grant a customer-facing agent `create_quote` (a customer name and a free price) or `find_quote` (any quote in the
+  company by its number).
+  A person may still generate the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
   DGII accepted it. The public page renders `Engagement.document_page` (`toTemplateData()`), never the
   row; the engagement's `message.data` also carries `document_number`, `name` and `html` (`DocumentHtmlService`:
   the string the PDF is printed from, the SOW layout for `sign-sow`, the legal e-CF representation once DGII
