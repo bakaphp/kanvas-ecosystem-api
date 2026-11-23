@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -23,6 +24,7 @@ use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
+use RuntimeException;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -304,6 +306,56 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
         new UpdateTaskStatusAction($this->taskOn($asked->refresh()), TaskStatusEnum::DONE)->execute();
 
         $this->assertTrue($asked->answerIsComing());
+    }
+
+    /**
+     * The done alert in the person's conversation is held back for this wake's answer. Dropped on a busy
+     * project like any other automated wake, nothing would ever say the plan finished.
+     */
+    public function testAWakeReportingAFinishedPlanWaitsForTheProjectLockInsteadOfBeingDropped(): void
+    {
+        [$project, $plan] = $this->delegatedPlan();
+
+        $reporting = new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            'Every task is finished.',
+            reportsOn: $plan,
+        );
+        $plain = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_PLAN_OUTCOME, 'The plan is done.');
+
+        $this->assertSame(15, $this->projectLockOf($reporting)->releaseAfter);
+        $this->assertSame(41, $reporting->tries);
+        $this->assertNull($this->projectLockOf($plain)->releaseAfter);
+        $this->assertSame(6, $plain->tries);
+    }
+
+    public function testAnAbandonedReportingWakeLetsTheDoneAlertAndTheClosingWakeThrough(): void
+    {
+        [$project, $plan] = $this->delegatedPlan();
+        $plan->rememberFinishWasReported();
+        $plan->rememberAnswerIsComing();
+
+        new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            'Every task is finished.',
+            reportsOn: $plan,
+        )->failed(new RuntimeException('never won the lock'));
+
+        $this->assertFalse($plan->answerIsComing());
+        $this->assertFalse($plan->finishWasReported());
+    }
+
+    private function projectLockOf(WakeAgentForProjectJob $job): WithoutOverlapping
+    {
+        foreach ($job->middleware() as $middleware) {
+            if ($middleware instanceof WithoutOverlapping) {
+                return $middleware;
+            }
+        }
+
+        $this->fail('WakeAgentForProjectJob is missing its WithoutOverlapping middleware.');
     }
 
     /** A plan the worker blocks is still news, after its last task was reported or not. */

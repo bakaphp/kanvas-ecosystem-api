@@ -248,6 +248,12 @@ class Plan extends BaseModel implements HandlesAgentMention
         return Cache::has($this->finishReportedKey());
     }
 
+    /** The wake that carried the report was abandoned, so closing the plan is news to that agent again. */
+    public function forgetFinishWasReported(): void
+    {
+        Cache::forget($this->finishReportedKey());
+    }
+
     /**
      * That agent answers the person in their conversation in its own words, so the done alert does not
      * repeat it there. Set when its wake is sent, because the plan is often closed during that wake.

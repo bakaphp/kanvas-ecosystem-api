@@ -102,9 +102,19 @@ class WakeAgentForProjectJob implements ShouldQueue
     ) {
         $this->onQueue('nervous-system-project');
 
-        if ($this->reason === self::REASON_MENTION) {
+        if ($this->waitsForTheLock()) {
             $this->tries = self::MENTION_MAX_ATTEMPTS;
         }
+    }
+
+    /**
+     * A person is waiting on this wake's reply, so a collision re-queues it instead of dropping it: a
+     * direct @mention, or the report of a finished plan, whose done alert in the person's conversation
+     * is held back for this answer (`Plan::rememberAnswerIsComing()`).
+     */
+    private function waitsForTheLock(): bool
+    {
+        return $this->reason === self::REASON_MENTION || $this->reportsOn !== null;
     }
 
     private function agentToWake(): ?Agent
@@ -116,9 +126,10 @@ class WakeAgentForProjectJob implements ShouldQueue
      * Serialize wakes per project: two concurrent PM turns waste an LLM call and can race.
      *
      * Automated wakes (ingest/heartbeat/assigned) DROP on collision — the in-flight wake already reads
-     * fresh state and the heartbeat mops up anything mid-run. A human @mention is a DIRECT question,
-     * so it must never be silently dropped: on collision it re-queues and answers as soon as the
-     * in-flight turn frees the lock. The lock TTL guards against a crashed holder wedging the project.
+     * fresh state and the heartbeat mops up anything mid-run. A wake a person is waiting on
+     * ({@see self::waitsForTheLock()}) must never be silently dropped: on collision it re-queues and
+     * answers as soon as the in-flight turn frees the lock. The lock TTL guards against a crashed holder
+     * wedging the project.
      *
      * @return array<int, object>
      */
@@ -128,7 +139,7 @@ class WakeAgentForProjectJob implements ShouldQueue
             ->expireAfter(self::WAKE_LOCK_TTL_SECONDS);
 
         return [
-            $this->reason === self::REASON_MENTION
+            $this->waitsForTheLock()
                 ? $lock->releaseAfter(self::MENTION_RETRY_SECONDS)
                 : $lock->dontRelease(),
         ];
@@ -262,10 +273,16 @@ class WakeAgentForProjectJob implements ShouldQueue
      * `Job::fail()` does not guard this call, so a throw here REPLACES the failure being recorded and
      * escapes the worker's own handling of it. The ledger write is the thing most likely to fail for the
      * same reason the wake did (the DB), so it must never take the real exception down with it.
+     *
+     * The plan it was reporting on is released first: its creator never heard the finish and never
+     * answered, so the done alert and the plan's closing wake have to go out after all.
      */
     public function failed(Throwable $exception): void
     {
         try {
+            $this->reportsOn?->forgetFinishWasReported();
+            $this->reportsOn?->forgetAnswerIsComing();
+
             $this->overwriteAppService($this->project->app);
 
             $this->project->emitLedgerEvent(
