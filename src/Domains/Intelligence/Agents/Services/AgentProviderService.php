@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasAnthropic;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasBedrock;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasDeepseek;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGrok;
@@ -29,6 +30,8 @@ use NeuronAI\Providers\AIProviderInterface;
 class AgentProviderService
 {
     private const array GEMINI_THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'];
+
+    private const string DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 
     private const array KEYED_PROVIDER_CLASSES = [
         AgentLlmProviderEnum::ANTHROPIC->value => KanvasAnthropic::class,
@@ -92,6 +95,44 @@ class AgentProviderService
     }
 
     /**
+     * Last link of the failover chain, after the LLM config rows: the provider the app names, else a
+     * second Bedrock model for a Bedrock agent. A setting that is not a provider (`none`) turns it off.
+     */
+    public static function appFallbackProvider(Agent $agent): ?AIProviderInterface
+    {
+        $app = $agent->app;
+        $primary = self::resolveProviderEnum($agent);
+        $setting = Str::trimToNull((string) $app->get(ConfigurationEnum::AI_FALLBACK_PROVIDER->value));
+
+        $provider = $setting !== null
+            ? AgentLlmProviderEnum::tryFrom(strtolower($setting))
+            : ($primary === AgentLlmProviderEnum::BEDROCK ? AgentLlmProviderEnum::BEDROCK : null);
+
+        if ($provider === null) {
+            return null;
+        }
+
+        $model = Str::trimToNull((string) $app->get(ConfigurationEnum::AI_FALLBACK_MODEL->value))
+            ?? match ($provider) {
+                AgentLlmProviderEnum::BEDROCK => BedrockClientService::fallbackModel(),
+                AgentLlmProviderEnum::GEMINI => self::geminiModel($app),
+                default => null,
+            };
+
+        if ($model === null || ($provider === $primary && $model === self::resolveModel($agent))) {
+            return null;
+        }
+
+        return self::makeProvider($agent, [
+            'provider' => $provider->value,
+            'base_uri' => null,
+            'key' => null,
+            'model' => $model,
+            'parameters' => [],
+        ]);
+    }
+
+    /**
      * @param array{provider: ?string, base_uri: ?string, key: ?string, model: ?string, parameters: array} $source
      */
     private static function makeProvider(Agent $agent, array $source): AIProviderInterface
@@ -100,6 +141,17 @@ class AgentProviderService
         $provider = self::providerFrom($source);
         $model = self::modelFrom($source, $agent);
         $parameters = is_array($source['parameters'] ?? null) ? $source['parameters'] : [];
+
+        if ($provider === AgentLlmProviderEnum::BEDROCK) {
+            $region = Str::trimToNull((string) ($parameters['region'] ?? ''));
+            unset($parameters['region']);
+            $key = self::tenantKey($source, $agent, $provider)
+                ?? BedrockClientService::platformKey()
+                ?? self::missingKey($provider);
+
+            return new KanvasBedrock(BedrockClientService::make($key, $region), $model, $parameters);
+        }
+
         $httpClient = new GuzzleHttpClient(
             timeout: 220,
             connectTimeout: 220,
@@ -165,7 +217,7 @@ class AgentProviderService
                 'provider' => AgentLlmProviderEnum::GEMINI->value,
                 'base_uri' => null,
                 'key' => null,
-                'model' => (string) ($agent->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-3.8-flash'),
+                'model' => self::geminiModel($agent->app),
                 'parameters' => [],
             ]);
         } catch (ValidationException) {
@@ -238,6 +290,22 @@ class AgentProviderService
     public static function resolveModel(Agent $agent): string
     {
         return self::modelFrom(self::resolveSource($agent), $agent);
+    }
+
+    /**
+     * For a runtime holding a model of its own (Laravel reads one off the agent's model row) that
+     * resolveModel() never sees.
+     */
+    public static function bedrockModelFor(Agent $agent, ?string $candidate): string
+    {
+        return self::bedrockModel($candidate)
+            ?? self::modelFrom(
+                [
+                    'provider' => AgentLlmProviderEnum::BEDROCK->value,
+                    'model' => self::resolveSource($agent)['model'],
+                ],
+                $agent,
+            );
     }
 
     /**
@@ -369,16 +437,45 @@ class AgentProviderService
     }
 
     /**
-     * @param array{model: ?string} $source
+     * @param array{provider: ?string, model: ?string} $source
      */
     private static function modelFrom(array $source, Agent $agent): string
     {
         $app = $agent->app;
 
+        if (self::providerFrom($source) === AgentLlmProviderEnum::BEDROCK) {
+            // The app's model belongs to the app's provider: a Bedrock agent in an app on another one
+            // (a selected config, a fallback) must not inherit it.
+            $appProvider = AgentLlmProviderEnum::tryFrom((string) $app->get(ConfigurationEnum::AI_PROVIDER->value));
+            $appModel = $appProvider === AgentLlmProviderEnum::BEDROCK
+                ? $app->get(ConfigurationEnum::AI_PROVIDER_MODEL->value)
+                : null;
+
+            return self::bedrockModel($source['model'] ?? null)
+                ?? self::bedrockModel($appModel)
+                ?? BedrockClientService::defaultModel();
+        }
+
         return (string) ($source['model']
             ?? $app->get(ConfigurationEnum::AI_PROVIDER_MODEL->value)
-            ?? $app->get(ConfigurationEnum::GEMINI_MODEL->value)
-            ?? 'gemini-3.8-flash');
+            ?? self::geminiModel($app));
+    }
+
+    private static function geminiModel(Apps $app): string
+    {
+        return (string) ($app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? self::DEFAULT_GEMINI_MODEL);
+    }
+
+    /**
+     * Stale Gemini ids cannot resolve on Bedrock; treat them as absent so the next model source wins.
+     */
+    private static function bedrockModel(mixed $model): ?string
+    {
+        $model = is_string($model) ? Str::trimToNull($model) : null;
+
+        return $model === null || str_starts_with($model, 'gemini')
+            ? null
+            : $model;
     }
 
     /**
@@ -474,8 +571,10 @@ class AgentProviderService
 
     private static function appKeySetting(AgentLlmProviderEnum $provider): ConfigurationEnum
     {
-        return $provider === AgentLlmProviderEnum::GEMINI
-            ? ConfigurationEnum::GEMINI_KEY
-            : ConfigurationEnum::AI_PROVIDER_KEY;
+        return match ($provider) {
+            AgentLlmProviderEnum::GEMINI => ConfigurationEnum::GEMINI_KEY,
+            AgentLlmProviderEnum::BEDROCK => ConfigurationEnum::BEDROCK_KEY,
+            default => ConfigurationEnum::AI_PROVIDER_KEY,
+        };
     }
 }

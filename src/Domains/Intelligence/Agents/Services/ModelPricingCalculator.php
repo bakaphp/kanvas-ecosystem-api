@@ -17,6 +17,9 @@ use Kanvas\Intelligence\Agents\Models\ModelPricing;
  */
 class ModelPricingCalculator
 {
+    /** An optional routing prefix (`global.`, `us.`), then the vendor: `global.anthropic.claude-…`. */
+    private const string BEDROCK_MODEL_ID = '/^(?:[a-z-]+\.)?(?:anthropic|amazon|openai|meta|mistral|cohere|deepseek|qwen|google)\./';
+
     public function costFor(
         ?string $provider,
         ?string $model,
@@ -87,6 +90,10 @@ class ModelPricingCalculator
 
         if (str_contains($model, '/')) {
             return explode('/', $model)[0];
+        }
+
+        if (preg_match(self::BEDROCK_MODEL_ID, $model) === 1) {
+            return 'bedrock';
         }
 
         return match (true) {
