@@ -7,40 +7,27 @@ namespace Tests\Connectors\Integration\Movipass\Parking;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Notification;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\RecordParkingPassScanAction;
-use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Jobs\ConfirmParkingPaymentJob;
 use Kanvas\Connectors\Movipass\Parking\Actions\QuoteParkingExitAction;
 use Kanvas\Connectors\Movipass\Parking\Enums\ParkingStateEnum;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingMetadata;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingQuotePayment;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingStateResolver;
-use Kanvas\Connectors\Movipass\Workflows\Activities\ParkingPassScannedActivity;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Models\ParticipantPass;
-use Kanvas\Event\Passes\Actions\ScanEventPassAction;
-use Kanvas\Event\Passes\DataTransferObject\PassScanOutcome;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
-use Kanvas\Event\Support\Setup;
-use Kanvas\Regions\Models\Regions;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Tests\Connectors\Support\CataloguesParkingActivities;
+use Tests\Connectors\Support\PreparesMovipassParking;
 use Tests\Connectors\Support\RecordsParkingPayments;
-use Tests\Connectors\Traits\HasIntegrationCompany;
-use Tests\Event\Concerns\BuildsWalkInParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
-use Workflow\Models\StoredWorkflow;
 
 final class WalkInParkingEndToEndTest extends TestCase
 {
-    use BuildsWalkInParking;
+    use PreparesMovipassParking;
     use CataloguesParkingActivities;
     use DatabaseTransactions;
-    use HasIntegrationCompany;
     use InventoryCases;
     use RecordsParkingPayments;
 
@@ -59,34 +46,8 @@ final class WalkInParkingEndToEndTest extends TestCase
     {
         parent::setUp();
 
-        if (getenv('GITHUB_ACTIONS')) {
-            $this->markTestSkipped('Movipass integration tests are skipped in CI');
-        }
-
-        Notification::fake();
-
-        $this->apps = app(Apps::class);
-        $this->user = Auth::user();
-        $this->company = $this->user->getCurrentCompany();
-        $this->region = Regions::getDefault($this->company, $this->apps);
-        $this->company->timezone = 'UTC';
-        $this->company->saveOrFail();
+        $this->prepareMovipassParking();
         $this->entryAt = Carbon::now()->startOfSecond();
-
-        new Setup($this->apps, $this->user, $this->company)->run();
-        $this->setIntegration(
-            $this->apps,
-            IntegrationsEnum::MOVIPASS,
-            MovipassHandler::class,
-            $this->company,
-            $this->user
-        );
-    }
-
-    protected function tearDown(): void
-    {
-        Carbon::setTestNow();
-        parent::tearDown();
     }
 
     public function testTheSpecTripFromBookingToCompletedExit(): void
@@ -179,32 +140,13 @@ final class WalkInParkingEndToEndTest extends TestCase
         return $this->book($this->startedSlot(), '404040');
     }
 
-    private function scan(string $code): PassScanOutcome
-    {
-        return new ScanEventPassAction(
-            $this->apps,
-            $this->user,
-            $this->company,
-            $this->gatedProduct
-        )->execute($code);
-    }
-
     private function runPassScanned(EventVersion $booking, int $useNumber): void
     {
-        new ParkingPassScannedActivity(
-            0,
-            now()->toDateTimeString(),
-            new StoredWorkflow(),
-            []
-        )->execute(
-            $booking->refresh(),
-            $this->apps,
-            [
-                'use_number' => $useNumber,
-                'max_uses' => 2,
-                'scanned_at' => now()->toIso8601String(),
-                'products_id' => $this->gatedProduct->getId(),
-            ]
+        $this->runParkingPassScanned(
+            $booking,
+            $useNumber,
+            now()->toIso8601String(),
+            extraParams: ['products_id' => $this->gatedProduct->getId()]
         );
     }
 

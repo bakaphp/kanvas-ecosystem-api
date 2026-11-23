@@ -6,11 +6,7 @@ namespace Tests\Connectors\Integration\Movipass\Parking;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Notification;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Jobs\ConfirmParkingPaymentJob;
 use Kanvas\Connectors\Movipass\Parking\Actions\QuoteParkingExitAction;
 use Kanvas\Connectors\Movipass\Parking\ParkingOperatorResolver;
@@ -18,23 +14,16 @@ use Kanvas\Connectors\Movipass\Parking\SimulatedParkingOperator;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingMetadata;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingQuotePayment;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ParkingExitDecisionActivity;
-use Kanvas\Connectors\Movipass\Workflows\Activities\ParkingPassScannedActivity;
 use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Passes\Actions\ScanEventPassAction;
-use Kanvas\Event\Passes\DataTransferObject\PassScanOutcome;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
 use Kanvas\Event\Passes\Services\PassScanDecisionGate;
-use Kanvas\Event\Support\Setup;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Tests\Connectors\Support\PreparesMovipassParking;
 use Tests\Connectors\Support\RecordsParkingPayments;
 use Tests\Connectors\Support\ThrowingParkingOperator;
-use Tests\Connectors\Traits\HasIntegrationCompany;
-use Tests\Event\Concerns\BuildsWalkInParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 use Tests\Workflow\Support\BuildsSyncRules;
@@ -43,9 +32,8 @@ use Workflow\Models\StoredWorkflow;
 final class ParkingExitDecisionActivityTest extends TestCase
 {
     use BuildsSyncRules;
-    use BuildsWalkInParking;
+    use PreparesMovipassParking;
     use DatabaseTransactions;
-    use HasIntegrationCompany;
     use InventoryCases;
     use RecordsParkingPayments;
 
@@ -64,34 +52,8 @@ final class ParkingExitDecisionActivityTest extends TestCase
     {
         parent::setUp();
 
-        if (getenv('GITHUB_ACTIONS')) {
-            $this->markTestSkipped('Movipass integration tests are skipped in CI');
-        }
-
-        Notification::fake();
-
-        $this->apps = app(Apps::class);
-        $this->user = Auth::user();
-        $this->company = $this->user->getCurrentCompany();
-        $this->region = Regions::getDefault($this->company, $this->apps);
-        $this->company->timezone = 'UTC';
-        $this->company->saveOrFail();
+        $this->prepareMovipassParking();
         $this->entryAt = Carbon::now()->startOfSecond();
-
-        new Setup($this->apps, $this->user, $this->company)->run();
-        $this->setIntegration(
-            $this->apps,
-            IntegrationsEnum::MOVIPASS,
-            MovipassHandler::class,
-            $this->company,
-            $this->user
-        );
-    }
-
-    protected function tearDown(): void
-    {
-        Carbon::setTestNow();
-        parent::tearDown();
     }
 
     public function testAllowedWhenPaidConfirmedAndAuthorized(): void
@@ -211,29 +173,10 @@ final class ParkingExitDecisionActivityTest extends TestCase
 
     private function enteredAndQuoted(): array
     {
-        $this->buildWalkInParking();
-        $this->gatedVariant->variantWarehouses()->each(function ($row): void {
-            $row->config = ['rates' => ['hourly' => 0.75]];
-            $row->save();
-        });
-        $booking = $this->book($this->startedSlot(), '404040');
-        $order = $booking->event->orders()->firstOrFail();
+        [$booking, $order] = $this->bookWalkIn(hourlyRate: 0.75);
 
         Carbon::setTestNow($this->entryAt);
-        new ParkingPassScannedActivity(
-            0,
-            now()->toDateTimeString(),
-            new StoredWorkflow(),
-            []
-        )->execute(
-            $booking->refresh(),
-            $this->apps,
-            [
-                'use_number' => 1,
-                'max_uses' => 2,
-                'scanned_at' => $this->entryAt->toIso8601String(),
-            ]
-        );
+        $this->runParkingPassScanned($booking, 1, $this->entryAt->toIso8601String());
 
         Carbon::setTestNow($this->entryAt->copy()->addMinutes(60));
         new QuoteParkingExitAction($order->refresh())->execute();
@@ -259,10 +202,5 @@ final class ParkingExitDecisionActivityTest extends TestCase
         );
 
         return $activity->execute($booking->refresh(), $this->apps, []);
-    }
-
-    private function scan(string $code): PassScanOutcome
-    {
-        return new ScanEventPassAction($this->apps, $this->user, $this->company, $this->gatedProduct)->execute($code);
     }
 }

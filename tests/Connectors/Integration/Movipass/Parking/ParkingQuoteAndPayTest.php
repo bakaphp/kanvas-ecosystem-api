@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Movipass\Parking;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
@@ -23,6 +24,7 @@ use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Support\ConfiguresParkingRates;
 use Tests\Connectors\Support\RecordsParkingPayments;
 use Tests\Connectors\Traits\CreatesMovipassParkingOrder;
 use Tests\Connectors\Traits\HasIntegrationCompany;
@@ -32,13 +34,20 @@ use Tests\TestCase;
 
 final class ParkingQuoteAndPayTest extends TestCase
 {
+    use ConfiguresParkingRates;
     use CreatesMovipassParkingOrder;
+    use DatabaseTransactions;
     use HasIntegrationCompany;
     use InventoryCases;
     use RecordsParkingPayments;
     use PaymentCases;
 
     private const string ENTRY = '2026-11-22T10:00:00+00:00';
+
+    protected function connectionsToTransact(): array
+    {
+        return [null, 'commerce'];
+    }
 
     protected function setUp(): void
     {
@@ -62,10 +71,7 @@ final class ParkingQuoteAndPayTest extends TestCase
         $order = $this->createMovipassOrder(app(Apps::class));
         $variant = $order->items->first()->variant;
 
-        $variant->variantWarehouses()->each(function ($row): void {
-            $row->config = ['rates' => ['hourly' => 0.75]];
-            $row->save();
-        });
+        $this->setHourlyRate($variant);
 
         ParkingMetadata::put($order, [ParkingMetadata::ENTRY_AT => self::ENTRY]);
 

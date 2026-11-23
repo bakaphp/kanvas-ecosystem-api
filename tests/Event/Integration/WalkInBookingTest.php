@@ -6,15 +6,10 @@ namespace Tests\Event\Integration;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Notification;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\ActivateEventBookingOrderAction;
 use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Passes\DataTransferObject\WalkInAccess;
-use Kanvas\Event\Support\Setup;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\Event\Concerns\BuildsWalkInParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -40,16 +35,7 @@ class WalkInBookingTest extends TestCase
     {
         parent::setUp();
 
-        Notification::fake();
-
-        $this->apps = app(Apps::class);
-        $this->user = Auth::user();
-        $this->company = $this->user->getCurrentCompany();
-        $this->region = Regions::getDefault($this->company, $this->apps);
-        $this->company->timezone = 'UTC';
-        $this->company->saveOrFail();
-
-        new Setup($this->apps, $this->user, $this->company)->run();
+        $this->prepareWalkInContext();
     }
 
     public function testWalkInConfigDefaultsAndOverrides(): void

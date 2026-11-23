@@ -6,13 +6,9 @@ namespace Tests\Connectors\Integration\Movipass\Parking;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Notification;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\RecordParkingPassScanAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
-use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Jobs\ConfirmParkingPaymentJob;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingMetadata;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
@@ -23,23 +19,18 @@ use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantPassScan;
 use Kanvas\Event\Passes\DataTransferObject\WalkInAccess;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
-use Kanvas\Event\Support\Setup;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use RuntimeException;
+use Tests\Connectors\Support\PreparesMovipassParking;
 use Tests\Connectors\Support\RecordsParkingPayments;
-use Tests\Connectors\Traits\HasIntegrationCompany;
-use Tests\Event\Concerns\BuildsWalkInParking;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 {
-    use BuildsWalkInParking;
+    use PreparesMovipassParking;
     use DatabaseTransactions;
-    use HasIntegrationCompany;
     use InventoryCases;
     use RecordsParkingPayments;
 
@@ -55,42 +46,9 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
         return [null, 'event', 'commerce'];
     }
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (getenv('GITHUB_ACTIONS')) {
-            $this->markTestSkipped('Movipass integration tests are skipped in CI');
-        }
-
-        Notification::fake();
-
-        $this->apps = app(Apps::class);
-        $this->user = Auth::user();
-        $this->company = $this->user->getCurrentCompany();
-        $this->region = Regions::getDefault($this->company, $this->apps);
-        $this->company->timezone = 'UTC';
-        $this->company->saveOrFail();
-
-        new Setup($this->apps, $this->user, $this->company)->run();
-        $this->setIntegration(
-            $this->apps,
-            IntegrationsEnum::MOVIPASS,
-            MovipassHandler::class,
-            $this->company,
-            $this->user
-        );
-    }
-
-    protected function tearDown(): void
-    {
-        Carbon::setTestNow();
-        parent::tearDown();
-    }
-
     public function testAnUnscannedVisitExpiresAfterTheConfiguredMinutes(): void
     {
-        [$booking, $order] = $this->walkInBooking(['expire_unused_minutes' => 20]);
+        [$booking, $order] = $this->bookWalkIn(['expire_unused_minutes' => 20]);
 
         Carbon::setTestNow(now()->addMinutes(21));
         $this->runCommand();
@@ -110,7 +68,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAVisitYoungerThanTheConfiguredMinutesIsKept(): void
     {
-        [, $order] = $this->walkInBooking(['expire_unused_minutes' => 20]);
+        [, $order] = $this->bookWalkIn(['expire_unused_minutes' => 20]);
 
         Carbon::setTestNow(now()->addMinutes(19));
         $this->runCommand();
@@ -120,7 +78,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAScannedVisitIsNeverExpired(): void
     {
-        [$booking, $order] = $this->walkInBooking();
+        [$booking, $order] = $this->bookWalkIn();
         $this->enter($booking, $order);
 
         Carbon::setTestNow(now()->addHours(5));
@@ -135,7 +93,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAStuckExitIsCompletedWithTheScanTime(): void
     {
-        [$booking, $order] = $this->walkInBooking();
+        [$booking, $order] = $this->bookWalkIn();
         $this->enter($booking, $order);
         $exitScannedAt = now()->addHour();
         $this->admitExitScan($booking, $exitScannedAt);
@@ -153,7 +111,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAnExitScannedAMomentAgoIsLeftToTheWorkflow(): void
     {
-        [$booking, $order] = $this->walkInBooking();
+        [$booking, $order] = $this->bookWalkIn();
         $this->enter($booking, $order);
         $this->admitExitScan($booking, now());
 
@@ -164,7 +122,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAPaidUnconfirmedQuoteRedispatchesTheConfirmation(): void
     {
-        [$booking, $order] = $this->walkInBooking();
+        [$booking, $order] = $this->bookWalkIn();
         $this->enter($booking, $order);
         ParkingMetadata::put($order, [ParkingMetadata::QUOTE => ['amount_due' => 0.75]]);
         $this->addPayment($order, 0.75);
@@ -177,7 +135,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAConfirmedPaymentIsNotRedispatched(): void
     {
-        [$booking, $order] = $this->walkInBooking();
+        [$booking, $order] = $this->bookWalkIn();
         $this->enter($booking, $order);
         ParkingMetadata::put($order, [
             ParkingMetadata::QUOTE => ['amount_due' => 0.75],
@@ -193,8 +151,8 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testRunningTwiceIsANoOp(): void
     {
-        [$booking, $order] = $this->walkInBooking(['expire_unused_minutes' => 20]);
-        [$enteredBooking, $enteredOrder] = $this->walkInBooking(vehicle: '505050');
+        [$booking, $order] = $this->bookWalkIn(['expire_unused_minutes' => 20]);
+        [$enteredBooking, $enteredOrder] = $this->bookWalkIn(vehicle: '505050');
         $this->enter($enteredBooking, $enteredOrder);
         $this->admitExitScan($enteredBooking, now());
 
@@ -211,7 +169,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAnOrderWithAPaymentIsNeverExpired(): void
     {
-        [, $order] = $this->walkInBooking(['expire_unused_minutes' => 20]);
+        [, $order] = $this->bookWalkIn(['expire_unused_minutes' => 20]);
         $this->addPayment($order, 1.0);
 
         Carbon::setTestNow(now()->addHours(2));
@@ -222,7 +180,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testAHalfCancelledBookingGetsItsOrderCancelledWithoutReportingAFailure(): void
     {
-        [$booking, $order] = $this->walkInBooking();
+        [$booking, $order] = $this->bookWalkIn();
         $booking->event->update([
             'event_status_id' => EventStatus::firstOrCreate([
                 'companies_id' => $booking->companies_id,
@@ -240,7 +198,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testANonWalkInOrderIsIgnored(): void
     {
-        [$booking, $order] = $this->walkInBooking(['expire_unused_minutes' => 20]);
+        [$booking, $order] = $this->bookWalkIn(['expire_unused_minutes' => 20]);
         ProductsAttributes::query()->where('products_id', $this->gatedProduct->getId())->delete();
         $this->assertNull(WalkInAccess::forResource($this->gatedProduct->refresh()));
         $status = $order->orderStatus?->slug;
@@ -254,8 +212,8 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testOneFailingOrderIsReportedAndTheNextOneStillRuns(): void
     {
-        [$firstBooking, $firstOrder] = $this->walkInBooking(['expire_unused_minutes' => 20]);
-        [, $secondOrder] = $this->walkInBooking(['expire_unused_minutes' => 20], '505050');
+        [$firstBooking, $firstOrder] = $this->bookWalkIn(['expire_unused_minutes' => 20]);
+        [, $secondOrder] = $this->bookWalkIn(['expire_unused_minutes' => 20], '505050');
         $armed = true;
         Event::updating(function (Event $event) use (&$armed, $firstBooking): void {
             if ($armed && $event->getId() === $firstBooking->event_id) {
@@ -275,7 +233,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     public function testWithoutAnAppIdTheAppsWithOpenEventOrdersAreDiscovered(): void
     {
-        [, $order] = $this->walkInBooking(['expire_unused_minutes' => 20]);
+        [, $order] = $this->bookWalkIn(['expire_unused_minutes' => 20]);
 
         Carbon::setTestNow(now()->addMinutes(30));
         $this->artisan(self::COMMAND)
@@ -288,14 +246,6 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
     private function runCommand(): void
     {
         $this->artisan(self::COMMAND, ['app_id' => $this->apps->getId()])->assertSuccessful();
-    }
-
-    private function walkInBooking(array $config = [], string $vehicle = '404040'): array
-    {
-        $this->buildWalkInParking($config);
-        $booking = $this->book($this->startedSlot(), $vehicle);
-
-        return [$booking, $booking->event->orders()->firstOrFail()];
     }
 
     private function enter(EventVersion $booking, Order $order): void
