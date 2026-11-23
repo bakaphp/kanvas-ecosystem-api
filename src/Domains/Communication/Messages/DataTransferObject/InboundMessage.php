@@ -31,6 +31,12 @@ final readonly class InboundMessage
      * @param bool $reuseKnownPerson keep a person already on file as they are (a test session that
      *                               stands in for someone else's number)
      * @param string|null $personName the name the vendor has for the counterpart, when it sends one
+     * @param bool $fromIsVendorId `from` is the vendor's own id for the counterpart, sent in place of
+     *                             an address it keeps to itself — a thread to answer on, never a
+     *                             contact to keep on the person
+     * @param string|null $personIdField the entry of $personCustomFields that holds the vendor's id
+     *                                   for the counterpart: the same person whatever address they
+     *                                   write from
      */
     public function __construct(
         public string $provider,
@@ -49,7 +55,9 @@ final readonly class InboundMessage
         public array $personCustomFields = [],
         public array $personTags = [],
         public bool $reuseKnownPerson = false,
-        public ?string $personName = null
+        public ?string $personName = null,
+        public bool $fromIsVendorId = false,
+        public ?string $personIdField = null
     ) {
     }
 }

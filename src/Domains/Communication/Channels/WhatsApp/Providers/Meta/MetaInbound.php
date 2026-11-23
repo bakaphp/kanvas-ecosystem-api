@@ -159,7 +159,9 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
             $ourNumber = (string) ($value['metadata']['display_phone_number'] ?? '');
 
             foreach ($value['messages'] ?? [] as $message) {
-                if (in_array($message['type'] ?? null, self::IGNORED_TYPES, true) || empty($message['from'])) {
+                $from = WhatsAppTransport::senderOf($message);
+
+                if (in_array($message['type'] ?? null, self::IGNORED_TYPES, true) || $from === null) {
                     continue;
                 }
 
@@ -167,6 +169,7 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
                     $message,
                     $value['metadata'] ?? [],
                     $ourNumber,
+                    $from,
                     $this->contactFor($message, $value['contacts'] ?? [])
                 );
             }
@@ -251,7 +254,7 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
         $idle = BurstConfigEnum::BURST_IDLE_SECONDS->getInt($company);
 
         return new BurstPolicy(
-            correlationKeys: ['whatsapp:' . Str::digitsOnly($inbound->from)],
+            correlationKeys: ['whatsapp:' . ($inbound->fromIsVendorId ? $inbound->from : Str::digitsOnly($inbound->from))],
             chainIdleSeconds: $idle,
             closeIdleSeconds: $idle,
             maxSeconds: BurstConfigEnum::BURST_MAX_SECONDS->getInt($company),
@@ -307,7 +310,9 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
     private function contactFor(array $message, array $contacts): array
     {
         foreach ($contacts as $contact) {
-            $sameNumber = (string) ($contact['wa_id'] ?? '') === (string) $message['from'];
+            // Either end can come without a number, and two absent numbers are not the same one.
+            $sameNumber = isset($contact['wa_id'], $message['from'])
+                && (string) $contact['wa_id'] === (string) $message['from'];
             $sameUser = isset($contact['user_id'], $message['from_user_id'])
                 && $contact['user_id'] === $message['from_user_id'];
 
@@ -323,10 +328,12 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
         array $message,
         array $metadata,
         string $ourNumber,
+        string $from,
         array $contact
     ): InboundMessage {
         $type = (string) ($message['type'] ?? 'text');
-        $from = Str::toE164((string) $message['from']);
+        $userId = Str::trimToNull($contact['user_id'] ?? $message['from_user_id'] ?? null);
+        $username = Str::trimToNull($contact['profile']['username'] ?? null);
         $attachments = [];
 
         if (in_array($type, self::MEDIA_TYPES, true) && isset($message[$type]['id'])) {
@@ -348,13 +355,15 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
             attachments: $attachments,
             personCustomFields: array_filter(
                 [
-                    PersonCustomFieldEnum::USERNAME->value => Str::trimToNull($contact['profile']['username'] ?? null),
-                    PersonCustomFieldEnum::USER_ID->value => Str::trimToNull($contact['user_id'] ?? null),
+                    PersonCustomFieldEnum::USERNAME->value => $username,
+                    PersonCustomFieldEnum::USER_ID->value => $userId,
                 ],
                 fn (?string $value): bool => $value !== null
             ),
             personTags: ['whatsapp', 'meta'],
-            personName: $contact['profile']['name'] ?? null,
+            personName: Str::trimToNull($contact['profile']['name'] ?? null) ?? $username,
+            fromIsVendorId: WhatsAppTransport::isUserId($from),
+            personIdField: $userId !== null ? PersonCustomFieldEnum::USER_ID->value : null,
         );
     }
 
