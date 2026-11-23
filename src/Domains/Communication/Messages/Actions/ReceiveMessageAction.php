@@ -6,6 +6,7 @@ namespace Kanvas\Communication\Messages\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -111,7 +112,7 @@ final class ReceiveMessageAction
                 sourceChannel: $this->inbound->channel->value,
                 body: $this->inbound->text,
                 lead: $lead,
-                contactValue: $this->inbound->from,
+                contactValue: $this->inbound->fromIsVendorId ? null : $this->inbound->from,
                 detectedSignal: $consentSignal,
             )->execute();
         }
@@ -201,13 +202,21 @@ final class ReceiveMessageAction
             throw new LogicException('Inbound ' . $this->inbound->channel->value . ' is not received through this pipeline yet.');
         }
 
-        $address = Str::normalizePhoneNumber($this->inbound->from);
+        // The vendor's id is no number to call or text, so it is never kept as one.
+        $address = $this->inbound->fromIsVendorId ? null : Str::normalizePhoneNumber($this->inbound->from);
 
-        $candidates = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->company,
-            phoneNumbers: [$address, str_replace('+', '', $this->inbound->from)]
-        )->get();
+        $candidates = $address !== null
+            ? PeoplesRepository::getByPhoneNumber(
+                app: $this->receiver->app,
+                company: $this->company,
+                phoneNumbers: [$address, str_replace('+', '', $this->inbound->from)]
+            )->get()
+            : new Collection();
+
+        // Someone who first wrote under the vendor's id and now shows a number is still one person.
+        if ($candidates->isEmpty()) {
+            $candidates = $this->peopleKnownByVendorId();
+        }
 
         $existing = $candidates->first(fn (People $person): bool => LeadsRepository::getPeopleActiveLead($person) !== null)
             ?? $candidates->first();
@@ -216,18 +225,23 @@ final class ReceiveMessageAction
             return $existing;
         }
 
-        $name = $this->personName($existing, $address);
+        $name = $this->personName($existing, $address ?? $this->inbound->from);
 
         $person = new PeopleDto(
             app: $this->receiver->app,
             branch: $this->company->defaultBranch,
             user: $this->user,
             firstname: $name['firstname'],
-            contacts: Contact::collect([[
-                'value' => $address,
-                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
-                'weight' => 100,
-            ]], DataCollection::class),
+            contacts: Contact::collect(
+                $address !== null
+                    ? [[
+                        'value' => $address,
+                        'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                        'weight' => 100,
+                    ]]
+                    : [],
+                DataCollection::class
+            ),
             address: Address::collect([], DataCollection::class),
             lastname: $name['lastname'],
             custom_fields: $this->inbound->personCustomFields,
@@ -240,6 +254,24 @@ final class ReceiveMessageAction
         return $existing !== null
             ? new UpdatePeopleAction($existing, $person)->execute()
             : new CreatePeopleAction($person)->execute();
+    }
+
+    /**
+     * @return Collection<int, People>
+     */
+    private function peopleKnownByVendorId(): Collection
+    {
+        $field = $this->inbound->personIdField;
+        $vendorId = $field !== null ? ($this->inbound->personCustomFields[$field] ?? null) : null;
+
+        if ($vendorId === null) {
+            return new Collection();
+        }
+
+        return People::getByCustomFieldBuilderTransactionSafe($field, $vendorId, $this->company)
+            ->fromApp($this->receiver->app)
+            ->notDeleted()
+            ->get();
     }
 
     /**
@@ -265,8 +297,7 @@ final class ReceiveMessageAction
     private function isFiledUnderTheirNumber(People $person): bool
     {
         return Str::trimToNull($person->lastname) === null
-            && Str::digitsOnly($person->firstname) !== ''
-            && preg_match('/\p{L}/u', (string) $person->firstname) !== 1;
+            && (Str::isPhoneLike($person->firstname) || $person->firstname === $this->inbound->from);
     }
 
     private function lead(People $people): Lead

@@ -76,6 +76,15 @@ class Str extends IlluminateStr
         return $value === null ? '' : ((string) preg_replace('/\D+/', '', $value));
     }
 
+    /**
+     * Digits with nothing but punctuation around them. A value with a letter in it is something
+     * else (a name, a vendor's id), however many digits it carries.
+     */
+    public static function isPhoneLike(?string $value): bool
+    {
+        return self::digitsOnly($value) !== '' && preg_match('/\p{L}/u', (string) $value) !== 1;
+    }
+
     public static function sanitizePhoneNumber(?string $phone = null): string
     {
         return self::digitsOnly($phone);
