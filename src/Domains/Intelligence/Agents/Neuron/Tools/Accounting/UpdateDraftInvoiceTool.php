@@ -47,7 +47,9 @@ class UpdateDraftInvoiceTool extends Tool
         . 'is corrected: never discard it to create another. The lines you give are the whole invoice afterwards, so '
         . 'include the ones that stay. A draft made by a billing schedule (a payment of a quote\'s SOW) keeps its total: '
         . 'reword, merge or split its lines, but they must add up to the same amount. A pending approval is withdrawn '
-        . 'and asked again, so the approver sees the new lines. An issued or sent invoice is not edited here: correct it '
+        . 'and asked again, so the approver sees the new lines; the reply gives approval_request_id, or '
+        . 'approve_by_target when the request is reached by target_type and target_id instead. An issued or sent '
+        . 'invoice is not edited here: correct it '
         . 'with draft_credit_note / draft_debit_note or void_ar_invoice. A draft that already carries a fiscal number '
         . 'or was already approved cannot be changed.';
 
@@ -157,7 +159,10 @@ class UpdateDraftInvoiceTool extends Tool
         } catch (Throwable $e) {
             report($e);
 
-            // The draft is as it was, so it goes back to its approver rather than waiting on nobody.
+            // The rows are as they were, so the draft goes back to its approver rather than waiting on
+            // nobody. The model is not: the action filled it before the rollback, and a request built
+            // from it would describe an invoice that does not exist.
+            $invoice->refresh();
             $approval = $wasAwaitingApproval ? $this->requestApproval($invoice) : 'none_pending';
 
             return $this->denied(
@@ -200,17 +205,27 @@ class UpdateDraftInvoiceTool extends Tool
 
     /**
      * Read back, never assumed: the request found before the edit is closed, and quoting it would point
-     * the person at a dead one. A tenant with no approval policy waits on the legacy queue.
+     * the person at a dead one.
      *
-     * @return array{approval_pending: bool, approval_request_id: ?int}
+     * A tenant with no approval policy waits on the legacy queue, whose row ids the approval tools do
+     * not take: there the request is reached by its target, so no id is given.
+     *
+     * @return array{approval_pending: bool, approval_request_id: ?int, approve_by_target: ?array{target_type: string, target_id: int}}
      */
     private function approvalState(Invoice $invoice): array
     {
-        $requestId = $invoice->pendingApproval()?->getId() ?? $invoice->pendingLegacyApprovals()->value('id');
+        $request = $invoice->pendingApproval();
+        $onLegacyQueue = $request === null && $invoice->pendingLegacyApprovals()->exists();
 
         return [
-            'approval_pending' => $requestId !== null,
-            'approval_request_id' => $requestId !== null ? (int) $requestId : null,
+            'approval_pending' => $request !== null || $onLegacyQueue,
+            'approval_request_id' => $request?->getId(),
+            'approve_by_target' => $onLegacyQueue
+                ? [
+                    'target_type' => 'invoice',
+                    'target_id' => $invoice->getId(),
+                ]
+                : null,
         ];
     }
 
