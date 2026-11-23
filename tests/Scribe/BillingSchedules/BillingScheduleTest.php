@@ -277,6 +277,13 @@ class BillingScheduleTest extends ScribeTestCase
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(quote_id: $quote->getId(), accepted: true);
         $this->assertSame([], $answer['invoices'], 'the due payment is invoiced by the queued job, not inline');
+        $this->assertSame(
+            [true, false],
+            array_column($answer['billing'], 'billing_now'),
+            'so the answer says which payment is being invoiced now, or the agent reports that none was',
+        );
+        $this->assertEqualsWithDelta(2050.0, $answer['billing'][0]['amount'], 0.001);
+        $this->assertSame('2026-06-20', $answer['billing'][1]['bills_on']);
 
         $deposit = BillingSchedule::query()->where('source_quote_id', $quote->getId())->orderBy('id')->first();
         $this->runJob($deposit, '2026-06-01');

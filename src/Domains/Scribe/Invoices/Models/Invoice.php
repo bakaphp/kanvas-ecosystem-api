@@ -324,6 +324,14 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
         return $this->amendmentHistory() !== [];
     }
 
+    /** The billing schedule that made this invoice, from the tag RunBillingScheduleAction leaves on it. */
+    public function billingScheduleId(): ?int
+    {
+        $id = $this->metadata['billing_schedule_id'] ?? null;
+
+        return $id !== null ? (int) $id : null;
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
