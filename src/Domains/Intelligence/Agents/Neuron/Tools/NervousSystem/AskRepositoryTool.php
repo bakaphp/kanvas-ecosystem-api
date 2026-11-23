@@ -39,7 +39,8 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
     protected string $name = 'ask_repository';
 
     protected ?string $description = 'Ask a question about a code repository (an app, a template, the API). '
-        . 'The repositories are on the factory machine and you cannot read them yourself: a factory agent reads the repository and answers, read-only. Use it while working a '
+        . 'The repositories are on the factory machine and you cannot read them yourself: a factory agent '
+        . 'reads the repository and answers, read-only. Use it while working a '
         . 'task, whenever the task needs facts from a repository (what the template already has, which '
         . 'components or services exist, what the specs say). Your task waits and resumes with the answer, '
         . 'so end your turn after asking. Never describe a repository you have not had answered.';

@@ -146,7 +146,12 @@ class UpdateNervousSystemPlanTool extends Tool
 
             // Closing a plan closes its tasks, and a coding run still building one of them would be
             // ended with it.
-            $closes = in_array($data['status'], [PlanStatusEnum::DONE->value, PlanStatusEnum::CANCELLED->value, PlanStatusEnum::BLOCKED->value], true);
+            $closingStatuses = [
+                PlanStatusEnum::DONE->value,
+                PlanStatusEnum::CANCELLED->value,
+                PlanStatusEnum::BLOCKED->value,
+            ];
+            $closes = in_array($data['status'], $closingStatuses, true);
 
             if ($closes && $plan->hasALiveRun()) {
                 return ['error' => sprintf(

@@ -188,7 +188,7 @@ class UpdateTaskStatusAction
 
         foreach ($failedRuns as $run) {
             if ($run->status === TaskStatusEnum::BLOCKED->value) {
-                new UpdateTaskStatusAction(task: $run, newStatus: TaskStatusEnum::SKIPPED, fromSync: true)->execute();
+                new self(task: $run, newStatus: TaskStatusEnum::SKIPPED, fromSync: true)->execute();
 
                 continue;
             }

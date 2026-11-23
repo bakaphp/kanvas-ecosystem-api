@@ -120,11 +120,16 @@ class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAg
 
         if ($description !== null) {
             if ($newStatus !== TaskStatusEnum::PENDING) {
-                return ['error' => 'A task\'s description is replaced only when it goes back to pending. Nothing changed.'];
+                return [
+                    'error' => 'A task\'s description is replaced only when it goes back to pending. Nothing changed.',
+                ];
             }
 
             if (in_array($task->status, [TaskStatusEnum::IN_PROGRESS->value, TaskStatusEnum::WAITING->value], true)) {
-                return ['error' => sprintf('Task #%d is being worked right now, so its text cannot change under it. Nothing changed.', $task->getId())];
+                return ['error' => sprintf(
+                    'Task #%d is being worked right now, so its text cannot change under it. Nothing changed.',
+                    $task->getId()
+                )];
             }
 
             // Before the reset: going back to pending wakes the assignee, and the run reads this text.

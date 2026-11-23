@@ -45,8 +45,6 @@ enum FactoryProjectSettingEnum: string
             return null;
         }
 
-        // Models, not ids: given an id, fromCompany() scopes to the logged-in user's company, and a queue
-        // worker running the orchestrator's turn has none.
         $agent = Agent::query()
             ->where('id', $id)
             ->fromApp($project->app)

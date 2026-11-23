@@ -195,13 +195,20 @@ class Task extends BaseModel
             return false;
         }
 
+        return $this->earlierUnfinishedSteps()->exists();
+    }
+
+    /**
+     * @return Builder<self>
+     */
+    private function earlierUnfinishedSteps(): Builder
+    {
         return self::query()
             ->where('plan_id', $this->plan_id)
             ->whereNull('parent_task_id')
             ->where('sequence', '<', (int) $this->sequence)
             ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
-            ->notDeleted()
-            ->exists();
+            ->notDeleted();
     }
 
     /**
@@ -226,13 +233,8 @@ class Task extends BaseModel
             return false;
         }
 
-        return self::query()
-            ->where('plan_id', $this->plan_id)
-            ->whereNull('parent_task_id')
-            ->where('sequence', '<', (int) $this->sequence)
-            ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
+        return $this->earlierUnfinishedSteps()
             ->whereNotNull('agent_id')
-            ->notDeleted()
             ->with('agent')
             ->get()
             ->contains(fn (self $earlier): bool => $earlier->runsInFactory());

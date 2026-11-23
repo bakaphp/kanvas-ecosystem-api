@@ -401,15 +401,16 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         ];
     }
 
-    /**
-     * The acting user for tools that read internal company data, null on a customer surface.
-     */
     /** Read for every turn's toolset, and it loads every active agent of the company. */
     protected function companyHasFactory(): bool
     {
-        return $this->companyHasFactory ??= CodingChatSettingEnum::factoryAgentsOf($this->app, $this->company)->isNotEmpty();
+        return $this->companyHasFactory ??= CodingChatSettingEnum::factoryAgentsOf($this->app, $this->company)
+            ->isNotEmpty();
     }
 
+    /**
+     * The acting user for tools that read internal company data, null on a customer surface.
+     */
     private function internalActingUser(): ?Users
     {
         return $this instanceof ConversesWithCustomer ? null : $this->actingUser();

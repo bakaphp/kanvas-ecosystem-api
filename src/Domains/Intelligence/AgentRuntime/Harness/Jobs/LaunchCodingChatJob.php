@@ -244,11 +244,6 @@ class LaunchCodingChatJob implements ShouldQueue
     }
 
     /**
-     * Said in place of the generic "could not start": the notice already says what to do, and the generic
-     * one's "start again with /repo" would only be refused the same way. A task run carries it as its
-     * reason instead, which is what the task that started it is blocked with.
-     */
-    /**
      * The steps of one ticket share a branch, and a finished step's worktree that outlived its run still
      * holds it, so the next step cannot check the branch out. Releasing the finished runs on that branch
      * frees it without losing anything: a release commits what a run left uncommitted on the branch.
@@ -262,7 +257,7 @@ class LaunchCodingChatJob implements ShouldQueue
         }
 
         $finished = AgentTaskSession::query()
-            ->where('apps_id', $session->apps_id)
+            ->fromApp($this->app)
             ->where('agent_machine_id', $session->agent_machine_id)
             ->where('repo_slug', $session->repo_slug)
             ->where('branch', $branch)
@@ -284,6 +279,11 @@ class LaunchCodingChatJob implements ShouldQueue
         return $released;
     }
 
+    /**
+     * Said in place of the generic "could not start": the notice already says what to do, and the generic
+     * one's "start again with /repo" would only be refused the same way. A task run carries it as its
+     * reason instead, which is what the task that started it is blocked with.
+     */
     private function refuseHeldCheckout(AgentTaskSession $session, CheckoutInUseException $e): void
     {
         $notice = new CheckoutHolderNotice($session, $e->holder)->message();
