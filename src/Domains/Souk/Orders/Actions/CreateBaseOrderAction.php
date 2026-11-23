@@ -380,6 +380,10 @@ class CreateBaseOrderAction
             ShippingConditionEnum::QUOTED_AT->value => $providerShipping[ShippingConditionEnum::QUOTED_AT->value] ?? null,
         ];
 
+        if (! empty($providerShipping[ShippingConditionEnum::BOOKING_META->value])) {
+            $metadata['shipping'][ShippingConditionEnum::BOOKING_META->value] = $providerShipping[ShippingConditionEnum::BOOKING_META->value];
+        }
+
         return $metadata;
     }
 

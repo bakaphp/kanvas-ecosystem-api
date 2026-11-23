@@ -28,6 +28,12 @@ and the lead never reads as current.
 
 ## A turn, in order (`HasKanvasAgentBehavior::resources()`)
 
+The lead is the session's own record, or the turn's lead (`setCurrentLead()`) when the session is keyed to
+the person, which every inbound through Communication is. The window is then the person's, across all
+their leads; `LeadHistoryWindow::of()` keeps only this lead's counted messages out of it
+(`LeadSummaryTurnTest::testADroppedPromiseReachesATurnKeyedToThePerson`). A turn with no lead in scope
+gets no summary.
+
 1. Load the history, then `KanvasChatHistory::window()`: the loaded and retained row ids. Retained includes
    rows folded into a survivor. Past the fold cap a newer turn **replaces** an older one, which drops a row
    from the middle, so never reduce this to "the oldest kept row" (`LeadHistoryWindowTest`).

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Summary\Jobs\ContinueLeadSummaryJob;
+use Kanvas\Guild\Leads\Summary\LeadConversationMessages;
 use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
 use Kanvas\Guild\Leads\Summary\Notifications\LeadMemoryGapNotification;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -64,6 +65,34 @@ final class LeadSummaryTurnTest extends TestCase
         $this->assertStringNotContainsString('not yet summarized', $instructions, 'Covered, so no gap');
         $this->assertGreaterThanOrEqual($promise->getId(), LeadSummaryRepository::state($lead)->through);
         Bus::assertNotDispatched(ContinueLeadSummaryJob::class);
+    }
+
+    /**
+     * An inbound turn is keyed to the person, with the lead riding along as the turn's lead. The
+     * summary is that lead's all the same.
+     */
+    public function testADroppedPromiseReachesATurnKeyedToThePerson(): void
+    {
+        $lead = $this->makeLead();
+        [, $promise] = $this->olderConversation($lead);
+        Message::query()
+            ->whereIn('id', LeadConversationMessages::idsAfter($lead, 0))
+            ->get()
+            ->each(fn (Message $message) => $message->addEntity($lead->people));
+        LeadSummaryStubProviders::$summaries = new ScriptedStructuredNeuronProvider([
+            $this->summaryAnswer([['op' => 'add', 'kind' => 'commitment', 'text' => 'Hold the white Tacoma until Friday', 'citations' => [$promise->getId()]]], 'Customer wants the white Tacoma'),
+        ]);
+
+        $this->chat(
+            new LeadSummaryCustomerAgentStub(),
+            $lead,
+            'is it still on?',
+            onPerson: true
+        );
+
+        $instructions = (string) LeadSummaryStubProviders::$chats->instructions;
+        $this->assertStringContainsString('Hold the white Tacoma until Friday', $instructions);
+        $this->assertGreaterThanOrEqual($promise->getId(), LeadSummaryRepository::state($lead)->through);
     }
 
     public function testACustomerFacingAgentGetsTheMissingMessagesWhenCatchUpFails(): void
@@ -173,11 +202,17 @@ final class LeadSummaryTurnTest extends TestCase
         $this->assertGreaterThanOrEqual($messages[1]->getId(), LeadSummaryRepository::state($lead)->through);
     }
 
-    private function chat(KanvasGenericNeuronAgent $agent, Lead $lead, string $text): void
-    {
+    private function chat(
+        KanvasGenericNeuronAgent $agent,
+        Lead $lead,
+        string $text,
+        bool $onPerson = false
+    ): void {
         $type = AgentType::factory()->withAppId($lead->apps_id)->create(['provider' => 'neuron', 'handler' => $agent::class]);
-        $agent->setConfiguration(agent: $this->makeAgentFor(auth()->user(), $type), entity: $lead, user: auth()->user());
-        $agent->setThreadId((string) $lead->uuid);
+        $entity = $onPerson ? $lead->people : $lead;
+        $agent->setConfiguration(agent: $this->makeAgentFor(auth()->user(), $type), entity: $entity, user: auth()->user());
+        $agent->setCurrentLead($onPerson ? $lead : null);
+        $agent->setThreadId((string) $entity->uuid);
         $agent->chat(new UserMessage($text));
     }
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\FinancialModelingPrep\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Exception;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\FinancialModelingPrep\Client;
 use Kanvas\Connectors\FinancialModelingPrep\Enums\ConfigurationEnum;
 use Override;

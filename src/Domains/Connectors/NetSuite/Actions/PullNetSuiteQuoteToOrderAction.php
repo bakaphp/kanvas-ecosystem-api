@@ -9,24 +9,23 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Connectors\NetSuite\Concerns\SyncsOrderItemsFromNetSuiteLines;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
-use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Discounts\Actions\CreateDiscountAction;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountConditionData;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountType;
-use Kanvas\Souk\Orders\DataTransferObject\OrderItem as DataTransferObjectOrderItem;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use NetSuite\Classes\Estimate;
 use Spatie\LaravelData\DataCollection;
 
 class PullNetSuiteQuoteToOrderAction
 {
+    use SyncsOrderItemsFromNetSuiteLines;
+
     protected NetSuiteQuoteService $quoteService;
 
     public function __construct(
@@ -209,166 +208,9 @@ class PullNetSuiteQuoteToOrderAction
         }
     }
 
-    protected function markAllOrderItemsAsDeleted(Order $order): void
+    protected function netSuiteLineSource(): string
     {
-        // Mark all non-deleted items as deleted
-        $order->items()->where('is_deleted', false)->update(['is_deleted' => true]);
-    }
-
-    /**
-     * Update order items based on NetSuite quote items
-     */
-    protected function updateOrderItems(Order $order, array $netsuiteItems): void
-    {
-        // Track which items we've processed
-        $processedSkus = [];
-
-        $this->markAllOrderItemsAsDeleted($order);
-
-        foreach ($netsuiteItems as $netsuiteItem) {
-            if (! isset($netsuiteItem->item) || ! isset($netsuiteItem->item->name)) {
-                continue;
-            }
-
-            $sku = $netsuiteItem->item->name;
-            $quantity = $netsuiteItem->quantity ?? 0;
-            $rate = $netsuiteItem->rate ?? 0;
-            $description = $netsuiteItem->description ?? $sku;
-
-            $processedSkus[] = $sku;
-
-            // Find corresponding order item by SKU
-            $orderItem = $order->items()->withTrashed()->where('product_sku', $sku)->first();
-
-            if ($orderItem) {
-                // Update existing order item
-                $this->updateExistingOrderItem($orderItem, (float) $quantity, (float) $rate, $description);
-            } else {
-                // Try to add new order item (only if variant exists)
-                $this->addNewOrderItem($order, $sku, (float) $quantity, (float) $rate, $description);
-            }
-        }
-
-        // Recalculate order totals after item updates
-        $order->calculateTotal();
-    }
-
-    /**
-     * Update an existing order item
-     */
-    protected function updateExistingOrderItem(OrderItem $orderItem, float $quantity, float $rate, string $description): void
-    {
-        $updated = false;
-
-        // First, restore the item if it was marked as deleted
-        if ($orderItem->is_deleted) {
-            $orderItem->is_deleted = false;
-            $updated = true;
-        }
-
-        // Update quantity if different
-        if ($orderItem->quantity != $quantity) {
-            $orderItem->quantity = $quantity;
-            $updated = true;
-        }
-
-        // Update price if different (with tolerance for floating point comparison)
-        $currentPrice = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount ?? 0;
-        if (abs($currentPrice - $rate) > 0.01) {
-            $orderItem->unit_price_gross_amount = $rate;
-            $orderItem->unit_price_net_amount = $rate; // Adjust based on your tax logic
-            $updated = true;
-        }
-
-        // Update description if different
-        if ($orderItem->product_name !== $description) {
-            $orderItem->product_name = $description;
-            $updated = true;
-        }
-
-        // Save the order item if updated (remove the total calculations)
-        if ($updated) {
-            $orderItem->saveOrFail();
-        }
-    }
-
-    /**
-     * Add a new order item from NetSuite quote (only if variant exists)
-     */
-    protected function addNewOrderItem(
-        Order $order,
-        string $sku,
-        float $quantity,
-        float $rate,
-        string $description
-    ): void {
-        // Try to find the variant/product in the system
-        $variant = $this->findVariantBySku($sku);
-
-        if (! $variant) {
-            // Log that we couldn't find the product but don't create the item
-            report(new Exception("Product with SKU '{$sku}' not found in Kanvas system when adding from NetSuite quote. Skipping item."));
-
-            return;
-        }
-
-        // Get the currency model
-        $currency = $this->getCurrencyModel($order->currency ?? 'USD');
-
-        // Create OrderItemDto
-        $orderItemDto = new DataTransferObjectOrderItem(
-            app: $this->app,
-            variant: $variant,
-            name: $variant->name,
-            sku: $sku,
-            quantity: $quantity,
-            price: $rate,
-            discount: 0, // Adjust based on your logic
-            tax: 0, // Adjust based on your logic
-            currency: $currency,
-            metadata: ['source' => 'netsuite_quote']
-        );
-
-        // Use the existing addItem method
-        $order->addItem($orderItemDto);
-    }
-
-    /**
-     * Find variant by SKU in the system
-     */
-    protected function findVariantBySku(string $sku): ?Variants
-    {
-        // Try to find by SKU first
-        $variant = Variants::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('sku', $sku)
-            ->first();
-
-        if (! $variant) {
-            // Try to find by barcode as fallback
-            $variant = Variants::fromApp($this->app)
-                ->fromCompany($this->company)
-                ->where('barcode', $sku)
-                ->first();
-        }
-
-        return $variant;
-    }
-
-    /**
-     * Get currency model
-     */
-    protected function getCurrencyModel(string $currencyCode): Currencies
-    {
-        // Get the currency from the database
-        $currency = Currencies::where('code', $currencyCode)->first();
-
-        // If not found, create a default one or use a fallback
-        if (! $currency) {
-            $currency = Currencies::getBaseCurrency();
-        }
-
-        return $currency;
+        return 'netsuite_quote';
     }
 
     /**
@@ -407,33 +249,6 @@ class PullNetSuiteQuoteToOrderAction
                       ->orWhereRaw("JSON_EXTRACT(metadata, '$.netsuite_quote_id') = ?", [$quoteIdInt]);
             })
             ->first();
-    }
-
-    /**
-     * Get list of fields that were updated
-     */
-    protected function getUpdatedFields(Order $order, Estimate $netsuiteQuote): array
-    {
-        $updatedFields = [];
-
-        if (isset($netsuiteQuote->memo) && $netsuiteQuote->memo !== $order->customer_note) {
-            $updatedFields['customer_note'] = $netsuiteQuote->memo;
-        }
-
-        if (isset($netsuiteQuote->status)) {
-            $updatedFields['quote_status'] = $netsuiteQuote->status;
-        }
-
-        if (isset($netsuiteQuote->total)) {
-            $netsuiteTotal = (float) $netsuiteQuote->total;
-            $currentTotal = $order->total_gross_amount;
-
-            if (abs($netsuiteTotal - $currentTotal) > 0.01) {
-                $updatedFields['total'] = $netsuiteTotal;
-            }
-        }
-
-        return $updatedFields;
     }
 
     /**

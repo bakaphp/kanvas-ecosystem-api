@@ -31,9 +31,30 @@ final class Client
         return new TwilioClient($sid, $token);
     }
 
+    public static function getInstanceByCompanyOrApp(Companies $company, AppInterface $app): TwilioClient
+    {
+        [$sid, $token] = self::getKeysFromCompanyOrApp($company, $app);
+
+        return new TwilioClient($sid, $token);
+    }
+
     /**
-     * Validate Twilio credentials.
+     * The account a company's texts go through: its own when it has one, so a dealer with its own
+     * account keeps sending from it, the app's otherwise. Sending, the number's webhook and the
+     * signature on what Twilio posts back all have to name the same account.
+     *
+     * @throws ValidationException when neither has credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
+    public static function getKeysFromCompanyOrApp(Companies $company, AppInterface $app): array
+    {
+        try {
+            return self::getKeysFromCompany($company);
+        } catch (ValidationException) {
+            return self::getKeysFromApp($app);
+        }
+    }
+
     public static function validateCredentials(string $sid, string $token): bool
     {
         try {
@@ -54,10 +75,8 @@ final class Client
     }
 
     /**
-     * Get Twilio API credentials from app configuration.
-     *
-     * @throws ValidationException If credentials are not properly set
-     * @return array{0: string, 1: string} Array containing [Account SID, Auth Token]
+     * @throws ValidationException when the app has no credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
     public static function getKeysFromApp(AppInterface $app): array
     {
@@ -80,10 +99,8 @@ final class Client
     }
 
     /**
-     * Get Twilio API credentials from company configuration.
-     *
-     * @throws ValidationException If credentials are not properly set
-     * @return array{0: string, 1: string} Array containing [Account SID, Auth Token]
+     * @throws ValidationException when the company has no credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
     public static function getKeysFromCompany(Companies $company): array
     {

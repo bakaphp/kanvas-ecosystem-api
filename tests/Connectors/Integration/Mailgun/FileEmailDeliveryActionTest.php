@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Mailgun;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\Email\EmailComposer;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
@@ -54,54 +55,55 @@ final class FileEmailDeliveryActionTest extends TestCase
         ]);
     }
 
-    public function testAMailboxSendFilesAnAcceptedDeliveryOnTheMessageItShips(): void
+    public function testAMailboxSendFilesAnAcceptedDelivery(): void
     {
         $agent = $this->agentWithMailbox();
-        $message = $this->createMessage();
 
         $returned = new SendAsAgentMailboxAction(
             agent: $agent,
-            to: 'Prospect@Example.com',
+            to: 'Teammate@Example.com',
             subject: 'Your quote',
-            markdownBody: 'Here is the quote.',
-            trackingMessage: $message,
+            markdownBody: 'Here is the **quote**.',
         )->execute();
 
         $this->assertSame('<' . $this->mailgunId . '>', $returned);
 
         $delivery = $this->delivery();
-        $this->assertSame($message->getId(), (int) $delivery->message_id);
+        $this->assertNull($delivery->message_id);
         $this->assertSame('accepted', $delivery->status->value);
         $this->assertSame('email', $delivery->channel->value);
-        $this->assertSame('prospect@example.com', $delivery->to_address);
+        $this->assertSame('teammate@example.com', $delivery->to_address);
         $this->assertNotNull($delivery->accepted_at);
 
         $request = $delivery->request;
         $this->assertEquals(['type' => 'agent', 'id' => $agent->getId()], $request->sender);
         $this->assertSame('Your quote', $request->content['subject']);
-        $this->assertSame($message->getId(), (int) $request->filed_message_id);
-
-        $onMessage = $message->fresh()->getMessage()['delivery'];
-        $this->assertSame('mailgun', $onMessage['provider']);
-        $this->assertSame('accepted', $onMessage['status']);
-        $this->assertSame($this->mailgunId, $onMessage['message_sid']);
+        $this->assertNull($request->people_id);
     }
 
-    public function testACampaignSendKeepsItsRecipientSlotOnTheRequest(): void
+    /**
+     * The text goes out as the agent wrote it, with the mailbox as Reply-To so the answer comes
+     * back to the agent.
+     */
+    public function testAMailboxSendLeavesAsWrittenWithTheMailboxAsReplyTo(): void
     {
-        // Only the id is read, so the slot is never written to lead_campaign_recipients.
-        $recipient = new CampaignRecipient();
-        $recipient->id = 987654321;
+        $agent = $this->agentWithMailbox();
 
         new SendAsAgentMailboxAction(
-            agent: $this->agentWithMailbox(),
-            to: 'prospect@example.com',
-            subject: 'Batch',
-            markdownBody: 'Batch body',
-            trackingCampaignRecipient: $recipient,
+            agent: $agent,
+            to: 'teammate@example.com',
+            subject: 'Your quote',
+            markdownBody: 'Here is the **quote**.',
         )->execute();
 
-        $this->assertSame(987654321, (int) $this->delivery()->request->campaign_recipient_id);
+        Http::assertSent(function (HttpRequest $request) use ($agent): bool {
+            $parts = collect($request->data())->pluck('contents', 'name');
+
+            return $parts['text'] === 'Here is the **quote**.'
+                && $parts['html'] === EmailComposer::writtenHtml('Here is the **quote**.')
+                && str_contains((string) $parts['html'], '<strong>quote</strong>')
+                && $parts['h:Reply-To'] === $agent->get(CustomFieldEnum::MAILBOX_ADDRESS->value);
+        });
     }
 
     public function testTheSendResultLinksTheDeliveryToTheMessageWrittenAfterwards(): void
@@ -115,7 +117,7 @@ final class FileEmailDeliveryActionTest extends TestCase
         $this->assertNull($this->delivery()->message_id);
 
         $message = $this->createMessage();
-        new StoreMessageSidAction($message)->execute([
+        new LinkDeliveryMessageAction($message)->execute([
             'channel' => 'email',
             'provider' => 'mailgun',
             'provider_message_id' => $this->mailgunId,
@@ -129,53 +131,46 @@ final class FileEmailDeliveryActionTest extends TestCase
     public function testASendMailgunRefusesIsFiledAsFailedAndStillThrows(): void
     {
         $this->sendResponse = [['message' => "'to' parameter is not a valid address"], 400];
-        $message = $this->createMessage();
-        $attemptUuid = (string) Str::uuid();
+        $to = 'refused-' . Str::lower(Str::random(10)) . '@example.com';
 
         try {
             new SendAsAgentMailboxAction(
                 agent: $this->agentWithMailbox(),
-                to: 'not-an-address',
+                to: $to,
                 subject: 'Your quote',
                 markdownBody: 'Here is the quote.',
-                trackingMessage: $message,
-                attemptUuid: $attemptUuid,
             )->execute();
             $this->fail('A refused send must still throw to its caller');
         } catch (ValidationException $exception) {
             $this->assertStringContainsString('HTTP 400', $exception->getMessage());
         }
 
-        $delivery = Delivery::query()->where('uuid', $attemptUuid)->firstOrFail();
+        $delivery = Delivery::query()->where('to_address', $to)->firstOrFail();
         $this->assertSame('mailgun', $delivery->provider);
         $this->assertSame('failed', $delivery->status->value);
         $this->assertNull($delivery->external_id);
         $this->assertStringContainsString('not a valid address', (string) $delivery->error);
         $this->assertNotNull($delivery->events_closed_at);
-
-        $onMessage = $message->fresh()->getMessage()['delivery'];
-        $this->assertSame('failed', $onMessage['status']);
-        $this->assertStringContainsString('not a valid address', (string) $onMessage['error_message']);
     }
 
     public function testAFailedSendResultFindsItsDeliveryByUuid(): void
     {
         $this->sendResponse = [['message' => 'Domain not verified'], 400];
-        $attemptUuid = (string) Str::uuid();
+        $to = 'refused-' . Str::lower(Str::random(10)) . '@example.com';
 
         try {
             new SendAsAgentMailboxAction(
                 agent: $this->agentWithMailbox(),
-                to: 'prospect@example.com',
+                to: $to,
                 subject: 'Your quote',
                 markdownBody: 'Here is the quote.',
-                attemptUuid: $attemptUuid,
             )->execute();
         } catch (ValidationException) {
         }
 
+        $attemptUuid = (string) Delivery::query()->where('to_address', $to)->value('uuid');
         $message = $this->createMessage();
-        new StoreMessageSidAction($message)->execute([
+        new LinkDeliveryMessageAction($message)->execute([
             'status' => 'error',
             'success' => false,
             'channel' => 'email',
@@ -192,7 +187,7 @@ final class FileEmailDeliveryActionTest extends TestCase
     {
         $message = $this->createMessage();
 
-        new StoreMessageSidAction($message)->execute([
+        new LinkDeliveryMessageAction($message)->execute([
             'channel' => 'email',
             'to' => 'prospect@example.com',
             'template' => 'first-time-agent-engagement',

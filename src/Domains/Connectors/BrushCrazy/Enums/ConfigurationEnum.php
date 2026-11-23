@@ -13,8 +13,8 @@ enum ConfigurationEnum: string
     case BRUSHCRAZY_DB_PASSWORD = 'BRUSHCRAZY_DB_PASSWORD';
 
     /**
-     * Path to the RDS CA bundle. The source app sets MYSQL_ATTR_SSL_CA, so the instance may
-     * require TLS — without this the connection is rejected once the network path is open.
+     * The RDS CA bundle: its PEM content (the us-east-2 bundle; the global one is too big for the
+     * setting) or a path inside the container. `kanvas_mirror` is REQUIRE SSL.
      */
     case BRUSHCRAZY_DB_SSL_CA = 'BRUSHCRAZY_DB_SSL_CA';
     case BRUSHCRAZY_SYNC_ENABLED = 'BRUSHCRAZY_SYNC_ENABLED';
@@ -22,11 +22,39 @@ enum ConfigurationEnum: string
     case BRUSHCRAZY_MEDIA_BASE_URL = 'BRUSHCRAZY_MEDIA_BASE_URL';
     case BRUSHCRAZY_DEFAULT_TIMEZONE = 'BRUSHCRAZY_DEFAULT_TIMEZONE';
     case BRUSHCRAZY_DEFAULT_CURRENCY = 'BRUSHCRAZY_DEFAULT_CURRENCY';
-    case BRUSHCRAZY_IMPORT_CURSOR = 'BRUSHCRAZY_IMPORT_CURSOR';
 
     /**
-     * Set at cutover. Any import invoked afterwards refuses to run without --force and never
-     * advances a cursor past it, so a stale run can't clobber Kanvas-native data weeks later.
+     * App-wide kill switch, set only by hand: the mirror is permanent and bidirectional, so no code
+     * sets it. From this instant the webhook, the scheduled pull and any import without --force stop
+     * and no cursor advances past it; clearing it resumes them.
      */
     case BRUSHCRAZY_CUTOVER_AT = 'BRUSHCRAZY_CUTOVER_AT';
+
+    /**
+     * Rows starting at or after this instant get the studio-timezone correction. Pinned once by the
+     * first import and never moved, so the import and the mirror keep applying the same boundary.
+     * Kept apart from CUTOVER_AT: that one blocks imports, and pinning it at first import would
+     * lock the import out of its own second run.
+     */
+    case BRUSHCRAZY_TZ_CORRECTION_CUTOFF = 'BRUSHCRAZY_TZ_CORRECTION_CUTOFF';
+
+    /**
+     * Write-back to BrushCrazy: the site sells in Kanvas and BrushCrazy's own API books the sale,
+     * so its listeners (registrations, rewards, taxes) run. Signed like the mirror, in reverse.
+     */
+    case BRUSHCRAZY_API_URL = 'BRUSHCRAZY_API_URL';
+    case BRUSHCRAZY_API_SECRET = 'BRUSHCRAZY_API_SECRET';
+
+    /**
+     * On, every push only proves the connection (BrushCrazyApi::probe) and the real body is never
+     * sent. For a Kanvas environment pointed at a BrushCrazy it must not write to, such as dev
+     * against BrushCrazy production.
+     */
+    case BRUSHCRAZY_API_DRY_RUN = 'BRUSHCRAZY_API_DRY_RUN';
+
+    /**
+     * The branch every imported customer's Kanvas login joins (a dedicated customers company, never
+     * a studio's: a member of a studio company can read its data). Unset, no logins are created.
+     */
+    case BRUSHCRAZY_CUSTOMER_ACCOUNTS_BRANCH_ID = 'BRUSHCRAZY_CUSTOMER_ACCOUNTS_BRANCH_ID';
 }

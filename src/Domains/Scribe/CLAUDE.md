@@ -76,17 +76,30 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   quote contact → every person linked to the customer with the `billing-contact` people tag → billing
   email); naming a person tags and links them. Never the old `billing_contact_people_id` custom field
   (`scribe:migrate-billing-contacts` moved it once). An agent reaches a customer with an invoice, quote or SOW only
-  through `send_invoice` / `send_quote` (a tracked engagement: opens, signatures, payments on record); never grant an
-  AR/AP agent a general email or WhatsApp tool, which would send a document outside it. A person may still generate
-  the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
+  through `send_invoice` / `send_quote` (a tracked engagement: opens, signatures, payments on record). The AP and AR
+  agents hold `send_person_email` for plain correspondence (a vendor statement request, a customer's question) only
+  while a real person is asking (`personAsking()`, both read inbound email); it cannot attach a file, and the only
+  document reference it can carry is the `get_document_link` engagement link, so a document never leaves untracked.
+  Never grant them a WhatsApp or attachment-capable send. A person may still generate the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
   DGII accepted it. The public page renders `Engagement.document_page` (`toTemplateData()`), never the
-  row; customer answers come back through `respondToDocumentEngagement` → `RecordDocumentResponseAction`
+  row; the engagement's `message.data` also carries `document_number`, `name` and `html` (`DocumentHtmlService`:
+  the string the PDF is printed from, the SOW layout for `sign-sow`, the legal e-CF representation once DGII
+  accepted and no `html` before), rewritten on every open so a reused link shows the document as it is now;
+  `html` is for display, the actions (accept, sign, pay, QR) stay on `document_page`; customer answers come back through `respondToDocumentEngagement` → `RecordDocumentResponseAction`
   (accept = `AcceptQuoteAction`, decline = `RejectQuoteAction`), and paid closes the thread from
   `MarkInvoicePaidAction`. Dunning is the follow-up engine's Invoice executor
   (`Intelligence/FollowUp/Actions/FollowUpInvoiceAction`, company setting `scribe_dunning_schedule`).
   Per tenant: `scribe:setup-document-actions {app_id} {company_id?}`. Links shorten through the
   company's short.io integration, else the app's; the page base URL is the company's
   `link_page_base_url`, else the app's `NEW_ACTION_PAGE_V4` (`ShortIoConfigurationService`).
+- **A company's SOW layouts are named versions with a switchable default.** Company-level template rows
+  `scribe-sow-{version}` (`CompanySowTemplateService`), the default a pointer in the company setting
+  `scribe_sow_default_template` (none = the app's stock `scribe-sow`), so switching never overwrites a layout. The AR
+  agent edits them (`get_sow_template`, `save_sow_template`, `set_default_sow_template`; the writes only while a person
+  is asking). `RecordQuoteSowAction` freezes the version into the SOW payload (`template`), so a SOW renders the layout
+  it was written with on the PDF and the `sign-sow` page whatever the default becomes, and the signature hash covers
+  it. `SaveCompanySowTemplateAction` test-renders before saving and refuses scripts and remote assets, which the
+  signing page's sandboxed iframe would block.
 - **Every primary document exposes `files`.** Bill, Invoice, Quote, Expense, SalesReceipt and Payment all
   carry Kanvas Filesystem attachments (the source invoice PDF an AP/AR agent was handed, a rendered
   `invoice_pdf` / `quote_pdf`, a receipt, a remittance) and all expose them as `files: [Filesystem!]!

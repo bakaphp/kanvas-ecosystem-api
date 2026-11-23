@@ -22,7 +22,7 @@ use Override;
  * (the agent's tenant), so the LLM can only ever read THIS company's FAQs — it never passes a
  * company id. The tool just optionally narrows by keyword.
  */
-#[AgentTool(name: 'Company FAQ', category: 'crm')]
+#[AgentTool(name: 'Company FAQ', category: 'crm', readOnly: true)]
 class FaqLookupTool extends Tool
 {
     protected string $name = 'get_company_faqs';

@@ -21,7 +21,8 @@ class CreateInviteAction
     public function __construct(
         public InviteDto $inviteDto,
         public Users $user,
-        public bool $userAlreadyExist = false
+        public bool $userAlreadyExist = false,
+        public bool $actorManagesAllCompanies = false,
     ) {
     }
 
@@ -33,12 +34,14 @@ class CreateInviteAction
         $companyBranch = $this->inviteDto->companyBranch;
         $company = $companyBranch->company;
 
-        $company->hasCompanyPermission($this->user, $this->inviteDto->app);
-        CompaniesRepository::userAssociatedToCompanyAndBranch(
-            $company,
-            $companyBranch,
-            $this->user
-        );
+        if (! $this->actorManagesAllCompanies) {
+            $company->hasCompanyPermission($this->user, $this->inviteDto->app);
+            CompaniesRepository::userAssociatedToCompanyAndBranch(
+                $company,
+                $companyBranch,
+                $this->user
+            );
+        }
 
         $role = RolesRepository::getByIdFromCompany(
             $this->inviteDto->role_id,

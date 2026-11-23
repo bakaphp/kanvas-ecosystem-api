@@ -292,7 +292,7 @@ class ProcessAccountingPdfAction
             return;
         }
 
-        $reviewReason = $bill->metadata['ingest']['review_reason'] ?? null;
+        $reviewReason = $bill->inboxReviewReason();
         $log->status = $reviewReason !== null ? PdfIngestStatusEnum::NEEDS_REVIEW : PdfIngestStatusEnum::ENTITY_CREATED;
         $log->rejected_reason = $reviewReason;
     }

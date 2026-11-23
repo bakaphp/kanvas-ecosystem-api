@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
@@ -385,6 +386,37 @@ class RespondToMentionJobTest extends TestCase
             Message::where('parent_id', $childMention->getId())->first(),
             'No grandchild reply — the thread must stay one level deep',
         );
+    }
+
+    public function testDoesNotReplyToAMentionThatWasDeleted(): void
+    {
+        $human = $this->registerFreshUser();
+        $agentUser = $this->makeAgentUser('InventoryBot');
+        $agent = $this->makeAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, 'hey @InventoryBot never mind');
+        $channel->addMessage($mention, $human);
+        $mention->delete();
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        $this->assertNull(
+            Message::where('parent_id', $mention->getId())->first(),
+            'A deleted mention has nothing left to answer',
+        );
+    }
+
+    public function testAReplyToADeletedParentIsRejectedAsInvalid(): void
+    {
+        $human = $this->registerFreshUser();
+        $parent = $this->makeMessage($human, 'about to be deleted');
+        $parent->delete();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('The parent message is invalid');
+
+        $this->makeMessage($human, 'reply to nothing', $parent->getId());
     }
 
     public function testDoesNotReplyToAMessageItsOwnUserAuthored(): void

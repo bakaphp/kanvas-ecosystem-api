@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\WaSender;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Http\Exceptions\SsrfException;
+use Baka\Http\SafeUrl;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
@@ -29,14 +31,19 @@ class Client
             ? ConfigurationEnum::BASE_URL_OUTBOUND
             : ConfigurationEnum::BASE_URL;
 
-        $this->baseUrl = $app->get($baseUrlEnum->value);
         // Session management uses the account PAT (config); per-session ops (send-message) must pass
         // that session's own api_key. When given, it overrides the account key for this client.
-        $this->apiKey = $apiKey !== null && $apiKey !== ''
+        $baseUrl = $app->get($baseUrlEnum->value);
+        $key = $apiKey !== null && $apiKey !== ''
             ? $apiKey
             : ($company->get(ConfigurationEnum::API_KEY->value) ?? $app->get(ConfigurationEnum::API_KEY->value));
 
-        if (empty($this->baseUrl) || empty($this->apiKey)) {
+        // Settings round-trip through json_decode: a missing one is null and an all-digit key an
+        // int, and neither may reach a string property.
+        $this->baseUrl = is_scalar($baseUrl) ? trim((string) $baseUrl) : '';
+        $this->apiKey = is_scalar($key) ? trim((string) $key) : '';
+
+        if ($this->baseUrl === '' || $this->apiKey === '') {
             throw new ValidationException('Wasender configuration is missing');
         }
 
@@ -69,21 +76,22 @@ class Client
         return $this->send('DELETE', $endpoint, ['query' => $queryParams]);
     }
 
-    public function sendMessage(string $to, string $text): array
+    /**
+     * The base URL comes from a form, so it is checked before anything is sent to it, and the probe
+     * follows no redirect to somewhere that was not checked.
+     */
+    public static function validateCredentials(string $baseUrl, string $apiKey): bool
     {
-        return $this->post('/api/send-message', [
-            'to' => $to,
-            'text' => $text,
-        ]);
-    }
+        try {
+            SafeUrl::assertSafe($baseUrl);
+        } catch (SsrfException) {
+            throw new ValidationException('The WaSender base URL points at an address Kanvas is not allowed to reach.');
+        }
 
-    public static function validateCredentials(
-        string $baseUrl,
-        string $apiKey
-    ): bool {
         try {
             $client = new GuzzleClient([
                 'base_uri' => $baseUrl,
+                'allow_redirects' => false,
                 'headers' => [
                     'Authorization' => 'Bearer ' . $apiKey,
                     'Content-Type' => 'application/json',

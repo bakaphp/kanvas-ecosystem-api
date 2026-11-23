@@ -258,7 +258,7 @@ class WakeAgentForPlanJob implements ShouldQueue
     {
         $owner = $this->plan->user ?? $this->plan->agent?->user;
 
-        return $this->firstOrCreateWakeSession(
+        return Session::firstOrCreateForEntity(
             $this->plan,
             create: [
                 'agents_id' => $this->plan->agent_id,

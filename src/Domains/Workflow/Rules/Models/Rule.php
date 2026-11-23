@@ -17,6 +17,7 @@ use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
+use Kanvas\Workflow\Rules\Actions\EnsureAppDefaultRulesAction;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
 use Kanvas\Workflow\Rules\Support\SafeExpression;
 use Override;
@@ -138,6 +139,16 @@ class Rule extends BaseModel
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'systems_modules_id', 'id');
+    }
+
+    /**
+     * Installed for every company of an app by EnsureAppDefaultRulesAction; a company's own rule for
+     * the same activity replaces it (RuleRepository).
+     */
+    public function isAppDefault(): bool
+    {
+        return (int) $this->companies_id === 0
+            && (bool) (($this->params ?? [])[EnsureAppDefaultRulesAction::PARAM] ?? false);
     }
 
     public function workflowActivities(): HasMany

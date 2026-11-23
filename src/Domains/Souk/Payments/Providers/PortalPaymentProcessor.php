@@ -169,7 +169,7 @@ class PortalPaymentProcessor
                     'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
                     'orderInformation' => OrderInformation::from([
                         'currency' => 'DOP',
-                        'totalAmount' => $orderInput->getTotalAmount(),
+                        'totalAmount' => $orderInput->getTotalDueAmount(),
                         'billTo' => $this->setCustomerBillingAddress($payment, $orderInput),
                     ]),
                     'deviceInformation' => DeviceInformation::from([
@@ -264,7 +264,7 @@ class PortalPaymentProcessor
                     'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
                     'orderInformation' => OrderInformation::from([
                         'currency' => 'DOP',
-                        'totalAmount' => $order->getTotalAmount(),
+                        'totalAmount' => $order->getTotalDueAmount(),
                     ]),
                 ]),
                 $merchantAuthentication
@@ -422,7 +422,7 @@ class PortalPaymentProcessor
                 'transaction_id' => $transactionId,
                 'intent_id' => $intentId,
                 'order_id' => $order->id,
-                'amount' => $order->getTotalAmount(),
+                'amount' => $order->getTotalDueAmount(),
             ]);
 
             $payment->status = PaymentStatusEnum::AUTHORIZED;
@@ -460,7 +460,7 @@ class PortalPaymentProcessor
     {
         $payment->addLog('payment_processing', [
             'order_id' => $order->id,
-            'amount' => $order->getTotalAmount(),
+            'amount' => $order->getTotalDueAmount(),
         ]);
 
         $referenceId = $order->get('auth_session_id');
@@ -470,7 +470,7 @@ class PortalPaymentProcessor
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
             'orderInformation' => OrderInformation::from([
                 'currency' => 'DOP',
-                'totalAmount' => $order->getTotalAmount(),
+                'totalAmount' => $order->getTotalDueAmount(),
                 'billTo' => $this->setCustomerBillingAddress($payment, $order),
             ]),
             'deviceInformation' => DeviceInformation::from([
@@ -603,7 +603,7 @@ class PortalPaymentProcessor
             $payment->addLog('payment_capture_sending', [
                 'order_id' => $order->id,
                 'transaction_id' => $transactionId,
-                'amount' => $order->getTotalAmount(),
+                'amount' => $order->getTotalDueAmount(),
             ]);
 
             $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
@@ -612,28 +612,10 @@ class PortalPaymentProcessor
                     'transactionId' => $transactionId,
                     'orderCode' => $order->id,
                     'currency' => 'DOP',
-                    'totalAmount' => $order->getTotalAmount(),
+                    'totalAmount' => $order->getTotalDueAmount(),
                 ]),
                 $merchantAuthentication
             );
-
-            $payment->addLog('payment_captured', [
-                'order_id' => $order->id,
-                'transaction_id' => $transactionId,
-                'amount' => $order->getTotalAmount(),
-            ]);
-
-            $payment->markAsPaid([
-                'data' => [
-                    'capture_data' => $capturePayment,
-                ],
-            ]);
-
-            return [
-                'status' => 'success',
-                'message' => 'Payment captured successfully',
-                'data' => $capturePayment,
-            ];
         } catch (ConnectException | RequestException $e) {
             // Timeout occurred - provider likely captured but response didn't arrive
             // Assume success and mark as backup_capture for reconciliation
@@ -642,18 +624,16 @@ class PortalPaymentProcessor
             $payment->addLog('payment_capture_timeout', [
                 'order_id' => $order->id,
                 'transaction_id' => $transactionId,
-                'amount' => $order->getTotalAmount(),
+                'amount' => $order->getTotalDueAmount(),
                 'error_message' => $e->getMessage(),
                 'assumed_captured' => true,
             ]);
 
-            $payment->markAsPaid([
-                'data' => [
-                    'backup_capture' => true,
-                    'capture_timeout' => [
-                        'timestamp' => now()->toIso8601String(),
-                        'error' => $e->getMessage(),
-                    ],
+            $this->markCaptured($payment, [
+                'backup_capture' => true,
+                'capture_timeout' => [
+                    'timestamp' => now()->toIso8601String(),
+                    'error' => $e->getMessage(),
                 ],
             ]);
 
@@ -696,6 +676,32 @@ class PortalPaymentProcessor
                 'data' => [],
             ];
         }
+
+        $payment->addLog('payment_captured', [
+            'order_id' => $order->id,
+            'transaction_id' => $transactionId,
+            'amount' => $order->getTotalDueAmount(),
+        ]);
+
+        $this->markCaptured($payment, ['capture_data' => $capturePayment]);
+
+        return [
+            'status' => 'success',
+            'message' => 'Payment captured successfully',
+            'data' => $capturePayment,
+        ];
+    }
+
+    private function markCaptured(Payments $payment, array $data): void
+    {
+        try {
+            $payment->markAsPaid(['data' => $data]);
+        } catch (Throwable $e) {
+            report($e);
+
+            $payment->status = PaymentStatusEnum::PAID->value;
+            $payment->saveQuietly();
+        }
     }
 
     public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array
@@ -707,7 +713,7 @@ class PortalPaymentProcessor
                     'transactionId' => $transactionId,
                     'orderCode' => $order->id,
                     'currency' => 'DOP',
-                    'totalAmount' => $order->getTotalAmount(),
+                    'totalAmount' => $order->getTotalDueAmount(),
                 ]),
                 $merchantAuthentication,
                 $reason
@@ -717,7 +723,7 @@ class PortalPaymentProcessor
                 'transaction_id' => $transactionId,
                 'reason' => $reason,
                 'order_id' => $order->id,
-                'amount' => $order->getTotalAmount(),
+                'amount' => $order->getTotalDueAmount(),
             ]);
 
             $payment->status = PaymentStatusEnum::REVERSED->value;

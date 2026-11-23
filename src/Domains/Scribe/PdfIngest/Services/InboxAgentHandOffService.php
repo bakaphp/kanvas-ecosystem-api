@@ -62,7 +62,7 @@ class InboxAgentHandOffService
 
         $recipient = $this->recipient($company);
         $code = $bill->metadata['ingest']['review_code'] ?? null;
-        $reason = (string) ($log->rejected_reason ?? $bill->metadata['ingest']['review_reason'] ?? '');
+        $reason = (string) ($log->rejected_reason ?? $bill->inboxReviewReason() ?? '');
         $from = $log->from_email !== null ? " from {$log->from_email}" : '';
         $header = "A supplier invoice{$from} reached the accounting inbox and became DRAFT bill {$bill->getId()} "
             . "({$bill->vendor_display_name}, {$bill->bill_number}, {$bill->currency} " . number_format((float) $bill->total_native, 2) . '), '

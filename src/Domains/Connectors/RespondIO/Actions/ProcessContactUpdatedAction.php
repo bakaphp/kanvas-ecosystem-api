@@ -17,16 +17,10 @@ class ProcessContactUpdatedAction extends BaseRespondIOAction
         $firstName = $contact['firstName'] ?? null;
         $lastName = $contact['lastName'] ?? null;
 
-        $identifier = $this->getContactIdentifier($contact);
+        $existingPeople = $this->resolvePeople();
 
-        if ($identifier === null) {
-            return ['error' => 'Missing contact identifier'];
-        }
-
-        $existingPeople = $this->findPeopleByIdentifier($this->app, $this->company, $identifier);
-
-        if (! $existingPeople) {
-            return ['status' => 'contact_not_found', 'identifier' => $identifier];
+        if ($existingPeople === null) {
+            return $this->unresolved('contact_not_found');
         }
 
         $updated = false;

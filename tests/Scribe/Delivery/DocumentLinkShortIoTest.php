@@ -70,7 +70,7 @@ class DocumentLinkShortIoTest extends DocumentDeliveryTestCase
         $link = $this->openLink();
 
         $this->assertSame('https://pay.acme.com/s', $link->link);
-        $this->assertLongUrlSent('https://docs.acme.com/invoice/' . $link->engagement->uuid, 'company-key');
+        $this->assertLongUrlSent('https://docs.acme.com/view/' . $link->engagement->uuid, 'company-key');
     }
 
     public function test_without_a_company_integration_the_app_page_and_short_io_build_the_link(): void
@@ -82,7 +82,7 @@ class DocumentLinkShortIoTest extends DocumentDeliveryTestCase
         $link = $this->openLink();
 
         $this->assertSame('https://app.link/s', $link->link);
-        $this->assertLongUrlSent('https://app.page/invoice/' . $link->engagement->uuid, 'app-key');
+        $this->assertLongUrlSent('https://app.page/view/' . $link->engagement->uuid, 'app-key');
     }
 
     public function test_without_any_short_io_the_link_is_the_long_v4_url(): void
@@ -92,7 +92,7 @@ class DocumentLinkShortIoTest extends DocumentDeliveryTestCase
 
         $link = $this->openLink();
 
-        $this->assertSame('https://docs.acme.com/invoice/' . $link->engagement->uuid, $link->link);
+        $this->assertSame('https://docs.acme.com/view/' . $link->engagement->uuid, $link->link);
         Http::assertNothingSent();
     }
 
@@ -104,7 +104,7 @@ class DocumentLinkShortIoTest extends DocumentDeliveryTestCase
 
         $link = $this->openLink();
 
-        $this->assertSame('https://app.page/invoice/' . $link->engagement->uuid, $link->link);
+        $this->assertSame('https://app.page/view/' . $link->engagement->uuid, $link->link);
     }
 
     public function test_every_document_action_takes_the_v4_page_path(): void

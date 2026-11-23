@@ -23,7 +23,7 @@ use Override;
  * What approving a monthly customer update DOES: mail it, then record that this account has been told.
  *
  * Reuses KIND_EMAIL_DRAFT so the existing email-draft card renders it, which also fixes the recipient
- * convention — `chat_jid` on the message, the same place SendAgentEmailAction reads it from.
+ * convention: `chat_jid` on the message, where every email draft carries its destination.
  */
 class CustomerUpdateApprovalHandler implements AgentApprovalHandler
 {

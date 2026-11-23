@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Contracts\RequiresMcpConnection;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasConversationHuman;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasTurnContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -422,6 +423,13 @@ trait MergesRegisteredTools
             if ($human instanceof Users) {
                 $tool->forConversationHuman($human);
             }
+        }
+
+        if (in_array(HasTurnContext::class, $uses, true)) {
+            $tool->withTurn(
+                method_exists($this, 'getThreadId') ? $this->getThreadId() : null,
+                method_exists($this, 'currentTurnId') ? $this->currentTurnId() : null,
+            );
         }
 
         // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users

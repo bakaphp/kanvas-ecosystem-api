@@ -80,7 +80,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
             ->where('apps_id', $this->app->getId())
             ->whereHas('message', fn ($q) => $q->where('is_deleted', 0))
             ->with(['message.messageType', 'message.channels'])
-            ->orderBy('id', 'asc')
+            ->orderBy('message_id', 'asc')
             ->get();
 
         $leadTitleByMessage = $this->buildLeadTitleByMessage(

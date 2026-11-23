@@ -763,7 +763,7 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertNotNull($event);
         $this->assertSame('send_failed', $event->payload['reason']);
         $this->assertSame('sms', $event->payload['channel']);
-        $this->assertStringContainsString('sender route is missing', $event->payload['error']);
+        $this->assertStringContainsString('no number connected', $event->payload['error']);
     }
 
     public function testSmsFollowUpOmitsOptOutNoticeWhenTheSmsChannelAlreadyHasAnOutbound(): void

@@ -10,7 +10,6 @@ namespace Kanvas\Connectors\Mailgun\Enums;
  */
 enum ReceiverConfigurationEnum: string
 {
-    case AGENT_ID = 'agent_id';
     case MAILBOX_ADDRESS = 'mailbox_address';
 
     // Consumed by ProcessWebhookAttemptAction, not by us — it uploads the email's attachments into

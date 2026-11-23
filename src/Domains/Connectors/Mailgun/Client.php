@@ -116,8 +116,12 @@ class Client
     /**
      * @return array<string, mixed> the updated route
      */
-    public function updateRoute(string $routeId, string $address, string $forwardUrl, string $description): array
-    {
+    public function updateRoute(
+        string $routeId,
+        string $address,
+        string $forwardUrl,
+        string $description
+    ): array {
         $response = $this->assertOk(
             $this->request()->asMultipart()->put(
                 '/v3/routes/' . rawurlencode($routeId),
@@ -135,6 +139,65 @@ class Client
         $response = $this->request()->delete('/v3/routes/' . rawurlencode($routeId));
 
         // A route already gone is the state we wanted.
+        return $response->successful() || $response->notFound();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findRouteById(string $routeId): ?array
+    {
+        $response = $this->request()->get('/v3/routes/' . rawurlencode($routeId));
+
+        if ($response->notFound()) {
+            return null;
+        }
+
+        return $this->assertOk($response, 'read route ' . $routeId)->json('route');
+    }
+
+    /**
+     * The URL a route forwards to, read out of its `forward("…")` action.
+     *
+     * @param array<string, mixed> $route
+     */
+    public static function routeForwardUrl(array $route): ?string
+    {
+        foreach ((array) ($route['actions'] ?? []) as $action) {
+            if (is_string($action) && preg_match('/^forward\("(.+)"\)$/', $action, $matches) === 1) {
+                return $matches[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The URLs the domain currently posts an event to; none when the webhook is not registered.
+     *
+     * @return list<string>
+     */
+    public function webhookUrls(string $domain, string $event): array
+    {
+        $response = $this->request()
+            ->get('/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event));
+
+        if ($response->notFound()) {
+            return [];
+        }
+
+        $webhook = $this->assertOk($response, 'read ' . $event . ' webhook for ' . $domain)
+            ->json('webhook') ?? [];
+        $urls = $webhook['urls'] ?? (isset($webhook['url']) ? [$webhook['url']] : []);
+
+        return array_values(array_filter(array_map('strval', (array) $urls)));
+    }
+
+    public function deleteWebhook(string $domain, string $event): bool
+    {
+        $response = $this->request()
+            ->delete('/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event));
+
         return $response->successful() || $response->notFound();
     }
 
@@ -257,8 +320,8 @@ class Client
     private function routeParts(string $address, string $forwardUrl, string $description): array
     {
         return [
-            // Below Mailgun's default 0 so a catch-all a customer already runs can't swallow the
-            // agent's mail before it reaches us.
+            // Mailgun runs lower numbers first: at 0 a catch-all the customer keeps on a higher
+            // number cannot swallow the mail before it reaches us.
             ['name' => 'priority', 'contents' => '0'],
             ['name' => 'description', 'contents' => $description],
             ['name' => 'expression', 'contents' => self::matchRecipientExpression($address)],

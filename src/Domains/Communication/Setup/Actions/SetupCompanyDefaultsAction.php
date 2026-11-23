@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Exceptions\SetupBlockedException;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Enums\SetupSettingEnum;
-use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -20,10 +19,11 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\FollowUp\Actions\ClonePipelineWithFollowUpsAction;
 
 /**
- * What a company needs before a channel can be switched on for it: its own agents, copied from the
- * app's global ones, each with a user of its own; its Sally as the agent that answers inbound; its
- * lead types with their follow-up config; and a copy of the app's follow-up pipeline. Only creates what is missing, so it runs on every setup
- * pass; a company's own agent, lead type config or follow-up is never touched.
+ * What a company needs before a channel can be switched on for it: its own agents, each copied from
+ * the app's onboarding template of that name (an `agents` row with `companies_id = 0`, which never
+ * acts for a company itself) and given a user of its own; its lead types with their follow-up
+ * config; and a copy of the app's follow-up pipeline. Only creates what is missing, so it runs on
+ * every setup pass; a company's own agent, lead type config or follow-up is never touched.
  */
 final class SetupCompanyDefaultsAction
 {
@@ -54,37 +54,26 @@ final class SetupCompanyDefaultsAction
             $agents[] = $name;
         }
 
-        $this->setupAutoReplyAgent();
-
         new GuildSetup($this->app, $this->company->user, $this->company)->setupLeadTypes();
-        $leadTypesConfigured = $this->setupLeadTypeConfigs();
+        $leadTypes = $this->leadTypesToConfigure();
 
-        // The pipeline comes with the follow-up config, never on its own: a pass that configured no
-        // lead type would otherwise copy it again every time setup runs.
+        // The pipeline comes with the follow-up config, never on its own: a pass that configures no
+        // lead type would otherwise copy it again every time setup runs. And before the config is
+        // saved: a saved config is what says the company follows up, so a copy that failed after it
+        // would never be tried again.
+        $pipelineId = $followUpPipeline !== null && ! $followsUp && $leadTypes !== []
+            ? $this->cloneFollowUpPipeline($followUpPipeline)
+            : null;
+
+        foreach ($leadTypes as $leadType) {
+            $leadType->saveOrFail();
+        }
+
         return [
             'agents' => $agents,
-            'lead_types_configured' => $leadTypesConfigured,
-            'follow_up_pipeline' => $followUpPipeline !== null && ! $followsUp && $leadTypesConfigured > 0
-                ? $this->cloneFollowUpPipeline($followUpPipeline)
-                : null,
+            'lead_types_configured' => count($leadTypes),
+            'follow_up_pipeline' => $pipelineId,
         ];
-    }
-
-    /**
-     * Here and not with the other switches: the integration's auto-reply rule is made right after
-     * this, and only for a company that names the agent answering it.
-     */
-    private function setupAutoReplyAgent(): void
-    {
-        if ($this->company->get(AutoReplyPolicy::SETTING) !== null) {
-            return;
-        }
-
-        $sally = DefaultAgentEnum::SALLY->of($this->app, $this->company);
-
-        if ($sally !== null) {
-            $this->company->set(AutoReplyPolicy::SETTING, $sally->getId());
-        }
     }
 
     /**
@@ -124,7 +113,7 @@ final class SetupCompanyDefaultsAction
     {
         return LeadType::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->company->getId())
             ->notDeleted()
             ->get();
     }
@@ -142,8 +131,8 @@ final class SetupCompanyDefaultsAction
     }
 
     /**
-     * The global agent to copy for every default agent the company lacks, all resolved before
-     * anything is created so a missing one leaves the company as it was.
+     * The template to copy for every default agent the company lacks, all resolved before anything
+     * is created so a missing one leaves the company as it was.
      *
      * @return array<string, Agent>
      */
@@ -177,16 +166,19 @@ final class SetupCompanyDefaultsAction
         if ($missing !== []) {
             throw new SetupBlockedException(
                 'missing_agent_template',
-                'The app has no global agent to copy for ' . implode(', ', $missing) . '.'
+                'The app has no agent template to copy for ' . implode(', ', $missing) . '.'
             );
         }
 
         return $templates;
     }
 
-    private function setupLeadTypeConfigs(): int
+    /**
+     * @return list<LeadType> the ones still without a config, each carrying the app's, not saved yet
+     */
+    private function leadTypesToConfigure(): array
     {
-        $configured = 0;
+        $toConfigure = [];
 
         foreach ($this->leadTypes() as $leadType) {
             if (! empty($leadType->config)) {
@@ -203,10 +195,9 @@ final class SetupCompanyDefaultsAction
             }
 
             $leadType->config = $config;
-            $leadType->saveOrFail();
-            $configured++;
+            $toConfigure[] = $leadType;
         }
 
-        return $configured;
+        return $toConfigure;
     }
 }

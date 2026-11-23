@@ -180,6 +180,12 @@ class Bill extends BaseModel implements PayableInterface, DeliversApprovalNotice
         return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
     }
 
+    /** Why the accounting inbox left this bill in draft; null for a bill it did not hold back. */
+    public function inboxReviewReason(): ?string
+    {
+        return $this->metadata['ingest']['review_reason'] ?? null;
+    }
+
     protected function approvalNoun(): string
     {
         return 'bill';

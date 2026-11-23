@@ -18,7 +18,9 @@ final class TransportManager
 
     public function supports(string $provider, ChannelTypeEnum $channel): bool
     {
-        return isset($this->providers->get($provider)::transports()[$channel->value]);
+        $registered = $this->providers->all()[$provider] ?? null;
+
+        return $registered !== null && isset($registered::transports()[$channel->value]);
     }
 
     public function for(string $provider, ChannelTypeEnum $channel): Transport

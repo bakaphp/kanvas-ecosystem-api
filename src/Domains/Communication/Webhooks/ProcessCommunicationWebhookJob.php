@@ -6,8 +6,8 @@ namespace Kanvas\Communication\Webhooks;
 
 use Illuminate\Http\Request;
 use InvalidArgumentException;
+use Kanvas\Communication\Contracts\HandlesProviderEvents;
 use Kanvas\Communication\Contracts\InboundSource;
-use Kanvas\Communication\Contracts\VerifiesEndpoint;
 use Kanvas\Communication\Messages\Actions\ReceiveMessageAction;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -15,6 +15,7 @@ use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use LogicException;
 use Override;
+use Throwable;
 
 /**
  * The one webhook for every messaging provider. The receiver names its provider; that provider proves
@@ -39,12 +40,14 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
         return $source !== null && $source->authenticate($request, $receiver);
     }
 
+    /**
+     * A mail's attachments only exist in the multipart request; stored up front, they reach the
+     * provider as `uploaded_files`. A text or a WhatsApp payload carries none, so nothing is stored.
+     */
     #[Override]
-    public static function verificationChallenge(Request $request, ReceiverWebhook $receiver): ?string
+    public static function capturesFiles(): bool
     {
-        $source = self::sourceFor($receiver);
-
-        return $source instanceof VerifiesEndpoint ? $source->challenge($request, $receiver) : null;
+        return true;
     }
 
     #[Override]
@@ -54,11 +57,34 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
             ?? throw new LogicException('Receiver ' . $this->receiver->getId() . ' names no communication provider.');
         $payload = $this->webhookRequest->payload ?? [];
 
+        $own = $source instanceof HandlesProviderEvents
+            ? $source->handleProviderEvent($payload, $this->receiver)
+            : null;
+
+        if ($own !== null) {
+            return $own;
+        }
+
         $statuses = $source->recordStatuses($payload, $this->receiver);
         $received = [];
 
+        // The vendor was answered already and will not send the batch again, so one message that
+        // cannot be filed must not take the ones after it down with it.
         foreach ($source->messages($payload, $this->receiver) as $inbound) {
-            array_push($received, ...new ReceiveMessageAction($this->receiver, $inbound, $source)->execute());
+            try {
+                $received[] = new ReceiveMessageAction(
+                    $this->receiver,
+                    $inbound,
+                    $source
+                )->execute();
+            } catch (Throwable $exception) {
+                report($exception);
+                $received[] = [
+                    'provider_message_id' => $inbound->providerMessageId,
+                    'filed' => false,
+                    'reason' => 'failed',
+                ];
+            }
         }
 
         if ($statuses === null) {

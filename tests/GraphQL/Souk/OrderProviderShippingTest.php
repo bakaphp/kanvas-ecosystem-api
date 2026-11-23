@@ -25,6 +25,7 @@ class OrderProviderShippingTest extends ShippingOrderBase
         $this->assertStringStartsWith($estimate, (string) $order->estimate_shipping_date);
         $this->assertSame('inposdom', $order->metadata['shipping']['provider']);
         $this->assertSame('ems', $order->metadata['shipping']['service']);
+        $this->assertSame(['provider', 'service', 'quoted_amount', 'currency', 'quoted_at'], array_keys($order->metadata['shipping']));
         $this->assertEquals($quote['amount'], $order->metadata['shipping']['quoted_amount']);
         $this->assertEquals($quote['amount'], (float) $order->shipping_price_net_amount);
         $this->assertEquals(

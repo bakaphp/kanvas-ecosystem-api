@@ -12,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Knowledge\Actions\IndexAgentDocumentsAction;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Jobs\IndexCompanyKnowledgeFilesJob;
@@ -19,10 +20,8 @@ use Kanvas\Intelligence\Knowledge\Jobs\IndexCompanyKnowledgeUrlJob;
 use Kanvas\Intelligence\Knowledge\Jobs\PruneCompanyKnowledgeJob;
 use Kanvas\Intelligence\Knowledge\Services\CompanyKnowledgeService;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
-use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Models\StoredWorkflow;
 use Laravel\Ai\Embeddings;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Connectors\Traits\HasIntegrationCompany;
@@ -148,7 +147,7 @@ final class CompanyKnowledgeJobsTest extends TestCase
         $this->assertSame([], $this->search('warehouse'));
     }
 
-    public function testAgentActivityStillIndexesPerAgent(): void
+    public function testAnAgentsDocumentsAreIndexedPerAgent(): void
     {
         $this->requireTypesense();
         $this->setIntegration(
@@ -167,10 +166,10 @@ final class CompanyKnowledgeJobsTest extends TestCase
         new AttachFilesystemAction($file, $agent)->execute('handbook.txt');
         $agent->unsetRelation('files');
 
-        $result = new IndexKnowledgeDocumentActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])
-            ->execute($agent, $this->kanvasApp, []);
+        $result = new IndexAgentDocumentsAction($agent)->execute();
 
-        $this->assertTrue($result['success'] ?? false, json_encode($result));
+        $this->assertSame(1, $result['documents']);
+        $this->assertGreaterThan(0, $result['chunks']);
     }
 
     private function attach(string $name, bool $knowledge = true)

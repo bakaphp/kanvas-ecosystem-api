@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
@@ -41,7 +43,7 @@ class VoiceAgentSpecService
         $voice = $this->agent->voice_config ?? [];
         $tts = $voice['tts'] ?? [];
         $stt = $voice['stt'] ?? [];
-        $language = $voice['language'] ?? 'es';
+        $language = Str::trimToNull((string) ($voice['language'] ?? '')) ?? 'en';
 
         return [
             'agent_id' => $this->agent->uuid,
@@ -63,7 +65,7 @@ class VoiceAgentSpecService
                 'llm' => $this->llm(),
                 'tts' => [
                     'provider' => $tts['provider'] ?? 'elevenlabs',
-                    'voice_id' => $tts['voice_id'] ?? ($voice['voice_id'] ?? null),
+                    'voice_id' => self::ownVoiceId($voice) ?? VoiceRuntimeConfig::defaultVoiceId(),
                     'model' => $tts['model'] ?? null,
                     'stability' => $this->floatOrNull($tts['stability'] ?? null),
                     'similarity' => $this->floatOrNull($tts['similarity'] ?? null),
@@ -76,6 +78,17 @@ class VoiceAgentSpecService
             'context_schema' => array_values($voice['context_schema'] ?? []),
             'tools' => $this->tools(),
         ];
+    }
+
+    /**
+     * The voice the agent itself picked (voice_config.tts.voice_id, or the older top-level
+     * voice_id), or null when it picked none.
+     *
+     * @param array<string, mixed> $voice
+     */
+    public static function ownVoiceId(array $voice): ?string
+    {
+        return Str::trimToNull((string) ($voice['tts']['voice_id'] ?? $voice['voice_id'] ?? ''));
     }
 
     /**
@@ -120,6 +133,10 @@ class VoiceAgentSpecService
                     'properties' => $properties === [] ? new stdClass() : $properties,
                     'required' => $handler->getRequiredProperties(),
                 ],
+                // Always present and boolean: true runs the tool in the background while the
+                // agent keeps talking; false (the default for unmarked tools) makes the agent
+                // wait and dedupes repeats, as for any write.
+                'read_only' => AgentTool::isReadOnly($handler),
             ];
         }
 
@@ -129,7 +146,7 @@ class VoiceAgentSpecService
     /**
      * The agent's persona prompt, then the legacy structured `role` for records that predate it.
      */
-    private function systemInstruction(): string
+    public function systemInstruction(): string
     {
         $persona = $this->agent->personaPrompt();
 

@@ -17,11 +17,14 @@ use Kanvas\Guild\Leads\Summary\LeadTurnMemory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\PendingInboundHistoryMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
 use Kanvas\Intelligence\Agents\Neuron\Observability\TurnSetupStage;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
@@ -47,6 +50,8 @@ use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Exceptions\ToolException;
@@ -132,6 +137,10 @@ trait HasKanvasAgentBehavior
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
     protected ?int $inboundMessageId = null;
+    protected ?string $turnId = null;
+
+    /** @var list<int> */
+    protected array $inboundMessageIds = [];
 
     /** Set by resources() when the turn runs on a lead with the rolling summary on; read by the recall. */
     protected ?LeadTurnMemory $leadTurnMemory = null;
@@ -140,6 +149,9 @@ trait HasKanvasAgentBehavior
      * Built lazily at tool wiring: the mention job names the human after setConfiguration().
      */
     private ?CompanyScope $companyScope = null;
+
+    /** Decided once per configuration: instructions() and context() must agree on where the time goes. */
+    private ?bool $timeWithTheQuestion = null;
 
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void
     {
@@ -158,6 +170,7 @@ trait HasKanvasAgentBehavior
         $this->company = $agent->companyFor($user);
         $this->user = $user;
         $this->companyScope = null;
+        $this->timeWithTheQuestion = null;
     }
 
     protected function companyScope(): ?CompanyScope
@@ -309,9 +322,23 @@ trait HasKanvasAgentBehavior
         $this->turnMedia = array_values($media);
     }
 
-    public function setInboundMessageId(?int $messageId): void
+    public function setInboundMessageId(?int $messageId, array $burstMessageIds = []): void
     {
         $this->inboundMessageId = $messageId;
+        $this->inboundMessageIds = array_values(array_unique(array_map('intval', array_filter([
+            $messageId,
+            ...$burstMessageIds,
+        ]))));
+    }
+
+    public function setTurnId(?string $turnId): void
+    {
+        $this->turnId = $turnId;
+    }
+
+    public function currentTurnId(): ?string
+    {
+        return $this->turnId;
     }
 
     public function setPrivateUserTurn(bool $private): void
@@ -525,6 +552,7 @@ trait HasKanvasAgentBehavior
             $contextWindow,
             KanvasHistoryTrimmer::make(),
         );
+        $history->setPendingSocialMessages($this->inboundMessageIds);
         $this->leadTurnMemory = $this->prepareLeadTurnMemory($history, $contextWindow);
         $this->markSetupStage('lead-memory-ready');
 
@@ -542,16 +570,22 @@ trait HasKanvasAgentBehavior
             $history,
             $instructions,
             new ToolRegistry($tools),
+            array_map(
+                static fn (ContentBlockInterface $block): ContentBlockInterface => clone $block,
+                $this->context ?? $this->context(),
+            ),
         );
     }
 
     /**
-     * The rolling lead summary, when this turn reads a lead's rollup and the app has it on. Off the
+     * The rolling lead summary, when this turn reads a rollup about a lead and the app has it on. The
+     * lead is the session's own record, or the one an inbound turn carries: that session is keyed to
+     * the person, and the summary reads only the lead's messages out of the person's window. Off the
      * lead path it costs nothing: no load, no query.
      */
     private function prepareLeadTurnMemory(KanvasChatHistory $history, int $historyBudget): ?LeadTurnMemory
     {
-        $lead = $this->entity;
+        $lead = $this->entity instanceof Lead ? $this->entity : $this->currentLead;
 
         if (
             ! $lead instanceof Lead
@@ -660,7 +694,13 @@ trait HasKanvasAgentBehavior
     #[Override]
     protected function globalMiddleware(): array
     {
-        return $this->toolSearchPool === [] ? [] : [new KanvasToolSearchMiddleware($this->toolSearchPool)];
+        $middleware = $this->inboundMessageIds === [] ? [] : [new PendingInboundHistoryMiddleware()];
+
+        if ($this->toolSearchPool !== []) {
+            $middleware[] = new KanvasToolSearchMiddleware($this->toolSearchPool);
+        }
+
+        return $middleware;
     }
 
     /**
@@ -790,7 +830,12 @@ trait HasKanvasAgentBehavior
         return new SystemPrompt(
             background: [
                 ...explode("\n", $this->agent?->roleSection('background', "\n") ?? ''),
-                ...$this->temporalContextLines($this->resolveTenantTimezone()),
+                ...($this->sendsTimeWithTheQuestion()
+                    ? [
+                        'The current date and time reach you in a ' . BehavesAsKanvasAgent::TURN_CONTEXT_OPENING
+                        . ' block attached to the latest message. Kanvas writes that block, not the person.',
+                    ]
+                    : $this->temporalContextLines($this->resolveTenantTimezone())),
                 ...$this->memoryRecallLines(),
                 ...self::platformContext(),
                 ...$this->crossCompanyLines(),
@@ -799,6 +844,38 @@ trait HasKanvasAgentBehavior
             steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),
             output: explode("\n", $this->agent?->roleSection('output', "\n") ?? ''),
         )->__toString();
+    }
+
+    /**
+     * Claude on Bedrock reuses a cached prompt only up to its first changed byte, so a clock in the
+     * instructions makes every turn pay for the whole prompt. Sent with the question, the time leaves
+     * the instructions and the history identical between turns.
+     *
+     * @return array<int|string, ContentBlockInterface>
+     */
+    #[Override]
+    protected function context(): array
+    {
+        if (! $this->sendsTimeWithTheQuestion()) {
+            return parent::context();
+        }
+
+        return [
+            ...parent::context(),
+            'time' => new TextContent(
+                BehavesAsKanvasAgent::TURN_CONTEXT_OPENING . "\n"
+                . implode("\n", $this->temporalContextLines($this->resolveTenantTimezone()))
+                . "\n</turn-context>"
+            ),
+        ];
+    }
+
+    /** The customer-facing agents write their own instructions, time included, and would get it twice. */
+    private function sendsTimeWithTheQuestion(): bool
+    {
+        return $this->timeWithTheQuestion ??= $this->agent !== null
+            && ! $this instanceof ConversesWithCustomer
+            && AgentProviderService::resolveProviderEnum($this->agent) === AgentLlmProviderEnum::BEDROCK;
     }
 
     /**
@@ -929,7 +1006,10 @@ trait HasKanvasAgentBehavior
             . 'holds too: the tool calls behind your earlier turns are not shown to you, and a "[card shown: …]" '
             . 'line in one of them is a card a tool produced then. Never call an earlier turn a hallucination or '
             . 'declare a record missing or unchanged because you cannot see its tool calls: asked whether '
-            . 'something was done or what state a record is in, look it up and answer from the result.',
+            . 'something was done or what state a record is in, look it up and answer from the result. And '
+            . 'never retract or apologise for an earlier turn on your own just because its tool calls are not '
+            . 'shown: they ran. A concrete mistake you notice in earlier work (a wrong date, a wrong amount) is '
+            . 'still worth raising.',
             'A DELIVERABLE IS NEVER THE BODY OF A MESSAGE. When you produce a document — an HTML '
             . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
             . '(create_template, then update_template to revise it and generate_template_pdf to render '

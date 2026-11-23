@@ -34,6 +34,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -43,21 +44,38 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SaveSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetDefaultSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateDraftInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPersonNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetDealRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadPersonActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TakeDealMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
@@ -132,6 +150,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
             new DiscardDraftInvoiceTool(),
+            new UpdateDraftInvoiceTool(),
             new ApplyArPaymentTool(),
             new CreateArCreditMemoTool(),
             new DraftCreditNoteTool(),
@@ -143,6 +162,19 @@ class AccountsReceivableAgent extends SystemUserAgent
             new GetDocumentLinkTool(),
             new CreatePersonTool(),
             new LinkPersonToOrganizationTool(),
+            new FindPersonTool(),
+            new GetDealRefTool(),
+            new GetPersonTool(),
+            new LeadRefTool(),
+            new ReadLeadActivityTool(),
+            new ReadOrganizationActivityTool(),
+            new ReadPersonActivityTool(),
+            new SearchDealsTool(),
+            new SearchLeadsTool(),
+            new AddLeadNoteTool(),
+            new AddOrganizationNoteTool(),
+            new AddPersonNoteTool(),
+            new TakeDealMessageTool(),
             new ListOrganizationPeopleTool(),
             new TagPersonTool(),
             new CreateQuoteTool(),
@@ -155,6 +187,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new AttachQuoteFileTool(),
             new GenerateQuoteSowTool(),
             new GetQuoteSowTool(),
+            new GetSowTemplateTool(),
             new ScheduleBillingTool(),
             new ListBillingSchedulesTool(),
             new SetInvoiceTermsTool(),
@@ -179,6 +212,9 @@ class AccountsReceivableAgent extends SystemUserAgent
         $person = $this->personAsking();
         if ($person !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new ImportIssuedEcfExportTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
+            $tools[] = new SaveSowTemplateTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SetDefaultSowTemplateTool()->withContext($this->app, $this->company, $person);
         }
 
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
@@ -198,6 +234,11 @@ class AccountsReceivableAgent extends SystemUserAgent
         return implode("\n", [
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
+            '- Leaving something on the record for the team → add_lead_note, add_person_note, add_organization_note; a message about a deal ("have someone call me about the quote") → take_deal_message, which notes the deal and tells its owner.',
+            '- The sales side of a vendor or customer (who they are to the company, which deal or lead they came from, what was said to them) → search_leads / get_lead_ref / read_lead_activity, search_deals / get_deal_ref, find_person / get_person / read_person_activity, read_organization_activity. Read them to answer and to address the right person; leads and deals are changed by the sales team, not by you.',
+            '- An invoice, quote or SOW reaches a customer only through send_invoice / send_quote; never paste its '
+            . 'contents or describe its amounts in an email. send_person_email is for everything else: answering a '
+            . 'question, asking for a PO number, confirming a change before you revise a quote.',
             '- Customers send remittance advice, purchase orders and credit requests to the company accounting inbox. '
             . 'Each one reaches you as a task; recent_inbox_arrivals (outcome routed_to_ar) lists them. A remittance is '
             . 'matched to open invoices for you, but the payment is only applied when the bank confirms it — never '
@@ -239,9 +280,21 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Void/cancel/undo that invoice" → void_ar_invoice for an issued or sent invoice (it reverses the posting); '
             . 'discard_draft_invoice for a DRAFT (nothing was posted, so it is withdrawn and its approval cancelled). '
             . 'A draft that already carries a fiscal number can be neither.',
+            '- "Change / fix / reword that draft invoice" → update_draft_invoice with every line it should have '
+            . 'afterwards. Never discard a draft to create another in its place: the replacement can be refused, and '
+            . 'a discarded draft of a billing schedule leaves that payment with no invoice at all. Ask before '
+            . 'discarding anything the person only asked you to change.',
+            '- An invoice made by a quote\'s SOW payment schedule bills one payment, not the quote: its total is '
+            . 'that payment, and it lists every quote line at that payment\'s share (three monthly lines on a '
+            . 'three-payment quote show a third of each). That is how the schedule bills, not an error; do not '
+            . 'report it as a mismatch with the quote. If the person wants it to read as one line, '
+            . 'update_draft_invoice keeps the total and replaces the lines.',
             '- "Quote customer X for Y" / "send them a proposal" → create_quote (customer name + priced lines). '
             . 'It stops at a DRAFT with no quote number. Then send_quote: it numbers it, marks it sent and '
-            . 'sends the customer a tracked link (a signing page when it has a SOW) with the PDFs.',
+            . 'sends the customer a tracked link (a signing page when it has a SOW) with the PDFs. When the user '
+            . 'wants to share it themselves ("give me a link", "I will send it"), send_quote with deliver=false '
+            . 'numbers it without contacting anyone, then get_document_link gives the link. Sharing a quote never '
+            . 'accepts it and never creates an invoice: only the customer\'s acceptance does.',
             '- "Send invoice Y to the customer" → send_invoice, never an email you write with the PDF yourself. '
             . 'On an e-CF company it refuses until DGII accepted the e-CF; wait for that. If it answers '
             . 'no_billing_contact, ask who receives invoices there and call again with their person_id. A '
@@ -257,7 +310,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'billing contacts; a send without person_id reaches all of them. "Give me the link to invoice/quote Y" '
             . '→ get_document_link: it contacts nobody and the user shares the link themselves.',
             '- Only record the customer\'s own answer with answer_quote (accepted or rejected, with their reason '
-            . 'when they said no) — never assume it. Once accepted, "turn that quote into an invoice" → '
+            . 'when they said no) — never assume it. The user saying "approved", "aprobada", "ok" or "go ahead" '
+            . 'about a draft is their own go-ahead to send or share it, not the customer\'s acceptance; when you '
+            . 'cannot tell whose approval it is, ask. Accepting a quote with a SOW invoices its on-signature payment '
+            . 'at once, so say that before you record it. Once accepted, "turn that quote into an invoice" → '
             . 'convert_quote_to_invoice, which creates a DRAFT invoice carrying the same lines; a human issues '
             . 'it. An invoice for a quote always comes from convert_quote_to_invoice, never from create_ar_invoice: '
             . 'a hand-built copy loses the link to the quote and its line-by-line detail, and create_ar_invoice '
@@ -269,6 +325,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
             . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '
             . 'invoice — it is not the vendor PDF an invoice email arrived with.',
+            '- The company\'s SOW layout is its own Twig template, in named versions with one default. "Change how our '
+            . 'SOW looks" → get_sow_template, edit the Twig, save_sow_template (make_default when they want it used from now '
+            . 'on); "use the retainer layout for this one" → generate_quote_sow with template; "go back to the normal '
+            . 'layout" → set_default_sow_template with no version. Show the person what changed before you make it the default.',
             '- Services quotes need a Statement of Work. "Write the SOW for quote X" → get_quote_sow (for the quote line '
             . 'ids), draft the SOW from the lines, the conversation and past SOWs in your knowledge, then '
             . 'generate_quote_sow. If it refuses, fix every listed problem or ask the user, and call it again. '

@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\DataTransferObject;
 
+use Kanvas\Communication\Connections\Models\Connection;
+
 /**
  * A vendor resource setup changed for one connection and a disconnect has to undo — kept with the
  * value we set, so the undo can tell our registration from a newer owner's.
  */
 final readonly class OwnedResource
 {
+    /**
+     * @param string $key the account key of the connection it was set up for: what the vendor
+     *                    knows the resource by, and so the name of the lock its cleanup runs under
+     *                    ({@see Connection::resourceLockKey()})
+     */
     public function __construct(
         public string $type,
         public string $key,

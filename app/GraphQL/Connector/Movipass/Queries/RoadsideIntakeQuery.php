@@ -8,6 +8,7 @@ use Kanvas\Connectors\Movipass\Enums\RoadsideNotProceedReasonEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
 use Kanvas\Connectors\Movipass\Support\RoadsideIntakeField;
 use Kanvas\Connectors\Movipass\Support\RoadsideIntakeQuestionnaire;
+use Kanvas\Connectors\Movipass\Support\RoadsideIntakeRules;
 use Kanvas\Exceptions\ValidationException;
 
 class RoadsideIntakeQuery
@@ -30,6 +31,14 @@ class RoadsideIntakeQuery
         }
 
         return [$this->present($service)];
+    }
+
+    public function evaluate(mixed $rootValue, array $request): array
+    {
+        return RoadsideIntakeRules::evaluate(
+            RoadsideServiceTypeEnum::from((string) $request['service_type']),
+            (array) ($request['answers'] ?? []),
+        )->toArray();
     }
 
     public function notProceedReasons(mixed $rootValue, array $request): array

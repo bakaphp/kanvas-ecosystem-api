@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\DataTransferObject;
 
+use Kanvas\Companies\Models\Companies;
+
 /**
  * What "one turn" means for a given channel. Every value here is a channel policy decision — an
  * album of photos on WhatsApp, two SMS seconds apart, a Slack thread — while the machinery that
@@ -33,6 +35,34 @@ final readonly class BurstPolicy
         public int $maxSeconds,
         public int $jitterSeconds = 0,
     ) {
+    }
+
+    /**
+     * One contact's burst, timed by the company's `{prefix}_burst_{idle,max,jitter}_seconds`
+     * settings, where the idle window is both the chain and the close wait. The defaults are
+     * WhatsApp's: jitter is there because the provider restricts numbers that answer like a
+     * metronome, so a medium without that pressure passes 0.
+     *
+     * @param list<string> $correlationKeys
+     */
+    public static function fromCompanySettings(
+        Companies $company,
+        string $prefix,
+        array $correlationKeys,
+        int $idleSeconds = 30,
+        int $maxSeconds = 180,
+        int $jitterSeconds = 12,
+    ): self {
+        $setting = static fn (string $name, int $default): int => (int) ($company->get($prefix . '_burst_' . $name . '_seconds') ?? $default);
+        $idle = $setting('idle', $idleSeconds);
+
+        return new self(
+            correlationKeys: $correlationKeys,
+            chainIdleSeconds: $idle,
+            closeIdleSeconds: $idle,
+            maxSeconds: $setting('max', $maxSeconds),
+            jitterSeconds: $setting('jitter', $jitterSeconds),
+        );
     }
 
     public function closeDelaySeconds(): int

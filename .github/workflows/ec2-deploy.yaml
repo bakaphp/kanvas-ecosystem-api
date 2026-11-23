@@ -22,7 +22,7 @@ jobs:
       # Lighthouse schema merge whenever a .graphql file moves (see incident
       # 2026-05-14: duplicate agentCurrentTelemetry → "Failed to load type: _").
       - name: Sync repo to remote VM (rsync --delete)
-        uses: burnett01/rsync-deployments@9.0.3
+        uses: burnett01/rsync-deployments@9.0.4
         with:
           switches: >-
             -avzr --delete
@@ -72,6 +72,7 @@ jobs:
             fi
 
             docker exec -i phpkanvas-ecosystem php artisan kanvas:workflow-sync-actions
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:workflow-ensure-app-default-rules
             docker exec -i phpkanvas-ecosystem php artisan kanvas:intelligence:sync-agent-types
             docker exec -i phpkanvas-ecosystem php artisan kanvas:nervous-system:sync-tools
 

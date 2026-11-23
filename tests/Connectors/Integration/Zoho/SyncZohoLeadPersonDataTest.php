@@ -6,19 +6,33 @@ namespace Tests\Connectors\Integration\Zoho;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
+use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver as LeadReceiverData;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Guild\Support\Setup;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
+use Kanvas\Workflow\Rules\Actions\WireRuleAction;
+use Kanvas\Workflow\Rules\DynamicRuleWorkflow;
+use Kanvas\Workflow\Rules\Enums\ActionKindEnum;
+use Kanvas\Workflow\Rules\Models\Action;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
+use Tests\Connectors\Integration\Zoho\Concerns\StubsZohoLeadModule;
 use Tests\TestCase;
 use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\Modules\Module;
+use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
+#[Group('serial')]
 final class SyncZohoLeadPersonDataTest extends TestCase
 {
+    use StubsZohoLeadModule;
+
     private const array FIELDS_MAP = [
         'street' => ['name' => 'Street', 'type' => 'string'],
         'city' => ['name' => 'City', 'type' => 'string'],
@@ -44,6 +58,33 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame('742 Evergreen Terrace', $lead->get('street'));
         $this->assertEquals('62704', $lead->get('zip'));
         $this->assertSame('1985-04-12', $lead->get('Date_of_Birth'));
+    }
+
+    public function testAPulledLeadIsInSyncSoPushingItBackSendsNothing(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '1 Infinite Loop'));
+
+        $module = $this->createMock(ZohoRecordsModule::class);
+        $module->method('get')->willReturn(new Record(['id' => $zohoLeadId], $module));
+        $module->expects($this->never())->method('update');
+
+        $this->assertSame([], $this->action($lead, $module)->execute());
+    }
+
+    /**
+     * SyncZohoLeadFromReceiverJob opens channels only when this holds, so an existing lead is not set up twice.
+     */
+    public function testOnlyTheSyncThatCreatesTheLeadReportsItAsRecentlyCreated(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $first = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $second = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $this->assertTrue($first->wasRecentlyCreated);
+        $this->assertFalse($second->wasRecentlyCreated);
     }
 
     public function testExistingLeadUpdatesPersonAddressAndDob(): void
@@ -78,6 +119,60 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertSame('9395550113', $people->getPhones()->first()->value);
     }
 
+    public function testZohoPhoneIsStoredAsAPhoneByDefault(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Phone' => '(939) 555-0113'])
+        );
+
+        $people = $lead->people->fresh();
+        $this->assertSame('9395550113', $people->getPhones()->first()->value);
+        $this->assertCount(0, $people->getCellPhones());
+    }
+
+    public function testZohoPhoneIsStoredAsACellphoneWhenTheCompanySaysItIsMobile(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId, phoneIsMobile: true)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Phone' => '(939) 555-0113'])
+        );
+
+        $people = $lead->people->fresh();
+        $this->assertSame('9395550113', $people->getCellPhones()->first()->value);
+        $this->assertCount(0, $people->getPhones());
+        $this->assertSame('9395550113', ZohoLead::fromLead($lead)->toArray()['Phone'], 'the push still fills Zoho Phone');
+    }
+
+    public function testWithoutTheSettingAZohoMobileIsNotPushedBackAsPhone(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Mobile' => '(939) 555-0199'])
+        );
+
+        $this->assertSame('9395550199', $lead->people->fresh()->getCellPhones()->first()->value);
+        $this->assertArrayNotHasKey('Phone', ZohoLead::fromLead($lead)->toArray());
+    }
+
+    public function testZohoMobileIsStoredAsTheFirstCellphone(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId, phoneIsMobile: true)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', [
+                'Phone' => '(939) 555-0113',
+                'Mobile' => '(939) 555-0199',
+            ])
+        );
+
+        $cellphones = $lead->people->fresh()->getCellPhones()->sortBy('weight')->pluck('value')->all();
+        $this->assertSame(['9395550199', '9395550113'], array_values($cellphones));
+    }
+
     public function testExistingLeadKeepsThePersonNameWhenZohoSendsNone(): void
     {
         $zohoLeadId = 'zoho-' . uniqid();
@@ -104,12 +199,106 @@ final class SyncZohoLeadPersonDataTest extends TestCase
         $this->assertEquals('62704', $lead->get('zip'));
     }
 
-    private function syncAction(string $zohoLeadId): SyncZohoLeadAction
+    /**
+     * Zoho fires the webhook on every edit, so a pull that reached a rule pushing the lead back
+     * would overwrite what was just changed in Zoho (a reassigned owner) with Kanvas's old value.
+     */
+    public function testUpdatingAnExistingLeadFiresNoWorkflows(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $zohoLeadId = 'zoho-' . uniqid();
+        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $action = Action::factory()->create(['kind' => ActionKindEnum::WORKFLOW->value]);
+        $rule = new WireRuleAction(
+            $app,
+            $company->getId(),
+            Lead::class,
+            WorkflowEnum::CREATE_CUSTOM_FIELD->value,
+            $action->model_name,
+            'Zoho pull silence test',
+            'test',
+        )->execute();
+        $this->assertNotNull($rule);
+
+        try {
+            $before = StoredWorkflow::query()->where('class', DynamicRuleWorkflow::class)->count();
+
+            $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '1 Infinite Loop'));
+
+            $this->assertSame('1 Infinite Loop', $lead->get('street'));
+            $this->assertSame($before, StoredWorkflow::query()->where('class', DynamicRuleWorkflow::class)->count());
+        } finally {
+            // Only the rule: the factory hands back the catalogued `actions` row when the activity
+            // is already there, and that row is every tenant's, never this test's to delete.
+            $rule->delete();
+        }
+    }
+
+    public function testNewLeadGetsTheZohoLeadSourceCreatingItWhenMissing(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $sourceName = 'AgentPlatform ' . uniqid();
+
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Lead_Source' => $sourceName])
+        );
+
+        $source = $lead->source;
+        $this->assertSame($sourceName, $source->name);
+        $this->assertSame($lead->companies_id, $source->companies_id);
+        $this->assertSame($lead->apps_id, $source->apps_id);
+    }
+
+    public function testExistingLeadMatchesTheCompanysSourceWithoutOverwritingIt(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $sourceName = 'Referral ' . uniqid();
+        $company = auth()->user()->getCurrentCompany();
+        $existing = LeadSource::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $company->getId(),
+            'name' => $sourceName,
+            'description' => 'set by an admin',
+            'is_active' => 1,
+            'leads_types_id' => 0,
+        ]);
+
+        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $lead = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Lead_Source' => $sourceName])
+        );
+
+        $this->assertSame($existing->getId(), $lead->fresh()->leads_sources_id);
+        $this->assertSame('set by an admin', $existing->fresh()->description);
+        $this->assertSame(1, LeadSource::query()->fromCompany($company)->where('name', $sourceName)->count());
+    }
+
+    public function testExistingLeadKeepsItsSourceWhenZohoSendsNone(): void
+    {
+        $zohoLeadId = 'zoho-' . uniqid();
+        $first = $this->syncAction($zohoLeadId)->execute(
+            $this->zohoRecord($zohoLeadId, '742 Evergreen Terrace', ['Lead_Source' => 'Web ' . uniqid()])
+        );
+
+        $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+
+        $this->assertSame($first->leads_sources_id, $lead->fresh()->leads_sources_id);
+    }
+
+    private function syncAction(string $zohoLeadId, bool $phoneIsMobile = false): SyncZohoLeadAction
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $company->set(CustomFieldEnum::FIELDS_MAP->value, self::FIELDS_MAP);
+
+        if ($phoneIsMobile) {
+            $company->set(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value, true);
+        } else {
+            $company->del(CustomFieldEnum::ZOHO_PHONE_IS_MOBILE->value);
+        }
 
         new Setup($app, $user, $company)->run();
 

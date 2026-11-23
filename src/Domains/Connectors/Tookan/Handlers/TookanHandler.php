@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Tookan\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
+use Exception;
 use Kanvas\Connectors\Tookan\Client;
 use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum;
 use Override;
@@ -31,7 +32,7 @@ class TookanHandler extends BaseIntegration
             $response = $client->post(ConfigurationEnum::GET_ALL_FLEETS_PATH->value, []);
 
             return isset($response['status']) && $response['status'] == 200;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }

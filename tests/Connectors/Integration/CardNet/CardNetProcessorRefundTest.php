@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseResponse;
+use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
 use Kanvas\Souk\Orders\Models\Order;
@@ -92,6 +93,39 @@ class CardNetProcessorRefundTest extends TestCase
             ->all();
 
         $this->assertSame([$actor->getId()], $logUsers);
+    }
+
+    public function testRefundReplaysThePurchaseIpAndUserAgent(): void
+    {
+        $payment = $this->persistPayment(100.00);
+        $payment->metadata = ['data' => ['customer_ip' => '203.0.113.7', 'customer_user_agent' => 'ShopperApp/2.1']];
+        $payment->saveOrFail();
+
+        $service = Mockery::mock(CardNetService::class);
+        $service->shouldReceive('refund')
+            ->once()
+            ->with(12345, Mockery::on(
+                fn (CardNetPurchaseRequest $request) => $request->customerIp === '203.0.113.7'
+                    && $request->customerUserAgent === 'ShopperApp/2.1'
+            ))
+            ->andReturn($this->approvedResponse());
+
+        $this->assertTrue($this->processor($service)->refund($payment, $this->buildOrderMock(), 10.00)->success);
+    }
+
+    public function testTheSandboxCurrencyReplacesTheOrderCurrencyOnTheLab(): void
+    {
+        $this->assertRefundCurrency(sandboxCurrency: 'dop', baseUrl: null, expected: 'DOP');
+    }
+
+    public function testTheSandboxCurrencyIsIgnoredOnProduction(): void
+    {
+        $this->assertRefundCurrency(sandboxCurrency: 'DOP', baseUrl: ConfigurationEnum::PROD_URL->value, expected: 'USD');
+    }
+
+    public function testWithoutTheSandboxCurrencyTheOrderCurrencyIsSent(): void
+    {
+        $this->assertRefundCurrency(sandboxCurrency: null, baseUrl: ConfigurationEnum::SANDBOX_URL->value, expected: 'USD');
     }
 
     public function testPartialRefundsKeepPaymentPaidUntilFullyRefunded(): void
@@ -203,6 +237,38 @@ class CardNetProcessorRefundTest extends TestCase
 
         $payment->refresh();
         $this->assertSame(PaymentStatusEnum::REVERSED->value, $payment->status);
+    }
+
+    private function assertRefundCurrency(?string $sandboxCurrency, ?string $baseUrl, string $expected): void
+    {
+        $settings = [
+            ConfigurationEnum::SANDBOX_CURRENCY->value => $sandboxCurrency,
+            ConfigurationEnum::BASE_URL->value => $baseUrl,
+        ];
+        $previous = array_map(fn (string $key) => $this->kanvasApp->get($key), array_keys($settings));
+        $previous = array_combine(array_keys($settings), $previous);
+
+        try {
+            foreach ($settings as $key => $value) {
+                $value === null ? $this->kanvasApp->del($key) : $this->kanvasApp->set($key, $value);
+            }
+
+            $payment = $this->persistPayment(100.00);
+            $order = $this->buildOrderMock();
+            $order->currency = 'USD ';
+
+            $service = Mockery::mock(CardNetService::class);
+            $service->shouldReceive('refund')
+                ->once()
+                ->with(12345, Mockery::on(fn (CardNetPurchaseRequest $request) => $request->currency === $expected))
+                ->andReturn($this->approvedResponse());
+
+            $this->assertTrue($this->processor($service)->refund($payment, $order, 10.00)->success);
+        } finally {
+            foreach ($previous as $key => $value) {
+                $value === null ? $this->kanvasApp->del($key) : $this->kanvasApp->set($key, $value);
+            }
+        }
     }
 
     private function processor(CardNetService $service): CardNetProcessor

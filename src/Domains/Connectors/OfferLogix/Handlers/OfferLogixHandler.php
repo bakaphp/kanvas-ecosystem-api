@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OfferLogix\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Override;

@@ -71,6 +71,7 @@ final class SowMessageTypeService
             'signatories' => 'required|array|min:1',
             'signatories.*.name' => 'required|string',
             'signatories.*.role' => 'required|string',
+            'template' => 'nullable|string|max:60',
         ];
     }
 }

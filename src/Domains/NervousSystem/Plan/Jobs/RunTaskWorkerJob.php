@@ -362,24 +362,7 @@ class RunTaskWorkerJob implements ShouldQueue
      */
     private function workerSession(): Session
     {
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->task->apps_id,
-                'companies_id' => $this->task->companies_id,
-                'entity_namespace' => Task::class,
-                'entity_id' => $this->task->getId(),
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
-                'agents_id' => $this->task->agent_id ?? $this->task->plan->agent_id,
-                'channel_id' => null,
-                'content' => '',
-                'user' => [],
-            ],
-        );
-
-        return $session;
+        return Session::firstOrCreateForEntity($this->task, create: ['agents_id' => $this->task->agent_id ?? $this->task->plan->agent_id]);
     }
 
     private function brief(): string

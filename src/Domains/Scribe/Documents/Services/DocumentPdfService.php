@@ -123,7 +123,7 @@ final class DocumentPdfService
         return $this->document instanceof Quote;
     }
 
-    private function title(): string
+    public function title(): string
     {
         if ($this->isQuote()) {
             return 'Quote';

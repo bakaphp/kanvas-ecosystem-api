@@ -44,6 +44,9 @@ final class RetryDeliveryAction
             ->where('status', DeliveryStatusEnum::FAILED->value)
             ->update([
                 'status' => DeliveryStatusEnum::PENDING->value,
+                // The id of the attempt that failed: a lost outcome of this one must not be
+                // settled from it.
+                'external_id' => null,
                 'error_code' => null,
                 'error' => null,
                 'events_closed_at' => null,

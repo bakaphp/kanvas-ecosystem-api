@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel;
 
+use Baka\Support\Str;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
@@ -92,9 +93,17 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools, Ag
 
     protected function getModel(): ?string
     {
-        return $this->selectedLlmConfig()?->model
+        $model = $this->selectedLlmConfig()?->model
             ?? $this->agentRecord?->model?->config['model']
-            ?? ($this->agentRecord !== null ? AgentProviderService::resolveModel($this->agentRecord) : null);
+            ?? null;
+
+        if ($this->agentRecord === null) {
+            return $model;
+        }
+
+        return $this->getProvider() === Lab::Bedrock
+            ? AgentProviderService::bedrockModelFor($this->agentRecord, $model)
+            : $model ?? AgentProviderService::resolveModel($this->agentRecord);
     }
 
     /** Overridable so a structured call with no Agent row can still run on one of the tenant's LLM configs. */
@@ -120,6 +129,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools, Ag
             AgentLlmProviderEnum::DEEPSEEK => Lab::DeepSeek,
             AgentLlmProviderEnum::XAI => Lab::xAI,
             AgentLlmProviderEnum::OLLAMA => Lab::Ollama,
+            AgentLlmProviderEnum::BEDROCK => Lab::Bedrock,
         };
     }
 
@@ -215,35 +225,26 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools, Ag
             return static fn () => null;
         }
 
-        // app-config key → laravel-ai config path.
         $bindings = [
             ConfigurationEnum::GEMINI_KEY->value => 'ai.providers.gemini.key',
-            // Future per-tenant providers slot in once their
-            // ConfigurationEnum cases exist (openai, anthropic, ...).
+            ConfigurationEnum::BEDROCK_KEY->value => 'ai.providers.bedrock.key',
         ];
 
-        $snapshot = [];
+        $overrides = [];
         foreach ($bindings as $appKey => $configPath) {
             $value = $app->get($appKey);
             if ($value === null || $value === '') {
                 continue;
             }
-            $snapshot[$configPath] = Config::get($configPath);
-            Config::set($configPath, $value);
+            $overrides[$configPath] = $value;
         }
 
-        return static function () use ($snapshot): void {
-            foreach ($snapshot as $configPath => $originalValue) {
-                Config::set($configPath, $originalValue);
-            }
-        };
+        return $this->overrideProviderConfig($overrides);
     }
 
     /**
-     * Push the selected LLM config's credentials into laravel-ai's provider config for the duration
-     * of one prompt (snapshot → set → restore, same Octane-safe dance as the tenant-key path). The
-     * `driver` is set explicitly because getInstanceConfig() only defaults it when the whole provider
-     * block is absent — once we set `.key`/`.url` the block exists without a driver and would break.
+     * getInstanceConfig() defaults the driver only when the whole provider block is absent, so
+     * setting a key or URL also requires an explicit driver.
      */
     private function applySelectedConfigCredentials(AgentLlmConfig $config): Closure
     {
@@ -256,7 +257,16 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools, Ag
         if ($config->base_uri !== null && $config->base_uri !== '') {
             $overrides["ai.providers.{$driver}.url"] = $config->base_uri;
         }
+        $region = Str::trimToNull((string) ($config->config['region'] ?? ''));
+        if ($region !== null) {
+            $overrides["ai.providers.{$driver}.region"] = $region;
+        }
 
+        return $this->overrideProviderConfig($overrides);
+    }
+
+    private function overrideProviderConfig(array $overrides): Closure
+    {
         $snapshot = [];
         foreach ($overrides as $configPath => $value) {
             $snapshot[$configPath] = Config::get($configPath);

@@ -1,7 +1,8 @@
 # Microsoft Connector (Outlook + OneDrive)
 
 Native Graph integration: Outlook mail and OneDrive documents. OneDrive is exposed to agents through
-the 8 tools in `src/Domains/Intelligence/Agents/Neuron/Tools/OneDrive/`.
+the 8 tools in `src/Domains/Intelligence/Agents/Neuron/Tools/OneDrive/`, and sending mail from the
+company's mailbox through `send_outlook_email` in `.../Tools/Outlook/`.
 
 ## Two connections, two drives
 
@@ -142,6 +143,19 @@ integration's `root_folder`. Unset, empty or `/` means the whole drive.
   maps to it. Any other `InvalidArgumentException` (HTTP client, PhpSpreadsheet) is a `request_failed`
   and is reported. Throw `InvalidToolInputException` only for a bad tool argument.
 - Grant an agent either the native tools or the `microsoft365_mcp` MCP row, not both. Not enforced in code.
+- `send_outlook_email` sends as the **company's** connected account, not the person chatting: there is one
+  mailbox per company, so "send it from my email" only means that person's address when they are the one
+  who connected it. A per-user mailbox needs tokens per user, which the store does not have.
+- It never sends on the first call. The first call stores a draft (cache, 30 min, keyed by app, company,
+  person) and answers with a `draft_id`; the send is a second call with that id, refused when it comes
+  from the same tool instance that drafted it. One instance is one turn (tools are built once per agent
+  run and cloned per call), so the model cannot draft and confirm without the person replying. A turn
+  acted by the agent itself, with no person behind it, is refused before anything is drafted. A durable
+  run resumed after a crash rebuilds its tools, so a resume is the one case a confirmation can land
+  without a new message; it still sends only what was drafted for that person.
+- Its recipients are typed by the model, so it follows "Destination safety" in `Intelligence/Agents/CLAUDE.md`
+  (closed set, whole send refused otherwise). Its name keeps the `send_` prefix because `ApprovalPolicy`
+  gates outbound tools by that prefix, and it is listed in `WorkerToolPolicy::DENIED` by name.
 
 ## Tests
 

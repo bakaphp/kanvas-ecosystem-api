@@ -199,10 +199,7 @@ class WakeAgentForTaskJob implements ShouldQueue
 
     protected function resolveSession(): Session
     {
-        return $this->firstOrCreateWakeSession(
-            $this->task,
-            create: ['agents_id' => $this->task->agent_id],
-        );
+        return Session::firstOrCreateForEntity($this->task, create: ['agents_id' => $this->task->agent_id]);
     }
 
     protected function buildMessage(Project $project): string

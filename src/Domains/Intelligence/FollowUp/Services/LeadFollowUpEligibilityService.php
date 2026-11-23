@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Services;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -29,6 +33,32 @@ use Kanvas\Social\Messages\Models\Message;
  */
 final class LeadFollowUpEligibilityService
 {
+    /**
+     * Open by `leads_status_id`, the column CRM pulls and the UI write. FollowUpLeadAction's
+     * hasOpenLeadStatus() gate stays the authoritative check. The follow-up start date holds back
+     * older leads unless a person pinned the follow-up on.
+     */
+    public function openLeads(Apps $app, Companies $company): Builder
+    {
+        return $this->openLeadsQuery($app, $company)
+            ->where(fn ($query) => $this->createdSinceStartDate($query, $company));
+    }
+
+    /**
+     * Leads in an enabled, non-terminal stage, plus every lead carrying a person's own plan whatever
+     * its stage or start date. Mirrors DispatchAppLeadFollowUpsJob's query; keep them in step.
+     */
+    public function candidates(Apps $app, Companies $company): Builder
+    {
+        return $this->openLeadsQuery($app, $company)
+            ->where(
+                fn ($query) => $query
+                    ->where(fn ($stage) => $this->inFollowUpStage($stage, $company))
+                    ->orWhereIn('id', $this->leadIdsWithField($company, ManualFollowUpPlan::ACTIVE_FIELD)),
+            )
+            ->with('stage');
+    }
+
     /**
      * Null means queue. Leads due for exhaustion (max retries, handoff) are queued on purpose:
      * only the action marks them exhausted and applies the stage's exhausted action, after which
@@ -251,6 +281,65 @@ final class LeadFollowUpEligibilityService
             $companiesId,
             inboundOnly: true
         );
+    }
+
+    private function openLeadsQuery(Apps $app, Companies $company): Builder
+    {
+        return Lead::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->hasOpenLeadStatus($company);
+    }
+
+    private function createdSinceStartDate(Builder $query, Companies $company): Builder
+    {
+        $startDate = new LeadConfigurationService()->getFollowUpStartDate($company);
+
+        return $query->when(
+            $startDate,
+            fn ($q) => $q->where(
+                fn ($created) => $created
+                    ->where('created_at', '>=', $startDate)
+                    ->orWhereIn('id', $this->leadIdsWithField($company, LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value)),
+            ),
+        );
+    }
+
+    private function inFollowUpStage(Builder $query, Companies $company): Builder
+    {
+        return $this->createdSinceStartDate($query, $company)
+            ->whereNotNull('pipeline_stage_id')
+            ->whereHas(
+                'stage',
+                fn ($q) => $q
+                    ->where('is_deleted', 0)
+                    ->whereJsonContains('config->follow_up->enabled', true)
+                    ->where(
+                        fn ($inner) => $inner
+                            ->whereJsonDoesntContain('config->stage_meta->is_terminal', true)
+                            ->orWhereNull('config->stage_meta->is_terminal'),
+                    ),
+            );
+    }
+
+    /**
+     * A plan or a manual follow-up pin is a custom-field row on `ecosystem`; leads live on `crm`, so
+     * the ids are fetched first (a cross-connection whereHas is silently empty). Both rows exist only
+     * while they are active: an ended plan and a follow-up turned off delete theirs.
+     *
+     * @return list<int>
+     */
+    private function leadIdsWithField(Companies $company, string $name): array
+    {
+        return AppsCustomFields::query()
+            ->where('companies_id', $company->getId())
+            ->where('model_name', Lead::class)
+            ->where('name', $name)
+            ->where('is_deleted', 0)
+            ->pluck('entity_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 
     private function lastPersonMessageAt(Lead $lead, bool $inboundOnly): ?Carbon

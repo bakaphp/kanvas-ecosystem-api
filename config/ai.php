@@ -1,5 +1,7 @@
 <?php
 
+use Kanvas\Intelligence\Agents\Services\BedrockClientService;
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -72,6 +74,23 @@ return [
             'api_version' => env('AZURE_OPENAI_API_VERSION', '2025-04-01-preview'),
             'deployment' => env('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o'),
             'embedding_deployment' => env('AZURE_OPENAI_EMBEDDING_DEPLOYMENT', 'text-embedding-3-small'),
+        ],
+
+        // Agents reach Bedrock on the app's own key (ConfigurationEnum::BEDROCK_KEY) when it has one,
+        // and on this platform key otherwise.
+        'bedrock' => [
+            'driver' => 'bedrock',
+            'region' => env('AWS_BEDROCK_REGION', BedrockClientService::DEFAULT_REGION),
+            'key' => env('AWS_BEARER_TOKEN_BEDROCK'),
+            'use_default_credential_provider' => false,
+            'models' => [
+                'text' => [
+                    'default' => env('AWS_BEDROCK_TEXT_MODEL', BedrockClientService::DEFAULT_MODEL),
+                    // What a Bedrock agent fails over to when its own model errors, unless the app
+                    // names another provider (ConfigurationEnum::AI_FALLBACK_PROVIDER).
+                    'fallback' => env('AWS_BEDROCK_FALLBACK_MODEL', BedrockClientService::DEFAULT_FALLBACK_MODEL),
+                ],
+            ],
         ],
 
         'cohere' => [

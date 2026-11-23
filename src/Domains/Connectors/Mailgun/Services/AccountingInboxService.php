@@ -32,9 +32,9 @@ class AccountingInboxService
     {
         /** @var ReceiverWebhook|null $receiver */
         $receiver = ReceiverWebhook::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', 0)
+            ->fromApp($app->getId())
+            ->fromCompany($company->getId())
+            ->notDeleted()
             ->forJob(ScribePdfInboundWebhookJob::class)
             ->orderBy('id')
             ->get()
@@ -111,7 +111,7 @@ class AccountingInboxService
         $prefixes = [self::LOCAL_PART . '@' . $slug . '.', self::LOCAL_PART . '-' . $slug . '@'];
         $taken = ReceiverWebhook::query()
             ->where('companies_id', '!=', $company->getId())
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->where('configuration', 'like', '%' . ReceiverConfigurationEnum::INBOX_ADDRESS->value . '%')
             ->get(['configuration'])
             ->contains(function (ReceiverWebhook $receiver) use ($prefixes): bool {

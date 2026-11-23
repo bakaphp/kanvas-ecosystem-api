@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
@@ -37,9 +37,6 @@ class SendEmailTool extends Tool
         . 'any other address is ignored. '
         . 'This is NOT for internal messages to staff (use take_message) and NOT a way to keep chatting: '
         . 'still answer the person in the conversation after sending.';
-
-    /** Lead custom field the Mailgun responder and the follow-up engine read as the email thread subject. */
-    private const string THREAD_SUBJECT_ANCHOR = 'title_email_follow_up';
 
     #[Override]
     protected function properties(): array
@@ -149,12 +146,8 @@ class SendEmailTool extends Tool
             agent: $this->contextAgent(),
         )->execute($sent);
 
-        // First touch wins: the inbound Mailgun responder and the cron follow-up engine both read
-        // title_email_follow_up as their outbound subject, so anchoring here is what keeps the reply
-        // and every later follow-up in one email thread. Never overwrite an existing anchor.
-        if (trim((string) $lead->get(self::THREAD_SUBJECT_ANCHOR)) === '') {
-            $lead->set(self::THREAD_SUBJECT_ANCHOR, $subject);
-        }
+        // The reply to this email and every later follow-up thread under its subject.
+        $lead->anchorEmailThread($subject);
 
         $recipients = $contact->value;
         if ($ccResult['accepted'] !== []) {

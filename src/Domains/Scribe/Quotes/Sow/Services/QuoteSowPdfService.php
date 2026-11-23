@@ -50,10 +50,20 @@ final class QuoteSowPdfService
         return $file;
     }
 
+    /**
+     * The SOW names the company layout version it was written with; a version since deleted falls back to stock.
+     */
     public function render(): string
     {
-        return new RenderTemplateAction($this->quote->app, $this->quote->company)
-            ->renderNamedOrPackaged(self::TEMPLATE_NAME, $this->viewData(), self::PACKAGED_TEMPLATE);
+        $renderer = new RenderTemplateAction($this->quote->app, $this->quote->company);
+        $version = StatementOfWork::fromMessage($this->sowMessage)->template;
+        $template = $version !== null
+            ? new CompanySowTemplateService($this->quote->app, $this->quote->company)->find($version)
+            : null;
+
+        return $template !== null
+            ? $renderer->renderTemplate($template, $this->viewData())
+            : $renderer->renderNamedOrPackaged(self::TEMPLATE_NAME, $this->viewData(), self::PACKAGED_TEMPLATE);
     }
 
     /**

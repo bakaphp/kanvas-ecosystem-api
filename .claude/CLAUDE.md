@@ -69,7 +69,9 @@ Big task-shaped recipes have been moved to skills under `.claude/skills/`. They 
 Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
+- `src/Domains/Communication/CLAUDE.md` — messaging as a first-party domain: sending from any domain through `Communication::for($app, $company)->send()/reply()`, what stays in the domain vs in a connector, `config/communication.php` as the only join (providers, opt-in, default rules), how to add a provider without touching the core, and the inbound → auto-reply flow.
 - `src/Domains/Connectors/Microsoft/CLAUDE.md` — Outlook + OneDrive: a company's own account (Outlook + its drive) vs the app's shared OneDrive (`MicrosoftTokenStore`), the tools' `drive` choice, the `microsoft`/`onedrive` OAuth integrations and their `oauth_url`, App Registration for personal accounts, granted-scopes refresh, Word-by-XML / Excel write limits, eTag and delete rules, native tools vs `microsoft365_mcp`.
+- `src/Domains/Connectors/Salesforce/CLAUDE.md` — the generic half (standard objects, per-company field maps) vs GAGroup's hardcoded property model (`Project__c`/`Location__c`), what a second tenant with properties needs, and why a location is a variant of its project's product.
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
 - `src/Domains/Intelligence/Agents/Neuron/CLAUDE.md` — Neuron 4 as Kanvas runs it: tool identity as property defaults (and why `$description` must stay a literal), the mandatory thread id and who picks it, `resources()` as the only history seam (`KanvasHistoryTrimmer` + the three message stores, `getChatHistory()` is final), why tool-budget refusal swaps the tool in the registry instead of skipping the call, the two halves of unknown-tool recovery, and the Anthropic cached-token pricing trap.
@@ -90,7 +92,10 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Kanvas/AccessControlList/CLAUDE.md` — Bouncer scope is process state and the role cache is per scope with no TTL: write/read roles for an app only inside `onceTo(getScope($app))`, refresh inside the same switch, `Users::assignOwnerOf()` for Owner, and the app-creation incident that proved it.
 - `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
 - `src/Domains/Scribe/CLAUDE.md` — accounting domain: GL invariants, cross-domain rules, where e-CF state lives (`fiscal_documents`, not JSON), and **how to set up a tenant for the AP/AR agents + DR e-CF from the UI** (setup mutation, provider integration, e-NCF ranges, readiness keys, onboarding steps).
+- `src/Domains/Souk/CLAUDE.md` — commerce: order vs invoice in regular ecommerce (paid at checkout, no invoice record) vs B2B (paid on terms, one order → N Scribe invoices linked by `invoices.order_id`, the payment link is built from the invoice balance, ERP-issued invoices import with no JE), and the `USE_B2B_COMPANY_GROUP` global-company rule.
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
+- `src/Domains/Connectors/Dhl/CLAUDE.md` — DHL Express order fulfillment (first used by Cabinet): the order status path and which hook moves it, reserve-then-call booking (MyDHL cannot void), quote replay, the hourly tracking poll and the late proof of delivery.
+- `scripts/deploy/CLAUDE.md` — host scripts: `update-images.sh` is the one command that updates nginx and the PHP base image on a server (a deploy never does), what it restarts, and why it removes-then-creates instead of `--force-recreate`.
 
 ### Where to put new conventions (don't bloat this file)
 
@@ -140,6 +145,7 @@ class MyNotification extends Notification
 **Key points:**
 - `Kanvas\Notifications\Notification` implements `ShouldQueue`, includes SMTP config, OneSignal, Expo, SMS, and storage traits
 - Set `$this->channels` with slug strings (`'mail'`, `'sms'`, `'push'`, `'expo'`, `'database'`) — the base `via()` maps them to channel classes automatically via `Kanvas\Notifications\Enums\NotificationChannelEnum::getNotificationChannelBySlug()`
+- An app pushes through **one** provider: the `push_provider` app setting (`onesignal` | `expo`, default `onesignal`). The `'push'` and `'expo'` slugs both resolve to it (`PushProviderEnum`), so new notifications just list `'push'`
 - Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
 - Never use `\Illuminate\Notifications\Notification` directly
 

@@ -13,14 +13,15 @@ enum ConfigurationEnum: string
     case AI_PROVIDER_BASE_URI = 'kanvas-intelligence-ai-provider-base-uri';
     case AI_PROVIDER_KEY = 'kanvas-intelligence-ai-provider-key';
     case AI_PROVIDER_MODEL = 'kanvas-intelligence-ai-provider-model';
+    case BEDROCK_KEY = 'kanvas-intelligence-bedrock-key';
+    case AI_FALLBACK_PROVIDER = 'kanvas-intelligence-ai-fallback-provider';
+    case AI_FALLBACK_MODEL = 'kanvas-intelligence-ai-fallback-model';
     case OPEN_AI_EMBEDDINGS_KEY = 'kanvas-intelligence-openai-embeddings-key';
     case OPEN_AI_EMBEDDINGS_MODEL = 'kanvas-intelligence-openai-embeddings-model';
     case PINECONE_API_KEY = 'kanvas-intelligence-pinecone-api-key';
     case PINECONE_INDEX_URL = 'kanvas-intelligence-pinecone-index-url';
     // External voice runtime (Pipecat / Cloud Run): base URL + the runtime's
     // RUNTIME_API_TOKEN, used to trigger outbound/test calls via POST /outbound.
-    case VOICE_RUNTIME_URL = 'kanvas-intelligence-voice-runtime-url';
-    case VOICE_RUNTIME_API_TOKEN = 'kanvas-intelligence-voice-runtime-api-token';
     case ADK_BASE_URL = 'google_orchestrator_base_url';
     case ADK_API_KEY = 'google_orchestrator_api_key';
     case ADK_APP_NAME = 'google_orchestrator_app_name';

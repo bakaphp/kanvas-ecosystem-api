@@ -4,16 +4,37 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
+use Baka\Contracts\DefaultRule;
+use Kanvas\Connectors\Elead\Activities\StopResponseClockActivity;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Concerns\DeclaresSalesAssistPullRules;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Override;
 
 class ELeadHandler extends BaseIntegration
 {
-    use DeclaresSalesAssistPullRules;
+    use DeclaresSalesAssistPullRules {
+        defaultRules as salesAssistPullRules;
+    }
+
+    #[Override]
+    public function defaultRules(): array
+    {
+        return [
+            ...$this->salesAssistPullRules(),
+            new DefaultRule(
+                trigger: WorkflowEnum::AGENT_REACHED_OUT,
+                model: Lead::class,
+                activity: StopResponseClockActivity::class,
+                name: 'Elead stop the response clock',
+                isAsync: true,
+            ),
+        ];
+    }
 
     #[Override]
     public function setup(): bool

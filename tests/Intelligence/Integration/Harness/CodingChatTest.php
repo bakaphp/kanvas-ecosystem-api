@@ -1714,7 +1714,12 @@ class CodingChatTest extends TestCase
         }
 
         $this->assertSame(
-            ['⏳ Still working · 5 min', '⏳ Still working · 6 min', '⏳ Still working · 7 min', '⏳ Still working · 8 min'],
+            [
+                '⏳ Still working · 5 min',
+                '⏳ Still working · 6 min',
+                '⏳ Still working · 7 min',
+                '⏳ Still working · 8 min',
+            ],
             $minutes
         );
     }

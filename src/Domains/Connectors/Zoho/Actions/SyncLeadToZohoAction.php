@@ -9,6 +9,7 @@ use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFields;
 use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
 use Kanvas\Connectors\Zoho\Actions\Concerns\WritesZohoRecordWithCoercion;
 use Kanvas\Connectors\Zoho\Client;
@@ -26,6 +27,7 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 class SyncLeadToZohoAction
 {
+    use TracksZohoSyncedFields;
     use TracksZohoSyncedFiles;
     use WritesZohoRecordWithCoercion;
 
@@ -77,6 +79,8 @@ class SyncLeadToZohoAction
                     $zohoData['Company'] = $organization->name;
                 }
 
+                $built = $zohoData;
+
                 try {
                     $zohoLead = $this->createRecord($leadModule, $zohoData);
                     $zohoLeadId = $zohoLead?->getId();
@@ -86,10 +90,14 @@ class SyncLeadToZohoAction
                         $zohoLeadId
                     );
 
-                    $this->writeRecordLinks(
-                        $leadModule,
+                    $links = ZohoFieldMapService::leadIdLinkFields($lead, $zohoLeadId);
+                    $this->writeRecordLinks($leadModule, $zohoLeadId, $links);
+
+                    $this->rememberSyncedFields(
+                        $lead,
+                        CustomFieldEnum::ZOHO_LEAD_SYNCED_FIELDS,
                         $zohoLeadId,
-                        ZohoFieldMapService::leadIdLinkFields($lead, $zohoLeadId)
+                        [...$built, ...$links]
                     );
                 } catch (ApiError $e) {
                     Sentry::withScope(function ($scope) use ($zohoData, $lead, $e) {
@@ -106,14 +114,15 @@ class SyncLeadToZohoAction
             } else {
                 $zohoLeadInfo = $leadModule->get((string) $zohoLeadId)->getData();
                 if (! empty($zohoLeadInfo)) {
-                    $zohoData = [
-                        ...$zohoData,
-                        ...ZohoFieldMapService::leadIdLinkFields($lead, (string) $zohoLeadId),
-                    ];
-                    $zohoLead = $this->updateRecord(
+                    $zohoData = $this->updateChangedFields(
                         $leadModule,
+                        $lead,
+                        CustomFieldEnum::ZOHO_LEAD_SYNCED_FIELDS,
                         (string) $zohoLeadId,
-                        $zohoData
+                        [
+                            ...$zohoData,
+                            ...ZohoFieldMapService::leadIdLinkFields($lead, (string) $zohoLeadId),
+                        ]
                     );
                 } else {
                     // Zoho answers empty both for a lead it deleted and for one it converted. The

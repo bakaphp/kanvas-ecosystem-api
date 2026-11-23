@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
@@ -534,12 +535,25 @@ class People extends BaseModel implements ExposesTemplateData
      * that was already opted out counts as changed whenever the clock has moved a second, and the
      * callers that act on `> 0` (the Reynolds consent note) would fire again.
      *
-     * @param list<int> $types
+     * Updated by primary key: filtering the UPDATE itself lets MySQL pick the low-cardinality
+     * is_opt_out / is_deleted indexes (or merge them), locking contacts of every other person that
+     * share those values — which deadlocks against any concurrent contact insert.
+     *
+     * @param list<int>|null $types null opts out every contact
      */
-    private function optOutContactsOfTypes(array $types): int
+    public function optOutContactsOfTypes(?array $types = null): int
     {
-        return $this->contacts()
-            ->whereIn('contacts_types_id', $types)
+        $contactIds = $this->contacts()
+            ->when($types !== null, fn ($query) => $query->whereIn('contacts_types_id', $types))
+            ->where('is_opt_out', 0)
+            ->pluck('id');
+
+        if ($contactIds->isEmpty()) {
+            return 0;
+        }
+
+        return Contact::query()
+            ->whereKey($contactIds)
             ->where('is_opt_out', 0)
             ->update(['is_opt_out' => 1]);
     }
@@ -561,6 +575,22 @@ class People extends BaseModel implements ExposesTemplateData
                 $contact->set(ContactCustomFieldEnum::IS_LANDLINE->value, $isLandline);
             })
             ->count();
+    }
+
+    public function isPhoneLandline(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(fn (Contact $contact): bool => $contact->isLandline() === true);
+    }
+
+    /**
+     * A dead number, whoever marked it (a carrier failure, a CRM rejection, an agent). An opt-out is
+     * not this: that is the consent check's answer.
+     */
+    public function isPhoneUndeliverable(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(
+            fn (Contact $contact): bool => $contact->validation_status?->isPermanentFailure() === true
+        );
     }
 
     public function markEmailBounced(string $email): int
@@ -810,6 +840,8 @@ class People extends BaseModel implements ExposesTemplateData
 
     public function toSearchableArray(): array
     {
+        $contacts = $this->contacts()->get();
+
         $people = [
             'objectID' => $this->uuid,
             'id' => (string) $this->id,
@@ -820,6 +852,19 @@ class People extends BaseModel implements ExposesTemplateData
             'companies_id' => $this->companies_id,
             'email' => $this->getEmails()->first()?->value,
             'phone' => $this->getAllPhones()->first()?->value,
+            'emails' => $contacts
+                ->filter(fn (Contact $contact) => Contact::isEmailType((int) $contact->contacts_types_id))
+                ->map(fn (Contact $contact) => Str::lowerTrim($contact->value))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all(),
+            'phones' => $contacts
+                ->filter(fn (Contact $contact) => Contact::isPhoneType((int) $contact->contacts_types_id))
+                ->flatMap(fn (Contact $contact) => Str::phoneSearchTerms($contact->value))
+                ->unique()
+                ->values()
+                ->all(),
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
@@ -909,6 +954,16 @@ class People extends BaseModel implements ExposesTemplateData
                 [
                     'name' => 'phone',
                     'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'emails',
+                    'type' => 'string[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phones',
+                    'type' => 'string[]',
                     'optional' => true,
                 ],
                 [
@@ -1011,7 +1066,7 @@ class People extends BaseModel implements ExposesTemplateData
             ]
         );
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $query = self::traitSearch(Str::phoneSearchQuery((string) $query), $callback)->where('apps_id', $app->getId());
 
         /*         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
                     $query->where('companies_id', $user->getCurrentCompany()->getId());
@@ -1027,7 +1082,7 @@ class People extends BaseModel implements ExposesTemplateData
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,firstname,lastname,email,phone',
+                'query_by' => $query->model->queryByLiveFields('name,firstname,lastname,email,phone,emails,phones'),
             ]);
         }
 

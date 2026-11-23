@@ -135,6 +135,20 @@ a session uuid, which is how `EntityRollupMessageStore` knows whether to filter 
 `RunNeuronChatAction` binds the session uuid itself when a caller that skips the kernel
 (`RespondToMentionJob`, `DraftCustomerUpdateAction`) hands it an unbound handler.
 
+## Turn id and write confirmation
+
+`RunNeuronChatAction::execute()` stamps a fresh uuid on the handler (`setTurnId()`) for every run, one per
+user turn on every entry point (userChat, channel responders, mentions); a retry inside the run keeps it.
+`MergesRegisteredTools::fillKanvasContext()` hands the thread id and that turn id to a tool that uses
+`Neuron/Tools/Concerns/HasTurnContext` (`withTurn()`); any other tool is untouched. Tools are wired inside
+`chat()`, after the id is set. A sub-agent or a hand-built tool has no turn and fails closed.
+
+A write the person must approve uses `RequiresTurnConfirmation` (needs `confirmingUserId()`): the first call
+returns a preview plus a one-use token from `ToolConfirmationTokens` (cache, 10 min, bound to thread, user,
+tool and exact arguments, plus the preview's turn id); the call that carries the token only executes on a
+LATER turn. Same turn, other thread/user/arguments, expired, reused or no turn context all refuse. Reference:
+`Connectors/Movipass/Neuron/Tools/ProviderAdmin/`.
+
 ## History: `resources()` is the only seam
 
 `Agent::getChatHistory()` is final in v4. The override point is `resources()`, and
@@ -149,6 +163,15 @@ contextWindow() → model ceiling, capped by AGENT_MAX_HISTORY_TOKENS (or the ap
 `KanvasChatHistory` trims on load as well as on add: since 4.1 the chat node sends `getMessages()`
 plus the inbound turn and adds to the history afterwards, so an add-only trim runs after the first
 request of every turn (KANVAS-ECOSYSTEM-6HP, a 1,962-email rollup sent whole).
+
+An inbound Social message is already filed before the agent runs. The kernel passes its id, plus
+the exact `burstMessageIds` when the prompt combines a burst. `KanvasChatHistory` leaves those rows
+out of the loaded history before folding: Neuron sends them as the pending prompt. They still count
+as retained for lead-summary coverage and are never archived by that exclusion. Never match by text
+or infer a burst from all current children: repeated questions and later arrivals are separate turns.
+On a durable resume starting after the prompt was consumed, `PendingInboundHistoryMiddleware` restores
+its Social rows before the first tool/inference node. Later tool rounds keep the live prompt already
+in history; they must not restore a second copy.
 
 The window is a **history** budget and the trimmer measures the history by its content
 (`KanvasHistoryTrimmer::getCheckpoints()` returns none). The stock trimmer reads the provider's prompt
@@ -365,9 +388,32 @@ is safe only while nothing enables parallel calls or deferred tools.
 - `KanvasGemini::createToolCallMessage()` re-indexes the function-call parts: upstream collects them
   with a key-preserving `array_filter` and reads the thought signature off key 0, so a thinking model's
   thought part ahead of the call loses the signature and Gemini rejects the next request.
-- `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) keeps the agent's
-  `SystemMessage` as given; `neuron-core/router` 2.1.0 stores it in a `?string` and throws a TypeError
-  on the first turn of any tenant with a fallback LLM config. Drop it when the package fixes the type.
+- `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) teaches the router that a
+  Bedrock failure is an AWS SDK exception, not Neuron's `HttpException`: the stock strategy fails over
+  only on the latter, so a throttled or down Bedrock model never reached its fallback. It needs
+  `neuron-core/router` 2.1.2 or later (the lock's version); 2.1.0 stored the prompt in a `?string` and
+  threw a TypeError on the first turn of any failover chain.
+
+## Claude on Bedrock caches only an unchanged prefix
+
+Claude reads its prompt cache up to the first changed byte, in the order tools, instructions,
+messages, and only where `KanvasBedrock::createPayLoad()` put a marker (four at most). Anything that
+changes per turn and sits early makes every later token full price.
+
+- **Per-turn text goes in `context()`, never in `instructions()`.** Neuron appends the context blocks
+  to the turn's question on a copy and never stores them, so the instructions and the replayed history
+  stay identical between turns. On Bedrock the clock travels that way, in a `<turn-context>` block
+  (`HasKanvasAgentBehavior::context()`); it sat near the top of the instructions before and a
+  105K-token agent paid for the whole prompt on every message.
+- **The marker goes before the question's context, not after it.** The next turn replays the question
+  without its context, so a prefix that ends after the context never matches again. The provider finds
+  the context by its opening tag (`<turn-context>`, Neuron's `<EXTRA-CONTEXT>` for retrieved
+  documents); a new kind of context block needs its tag in `TURN_CONTEXT_OPENINGS`.
+- **Not covered:** the customer-facing agents (`SalesAgent`, `ReceptionistAgent`,
+  `ShoppingAssistantAgent`) write their own instructions with the time and the lead in them, so they
+  still miss between turns. A history that is trimmed from the front misses too; one that is
+  summarised in batches hits between summaries. The cache lives five minutes.
+- A hit shows as `cache_read` in the turn's `usage`, with `input_tokens` down to what was new.
 
 ## Unknown tool calls have two halves
 

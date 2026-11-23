@@ -13,6 +13,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingQuestionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
@@ -430,6 +432,9 @@ class ProjectManagerAgent extends SystemUserAgent
 
         $core = $this->addToolContext([
             new ReadMessageContentTool(),
+            // Organization meetings are routed to the PM (MeetingAgentEnum::ORGANIZATION).
+            new AddOrganizationNoteTool(),
+            new ReadOrganizationActivityTool(),
             new ListProjectsTool(),
             new ListAssignedWorkTool(),
             new ListNervousSystemPlansTool(),

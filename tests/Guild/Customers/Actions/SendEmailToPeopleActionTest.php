@@ -7,9 +7,14 @@ namespace Tests\Guild\Customers\Actions;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Communication;
+use Kanvas\Communication\Connections\Actions\SetConnectionEnabledAction;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
+use Kanvas\Guild\Customers\Actions\Communication\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
 use Kanvas\Notifications\Support\UserEmailSignature;
@@ -22,7 +27,7 @@ final class SendEmailToPeopleActionTest extends TestCase
     use DatabaseTransactions;
     use MakesAgents;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem', 'intelligence', 'workflow'];
 
     private function freshPerson(Companies $company): People
     {
@@ -138,6 +143,49 @@ final class SendEmailToPeopleActionTest extends TestCase
             Blank::class,
             fn (Blank $notification): bool => ! isset($notification->getData()['user_signature']),
         );
+    }
+
+    public function testTheEmailIsOnTheLedgerWithItsCampaignRecipientVariablesAndCopies(): void
+    {
+        Notification::fake();
+        $person = $this->freshPerson(Companies::factory()->create());
+
+        $result = new SendEmailToPeopleAction($person)->execute(
+            to: 'test@example.test',
+            message: 'Hi there',
+            cc: ['copy@example.test'],
+            variables: ['certificate' => 'Level 2', 'content' => 'the campaign restates the text'],
+        );
+
+        $delivery = Delivery::query()->where('request_id', $result['operation_id'])->sole();
+
+        $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->status);
+        $this->assertSame('test@example.test', $delivery->to_address);
+        $this->assertSame($delivery->external_id, $result['provider_message_id']);
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getData()['certificate'] === 'Level 2'
+                && $notification->getData()['content'] === 'the campaign restates the text'
+                && $notification->getData()['company']->is($person->company)
+                && $notification->getCc() === ['copy@example.test'],
+        );
+    }
+
+    public function testAnEmailThatDidNotGoOutThrows(): void
+    {
+        Notification::fake();
+        $person = $this->freshPerson(Companies::factory()->create());
+        $communication = Communication::for($person->app, $person->company);
+        new SetConnectionEnabledAction($communication->connectionFor(ChannelTypeEnum::EMAIL), false)->execute();
+
+        try {
+            new SendEmailToPeopleAction($person)->execute(to: 'test@example.test', message: 'Hi there');
+            $this->fail('A switched-off connection must not report a sent email.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('not sent', $exception->getMessage());
+        }
+
+        Notification::assertNothingSent();
     }
 
     public function testThrowsWhenThereIsNoDestinationAddress(): void

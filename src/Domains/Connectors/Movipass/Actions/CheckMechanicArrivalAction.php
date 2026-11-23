@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Baka\Support\Geo;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
@@ -18,7 +19,7 @@ class CheckMechanicArrivalAction
     use InteractsWithAssistanceCase;
 
     // Threshold in meters to consider mechanic on-site
-    private const ARRIVAL_THRESHOLD_METERS = 100;
+    public const ARRIVAL_THRESHOLD_METERS = 100;
 
     public function __construct(
         protected readonly Order $order,
@@ -39,7 +40,7 @@ class CheckMechanicArrivalAction
             return false;
         }
 
-        $distanceMeters = $this->haversineDistance(
+        $distanceMeters = Geo::distanceKm(
             $orderLocation['lat'],
             $orderLocation['lng'],
             $mechanicLocation['lat'],
@@ -111,17 +112,5 @@ class CheckMechanicArrivalAction
         }
 
         return null;
-    }
-
-    private function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
-    {
-        $earthRadiusKm = 6371.0;
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-
-        $a = sin($dLat / 2) ** 2
-            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
-
-        return $earthRadiusKm * 2 * asin(sqrt($a));
     }
 }

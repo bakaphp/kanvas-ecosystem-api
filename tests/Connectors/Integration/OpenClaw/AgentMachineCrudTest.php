@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\OpenClaw;
 
+use Mockery;
 use Tests\Connectors\Traits\HasOpenClawConfiguration;
 use Tests\TestCase;
 
@@ -86,6 +87,51 @@ class AgentMachineCrudTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testUpdateAgentMachineWithoutIsActiveKeepsIt(): void
+    {
+        $machine = $this->createTestMachine();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateAgentMachineInput!) {
+                agentRuntimeUpdateMachine(id: $id, input: $input) {
+                    host
+                    ssh_port
+                    is_active
+                }
+            }
+        ', ['id' => $machine->getId(), 'input' => ['host' => 'github.com', 'ssh_port' => 22]])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'agentRuntimeUpdateMachine' => [
+                    'host' => 'github.com',
+                    'ssh_port' => 22,
+                    'is_active' => true,
+                ],
+            ],
+        ]);
+    }
+
+    public function testNonAdminCannotUpdateAgentMachine(): void
+    {
+        $machine = $this->createTestMachine();
+
+        $nonAdmin = Mockery::mock(auth()->user())->makePartial();
+        $nonAdmin->shouldReceive('isAdmin')->andReturn(false);
+        $this->actingAs($nonAdmin);
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateAgentMachineInput!) {
+                agentRuntimeUpdateMachine(id: $id, input: $input) {
+                    host
+                }
+            }
+        ', ['id' => $machine->getId(), 'input' => ['host' => 'github.com']])
+        ->assertGraphQLErrorMessage('You are not authorized to perform this action please contact your administrator');
+
+        $this->assertNotSame('github.com', $machine->fresh()->host);
     }
 
     public function testDeleteAgentMachine(): void

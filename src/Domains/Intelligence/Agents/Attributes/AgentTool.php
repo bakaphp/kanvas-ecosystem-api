@@ -22,6 +22,11 @@ final class AgentTool
      *                                 it, so a tool that builds its description at runtime must carry a literal here
      * @param string[] $frameworks CapabilityFrameworkEnum values; derived from the namespace when empty
      * @param string[]|null $requiresPermission Bouncer abilities required to use the tool
+     * @param bool $readOnly True only for tools with no side effects (lookups, searches). The voice
+     *                       runtime runs read-only tools in the background while the agent keeps
+     *                       talking, and treats every other tool as a write: the agent waits for it and
+     *                       repeats are deduplicated. False is the safe default — mark a tool read-only
+     *                       only when running it twice, or after the caller moved on, can't hurt.
      */
     public function __construct(
         public readonly ?string $name = null,
@@ -31,6 +36,7 @@ final class AgentTool
         public readonly string $toolType = 'system',
         public readonly string $version = '1.0.0',
         public readonly ?array $requiresPermission = null,
+        public readonly bool $readOnly = false,
     ) {
     }
 
@@ -44,5 +50,15 @@ final class AgentTool
         $attributes = new ReflectionClass($tool)->getAttributes(self::class, ReflectionAttribute::IS_INSTANCEOF);
 
         return $attributes === [] ? null : $attributes[0]->newInstance();
+    }
+
+    /**
+     * Whether a tool class or instance is marked read-only. A tool without the attribute is a write.
+     *
+     * @param class-string|object $tool
+     */
+    public static function isReadOnly(string|object $tool): bool
+    {
+        return self::fromClass($tool)?->readOnly ?? false;
     }
 }

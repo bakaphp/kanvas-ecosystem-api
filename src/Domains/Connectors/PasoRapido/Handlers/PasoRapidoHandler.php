@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PasoRapido\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\PasoRapido\Client;
 use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
 use Override;

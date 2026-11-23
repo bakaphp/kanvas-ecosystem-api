@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Contracts;
 
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
-use Kanvas\Communication\Connections\DataTransferObject\Retention;
-use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
@@ -18,19 +16,9 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
  * Static, because a handler is constructed with the credentials a tenant just submitted and none of
  * this depends on them: it is asked of the vendor, long after the form is gone.
  */
-interface CommunicationProvider
+interface CommunicationProvider extends CommunicationCarrier
 {
-    /**
-     * The vendor, as the provider registry and every communication row name it.
-     */
-    public static function slug(): string;
-
     public static function integration(): IntegrationsEnum;
-
-    /**
-     * @return array<value-of<ChannelTypeEnum>, class-string<Transport>> the transport serving each channel
-     */
-    public static function transports(): array;
 
     /**
      * The accounts selected on this integration, read from what the integration flow persisted on
@@ -46,8 +34,6 @@ interface CommunicationProvider
      * for tenants already on it, but is not offered where integrating is supposed to be enough.
      */
     public static function onboardable(): bool;
-
-    public static function eventRetention(): Retention;
 
     /**
      * True for a vendor that posts every tenant's webhooks to one URL and signs them with an

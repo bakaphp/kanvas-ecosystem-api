@@ -11,7 +11,6 @@ use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
@@ -102,6 +101,10 @@ class RunNeuronChatAction
         // its thread, the kernel's own choice when there is no source channel.
         if ($this->handler instanceof BehavesAsKanvasAgent && $this->handler->getThreadId() === null) {
             $this->handler->setThreadId($this->session?->uuid ?? Str::uuid()->toString());
+        }
+
+        if ($this->handler instanceof BehavesAsKanvasAgent) {
+            $this->handler->setTurnId(Str::uuid()->toString());
         }
 
         // Agents whose chatHistory already records each turn (ConversationMessageStore) must not also
@@ -683,28 +686,10 @@ class RunNeuronChatAction
             return;
         }
 
-        $people = $lead->people;
-        $peopleChannelService = $people !== null ? new PeopleChannelService() : null;
-        $leadChannelService = new LeadChannelService();
+        $histories = new LeadChannelService();
 
         foreach ($channel->messages()->get() as $message) {
-            $leadChannelService->attachMessageToLeadChannel(
-                $message,
-                $lead,
-                $lead->app,
-                $lead->company,
-                $this->user,
-            );
-
-            if ($peopleChannelService !== null && $people !== null) {
-                $peopleChannelService->attachMessageToPeopleChannel(
-                    $message,
-                    $people,
-                    $lead->app,
-                    $lead->company,
-                    $this->user,
-                );
-            }
+            $histories->recordOnLeadAndPerson($message, $lead, $this->user);
         }
     }
 

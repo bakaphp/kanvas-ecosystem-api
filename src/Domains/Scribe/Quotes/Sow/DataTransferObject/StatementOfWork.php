@@ -24,6 +24,7 @@ final class StatementOfWork
      * @param list<array{name: string, acceptance_criteria: string, quote_line_ids: list<int>}> $deliverables
      * @param list<array{label: string, when: string, date: string|null, percent: float|null, amount: float|null}> $paymentSchedule
      * @param list<array{name: string, role: string}> $signatories
+     * @param string|null $template the company SOW layout version it renders with; null is the stock layout
      */
     public function __construct(
         public readonly string $summary,
@@ -37,6 +38,7 @@ final class StatementOfWork
         public readonly ?string $changeProcess,
         public readonly ?int $paymentTermsId,
         public readonly array $signatories,
+        public readonly ?string $template = null,
     ) {
     }
 
@@ -59,6 +61,7 @@ final class StatementOfWork
             changeProcess: Str::trimToNull($input['change_process'] ?? null),
             paymentTermsId: is_numeric($input['payment_terms_id'] ?? null) ? (int) $input['payment_terms_id'] : null,
             signatories: self::signatories($input['signatories'] ?? []),
+            template: Str::trimToNull($input['template'] ?? null),
         );
     }
 
@@ -86,6 +89,7 @@ final class StatementOfWork
             'change_process' => $this->changeProcess,
             'payment_terms_id' => $this->paymentTermsId,
             'signatories' => $this->signatories,
+            'template' => $this->template,
         ];
     }
 

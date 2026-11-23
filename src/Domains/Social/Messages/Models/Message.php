@@ -98,7 +98,9 @@ class Message extends BaseModel
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
     use HasPermissions;
-    use AsTree;
+    use AsTree {
+        rebuildSubtreePaths as rebuildDescendantPaths;
+    }
     use CanUseWorkflow;
     use HasLightHouseCache;
     use HasFilesystemTrait;
@@ -175,6 +177,14 @@ class Message extends BaseModel
         );
     }
 
+    /**
+     * Written by a person on the team, as opposed to the customer or an agent.
+     */
+    public function isFromHuman(): bool
+    {
+        return (bool) ($this->message['from_human'] ?? false);
+    }
+
     public function appModuleMessage(): HasOne
     {
         return $this->hasOne(AppModuleMessage::class, 'message_id');
@@ -187,7 +197,35 @@ class Message extends BaseModel
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+        return $this->belongsToMany(
+            Users::class,
+            'user_messages',
+            'messages_id',
+            'users_id'
+        );
+    }
+
+    /**
+     * The tree's rebuild is a range update (`path like '<id>.%'`) that gap-locks the `path` index,
+     * and concurrent message inserts land in that gap: two inbound deliveries deadlock (1213) and
+     * one loses its chaining. A message nobody has replied to has no range to rewrite, so it is
+     * moved by primary key; only a real subtree pays for the range.
+     */
+    protected function rebuildSubtreePaths(): void
+    {
+        $hasChildren = static::withoutGlobalScopes()
+            ->where($this->getParentKeyName(), $this->getKey())
+            ->exists();
+
+        if ($hasChildren) {
+            $this->rebuildDescendantPaths();
+
+            return;
+        }
+
+        $this->newQuery()
+            ->whereKey($this->getKey())
+            ->update([$this->getPathColumn() => $this->buildPath()->getValue()]);
     }
 
     public function childrenByType(string $verb): HasMany
@@ -315,18 +353,24 @@ class Message extends BaseModel
         $this->saveOrFail();
     }
 
+    /**
+     * One link per record, however many paths file the same message: an agent's history and the lead
+     * summary read these links, and a second one reads as a second message.
+     */
     public function addEntity(Model $entity): void
     {
-        $this->appModuleMessage()->create([
-            'entity_id' => $entity->getId(),
-            'apps_id' => $this->apps_id,
-            'message_types_id' => $this->message_types_id,
-            'companies_id' => $this->companies_id,
-            'system_modules' => get_class($entity),
-        ]);
+        if (! $this->appModuleMessages()->forEntity($entity)->exists()) {
+            $this->appModuleMessage()->create([
+                'entity_id' => $entity->getId(),
+                'apps_id' => $this->apps_id,
+                'message_types_id' => $this->message_types_id,
+                'companies_id' => $this->companies_id,
+                'system_modules' => get_class($entity),
+            ]);
 
-        $this->unsetRelation('appModuleMessage');
-        $this->unsetRelation('appModuleMessages');
+            $this->unsetRelation('appModuleMessage');
+            $this->unsetRelation('appModuleMessages');
+        }
 
         $this->attachPersonFromEntity($entity);
     }

@@ -52,8 +52,8 @@ class DocumentDeliveryTest extends DocumentDeliveryTestCase
 
         $this->assertSame(3 * 6, $stageCount());
         $config = $this->company->get(DocumentActionsSetup::PAGE_CONFIG_KEY);
-        $this->assertSame('invoice', $config['view-invoice']);
-        $this->assertSame('sow', $config['sign-sow']);
+        $this->assertSame('view', $config['view-invoice']);
+        $this->assertSame('view', $config['sign-sow']);
         $this->assertSame(DunningSchedule::DEFAULT_STEPS, $this->company->get(DunningSchedule::SETTING)['steps']);
 
         $this->company->set(DocumentActionsSetup::PAGE_CONFIG_KEY, [...$config, 'view-quote' => 'custom-quote']);

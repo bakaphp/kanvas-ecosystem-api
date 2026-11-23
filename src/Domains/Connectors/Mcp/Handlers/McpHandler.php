@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mcp\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 

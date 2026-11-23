@@ -23,7 +23,7 @@ use Throwable;
  * like Kanvas failing to create agents. A missed mailbox is recoverable — the agent's own tool, the
  * mutation, or the command all provision it later.
  */
-final class ProvisionAgentMailboxJob implements ShouldQueue
+class ProvisionAgentMailboxJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;

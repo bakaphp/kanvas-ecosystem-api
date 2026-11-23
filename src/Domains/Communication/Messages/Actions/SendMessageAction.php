@@ -21,6 +21,7 @@ use Kanvas\Communication\Support\EligibilityResolver;
 use Kanvas\Communication\Support\TransportManager;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
+use LogicException;
 
 /**
  * Persists a request and one delivery per channel, then hands each delivery to the queue. Nothing
@@ -44,8 +45,14 @@ final class SendMessageAction
         private readonly ?string $tag = null,
         private readonly ?Message $replyTo = null,
         private readonly bool $sync = false,
-        private readonly ?Message $filedAs = null
+        private readonly ?Message $filedAs = null,
+        private readonly bool $fileMessage = true,
+        private readonly bool $honorsConsent = true
     ) {
+        // Neither is recorded on the request, so a queued delivery could not know.
+        if ((! $fileMessage || ! $honorsConsent) && ! $sync) {
+            throw new LogicException('Only a sync send can leave filing to its caller or go out past a stop request.');
+        }
     }
 
     public function execute(): Operation
@@ -77,7 +84,7 @@ final class SendMessageAction
         // misconfigured queue would leave a caller waiting on a delivery that never ran.
         foreach ($pending as $delivery) {
             $this->sync
-                ? new DispatchDeliveryAction($delivery)->execute()
+                ? new DispatchDeliveryAction($delivery, $this->fileMessage, $this->honorsConsent)->execute()
                 : DispatchDeliveryJob::dispatch($delivery);
         }
 
@@ -96,7 +103,7 @@ final class SendMessageAction
 
         return Request::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->company->getId())
             ->where('idempotency_key', $this->idempotencyKey)
             ->first();
     }
@@ -106,7 +113,7 @@ final class SendMessageAction
         return Request::create([
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->company->getId(),
-            'users_id' => $this->sender?->type === 'user' ? $this->sender->id : null,
+            'users_id' => $this->sender?->isUser() ? $this->sender->id : null,
             'kind' => $this->replyTo !== null ? OperationKindEnum::REPLY : OperationKindEnum::SEND,
             'people_id' => $this->recipient->people?->getId(),
             'content' => $this->content->toArray(),
@@ -116,6 +123,7 @@ final class SendMessageAction
             'tag' => $this->tag,
             'reply_to_message_id' => $this->replyTo?->getId(),
             'filed_message_id' => $this->filedAs?->getId(),
+            'campaign_recipient_id' => $this->content->email?->campaignRecipientId,
         ]);
     }
 
@@ -127,6 +135,9 @@ final class SendMessageAction
             'apps_id' => $request->apps_id,
             'companies_id' => $request->companies_id,
             'request_id' => $request->getId(),
+            // A message the caller already filed is this delivery's from the start, so a send
+            // that never leaves is written on it instead of looking like it was said.
+            'message_id' => $request->filed_message_id,
             'connection_id' => $connection?->getId(),
             'channel' => $route->channel,
             'provider' => $connection?->provider,
@@ -152,7 +163,9 @@ final class SendMessageAction
             return $delivery;
         }
 
-        $refusal = new EligibilityResolver()->reasonNotToContact($this->recipient, $route->channel, $route->address);
+        $refusal = $this->honorsConsent
+            ? new EligibilityResolver()->reasonNotToContact($this->recipient, $route->channel, $route->address)
+            : null;
 
         if ($refusal !== null) {
             $delivery->finishWithoutSending(DeliveryStatusEnum::SKIPPED, $refusal);

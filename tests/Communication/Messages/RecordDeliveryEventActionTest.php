@@ -93,6 +93,58 @@ final class RecordDeliveryEventActionTest extends TestCase
         $this->assertNotNull($delivery->fresh()->events_closed_at);
     }
 
+    /**
+     * A retry is the same delivery with a new provider id, and Twilio's callbacks carry no time, so
+     * the second attempt's `failed` looks exactly like the first one's.
+     */
+    public function testAFailureOfARetriedDeliveryIsItsOwnEventNotTheFirstOneRepeated(): void
+    {
+        $delivery = $this->acceptedDelivery();
+
+        new RecordDeliveryEventAction(
+            delivery: $delivery,
+            status: DeliveryStatusEnum::FAILED,
+            providerStatus: 'failed',
+            errorCode: '30003'
+        )->execute();
+        $delivery->forceFill([
+            'status' => DeliveryStatusEnum::ACCEPTED,
+            'external_id' => 'FAKE-second-attempt',
+            'error_code' => null,
+            'events_closed_at' => null,
+        ])->saveOrFail();
+
+        $recorded = new RecordDeliveryEventAction(
+            delivery: $delivery,
+            status: DeliveryStatusEnum::FAILED,
+            providerStatus: 'failed',
+            errorCode: '30005'
+        )->execute();
+
+        $this->assertTrue($recorded);
+        $this->assertSame(DeliveryStatusEnum::FAILED, $delivery->fresh()->status);
+        $this->assertSame('30005', $delivery->fresh()->error_code);
+        $this->assertSame(2, $delivery->events()->count());
+    }
+
+    /**
+     * A callback is matched to its delivery by the attempt's id. When a retry lands between that
+     * match and the write, the row holds a new attempt, and the old one's failure is not its own.
+     */
+    public function testAnEventForTheAttemptBeforeARetryDoesNotTouchTheRetry(): void
+    {
+        $delivery = $this->acceptedDelivery();
+        $matchedBeforeTheRetry = $delivery->fresh();
+        $delivery->forceFill(['external_id' => 'FAKE-second-attempt'])->saveOrFail();
+
+        $recorded = new RecordDeliveryEventAction($matchedBeforeTheRetry, DeliveryStatusEnum::FAILED, 'failed')
+            ->execute();
+
+        $this->assertFalse($recorded);
+        $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->fresh()->status);
+        $this->assertSame(0, $delivery->events()->count());
+    }
+
     private function acceptedDelivery(): Delivery
     {
         $this->useFakeProvider();

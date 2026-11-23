@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Exports;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Kanvas\Souk\Orders\Exports\Concerns\DrawsHeaderLogos;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -209,7 +210,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
         foreach ($this->stats['byPeriod'] ?? [] as $item) {
             $sheet->setCellValue("A{$row}", $item['label']);
             $sheet->setCellValue("B{$row}", $item['total_transactions']);
-            $sheet->setCellValue("C{$row}", '$' . number_format($item['total_amount'], 2));
+            $sheet->setCellValue("C{$row}", Number::currency($item['total_amount'], 'USD'));
             $this->applyDataStyle($sheet, "A{$row}:{$lastCol}{$row}");
             $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("C{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
@@ -219,7 +220,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
         $totals = $this->stats['totals'];
         $sheet->setCellValue("A{$row}", $this->label('breakdown_total'));
         $sheet->setCellValue("B{$row}", $totals['total_transactions']);
-        $sheet->setCellValue("C{$row}", '$' . number_format($totals['total_amount'], 2));
+        $sheet->setCellValue("C{$row}", Number::currency($totals['total_amount'], 'USD'));
         $this->applyTotalRowStyle($sheet, "A{$row}:{$lastCol}{$row}");
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -248,13 +249,13 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
 
         $metrics = [
             [$this->label('metric_total_tx'),       $totals['total_transactions']],
-            [$this->label('metric_total_amount'),   '$' . number_format($totals['total_amount'], 2)],
+            [$this->label('metric_total_amount'),   Number::currency($totals['total_amount'], 'USD')],
             [$this->label('metric_daily_tx'),       number_format($daily['avg_count'] ?? 0, 2)],
-            [$this->label('metric_daily_amount'),   '$' . number_format($daily['amount_avg'] ?? 0, 2)],
+            [$this->label('metric_daily_amount'),   Number::currency($daily['amount_avg'] ?? 0, 'USD')],
             [$this->label('metric_weekly_tx'),      number_format($weekly['avg_count'] ?? 0, 2)],
-            [$this->label('metric_weekly_amount'),  '$' . number_format($weekly['amount_avg'] ?? 0, 2)],
+            [$this->label('metric_weekly_amount'),  Number::currency($weekly['amount_avg'] ?? 0, 'USD')],
             [$this->label('metric_monthly_tx'),     number_format($monthly['avg_count'] ?? 0, 2)],
-            [$this->label('metric_monthly_amount'), '$' . number_format($monthly['amount_avg'] ?? 0, 2)],
+            [$this->label('metric_monthly_amount'), Number::currency($monthly['amount_avg'] ?? 0, 'USD')],
         ];
 
         foreach ($metrics as [$label, $value]) {

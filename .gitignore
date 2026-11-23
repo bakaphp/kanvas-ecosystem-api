@@ -69,3 +69,4 @@ src/Baka/Search/KanvasDatabaseEngine.php
 /storage/local-campaign-test/
 /output
 /tmp
+/src/Domains/Connectors/BrushCrazy/Certs/

@@ -49,6 +49,7 @@ enum IntegrationsEnum: string
     case RESPOND_IO = 'respond_io';
     case CALENDLY = 'calendly';
     case CARDNET = 'cardnet';
+    case CARDNET_ZTRANS = 'cardnet_ztrans';
     case CONTACT_CHECKER = 'contact_checker';
     case OPENCLAW = 'openclaw';
     case HERMES = 'hermes';
@@ -74,4 +75,6 @@ enum IntegrationsEnum: string
     case ALANUBE = 'alanube';
     case WEBPOS = 'webpos';
     case SHORTIO = 'shortio';
+    case DHL = 'dhl';
+    case READ_AI = 'read_ai';
 }

@@ -6,9 +6,11 @@ namespace App\Console\Commands\Intelligence\Agents;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Kanvas\Communication\Communication;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Communication\Support\ProviderRollout;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
-use Kanvas\Connectors\Twilio\Services\TwilioReceiverService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Phone\SetAgentPhoneNumberAction;
@@ -16,12 +18,15 @@ use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
 use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Throwable;
 use Twilio\Rest\Client as TwilioRestClient;
 
 /**
  * Gives an agent that already uses a number its phone config, for agents set up before numbers were
- * saved on the agent. It never replaces another system's webhook.
+ * saved on the agent. A voice webhook another system set is never replaced. A text number becomes
+ * a Communication connection the agent owns, and that connection's setup points the number at the
+ * company's receiver.
  */
 class SetAgentPhoneNumberCommand extends Command
 {
@@ -33,7 +38,7 @@ class SetAgentPhoneNumberCommand extends Command
         {--channel=sms : sms or voice}
         {--dry-run : Report what would happen, writing nothing to Kanvas or Twilio}';
 
-    protected $description = 'Save an existing phone number on an agent and set up its inbound webhook';
+    protected $description = 'Save an existing phone number on an agent and set up what answers it';
 
     public function handle(): int
     {
@@ -98,11 +103,6 @@ class SetAgentPhoneNumberCommand extends Command
         $this->line('DRY RUN, nothing written.');
         $this->line('Current number: ' . ($agent->phoneNumber($channel) ?? 'none'));
 
-        $target = $channel === AgentPhoneChannelEnum::SMS
-            ? new TwilioReceiverService()->find($agent)?->getUrl()
-            : VoiceRuntimeConfig::inboundWebhookUrl($agent->app);
-        $this->line('Target webhook: ' . ($target ?: 'none'));
-
         try {
             $numbers = $this->twilio(Companies::getById($agent->companies_id))->incomingPhoneNumbers->read(['phoneNumber' => $number], 1);
         } catch (Throwable $e) {
@@ -125,20 +125,49 @@ class SetAgentPhoneNumberCommand extends Command
 
         $current = trim((string) $numbers[0]->{$channel->twilioUrlField()});
         $this->line('Webhook on Twilio: ' . ($current ?: 'none'));
-        $this->line('Would result in: ' . $this->predict($channel, $current, (string) $target));
+        $this->line('Would result in: ' . (
+            $channel === AgentPhoneChannelEnum::SMS
+                ? $this->predictText($agent, $number)
+                : $this->predictVoice($current)
+        ));
 
         return self::SUCCESS;
     }
 
-    private function predict(AgentPhoneChannelEnum $channel, string $current, string $target): string
+    protected function communicationManagesTwilio(Agent $agent): bool
     {
+        return new ProviderRollout()->manages(IntegrationsEnum::TWILIO, $agent->app, $agent->company);
+    }
+
+    /**
+     * A text number has no webhook of its own to keep or replace: it becomes a connection of the
+     * company, and that connection's setup is what points the number at the company's receiver.
+     */
+    private function predictText(Agent $agent, string $number): string
+    {
+        if (! $this->communicationManagesTwilio($agent)) {
+            return 'error, connect the Twilio integration for this company first';
+        }
+
+        $connection = Communication::for($agent->app, $agent->company)
+            ->connectionFor(ChannelTypeEnum::SMS, fromAccount: $number);
+        $answeredByAgent = $connection?->agent()?->getId() === $agent->getId();
+
+        return $answeredByAgent && $connection->unavailableReason() === null
+            ? 'wired, this agent already answers the number'
+            : 'pending, the number becomes a connection this agent answers once its setup has run';
+    }
+
+    private function predictVoice(string $current): string
+    {
+        $target = VoiceRuntimeConfig::inboundWebhookUrl();
+
         return match (true) {
-            $channel === AgentPhoneChannelEnum::VOICE && $target === '' => 'error, the voice runtime URL is not configured',
-            $current !== '' && $current === $target => 'wired, Twilio unchanged',
-            $current !== '' && $target !== '' => 'conflict, webhook left in place',
-            $current !== '' => 'conflict, webhook left in place; a new receiver would be created',
-            $target === '' => 'wired, a new receiver is created and set on Twilio',
-            default => 'wired, the target webhook is set on Twilio',
+            $target === '' => 'error, the voice runtime URL is not configured',
+            $current === $target => 'wired, Twilio unchanged',
+            $current === '' => 'wired, the voice runtime webhook is set on Twilio',
+            VoiceRuntimeConfig::isRuntimeInboundUrl($current) => 'wired, moved from another voice runtime',
+            default => 'conflict, webhook left in place',
         };
     }
 }

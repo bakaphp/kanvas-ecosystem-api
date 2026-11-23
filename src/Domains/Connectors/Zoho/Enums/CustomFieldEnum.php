@@ -31,6 +31,18 @@ enum CustomFieldEnum: string
     case ZOHO_DEAL_PULLED_ATTACHMENTS = 'ZOHO_DEAL_PULLED_ATTACHMENTS';
 
     /**
+     * Hashes of the values last written to the Zoho record, so an update sends only changed fields.
+     */
+    case ZOHO_LEAD_SYNCED_FIELDS = 'ZOHO_LEAD_SYNCED_FIELDS';
+    case ZOHO_DEAL_SYNCED_FIELDS = 'ZOHO_DEAL_SYNCED_FIELDS';
+
+    /**
+     * Company setting: an update to an existing Zoho deal never sends `Stage`, so Zoho alone moves it.
+     * The create still sends it, because Zoho requires a stage on a new deal.
+     */
+    case ZOHO_DEAL_SKIP_STAGE_ON_UPDATE = 'ZOHO_DEAL_SKIP_STAGE_ON_UPDATE';
+
+    /**
      * Company maps of Zoho field => URL template, one per module. Placeholders: {zoho_lead_id},
      * {lead_id}, {lead_uuid} (deal: {zoho_deal_id}, {deal_id}, {deal_uuid}).
      */
@@ -48,6 +60,12 @@ enum CustomFieldEnum: string
      * submission carries at least one file. Unset means the submission changes no status.
      */
     case ZOHO_GET_DOCS_LEAD_STATUS = 'ZOHO_GET_DOCS_LEAD_STATUS';
+
+    /**
+     * Company setting: the company's reps type mobile numbers into Zoho's `Phone` field, so the pull
+     * stores it as a cellphone, which is the contact type that gets an SMS channel.
+     */
+    case ZOHO_PHONE_IS_MOBILE = 'ZOHO_PHONE_IS_MOBILE';
 
     /**
      * Zoho's `$converted_detail` (deal, contact, account ids) stored on the lead once Zoho reports

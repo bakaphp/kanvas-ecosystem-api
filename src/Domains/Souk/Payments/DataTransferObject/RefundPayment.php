@@ -25,16 +25,11 @@ class RefundPayment extends Data
     ) {
     }
 
-    public static function forProcessor(
-        AppInterface $app,
-        CompanyInterface $company,
-        Payments $payment,
-        ?float $amount,
-        array $context = []
-    ): self {
+    public static function forProcessor(Payments $payment, ?float $amount, array $context = []): self
+    {
         return new self(
-            app: $app,
-            company: $company,
+            app: $payment->app,
+            company: $payment->company,
             user: $context['user'] ?? $payment->user,
             payment: $payment,
             amount: $amount ?? $payment->getRefundableAmount(),

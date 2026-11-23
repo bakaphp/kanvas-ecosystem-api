@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WordPress\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WordPress\Enums\PostStatusEnum;
 use Kanvas\Connectors\WordPress\RestClient;

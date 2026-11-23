@@ -30,6 +30,7 @@ final class ProbeConnectionsAction
         $connections = Connection::query()
             ->fromApp($this->app)
             ->where('setup_status', SetupStatusEnum::READY->value)
+            ->where('integrations_company_id', '>', 0)
             ->where(fn (Builder $query) => $query
                 ->whereNull('last_probed_at')
                 ->orWhere('last_probed_at', '<=', now()->subHours(self::PROBE_EVERY_HOURS)))

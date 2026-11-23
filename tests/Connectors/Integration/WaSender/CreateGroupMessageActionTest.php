@@ -11,13 +11,13 @@ use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Connectors\WaSender\Actions\CreateGroupMessageAction;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -476,7 +476,7 @@ final class CreateGroupMessageActionTest extends TestCase
             ],
         ]);
 
-        return new ProcessWaSenderWebhookJob($webhookCall)->execute();
+        return new WaSenderWebhookJob($webhookCall)->execute();
     }
 
     private ?ReceiverWebhook $receiver = null;
@@ -491,9 +491,11 @@ final class CreateGroupMessageActionTest extends TestCase
         /** @var Users $user */
         $user = auth()->user();
 
+        // The catalog row CI seeds before the run: a row for the test stub would be inserted by every
+        // test in every parallel process, and those inserts deadlock on the unique model name.
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessWaSenderWebhookJob::class],
-            ['name' => 'ProcessWaSenderWebhookJob'],
+            ['model_name' => ProcessCommunicationWebhookJob::class],
+            ['name' => 'ProcessCommunicationWebhookJob'],
         );
 
         return $this->receiver = ReceiverWebhook::factory()

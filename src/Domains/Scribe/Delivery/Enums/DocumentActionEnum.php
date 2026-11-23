@@ -34,13 +34,12 @@ enum DocumentActionEnum: string
         };
     }
 
+    /**
+     * One viewer route for every document: the engagement tells the page what it is showing.
+     */
     public function pagePath(): string
     {
-        return match ($this) {
-            self::VIEW_INVOICE => 'invoice',
-            self::VIEW_QUOTE => 'quote',
-            self::SIGN_SOW => 'sow',
-        };
+        return 'view';
     }
 
     /**

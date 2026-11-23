@@ -10,8 +10,10 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
+use Kanvas\Scribe\Invoices\Models\Invoice as InvoiceModel;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Support\DocumentTotals;
+use Kanvas\Souk\Orders\Models\Order;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
@@ -39,6 +41,7 @@ class Invoice extends Data
         public readonly ?string $internal_notes = null,
         public readonly ?string $terms = null,
         public readonly ?int $quote_id = null,
+        public readonly ?Order $order = null,
         public readonly ?int $parent_invoice_id = null,
         public readonly ?array $regional_compliance = null,
         public readonly ?array $tax_metadata = null,
@@ -74,6 +77,46 @@ class Invoice extends Data
                 $this->lines->all(),
             ),
             $this->fx_rate_to_base,
+        );
+    }
+
+    /**
+     * The invoice as it stands with its lines replaced: UpdateInvoiceAction rewrites the whole header and
+     * the customer reference from this object, so everything not being changed has to be carried over or
+     * it is blanked. Tax lines are not carried: they described the lines being replaced.
+     *
+     * @param list<InvoiceLine> $lines
+     */
+    public static function forUpdate(InvoiceModel $invoice, array $lines, ?string $notes = null): self
+    {
+        return new self(
+            app: $invoice->app,
+            company: $invoice->company,
+            billable: $invoice->customer,
+            lines: new DataCollection(InvoiceLine::class, $lines),
+            currency: $invoice->currency,
+            fx_rate_to_base: (float) $invoice->fx_rate_to_base,
+            document_type: $invoice->document_type,
+            invoice_number: $invoice->invoice_number,
+            net_terms_days: $invoice->net_terms_days,
+            issued_date: $invoice->issued_date,
+            due_date: $invoice->due_date,
+            expected_payment_date: $invoice->expected_payment_date,
+            notes: $notes ?? $invoice->notes,
+            internal_notes: $invoice->internal_notes,
+            terms: $invoice->terms,
+            quote_id: $invoice->quote_id,
+            parent_invoice_id: $invoice->parent_invoice_id,
+            regional_compliance: $invoice->regional_compliance,
+            tax_metadata: $invoice->tax_metadata,
+            metadata: $invoice->metadata,
+            tax_calculation_mode: $invoice->tax_calculation_mode,
+            billable_display_name: $invoice->billable_display_name,
+            billable_legal_name: $invoice->billable_legal_name,
+            billable_tax_id: $invoice->billable_tax_id,
+            billable_email: $invoice->billable_email,
+            billing_address_snapshot: $invoice->billing_address_snapshot,
+            shipping_address_snapshot: $invoice->shipping_address_snapshot,
         );
     }
 

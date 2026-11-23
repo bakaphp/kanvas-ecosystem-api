@@ -19,8 +19,9 @@ use Kanvas\Guild\Customers\Models\People;
 
 /**
  * Gives every person the company already has the channels and sessions a contact saved from now on
- * gets — the same action, so the two never differ — then switches the agents on and creates the rules
- * that run them. Safe to run again: a channel, session, setting or rule that exists is kept.
+ * gets — the same action, so the two never differ — then writes the company's switches and the
+ * default rules, in that order: a switch or a rule acts the moment it exists. Safe to run again: a
+ * channel, session, setting or rule that exists is kept.
  */
 final class SetupPeopleChannelsJob implements ShouldQueue
 {
@@ -44,7 +45,7 @@ final class SetupPeopleChannelsJob implements ShouldQueue
 
         $people = People::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->company->getId())
             ->notDeleted()
             ->whereHas('contacts')
             ->lazyById(200);

@@ -18,7 +18,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
+use Tests\Connectors\Integration\Zoho\Support\StubbedPushDealToZohoAction;
 use Tests\TestCase;
+use Webleit\ZohoCrmApi\Models\Record;
 
 final class PullZohoDealActionTest extends TestCase
 {
@@ -54,6 +56,31 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Acme funding', $deal->get(CustomFieldEnum::ZOHO_DEAL_RAW->value)['Deal_Name']);
         $this->assertSame('Acme LLC', $deal->get('business_legal_name'));
         $this->assertSame(50000, $deal->get('funding_amount_requested'));
+    }
+
+    public function testAPulledDealIsInSyncSoOnlyALaterKanvasChangeIsPushed(): void
+    {
+        $company = $this->makeZohoCompany();
+        $deal = $this->action($company, 'zd-11', [
+            'id' => 'zd-11',
+            'Deal_Name' => 'Pulled funding',
+            'Description' => 'From Zoho',
+        ])->execute();
+
+        $module = $this->module();
+        $module->method('get')->willReturn(new Record(['id' => 'zd-11'], $module));
+        $module->expects($this->once())
+            ->method('update')
+            ->with('zd-11', ['Description' => 'Edited in Kanvas'])
+            ->willReturn(new Record(['id' => 'zd-11'], $module));
+
+        $unchanged = new StubbedPushDealToZohoAction($deal, $module)->execute();
+        $this->assertSame([], $unchanged['zohoRequest']);
+
+        $deal->description = 'Edited in Kanvas';
+        $deal->saveOrFail();
+
+        new StubbedPushDealToZohoAction($deal, $module)->execute();
     }
 
     public function testAHandedInLeadIsLinkedWhenTheDealNamesNoLead(): void
@@ -220,7 +247,8 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Nedward', $people->firstname);
         $this->assertSame('Flanders', $people->lastname);
         $this->assertSame($email, $people->getEmails()->first()->value);
-        $this->assertSame('9395550116', $people->getPhones()->first()->value);
+        $this->assertSame('9395550116', $people->getCellPhones()->first()->value);
+        $this->assertCount(0, $people->getPhones());
         $this->assertSame('1960-02-29', $people->dob->format('Y-m-d'));
         $this->assertSame('744 Evergreen Terrace', $people->getDefaultAddress()->address);
         $this->assertSame('62704', $people->getDefaultAddress()->zip);

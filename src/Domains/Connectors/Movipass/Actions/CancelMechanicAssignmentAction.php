@@ -12,6 +12,7 @@ use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Jobs\RetryNotifyMechanicsJob;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -104,6 +105,14 @@ class CancelMechanicAssignmentAction
             'The mechanic cancelled the assistance. We are looking for a new mechanic.',
             MovipassOrderStatusEnum::REQUEST_SUBMITTED->slug(),
         ));
+
+        // Asistencia Regional re-offers through its own pool (service compatibility, cabin
+        // shortlist, offer rounds); its zero-candidate case is retried by the round expiry.
+        if (RegionalAssistance::isEnabledFor($order)) {
+            new OfferRoadsideCaseAction($order, $this->mechanic)->execute();
+
+            return $order->refresh();
+        }
 
         try {
             $cancelledIds = $order->metadata['assistance_case']['cancelled_mechanic_ids'] ?? [];

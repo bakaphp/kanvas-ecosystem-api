@@ -28,6 +28,8 @@ use Kanvas\NervousSystem\Ledger\Models\Event as LedgerEvent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Approvals\Concerns\NotifiesApproversOnSlack;
 use Kanvas\Scribe\Approvals\Concerns\ReturnsToDraftOnApprovalExpiry;
+use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
+use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Concerns\HasInternalNotes;
 use Kanvas\Scribe\Delivery\Concerns\IsEngageableDocument;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
@@ -41,6 +43,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Throwable;
@@ -105,6 +108,7 @@ use Throwable;
  * @property Carbon|null $last_synced_at
  * @property JournalEntryOriginEnum $origin
  * @property int|null $quote_id
+ * @property int|null $order_id
  * @property int|null $parent_invoice_id
  * @property array|null $metadata
  * @property bool $is_deleted
@@ -322,9 +326,42 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
         return $this->amendmentHistory() !== [];
     }
 
+    /**
+     * What a tenant with no approval policy waits on (RequestApprovalAction falls back to the legacy
+     * queue for it). `pendingApprovals()` never sees these rows.
+     *
+     * @return Builder<ApprovalQueueItem>
+     */
+    public function pendingLegacyApprovals(): Builder
+    {
+        return ApprovalQueueItem::query()
+            ->where('apps_id', $this->apps_id)
+            ->where('companies_id', $this->companies_id)
+            ->where('target_type', 'invoice')
+            ->where('target_id', $this->getId())
+            ->where('status', ApprovalQueueStatusEnum::PENDING->value);
+    }
+
+    /** The billing schedule that made this invoice, from the tag RunBillingScheduleAction leaves on it. */
+    public function billingScheduleId(): ?int
+    {
+        $id = $this->metadata['billing_schedule_id'] ?? null;
+
+        return $id !== null ? (int) $id : null;
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
+    }
+
+    /**
+     * The Souk order this invoice bills (B2B: one order, N invoices). Cross-connection, so never
+     * `whereHas('order')` — it is silently empty; filter on `order_id` instead.
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'order_id', 'id');
     }
 
     #[Override]

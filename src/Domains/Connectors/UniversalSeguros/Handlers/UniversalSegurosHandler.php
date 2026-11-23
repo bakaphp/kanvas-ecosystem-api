@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\UniversalSeguros\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\UniversalSeguros\Client;
 use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\EnvironmentEnum;

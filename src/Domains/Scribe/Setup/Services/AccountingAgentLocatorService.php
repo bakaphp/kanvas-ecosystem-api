@@ -6,7 +6,6 @@ namespace Kanvas\Scribe\Setup\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
@@ -57,7 +56,7 @@ class AccountingAgentLocatorService
             ->where('is_active', true)
             ->where('is_deleted', false)
             ->whereNotNull('user_id')
-            ->whereHas('type', fn (Builder $query) => $query->where('handler', $handler))
+            ->ofHandler($handler)
             ->orderBy('id')
             ->first();
 

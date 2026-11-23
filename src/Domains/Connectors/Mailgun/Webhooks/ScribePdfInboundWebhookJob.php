@@ -187,13 +187,7 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
     #[Override]
     public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
     {
-        return new VerifyMailgunWebhookSignatureAction(
-            $receiver->app,
-            $receiver->company,
-            (string) $request->input('token', ''),
-            (string) $request->input('timestamp', ''),
-            (string) $request->input('signature', ''),
-        )->execute();
+        return VerifyMailgunWebhookSignatureAction::forRequest($request, $receiver)->execute();
     }
 
     /**

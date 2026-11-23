@@ -74,6 +74,17 @@ trait DynamicSearchableTrait
         );
     }
 
+    public function queryByLiveFields(string $queryBy): string
+    {
+        $app = $this->app ?? app(Apps::class);
+
+        return TypesenseCollectionInspector::queryableFields(
+            $app,
+            $this->searchableAs(),
+            $queryBy
+        );
+    }
+
     /**
      * Byte budget a record must fit in before the model's trimming cascade kicks in.
      * Resolution order: per-app setting → scout config → 9500 (Algolia's 10k cap minus headroom).

@@ -7,7 +7,9 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
@@ -16,8 +18,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
+use NeuronAI\Chat\Messages\UserMessage;
+use Override;
 use ReflectionMethod;
 use ReflectionProperty;
+use Tests\Stubs\Intelligence\CapturingNeuronProvider;
 use Tests\TestCase;
 
 class SystemUserAgentTest extends TestCase
@@ -241,6 +247,74 @@ class SystemUserAgentTest extends TestCase
             $instructions,
         );
         $this->assertStringContainsString('do not use dates from your training data', $instructions);
+    }
+
+    /**
+     * Claude on Bedrock reads its cache only up to the first changed byte, so a clock in the
+     * instructions costs a full-price prompt every minute: there the time rides with the question.
+     */
+    public function testOnBedrockTheTimeTravelsWithTheQuestionAndLeavesTheInstructions(): void
+    {
+        $user = auth()->user();
+        $agent = $this->makeAgent();
+        $agent->config = ['llm_provider' => AgentLlmProviderEnum::BEDROCK->value];
+        $handler = new SystemUserAgent();
+        $handler->setConfiguration(agent: $agent, entity: $user, user: $user);
+
+        $instructions = $handler->instructions();
+        $context = new ReflectionMethod($handler, 'context')->invoke($handler);
+
+        $this->assertStringNotContainsString('Current time: ', $instructions);
+        $this->assertStringContainsString(BehavesAsKanvasAgent::TURN_CONTEXT_OPENING, $instructions);
+        $this->assertStringStartsWith(BehavesAsKanvasAgent::TURN_CONTEXT_OPENING, $context['time']->getContent());
+        $this->assertStringContainsString('Current time: ', $context['time']->getContent());
+
+        $agent->config = [];
+        $handler->setConfiguration(agent: $agent, entity: $user, user: $user);
+
+        $this->assertStringContainsString('Current time: ', $handler->instructions());
+        $this->assertSame([], new ReflectionMethod($handler, 'context')->invoke($handler));
+    }
+
+    /**
+     * The time is not in the instructions, so it has to arrive with the question: resources() is
+     * overridden here and must pass the context on, or a Bedrock agent guesses the date from old history.
+     */
+    public function testOnBedrockTheTimeActuallyReachesTheModelWithTheQuestion(): void
+    {
+        $user = auth()->user();
+        $agent = $this->makeAgent();
+        $agent->config = ['llm_provider' => AgentLlmProviderEnum::BEDROCK->value];
+        $provider = new CapturingNeuronProvider('ok');
+        $handler = new class () extends SystemUserAgent {
+            #[Override]
+            protected function messageStore(): MessageStoreInterface
+            {
+                return new InMemoryMessageStore();
+            }
+
+            #[Override]
+            protected function tools(): array
+            {
+                return [];
+            }
+        };
+        $handler->setConfiguration(agent: $agent, entity: $user, user: $user);
+        $handler->setAiProvider($provider);
+        $handler->setThreadId('bedrock-time-' . uniqid());
+
+        $handler->chat(new UserMessage('hola'));
+
+        $question = end($provider->messages);
+        $texts = array_map(
+            static fn (ContentBlockInterface $block): string => (string) $block->getContent(),
+            $question->getContentBlocks(),
+        );
+
+        $this->assertSame('hola', $texts[0]);
+        $this->assertStringStartsWith(BehavesAsKanvasAgent::TURN_CONTEXT_OPENING, end($texts));
+        $this->assertStringContainsString('Current date: ', end($texts));
+        $this->assertStringNotContainsString('Current date: ', (string) $provider->instructions);
     }
 
     public function testInstructionsTellTheModelNotToCallGetCurrentTimeForTheDateItAlreadyHas(): void

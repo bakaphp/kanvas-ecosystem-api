@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Phone;
 
+use Kanvas\Communication\Connections\Actions\RefreshAgentConnectionsAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -48,7 +49,9 @@ class SetAgentPhoneNumberAction
         $this->agent->{$column} = $config === [] ? null : $config;
         $this->agent->save();
 
-        $result = new ConfigureAgentInboundWebhookAction($this->agent, $this->channel, $this->overwrite)->execute();
+        $result = $this->channel === AgentPhoneChannelEnum::SMS
+            ? $this->reportTextConnection()
+            : new ConfigureAgentInboundWebhookAction($this->agent, $this->overwrite)->execute();
 
         if (
             $previous !== null
@@ -56,7 +59,6 @@ class SetAgentPhoneNumberAction
         ) {
             new ReleaseInboundWebhookForNumberAction(
                 number: $previous,
-                app: $this->agent->app,
                 company: $this->agent->company,
                 channel: $this->channel,
                 exceptAgentId: $this->agent->getId(),
@@ -65,6 +67,18 @@ class SetAgentPhoneNumberAction
         }
 
         return ['phone_number' => $number] + $result;
+    }
+
+    /**
+     * The company's connections follow the number first, so the status is the one it has now.
+     *
+     * @return array{status: string, message: string, url: string|null, warnings: list<string>}
+     */
+    private function reportTextConnection(): array
+    {
+        new RefreshAgentConnectionsAction($this->agent)->execute();
+
+        return new ReportAgentTextConnectionAction($this->agent)->execute();
     }
 
     /**

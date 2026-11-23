@@ -5,29 +5,29 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\CardNet;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\CardNet\Client;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardDetail;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
+use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Actions\CreateRefundAction;
 use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\ActivateResult;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
-use Kanvas\Souk\Payments\DataTransferObject\RefundPayment;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Infrastructure\Processors\Concerns\OpensProcessorRefunds;
 use Kanvas\Souk\Payments\Models\Payments;
 
 /**
@@ -45,6 +45,8 @@ use Kanvas\Souk\Payments\Models\Payments;
  */
 class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ActivationProcessorInterface
 {
+    use OpensProcessorRefunds;
+
     protected CardNetService $service;
 
     public function __construct(
@@ -100,6 +102,8 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                     'response_message' => $response->getResponseMessage(),
                     'transaction_id' => $response->getTransactionId(),
                     'status' => $response->getStatus(),
+                    'customer_ip' => $request->customerIp,
+                    'customer_user_agent' => $request->customerUserAgent,
                 ],
             ];
 
@@ -264,31 +268,10 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             );
         }
 
-        try {
-            $refund = new CreateRefundAction(
-                RefundPayment::forProcessor(
-                    $this->app,
-                    $payment->company,
-                    $payment,
-                    $amount,
-                    $context
-                )
-            )->execute();
-        } catch (ValidationException $e) {
-            return new RefundResult(
-                success: false,
-                message: $e->getMessage(),
-                transactionId: '',
-            );
-        }
+        $refund = $this->openRefund($payment, $amount, $context);
 
-        if ($refund->isCompleted()) {
-            return new RefundResult(
-                success: true,
-                message: 'Refund already completed',
-                transactionId: (string) ($refund->metadata['cardnet_purchase_id'] ?? $purchaseId),
-                raw: $refund->metadata ?? [],
-            );
+        if ($refund instanceof RefundResult) {
+            return $refund;
         }
 
         $start = hrtime(true);
@@ -674,14 +657,13 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         $paymentMethod = $payment->paymentMethod;
         $trxToken = (string) ($paymentMethod->getMetadata(CustomFieldEnum::TOKEN->value) ?? '');
 
-        // orders.currency is a CHAR-padded column ("DOP ") — CardNet rejects untrimmed values with PR004.
         // CustomerUserAgent/CustomerIP must be stored on the purchase: refunds of a purchase created
         // without a UserAgent are rejected with PR015 "Parámetro de UserAgent vacío".
         return new CardNetPurchaseRequest(
             trxToken: $trxToken,
             order: (string) $order->id,
             amount: $this->toCardNetAmount($order->getTotalDueAmount()),
-            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
+            currency: $this->requestCurrency($order),
             invoice: (string) ($order->order_number ?? $order->id),
             capture: $capture,
             customerIp: request()?->ip(),
@@ -689,11 +671,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         );
     }
 
-    /**
-     * CardNet's refund endpoint expects the original purchase payload echoed back
-     * (TrxToken, Order, Amount, Currency, CustomerIP, DataDo.Invoice) per the official
-     * Postman collection. The amount defaults to what was actually charged.
-     */
+    // The refund echoes the purchase payload, so the purchase's IP and user agent are replayed, not the refunding request's.
     private function buildRefundRequest(Payments $payment, Order $order, ?float $amount = null): CardNetPurchaseRequest
     {
         $paymentMethod = $payment->paymentMethod;
@@ -702,12 +680,25 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             trxToken: (string) ($paymentMethod?->getMetadata(CustomFieldEnum::TOKEN->value) ?? ''),
             order: (string) $order->id,
             amount: $this->toCardNetAmount($amount ?? (float) ($payment->amount ?: $order->getTotalDueAmount())),
-            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
+            currency: $this->requestCurrency($order),
             invoice: (string) ($order->order_number ?? $order->id),
             tip: 0,
-            customerIp: request()?->ip(),
-            customerUserAgent: request()?->userAgent() ?? 'KanvasEcosystem/1.0',
+            customerIp: $payment->getMetadata('customer_ip') ?? request()?->ip(),
+            customerUserAgent: $payment->getMetadata('customer_user_agent') ?? request()?->userAgent() ?? 'KanvasEcosystem/1.0',
         );
+    }
+
+    // orders.currency is a CHAR-padded column ("DOP ") — CardNet rejects untrimmed values with PR004.
+    private function requestCurrency(Order $order): string
+    {
+        $sandboxCurrency = Str::trimToNull($this->app->get(ConfigurationEnum::SANDBOX_CURRENCY->value));
+        $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? ConfigurationEnum::SANDBOX_URL->value;
+
+        if ($sandboxCurrency !== null && rtrim($baseUrl, '/') === ConfigurationEnum::SANDBOX_URL->value) {
+            return strtoupper($sandboxCurrency);
+        }
+
+        return trim((string) ($order->currency ?? '')) ?: 'DOP';
     }
 
     /**

@@ -42,7 +42,7 @@ class InjectADKSessionEventsActivity extends KanvasActivity
 
         $messageData = $message->message;
         $content = $messageData['content'] ?? '';
-        $fromHumanAgent = (bool) ($messageData['from_human'] ?? false);
+        $fromHumanAgent = $message->isFromHuman();
         $fromMe = (bool) ($messageData['from_me'] ?? false);
 
         if (empty($content) || ! $fromHumanAgent) {

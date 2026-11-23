@@ -6,9 +6,11 @@ namespace Kanvas\Communication\Connections\Concerns;
 
 use Kanvas\Communication\Connections\Actions\ApplyIntegrationActiveAction;
 use Kanvas\Communication\Connections\Actions\RetireConnectionAction;
+use Kanvas\Communication\Connections\Actions\RunConnectionCleanupAction;
 use Kanvas\Communication\Connections\Actions\ScheduleCommunicationSetupAction;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Throwable;
 
 /**
  * The integration lifecycle of a handler that carries messages: saving it sets up a connection per
@@ -31,8 +33,18 @@ trait ProvisionsConnections
     {
         Connection::query()
             ->live()
-            ->where('integrations_company_id', $integrationCompany->getId())
+            ->ofIntegration($integrationCompany)
             ->get()
-            ->each(fn (Connection $connection) => new RetireConnectionAction($connection, 'integration_removed')->execute());
+            ->each(function (Connection $connection): void {
+                $retired = new RetireConnectionAction($connection, 'integration_removed')->execute();
+
+                // Now, not only from the queue: the handler's teardown deletes the credentials next,
+                // and a cleanup that runs after it has nothing to call the vendor with.
+                try {
+                    new RunConnectionCleanupAction($retired)->execute();
+                } catch (Throwable $exception) {
+                    report($exception);
+                }
+            });
     }
 }

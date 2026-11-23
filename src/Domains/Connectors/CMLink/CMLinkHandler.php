@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\CMLink;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\CMLink\DataTransferObject\CMLink;
 use Kanvas\Connectors\CMLink\Services\CMLinkSetupService;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Override;
 
 class CMLinkHandler extends BaseIntegration
@@ -27,6 +27,6 @@ class CMLinkHandler extends BaseIntegration
         CMLinkSetupService::setup($cmLink);
 
         //test connection
-        return is_array((new Client($this->app, $this->company))->getAccessToken());
+        return is_array(new Client($this->app, $this->company)->getAccessToken());
     }
 }

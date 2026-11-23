@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\CardNet\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\CardNet\Client;
 use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 

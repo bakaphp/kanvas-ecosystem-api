@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Workflows;
 
-use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
-use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Actions\TriggerLeadIntelligenceAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -36,46 +34,10 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     return $this->failWorkflow(['error' => 'Invalid trigger type']);
                 }
 
-                $configService = new LeadConfigurationService();
-                $result = new ApplyLeadAiModeAction($lead, $triggerType)->execute();
-                if ($aiMode = $lead->get($configService->getAiModeKey($lead))) {
-                    $this->sendDataToOrchestration($lead, $aiMode);
-                }
+                $result = new TriggerLeadIntelligenceAction($lead, (int) $triggerType)->execute();
 
                 return array_merge(['Trigger IA executed'], $result);
             }
         );
-    }
-
-    protected function sendDataToOrchestration(Lead $lead, string $aiMode): void
-    {
-        $data = ['stateDelta' => ['mode' => $aiMode]];
-        foreach ($lead->aiSession as $session) {
-            $handler = $session->agent?->type?->handlerClass();
-            if ($handler === null) {
-                continue;
-            }
-
-            $handle = new $handler();
-            if (! method_exists($handle, 'sendDataToAgent')) {
-                continue;
-            }
-
-            $handle->setConfiguration(
-                agent: $session->agent,
-                entity: $session->entity(),
-                user: $lead->company->getAiAgentUserOrFail(),
-            );
-
-            try {
-                $handle->sendDataToAgent($session->uuid, $data);
-            } catch (ClientException $e) {
-                if ($e->getResponse()->getStatusCode() === 404) {
-                    continue;
-                }
-
-                throw $e;
-            }
-        }
     }
 }

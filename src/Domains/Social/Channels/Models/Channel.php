@@ -138,6 +138,8 @@ class Channel extends BaseModel
                 'user' => $user,
                 'app' => $message->app,
                 'company' => $message->company,
+                // A plain value for rule conditions: a rule that answers a person starts no run for any other message.
+                'from_human' => $message->isFromHuman(),
             ]
         );
 

@@ -6,8 +6,6 @@ namespace Kanvas\Scribe\Invoices\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Approvals\Actions\CancelApprovalAction;
-use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -43,9 +41,7 @@ class DiscardDraftInvoiceAction
         }
 
         return DB::connection('accounting')->transaction(function (): Invoice {
-            $this->invoice->pendingApprovals()->each(
-                fn (ApprovalRequest $request) => new CancelApprovalAction($request, $this->reason ?? 'draft discarded')->execute()
-            );
+            new WithdrawInvoiceApprovalsAction($this->invoice, $this->reason ?? 'draft discarded')->execute();
 
             $this->invoice->emitLedgerEvent('scribe.invoice.discarded', payload: [
                 'document_type' => $this->invoice->document_type->value,
