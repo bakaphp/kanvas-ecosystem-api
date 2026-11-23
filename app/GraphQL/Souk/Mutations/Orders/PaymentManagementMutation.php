@@ -153,7 +153,7 @@ class PaymentManagementMutation
             LocationContext::shoppingCompany($user)
         )->execute();
 
-        $amount = $order->getTotalAmount();
+        $amount = $order->getTotalDueAmount();
         $currencyCode = ! empty($order->currency) ? strtolower($order->currency) : 'usd';
 
         $totalAmount = (int) round($amount * 100);
