@@ -7,7 +7,6 @@ namespace Tests\Connectors\Integration\Movipass\Parking;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
-use Kanvas\Connectors\Movipass\Actions\RecordParkingPassScanAction;
 use Kanvas\Connectors\Movipass\Jobs\ConfirmParkingPaymentJob;
 use Kanvas\Connectors\Movipass\Parking\Actions\QuoteParkingExitAction;
 use Kanvas\Connectors\Movipass\Parking\Enums\ParkingStateEnum;
@@ -99,7 +98,7 @@ final class WalkInParkingEndToEndTest extends TestCase
         );
         $this->assertSame(
             $this->entryAt->copy()->addHour()->toIso8601String(),
-            Carbon::parse($parking[RecordParkingPassScanAction::EXIT_AT])->toIso8601String()
+            Carbon::parse($parking[ParkingMetadata::EXIT_AT])->toIso8601String()
         );
         $this->assertSame(0.75, (float) $order->total_net_amount);
         $this->assertSame(ParkingStateEnum::FINISHED, ParkingStateResolver::for($order));

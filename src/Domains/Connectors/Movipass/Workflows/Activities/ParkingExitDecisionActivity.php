@@ -33,9 +33,9 @@ class ParkingExitDecisionActivity extends KanvasActivity implements WorkflowActi
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
             integrationOperation: function (EventVersion $booking): array {
-                $order = $booking->event->orders()->notDeleted()->latest('id')->first();
+                $order = WalkInOrder::ofBooking($booking);
 
-                if ($order === null || ! WalkInOrder::is($order)) {
+                if ($order === null) {
                     return $this->decision(false, 'Booking has no walk-in parking order');
                 }
 
@@ -53,7 +53,7 @@ class ParkingExitDecisionActivity extends KanvasActivity implements WorkflowActi
             return [false, 'The parking quote is not paid'];
         }
 
-        if (empty(ParkingMetadata::of($order)[ParkingMetadata::PAYMENT_CONFIRMED_AT])) {
+        if (! ParkingMetadata::isPaymentConfirmed($order)) {
             $this->requestConfirmation($order);
 
             return [false, 'The payment is not confirmed with the parking operator yet'];

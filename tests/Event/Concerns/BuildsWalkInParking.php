@@ -123,7 +123,12 @@ trait BuildsWalkInParking
 
     private function scan(string $code): PassScanOutcome
     {
-        return new ScanEventPassAction($this->apps, $this->user, $this->company, $this->gatedProduct)->execute($code);
+        return new ScanEventPassAction(
+            $this->apps,
+            $this->user,
+            $this->company,
+            $this->gatedProduct
+        )->execute($code);
     }
 
     private function runParkingPassScanned(

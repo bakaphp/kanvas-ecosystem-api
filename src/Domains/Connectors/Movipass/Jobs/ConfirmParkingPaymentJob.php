@@ -57,17 +57,15 @@ final class ConfirmParkingPaymentJob implements ShouldQueue, ShouldBeUnique
             return;
         }
 
-        $parking = ParkingMetadata::of($order);
-
-        if (! empty($parking[ParkingMetadata::PAYMENT_CONFIRMED_AT]) || ! ParkingQuotePayment::isPaid($order)) {
+        if (ParkingMetadata::isPaymentConfirmed($order) || ! ParkingQuotePayment::isPaid($order)) {
             return;
         }
+
+        $reference = (string) ParkingMetadata::of($order)[ParkingMetadata::QUOTE]['reference'];
 
         ParkingMetadata::put($order, [
             ParkingMetadata::CONFIRMATION_ATTEMPTED_AT => Carbon::now()->toIso8601String(),
         ]);
-
-        $reference = (string) $parking[ParkingMetadata::QUOTE]['reference'];
 
         if (! ParkingOperatorResolver::forOrder($order)->confirmPayment($order, $reference)) {
             $this->release($this->nextDelay());

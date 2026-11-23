@@ -36,12 +36,14 @@ class SetupWalkInParkingAction
     public const string CHECK_WARN = 'warn';
     private const string SUPPORT_REGION = 'SV';
 
+    private readonly Apps $app;
+
     public function __construct(
-        protected readonly Apps $app,
         protected readonly Products $product,
         protected readonly float $hourlyRate,
         protected readonly int $expireUnusedMinutes,
     ) {
+        $this->app = $product->app;
     }
 
     public function execute(): array

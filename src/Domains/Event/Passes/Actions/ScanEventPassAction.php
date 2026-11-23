@@ -92,7 +92,12 @@ class ScanEventPassAction
             return $this->reject(PassScanResultEnum::NOT_AUTHORIZED, $pass);
         }
 
-        return $this->admit($pass, $booking, $timeSlot, $decidedUse);
+        return $this->admit(
+            $pass,
+            $booking,
+            $timeSlot,
+            $decidedUse
+        );
     }
 
     private function decideUse(ParticipantPass $pass, EventVersion $booking): int|false|null
@@ -196,7 +201,12 @@ class ScanEventPassAction
         }
 
         if ($result === PassScanResultEnum::ADMITTED && $admittedUse !== null) {
-            $this->announceScan($pass, $booking, $admittedUse, $scannedAt);
+            $this->announceScan(
+                $pass,
+                $booking,
+                $admittedUse,
+                $scannedAt
+            );
         }
 
         return new PassScanOutcome($result, $this->summarize($pass, $booking, $timeSlot));

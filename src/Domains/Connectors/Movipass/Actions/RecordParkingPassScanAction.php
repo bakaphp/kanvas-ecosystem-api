@@ -17,7 +17,6 @@ use Throwable;
 
 class RecordParkingPassScanAction
 {
-    public const string EXIT_AT = 'exit_at';
     private const string LOCK_PREFIX = 'movipass:parking-exit:';
     private const int LOCK_SECONDS = 30;
     private const int WAIT_SECONDS = 10;
@@ -53,46 +52,18 @@ class RecordParkingPassScanAction
 
     private function recordEntry(): bool
     {
-        $this->order->refresh();
-
-        if (isset(ParkingMetadata::of($this->order)[ParkingMetadata::ENTRY_AT])) {
-            return false;
-        }
-
-        if ($this->order->orderStatus?->slug !== MovipassOrderStatusEnum::CREATED->slug()) {
-            return false;
-        }
-
-        $this->order->transitionToStatus($this->order->user, MovipassOrderStatusEnum::ACTIVE->value);
-
-        if ($this->order->refresh()->orderStatus?->slug !== MovipassOrderStatusEnum::ACTIVE->slug()) {
-            return false;
-        }
-
-        ParkingMetadata::put($this->order, [ParkingMetadata::ENTRY_AT => $this->scannedAt->toIso8601String()]);
-
-        return true;
+        return $this->advance(
+            MovipassOrderStatusEnum::CREATED,
+            MovipassOrderStatusEnum::ACTIVE,
+            ParkingMetadata::ENTRY_AT
+        );
     }
 
     private function recordExit(): bool
     {
-        $this->order->refresh();
-
-        if (isset(ParkingMetadata::of($this->order)[self::EXIT_AT])) {
+        if (! $this->advance(MovipassOrderStatusEnum::ACTIVE, MovipassOrderStatusEnum::COMPLETED, ParkingMetadata::EXIT_AT)) {
             return false;
         }
-
-        if ($this->order->orderStatus?->slug !== MovipassOrderStatusEnum::ACTIVE->slug()) {
-            return false;
-        }
-
-        $this->order->transitionToStatus($this->order->user, MovipassOrderStatusEnum::COMPLETED->value);
-
-        if ($this->order->refresh()->orderStatus?->slug !== MovipassOrderStatusEnum::COMPLETED->slug()) {
-            return false;
-        }
-
-        ParkingMetadata::put($this->order, [self::EXIT_AT => $this->scannedAt->toIso8601String()]);
 
         $this->warnWhenExitWasNotPaidAndConfirmed();
         new CalculateOrderCommissionAction($this->order)->execute();
@@ -101,11 +72,35 @@ class RecordParkingPassScanAction
         return true;
     }
 
+    private function advance(
+        MovipassOrderStatusEnum $from,
+        MovipassOrderStatusEnum $to,
+        string $timestampKey
+    ): bool {
+        $this->order->refresh();
+
+        if (isset(ParkingMetadata::of($this->order)[$timestampKey])) {
+            return false;
+        }
+
+        if ($this->order->orderStatus?->slug !== $from->slug()) {
+            return false;
+        }
+
+        $this->order->transitionToStatus($this->order->user, $to->value);
+
+        if ($this->order->refresh()->orderStatus?->slug !== $to->slug()) {
+            return false;
+        }
+
+        ParkingMetadata::put($this->order, [$timestampKey => $this->scannedAt->toIso8601String()]);
+
+        return true;
+    }
+
     private function warnWhenExitWasNotPaidAndConfirmed(): void
     {
-        $confirmed = isset(ParkingMetadata::of($this->order)[ParkingMetadata::PAYMENT_CONFIRMED_AT]);
-
-        if (! ParkingQuotePayment::isPaid($this->order) || ! $confirmed) {
+        if (! ParkingQuotePayment::isPaid($this->order) || ! ParkingMetadata::isPaymentConfirmed($this->order)) {
             Log::warning('Parking exit completed without a paid and confirmed quote', [
                 'order_id' => $this->order->getId(),
             ]);

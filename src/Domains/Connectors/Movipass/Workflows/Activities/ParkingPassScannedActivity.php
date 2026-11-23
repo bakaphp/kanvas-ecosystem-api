@@ -30,9 +30,9 @@ class ParkingPassScannedActivity extends KanvasActivity implements WorkflowActiv
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
             integrationOperation: function (EventVersion $booking) use ($params): array {
-                $order = $booking->event->orders()->notDeleted()->latest('id')->first();
+                $order = WalkInOrder::ofBooking($booking);
 
-                if ($order === null || ! WalkInOrder::is($order)) {
+                if ($order === null) {
                     return $this->skipWorkflow('Booking has no walk-in parking order');
                 }
 

@@ -32,7 +32,6 @@ class SetupWalkInParkingCommand extends Command
 
         try {
             $checklist = new SetupWalkInParkingAction(
-                app: $app,
                 product: $product,
                 hourlyRate: (float) $this->option('hourly'),
                 expireUnusedMinutes: (int) $this->option('expire-minutes'),

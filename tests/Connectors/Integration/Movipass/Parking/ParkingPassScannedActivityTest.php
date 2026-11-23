@@ -207,6 +207,11 @@ final class ParkingPassScannedActivityTest extends TestCase
         string $scannedAt = self::SCANNED_AT,
         int $maxUses = 2
     ): array {
-        return $this->runParkingPassScanned($booking, $useNumber, $scannedAt, $maxUses);
+        return $this->runParkingPassScanned(
+            $booking,
+            $useNumber,
+            $scannedAt,
+            $maxUses
+        );
     }
 }

@@ -21,7 +21,7 @@ final class ParkingStateResolver
         return match (true) {
             $order->orderStatus?->slug === MovipassOrderStatusEnum::COMPLETED->slug() => ParkingStateEnum::FINISHED,
             $order->orderStatus?->slug === MovipassOrderStatusEnum::CANCELLED->slug() => ParkingStateEnum::CANCELLED,
-            ! empty($parking[ParkingMetadata::PAYMENT_CONFIRMED_AT]) => ParkingStateEnum::EXIT_ENABLED,
+            ParkingMetadata::isPaymentConfirmed($order) => ParkingStateEnum::EXIT_ENABLED,
             ! ParkingQuotePayment::isPaid($order) => ParkingStateEnum::IN_PROGRESS,
             empty($parking[ParkingMetadata::CONFIRMATION_ATTEMPTED_AT]) => ParkingStateEnum::PAYMENT_APPROVED,
             default => ParkingStateEnum::PENDING_CONFIRMATION,

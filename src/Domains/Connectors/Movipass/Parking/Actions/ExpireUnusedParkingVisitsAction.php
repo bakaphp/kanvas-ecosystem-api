@@ -136,7 +136,7 @@ class ExpireUnusedParkingVisitsAction
 
     private function completeStuckExit(Order $order): bool
     {
-        if (isset(ParkingMetadata::of($order)[RecordParkingPassScanAction::EXIT_AT])) {
+        if (isset(ParkingMetadata::of($order)[ParkingMetadata::EXIT_AT])) {
             return false;
         }
 

@@ -34,9 +34,10 @@ class SetRegionPaymentGatewayCommand extends Command
         $gateway = (string) $this->argument('gateway');
         $gateways = $this->option('gateways') ?: [$gateway];
 
-        $region = Regions::where('apps_id', $app->getId())
+        $region = Regions::query()
+            ->fromApp($app)
+            ->notDeleted()
             ->where('companies_id', 0)
-            ->where('is_deleted', 0)
             ->where(
                 fn ($q) => $q->where('short_slug', $regionRef)->orWhere('slug', $regionRef)
             )

@@ -105,7 +105,7 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
         $this->assertSame(MovipassOrderStatusEnum::COMPLETED->slug(), $order->orderStatus->slug);
         $this->assertSame(
             $exitScannedAt->toIso8601String(),
-            ParkingMetadata::of($order)[RecordParkingPassScanAction::EXIT_AT]
+            ParkingMetadata::of($order)[ParkingMetadata::EXIT_AT]
         );
     }
 
@@ -250,7 +250,12 @@ final class ExpireUnusedParkingVisitsCommandTest extends TestCase
 
     private function enter(EventVersion $booking, Order $order): void
     {
-        new RecordParkingPassScanAction(order: $order, useNumber: 1, maxUses: 2, scannedAt: now())->execute();
+        new RecordParkingPassScanAction(
+            order: $order,
+            useNumber: 1,
+            maxUses: 2,
+            scannedAt: now(),
+        )->execute();
         $this->passOf($booking)->update(['use_count' => 1]);
         $order->refresh();
     }

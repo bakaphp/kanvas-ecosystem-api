@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Parking;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Parking\Contracts\ParkingOperator;
 use Kanvas\Connectors\Movipass\Parking\DataTransferObject\ParkingQuote;
+use Kanvas\Connectors\Movipass\Parking\Support\ParkingMetadata;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingOrderVariant;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -57,9 +58,9 @@ class SimulatedParkingOperator implements ParkingOperator
 
     protected function entryAt(Order $order): Carbon
     {
-        $entryAt = $order->metadata['data']['parking']['entry_at'] ?? null;
+        $entryAt = ParkingMetadata::entryAt($order);
 
-        if (! is_string($entryAt) || $entryAt === '') {
+        if ($entryAt === null) {
             throw new ValidationException('The parking order has no entry time.');
         }
 

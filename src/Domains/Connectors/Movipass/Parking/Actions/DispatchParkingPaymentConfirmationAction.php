@@ -20,7 +20,7 @@ class DispatchParkingPaymentConfirmationAction
     {
         if (
             ! ParkingMetadata::hasEntered($this->order)
-            || ! empty(ParkingMetadata::of($this->order)[ParkingMetadata::PAYMENT_CONFIRMED_AT])
+            || ParkingMetadata::isPaymentConfirmed($this->order)
             || ! ParkingQuotePayment::isPaid($this->order)
         ) {
             return false;
