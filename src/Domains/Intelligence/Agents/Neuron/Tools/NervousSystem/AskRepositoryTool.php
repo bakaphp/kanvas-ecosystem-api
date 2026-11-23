@@ -143,7 +143,7 @@ class AskRepositoryTool extends Tool implements RequiresSystemAgent
         /** @var Task|null */
         return $task->children()
             ->open()
-            ->where('title', 'like', 'Read ' . $checkout . ':%')
+            ->where('title', 'like', 'Read ' . Str::escapeLike($checkout) . ':%')
             ->latest('id')
             ->first();
     }

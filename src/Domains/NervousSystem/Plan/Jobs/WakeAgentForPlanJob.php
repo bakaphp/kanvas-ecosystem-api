@@ -238,8 +238,8 @@ class WakeAgentForPlanJob implements ShouldQueue
             $project,
             WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
             sprintf(
-                'On plan %d ("%s"), worked by %s in the factory: %s Read the task with get_task before you '
-                . 'report anything or hand out the next step; its result and any blocker are recorded there.',
+                'On plan %d ("%s"), worked by %s in the factory: %s Read the task with get_nervous_system_task '
+                . 'before you report anything or hand out the next step; its result and any blocker are recorded there.',
                 $this->plan->getId(),
                 (string) $this->plan->title,
                 (string) $this->plan->agent?->name,

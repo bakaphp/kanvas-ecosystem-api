@@ -175,7 +175,7 @@ final readonly class FactoryStage
             'Create ' . $repository . ' from ' . $template . ' and give it its identity (' . $bundleId . ')'
                 . ($planUrl !== null ? ', then design every ticket of its approved plan.' : '.'),
             $steps,
-            'Kickoff: %(' . self::likeLiteral($repository) . ')',
+            'Kickoff: %(' . Str::escapeLike($repository) . ')',
         );
     }
 
@@ -320,7 +320,7 @@ final readonly class FactoryStage
             $needsDesign
                 ? [new FactoryStep('Ticket ' . $number . ' design: ' . $shortName, $design, $designer), $shipStep]
                 : [$shipStep],
-            'Ticket ' . $number . ': %(' . self::likeLiteral($repository) . ')',
+            'Ticket ' . $number . ': %(' . Str::escapeLike($repository) . ')',
         );
     }
 
@@ -328,11 +328,6 @@ final readonly class FactoryStage
     private static function mockupSection(int $number): string
     {
         return 'the section `## Ticket ' . $number . ':` in `specs/design/README.md`';
-    }
-
-    private static function likeLiteral(string $value): string
-    {
-        return addcslashes($value, '%_\\');
     }
 
     /**
@@ -393,7 +388,7 @@ final readonly class FactoryStage
             self::RELEASE_TITLE . $repository . ' into develop (' . $date . ')',
             'The unified app on `' . $integration . '` tested as a whole, then one pull request from it into `develop`.',
             [new FactoryStep('Release ' . $date . ': test the unified app, pull request into develop', $text, $builder)],
-            self::RELEASE_TITLE . self::likeLiteral($repository) . ' into develop (%',
+            self::RELEASE_TITLE . Str::escapeLike($repository) . ' into develop (%',
         );
     }
 

@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Recommendations\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
@@ -50,7 +51,7 @@ class SqlProductDiscoveryService implements ProductDiscoveryInterface
         $matches = $this->baseQuery()
             ->where(function (Builder $builder) use ($terms): void {
                 foreach ($terms as $term) {
-                    $escaped = '%' . addcslashes($term, '%_\\') . '%';
+                    $escaped = '%' . Str::escapeLike($term) . '%';
                     $builder->orWhere('name', 'LIKE', $escaped)
                         ->orWhere('description', 'LIKE', $escaped);
                 }
