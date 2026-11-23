@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
@@ -45,6 +46,21 @@ class LaunchCodingChatJob implements ShouldQueue
     /** What the factory answers when the branch a task run needs is checked out in another worktree. */
     private const string BRANCH_TAKEN = 'could not create a worktree';
 
+    /**
+     * A launch can reach the worker before the row that dispatched it is visible (a transaction still
+     * open on the dispatching side). Returning then left the row STARTING until the sweeper reaped it as
+     * "the launch job never ran", with nothing in any log.
+     */
+    private const int MISSING_ROW_LOOKUPS = 5;
+
+    private const int MISSING_ROW_DELAY_SECONDS = 5;
+
+    /** Same default as `kanvas:coding:sweep-sessions`: a launch silent longer than its stage allows is dead. */
+    private const int STALE_MINUTES = 10;
+
+    /** A provisioned run is polled every minute; one unheard-of for this long is not holding the devices. */
+    private const int RUNNING_SILENT_MINUTES = 30;
+
     public int $tries = 1;
 
     public function __construct(
@@ -52,6 +68,7 @@ class LaunchCodingChatJob implements ShouldQueue
         public readonly int $sessionId,
         public readonly string $instruction,
         public readonly bool $retriedAfterRelease = false,
+        public readonly int $lookups = 0,
     ) {
         $this->onQueue('coding');
     }
@@ -62,7 +79,13 @@ class LaunchCodingChatJob implements ShouldQueue
 
         $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
-        if ($session === null || ! $session->isLive()) {
+        if ($session === null) {
+            $this->lookAgainLater();
+
+            return;
+        }
+
+        if (! $session->isLive()) {
             return;
         }
 
@@ -202,7 +225,7 @@ class LaunchCodingChatJob implements ShouldQueue
             ->live()
             ->with('task')
             ->get()
-            ->filter(static fn (AgentTaskSession $other): bool => $other->isTaskRun());
+            ->filter(static fn (AgentTaskSession $other): bool => $other->isTaskRun() && self::isAlive($other));
 
         $running = $others->filter(static fn (AgentTaskSession $other): bool => $other->isProvisioned())->count();
         $aheadInLine = $others->contains(
@@ -222,6 +245,37 @@ class LaunchCodingChatJob implements ShouldQueue
             ->delay(Carbon::now()->addSeconds(self::TURN_CHECK_SECONDS));
 
         return true;
+    }
+
+    /**
+     * Only a run that is still being heard from holds the Mac. A row whose launch or poller died stays
+     * live until the sweeper closes it; counted, one such row kept every later run on the machine waiting
+     * forever (a waiting run touches its own heartbeat each minute, so it is never swept itself).
+     */
+    private static function isAlive(AgentTaskSession $other): bool
+    {
+        $minutes = $other->isProvisioned()
+            ? self::RUNNING_SILENT_MINUTES
+            : ($other->launchStage()?->staleMinutes(self::STALE_MINUTES) ?? self::STALE_MINUTES);
+        $lastSeen = $other->heartbeat_at ?? $other->created_at;
+
+        return $lastSeen !== null && $lastSeen->gte(Carbon::now()->subMinutes($minutes));
+    }
+
+    private function lookAgainLater(): void
+    {
+        if ($this->lookups >= self::MISSING_ROW_LOOKUPS) {
+            Log::warning('Coding chat launch found no session row; giving up', [
+                'session_id' => $this->sessionId,
+                'app_id' => $this->app->getId(),
+                'lookups' => $this->lookups,
+            ]);
+
+            return;
+        }
+
+        self::dispatch($this->app, $this->sessionId, $this->instruction, lookups: $this->lookups + 1)
+            ->delay(Carbon::now()->addSeconds(self::MISSING_ROW_DELAY_SECONDS));
     }
 
     /**

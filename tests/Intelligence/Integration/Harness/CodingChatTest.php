@@ -1455,6 +1455,76 @@ class CodingChatTest extends TestCase
         $this->assertNotContains('ask_repository', $this->toolNamesOf($reader));
     }
 
+    public function testARunNoLongerHeardFromDoesNotKeepTheNextRunWaiting(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $dead = $this->startFactoryRun($this->factoryTask($akira, 'Build the login screen'));
+        $dead->heartbeat_at = Carbon::now()->subMinutes(31);
+        $dead->saveOrFail();
+        $next = $this->factoryTask($akira, 'Build the settings screen');
+        new RunTaskWorkerJob($next)->handle();
+        $run = $this->factoryRunOf($next);
+
+        new LaunchCodingChatJob(app(Apps::class), $run->getId(), 'the brief')->handle();
+
+        $run->refresh();
+        $this->assertNotSame(LaunchStageEnum::WAITING_FOR_FACTORY, $run->launchStage(), 'a dead run holds no devices');
+        $this->assertStringContainsString('Could not start', (string) $run->error_message, 'it went to the Mac');
+    }
+
+    public function testALaunchThatStalledAheadInLineDoesNotHoldTheQueueForever(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $first = $this->factoryTask($akira, 'Build the login screen');
+        new RunTaskWorkerJob($first)->handle();
+        $stalled = $this->factoryRunOf($first);
+        $stalled->heartbeat_at = Carbon::now()->subMinutes(17);
+        $stalled->saveOrFail();
+        $second = $this->factoryTask($akira, 'Build the settings screen');
+        new RunTaskWorkerJob($second)->handle();
+        $run = $this->factoryRunOf($second);
+
+        new LaunchCodingChatJob(app(Apps::class), $run->getId(), 'the brief')->handle();
+
+        $this->assertNotSame(LaunchStageEnum::WAITING_FOR_FACTORY, $run->refresh()->launchStage());
+    }
+
+    public function testALaunchThatCannotFindItsSessionLooksAgainAndThenGivesUpOutLoud(): void
+    {
+        Queue::fake();
+        $missing = (int) AgentTaskSession::query()->max('id') + 1000;
+
+        new LaunchCodingChatJob(app(Apps::class), $missing, 'the brief')->handle();
+
+        Queue::assertPushed(
+            LaunchCodingChatJob::class,
+            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $missing && $job->lookups === 1 && $job->delay !== null
+        );
+
+        Queue::fake();
+        new LaunchCodingChatJob(app(Apps::class), $missing, 'the brief', lookups: 5)->handle();
+
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+    }
+
+    public function testAssigningAPlanToAFactoryAgentHandsItsPendingTasksToTheFactory(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $plan = $this->makePlan(['title' => 'Second Look build'], $akira);
+        $pending = $this->makeTask($plan);
+        $done = $this->makeTask($plan, TaskStatusEnum::DONE, sequence: 1);
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_PLAN_ASSIGNED)->handle();
+
+        $this->assertSame($akira->getId(), $pending->refresh()->agent_id, 'an unassigned task becomes the agent\'s');
+        Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($pending));
+        Queue::assertNotPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($done));
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+    }
+
     public function testTheFactoryClientReportsWhoHoldsACheckoutInUse(): void
     {
         try {

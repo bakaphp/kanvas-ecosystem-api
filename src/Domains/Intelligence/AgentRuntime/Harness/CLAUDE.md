@@ -205,8 +205,10 @@ The agent's own `soul` + `instructions` are sent on every `open` as the factory'
 posts through the plan's origin channel. A **task run** is the same row whose task has a parent: a
 workflow handed the agent a task (`RunTaskWorkerJob`, `WakeAgentForTaskJob`), the run is that task's
 child, and its first turn closes it — the reply becomes `worker_summary`, the child's outcome resumes the
-worker, which closes the task from that answer instead of running the factory again. Paths that do not
-go through those two (plan-owner wakes, `VerifyPlanAction`, receivers, "run agent on record") are not
+worker, which closes the task from that answer instead of running the factory again. **Plan-owner wakes never
+reach the factory either** (see the bullet on factory-owned plans below): a fact goes to the plan's creator,
+and an assignment (`plan_assigned`) hands the plan's pending tasks to `WakeAgentForTaskJob`, ledger
+`plan.agent.handed_to_factory`. Other paths (`VerifyPlanAction`, receivers, "run agent on record") are not
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
@@ -236,6 +238,9 @@ Things that bite:
   before removing the folder. Task runs still take turns per Mac (`CODING_CHAT_MAX_TASK_RUNS`, default 1,
   first come first served) because the simulator, emulator and Metro's port are machine-wide; a run
   whose turn has not come waits in `waiting_for_factory` and re-checks every minute — never a failure.
+  Only rows still heard from count: a launching row within its stage's stale window, a provisioned run
+  heard from in the last 30 minutes. A dead row (its launch or poller gone) stays live until the sweeper
+  closes it, and counted it kept every later run on that Mac waiting — across companies — for good.
 - **A task says where it works with a `Repo: <folder>` line** (`CodingChatCheckouts::forTask()`). The line
   wins over any other checkout the text names, is looked up past the five-minute list cache, and a
   declared folder the Mac does not have blocks the task instead of falling back to
@@ -302,6 +307,9 @@ Things that bite:
   `.kanvas/new-app create <Name>` (`scripts/new-app.sh`: private repository, clone with the template as
   `upstream`, `main` + `develop`, dependencies); the next task names the new folder and sets the identity
   with `.kanvas/new-app identity`. Env keys, `eas init` and store accounts stay a person's.
+- **A launch that finds no session row looks again.** `LaunchCodingChatJob` re-dispatches itself up to
+  five times, five seconds apart, then logs a warning. Returning silently left the row STARTING until the
+  sweeper reaped it as "the launch job never ran", with nothing in any log.
 - **One lock per checkout, on the Mac — for chats.** `open` takes `locks/<App>`; every environment pointing at the
   same Mac shares it, so a local test chat holds a checkout production then cannot open ("in use"). A
   refusal carries the lock's `holder` (`CheckoutInUseException`); `CheckoutHolderNotice` turns it into

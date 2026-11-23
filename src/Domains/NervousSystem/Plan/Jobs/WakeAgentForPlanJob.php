@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
 use Kanvas\NervousSystem\Plan\Actions\PlanContinuationAction;
@@ -19,11 +20,13 @@ use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\VerifyPlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\ContinuationDecision;
 use Kanvas\NervousSystem\Plan\Enums\ContinuationDecisionEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\PlanLoopSettings;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
@@ -107,9 +110,14 @@ class WakeAgentForPlanJob implements ShouldQueue
         }
 
         // A factory agent has no model of its own to own a plan with: the chat kernel would type this
-        // wake into its opencode session, in its default checkout, as if a person had asked for it.
+        // wake into its opencode session, in its default checkout, as if a person had asked for it. An
+        // assignment hands the plan's tasks to the factory instead; any other fact goes to its creator.
         if (CodingChatSettingEnum::isEnabledFor($agent)) {
-            $this->tellWhoeverAskedForThePlan();
+            if ($this->reason === self::REASON_PLAN_ASSIGNED) {
+                $this->handOverToTheFactory($agent);
+            } else {
+                $this->tellWhoeverAskedForThePlan();
+            }
 
             return;
         }
@@ -247,6 +255,33 @@ class WakeAgentForPlanJob implements ShouldQueue
             ),
             wakeAgent: $creator,
         );
+    }
+
+    /**
+     * An assigned plan reaches a factory agent only through its tasks (`WakeAgentForTaskJob` →
+     * `RunTaskWorkerJob`): each pending task, unassigned or already the agent's, goes there once.
+     */
+    private function handOverToTheFactory(Agent $agent): void
+    {
+        $tasks = $this->plan->tasks()
+            ->where('status', TaskStatusEnum::PENDING->value)
+            ->where(fn ($query) => $query->whereNull('agent_id')->orWhere('agent_id', $agent->getId()))
+            ->orderBy('sequence')
+            ->get();
+
+        foreach ($tasks as $task) {
+            if ($task->agent_id === null) {
+                $task->agent_id = $agent->getId();
+                $task->saveQuietly();
+            }
+
+            WakeAgentForTaskJob::dispatch($task);
+        }
+
+        $this->plan->emitLedgerEvent('plan.agent.handed_to_factory', payload: [
+            'agent_id' => $agent->getId(),
+            'task_ids' => $tasks->map->getId()->values()->all(),
+        ]);
     }
 
     /**
