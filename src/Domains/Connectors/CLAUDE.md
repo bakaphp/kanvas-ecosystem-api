@@ -21,6 +21,7 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
 - [`Salesforce/CLAUDE.md`](Salesforce/CLAUDE.md) — which half of the connector is generic (leads, people, organizations, deals) and which is GAGroup's custom property model hardcoded (`Project__c`/`Location__c`), what a second tenant with properties needs, and why a location is a variant of its project's product and never a product.
 - [`Dhl/CLAUDE.md`](Dhl/CLAUDE.md) — DHL Express (MyDHL) order fulfillment: status path and hooks, reserve-then-call booking, quote replay, hourly tracking poll, late proof of delivery.
+- [`NetSuite/CLAUDE.md`](NetSuite/CLAUDE.md) — the on-demand import (`netsuiteImport`): products, customers and stock in self-queuing chunks, NetSuite locations mapped onto warehouses (default location on the existing default warehouse, never one location twice), saved-search resolution, the follow-up stock import, and the account-specific leftovers (saved search 574, quote location 4).
 
 ## Known duplication — flagged, not yet resolved
 
