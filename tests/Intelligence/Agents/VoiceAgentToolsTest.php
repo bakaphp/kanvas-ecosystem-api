@@ -21,13 +21,16 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
 use Kanvas\Intelligence\Agents\Services\VoiceAgentSpecService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool as NeuronTool;
 use NeuronAI\Tools\ToolProperty;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use stdClass;
 use Tests\TestCase;
@@ -146,11 +149,24 @@ final class VoiceAgentToolsTest extends TestCase
         $variant = Products::withoutSyncingToSearch(fn () => Variants::withoutSyncingToSearch(
             fn () => Products::factory()->company($this->company->getId())->create()->variants()->first()
         ));
+        // A stocked row with a cost, so the cost assertion below has something to leave out.
+        $warehouse = Warehouses::fromApp($this->testApp)
+            ->fromCompany($this->company)
+            ->firstOrFail();
+        VariantsWarehouses::create([
+            'products_variants_id' => $variant->getId(),
+            'warehouses_id' => $warehouse->getId(),
+            'quantity' => 3,
+            'price' => 20,
+            'cost' => 12,
+            'position' => 0,
+        ]);
         $tool = new VariantDetailTool()->withContext($this->testApp, $this->company, auth()->user());
 
         $detail = $tool->__invoke(variant_id: $variant->getId());
         $this->assertSame($variant->getId(), $detail['id']);
-        $this->assertArrayNotHasKey('cost', $detail['inventory'][0] ?? [], 'cost is internal; agents talk to customers');
+        $this->assertNotEmpty($detail['inventory']);
+        $this->assertArrayNotHasKey('cost', $detail['inventory'][0], 'cost is internal; agents talk to customers');
 
         // The same id, owned by another company, reads nothing.
         Variants::withoutSyncingToSearch(
@@ -161,6 +177,9 @@ final class VoiceAgentToolsTest extends TestCase
         $this->assertSame('not_found', $tool->__invoke(variant_id: $variant->getId())['status']);
     }
 
+    // Serial: the flag lives in Redis, shared by every paratest process, so a parallel test
+    // in this app would see other companies' variants while it is on.
+    #[Group('serial')]
     public function testVariantDetailOpensAnotherCompanysVariantWhenTheAppSharesThem(): void
     {
         $variant = Products::withoutSyncingToSearch(fn () => Variants::withoutSyncingToSearch(
