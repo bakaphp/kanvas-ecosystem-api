@@ -7,14 +7,20 @@ namespace Tests\Scribe\Invoices;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Services\ApprovalOriginService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DiscardDraftInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateDraftInvoiceTool;
+use Kanvas\Scribe\Approvals\Actions\ResolveApprovalAction;
 use Kanvas\Scribe\Approvals\Actions\SeedScribeApprovalPoliciesAction;
+use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
+use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Override;
+use RuntimeException;
 use Tests\Scribe\ElectronicInvoicing\EcfTestCase;
 
 /**
@@ -65,6 +71,84 @@ class UpdateDraftInvoiceToolTest extends EcfTestCase
         $this->assertSame(ApprovalStatusEnum::CANCELLED, $firstRequest->refresh()->status);
         $this->assertNotSame($firstRequest->getId(), $draft->pendingApproval()?->getId(), 'the approver sees the new lines');
         $this->assertSame($draft->pendingApproval()->getId(), $result['approval_request_id'], 'and the agent is told which one');
+    }
+
+    /**
+     * A tenant with no approval policy waits on the legacy queue, which pendingApprovals() never sees: a
+     * row left pending there still shows the old amount, and approving it issues the edited invoice.
+     */
+    public function test_a_tenant_on_the_legacy_queue_gets_its_old_request_closed_and_a_new_one_opened(): void
+    {
+        $customer = $this->customer();
+        $draft = $this->draftInvoice($customer, null);
+        new SubmitInvoiceForApprovalAction($draft, static::$cachedUser)->execute();
+        $this->assertNull($draft->refresh()->pendingApproval(), 'no policy, so no generic request');
+        /** @var ApprovalQueueItem $stale */
+        $stale = $draft->pendingLegacyApprovals()->sole();
+
+        $result = $this->updateTool()->__invoke(
+            invoice_id: $draft->getId(),
+            lines: [['description' => 'Una línea', 'unit_price' => 250.0]],
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('requested_again', $result['approval']);
+        $this->assertSame(ApprovalQueueStatusEnum::EXPIRED, $stale->refresh()->status);
+        $this->assertSame('draft edited', $stale->reason);
+        /** @var ApprovalQueueItem $current */
+        $current = $draft->pendingLegacyApprovals()->sole();
+        $this->assertNotSame($stale->getId(), $current->getId());
+        $this->assertSame($current->getId(), $result['approval_request_id']);
+        $this->assertTrue($result['approval_pending']);
+
+        try {
+            new ResolveApprovalAction($stale, static::$cachedUser)->execute();
+            $this->fail('The request that showed the old amount must not issue the edited invoice.');
+        } catch (ValidationException) {
+            $this->assertSame(InvoiceDocumentStatusEnum::DRAFT, $draft->refresh()->document_status);
+        }
+    }
+
+    /**
+     * Saved before the withdrawal, an edit outlives its failure: the old request stays approvable and
+     * issues lines its approver never saw. Nothing may change when the request cannot be closed.
+     */
+    public function test_an_approval_that_cannot_be_withdrawn_leaves_the_draft_untouched(): void
+    {
+        new SeedScribeApprovalPoliciesAction(
+            app: $this->kanvasApp,
+            company: $this->company,
+            defaultApprover: static::$cachedUser,
+        )->execute();
+        $draft = $this->draftInvoice($this->customer(), null);
+        ApprovalOriginService::during(
+            ApprovalOriginEnum::AGENT,
+            fn () => new SubmitInvoiceForApprovalAction($draft, static::$cachedUser)->execute()
+        );
+        $request = $draft->refresh()->pendingApproval();
+        $tool = new class () extends UpdateDraftInvoiceTool {
+            #[Override]
+            protected function withdrawApprovals(Invoice $invoice): int
+            {
+                throw new RuntimeException('approvals are unreachable');
+            }
+        };
+
+        $result = $tool
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                invoice_id: $draft->getId(),
+                lines: [['description' => 'Otra', 'unit_price' => 250.0]],
+            );
+
+        $draft->refresh();
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('could not be withdrawn, so nothing was changed', $result['error']);
+        $this->assertEqualsWithDelta(1180.0, (float) $draft->total_native, 0.001);
+        $this->assertSame(['Servicio de consultoría'], $draft->lines()->pluck('description')->all());
+        $this->assertSame(ApprovalStatusEnum::PENDING, $request->refresh()->status);
+        $this->assertTrue($result['approval_pending'], 'and the reply says what is really waiting');
+        $this->assertSame($request->getId(), $result['approval_request_id']);
     }
 
     public function test_a_draft_nobody_was_asked_about_is_edited_without_opening_an_approval(): void

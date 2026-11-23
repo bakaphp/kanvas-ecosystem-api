@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Providers;
 
+use Aws\ResultInterface;
 use Baka\Support\Str;
+use GuzzleHttp\Promise\PromiseInterface;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\Usage;
 use NeuronAI\Providers\AWS\BedrockRuntime;
 use Override;
 
@@ -59,6 +64,37 @@ class KanvasBedrock extends BedrockRuntime
         $payload['messages'] = $this->keepNewestCachePoints($payload['messages'], $slots);
 
         return $payload;
+    }
+
+    /**
+     * BedrockRuntime::chatAsync() with the cache writes kept apart: upstream folds them into the input
+     * count and names them nowhere, so a prompt written to the cache was costed as plain input. Same
+     * metadata key as Neuron's Anthropic provider, which is what the usage row reads.
+     */
+    #[Override]
+    public function chatAsync(Message ...$messages): PromiseInterface
+    {
+        return $this->bedrockRuntimeClient
+            ->converseAsync($this->createPayLoad($messages))
+            ->then(function (ResultInterface $result): AssistantMessage {
+                $usage = $result['usage'] ?? [];
+                $cacheRead = (int) ($usage['cacheReadInputTokens'] ?? 0);
+                $cacheWrite = (int) ($usage['cacheWriteInputTokens'] ?? 0);
+
+                $message = $this->createResponseMessage($result['output']['message']['content'] ?? []);
+                $message->setUsage(new Usage(
+                    (int) ($usage['inputTokens'] ?? 0) + $cacheRead + $cacheWrite,
+                    (int) ($usage['outputTokens'] ?? 0),
+                    $cacheRead,
+                ));
+                $message->setStopReason($result['stopReason'] ?? '');
+
+                if ($cacheWrite > 0) {
+                    $message->addMetadata('cacheWriteTokens', $cacheWrite);
+                }
+
+                return $message;
+            });
     }
 
     /**

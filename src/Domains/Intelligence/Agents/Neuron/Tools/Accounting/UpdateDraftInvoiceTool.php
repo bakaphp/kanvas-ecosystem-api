@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Baka\Support\Str;
-use Illuminate\Support\Collection;
-use Kanvas\Approvals\Actions\CancelApprovalAction;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
-use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\TakesInvoiceLines;
@@ -20,6 +17,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\Actions\UpdateInvoiceAction;
+use Kanvas\Scribe\Invoices\Actions\WithdrawInvoiceApprovalsAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -130,7 +128,25 @@ class UpdateDraftInvoiceTool extends Tool
             );
         }
 
-        $awaitedApproval = $invoice->pendingApprovals();
+        // Withdrawn before the edit, never after: an edit that outlives a failed withdrawal leaves the old
+        // request approvable, and approving it issues lines its approver never saw.
+        try {
+            $wasAwaitingApproval = $this->withdrawApprovals($invoice) > 0;
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->denied(
+                "The approval waiting on invoice {$invoice_id} could not be withdrawn, so nothing was changed: {$e->getMessage()}",
+                $this->approvalState($invoice),
+                'Say the invoice was NOT changed and that its approval is as it was.'
+            );
+        }
+
+        // Someone may have approved it while it was being withdrawn.
+        $refusal = $this->whyNotEditable($invoice->refresh());
+        if ($refusal !== null) {
+            return $this->denied($refusal, guidance: 'Say the invoice was NOT changed and why.');
+        }
 
         try {
             $invoice = new UpdateInvoiceAction(
@@ -141,17 +157,19 @@ class UpdateDraftInvoiceTool extends Tool
         } catch (Throwable $e) {
             report($e);
 
+            // The draft is as it was, so it goes back to its approver rather than waiting on nobody.
+            $approval = $wasAwaitingApproval ? $this->requestApproval($invoice) : 'none_pending';
+
             return $this->denied(
                 "Updating invoice {$invoice_id} failed: {$e->getMessage()}",
-                guidance: 'Say the invoice was NOT changed.'
+                ['approval' => $approval, ...$this->approvalState($invoice)],
+                'Say the invoice was NOT changed.'
             );
         }
 
         $this->announceAgentEdit($invoice);
 
-        $approval = $awaitedApproval->isEmpty()
-            ? 'none_pending'
-            : $this->askApprovalAgain($invoice, $awaitedApproval);
+        $approval = $wasAwaitingApproval ? $this->requestApproval($invoice) : 'none_pending';
         // A policy that no longer asks anyone issues the invoice on submission, so the status is read after it.
         $invoice->refresh();
 
@@ -164,13 +182,36 @@ class UpdateDraftInvoiceTool extends Tool
                 'total' => (float) $invoice->total_native,
                 'lines' => $invoice->lines()->count(),
                 'approval' => $approval,
-                // The one found before the edit is cancelled; quoting it would point the person at a dead request.
-                'approval_request_id' => $invoice->pendingApproval()?->getId(),
+                ...$this->approvalState($invoice),
             ],
             $invoice->document_status === InvoiceDocumentStatusEnum::DRAFT
                 ? 'The draft now has the lines you gave. It is still a draft: nothing was issued or sent.'
                 : 'The invoice has the lines you gave, and submitting it again issued it: it is no longer a draft.'
         );
+    }
+
+    /**
+     * @return int how many requests were waiting
+     */
+    protected function withdrawApprovals(Invoice $invoice): int
+    {
+        return new WithdrawInvoiceApprovalsAction($invoice, 'draft edited')->execute();
+    }
+
+    /**
+     * Read back, never assumed: the request found before the edit is closed, and quoting it would point
+     * the person at a dead one. A tenant with no approval policy waits on the legacy queue.
+     *
+     * @return array{approval_pending: bool, approval_request_id: ?int}
+     */
+    private function approvalState(Invoice $invoice): array
+    {
+        $requestId = $invoice->pendingApproval()?->getId() ?? $invoice->pendingLegacyApprovals()->value('id');
+
+        return [
+            'approval_pending' => $requestId !== null,
+            'approval_request_id' => $requestId !== null ? (int) $requestId : null,
+        ];
     }
 
     private function whyNotEditable(Invoice $invoice): ?string
@@ -195,18 +236,12 @@ class UpdateDraftInvoiceTool extends Tool
     }
 
     /**
-     * The request the approver holds describes the lines that were replaced, so it is withdrawn and a new
-     * one opened. A failure here leaves an edited draft nobody was asked about, which the result says.
-     *
-     * @param Collection<int, ApprovalRequest> $awaited
+     * A new request for the draft as it now stands. A failure leaves a draft nobody was asked about, which
+     * is true by then (its old request is withdrawn) and which the result says.
      */
-    private function askApprovalAgain(Invoice $invoice, Collection $awaited): string
+    private function requestApproval(Invoice $invoice): string
     {
         try {
-            $awaited->each(
-                fn (ApprovalRequest $request) => new CancelApprovalAction($request, 'draft edited')->execute()
-            );
-
             ApprovalOriginService::during(
                 ApprovalOriginEnum::AGENT,
                 fn (): Invoice => new SubmitInvoiceForApprovalAction($invoice, $this->contextUser())->execute(),
@@ -215,7 +250,7 @@ class UpdateDraftInvoiceTool extends Tool
             report($e);
 
             return 'not_requested: ' . $e->getMessage()
-                . ' Tell the person the edited draft is waiting on nobody and has to be submitted again.';
+                . ' Tell the person the draft is waiting on nobody and has to be submitted again.';
         }
 
         return 'requested_again';
