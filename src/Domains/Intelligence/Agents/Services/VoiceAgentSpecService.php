@@ -133,9 +133,6 @@ class VoiceAgentSpecService
                     'properties' => $properties === [] ? new stdClass() : $properties,
                     'required' => $handler->getRequiredProperties(),
                 ],
-                // Always present and boolean: true runs the tool in the background while the
-                // agent keeps talking; false (the default for unmarked tools) makes the agent
-                // wait and dedupes repeats, as for any write.
                 'read_only' => AgentTool::isReadOnly($handler),
             ];
         }
