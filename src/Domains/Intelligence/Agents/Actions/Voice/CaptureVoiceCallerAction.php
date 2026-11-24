@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Voice;
 use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Actions\UpdatePeopleProfileAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
@@ -184,18 +185,22 @@ class CaptureVoiceCallerAction
     }
 
     /**
-     * Fills in the placeholder only: a name already on the contact is never overwritten.
+     * Fills in the placeholder only: a name already on the contact is never overwritten. The
+     * profile action keeps `name`, which lists and lead titles show, in step with the parts.
      */
     private function applyName(People $people): void
     {
-        if (! VoiceCallerLookupService::isPlaceholderName($people->firstname)) {
+        if (! VoiceCallerLookupService::isPlaceholderName($people->getName())) {
             return;
         }
 
         $parts = preg_split('/\s+/', $this->name, 2) ?: [];
-        $people->firstname = $parts[0] ?? '';
-        $people->lastname = $parts[1] ?? '';
-        $people->saveOrFail();
+        new UpdatePeopleProfileAction(
+            people: $people,
+            app: $this->agent->app,
+            firstname: $parts[0] ?? '',
+            lastname: $parts[1] ?? '',
+        )->execute();
     }
 
     private function createLeadFromPeople(People $people, Users $user): Lead

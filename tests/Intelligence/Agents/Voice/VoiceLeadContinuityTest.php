@@ -6,6 +6,7 @@ namespace Tests\Intelligence\Agents\Voice;
 
 use App\GraphQL\Intelligence\Mutations\VoiceAgentCallerMutation;
 use Bouncer;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
@@ -24,6 +25,9 @@ use Tests\Traits\CreatesBareApps;
 final class VoiceLeadContinuityTest extends TestCase
 {
     use CreatesBareApps;
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'crm', 'social'];
 
     public function testCallSummaryIsReadBackOnTheNextContact(): void
     {
@@ -154,6 +158,53 @@ final class VoiceLeadContinuityTest extends TestCase
         $this->assertSame($phone, People::find($result['people_id'])->firstname);
     }
 
+    public function testANameSaidOnTheCallReplacesUnknown(): void
+    {
+        $agent = $this->createAgent();
+        $phone = $this->uniquePhone();
+        $people = $this->captureName($agent, $phone, null);
+        $people->forceFill(['firstname' => 'Unknown', 'lastname' => '', 'name' => 'Unknown'])->saveOrFail();
+
+        $people = $this->captureName($agent, $phone, 'Rafael Lopez');
+
+        $this->assertSame('Rafael', $people->firstname);
+        $this->assertSame('Lopez', $people->lastname);
+        $this->assertSame('Rafael Lopez', $people->name);
+    }
+
+    public function testTheFirstNameGivenReplacesThePhoneInTheFullName(): void
+    {
+        $agent = $this->createAgent();
+        $phone = $this->uniquePhone();
+        $this->captureName($agent, $phone, null);
+
+        // Trimmed: opening the lead re-saves the person through UpdatePeopleAction, which
+        // joins first and last name with a space even when there is no last name.
+        $this->assertSame('Rafael', trim($this->captureName($agent, $phone, 'Rafael')->name));
+    }
+
+    public function testARealNameIsNeverOverwritten(): void
+    {
+        $agent = $this->createAgent();
+        $phone = $this->uniquePhone();
+        $this->captureName($agent, $phone, 'Maria');
+
+        $people = $this->captureName($agent, $phone, 'Eduardo');
+
+        $this->assertSame('Maria', $people->firstname);
+        $this->assertSame('Maria', trim($people->name));
+    }
+
+    public function testPlaceholderNames(): void
+    {
+        foreach (['', '  ', '+1 (809) 555-0101', 'Unknown', 'unknown guest', 'UNKNOWN CALLER'] as $name) {
+            $this->assertTrue(VoiceCallerLookupService::isPlaceholderName($name), $name);
+        }
+        foreach (['Rafael', 'Unknown Pleasures', 'Unknownson'] as $name) {
+            $this->assertFalse(VoiceCallerLookupService::isPlaceholderName($name), $name);
+        }
+    }
+
     public function testAskingForAnAppointmentOnAnOutboundCallCreatesALead(): void
     {
         $result = new CaptureVoiceCallerAction(
@@ -217,6 +268,18 @@ final class VoiceLeadContinuityTest extends TestCase
             )
         )->execute();
         $message->addEntity($people);
+    }
+
+    private function captureName(Agent $agent, string $phone, ?string $name): People
+    {
+        $result = new CaptureVoiceCallerAction(
+            agent: $agent,
+            phone: $phone,
+            name: $name,
+            direction: 'inbound',
+        )->execute();
+
+        return People::getByIdFromCompanyApp($result['people_id'], $agent->company, $agent->app);
     }
 
     private function createAgent(): Agent
