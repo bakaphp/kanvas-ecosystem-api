@@ -18,7 +18,7 @@ use Kanvas\Communication\Contracts\Concerns\HasProvisionerDefaults;
 use Kanvas\Communication\Contracts\Provisioner;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Actions\RetireLegacySmsInboundAction;
-use Kanvas\Connectors\Twilio\Services\A2pRegistration;
+use Kanvas\Connectors\Twilio\Services\A2pRegistrationService;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Override;
 use RuntimeException;
@@ -105,7 +105,7 @@ class TwilioProvisioner implements Provisioner
         $from = Str::trimToNull($connection->config['messaging_service_sid'] ?? null) === null
             ? $connection->account_key
             : null;
-        $status = A2pRegistration::blockingStatus($connection->company, $from);
+        $status = A2pRegistrationService::blockingStatus($connection->company, $from);
 
         return $status !== null ? 'a2p_registration_' . $status : null;
     }

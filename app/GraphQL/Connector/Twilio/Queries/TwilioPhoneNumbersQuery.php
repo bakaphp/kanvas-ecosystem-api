@@ -7,7 +7,7 @@ namespace App\GraphQL\Connector\Twilio\Queries;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
+use Kanvas\Connectors\Twilio\Services\CompanyPhoneNumbersService;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
@@ -31,7 +31,7 @@ class TwilioPhoneNumbersQuery
         $ctx = $this->actingContext();
 
         try {
-            $numbers = new ListCompanyPhoneNumbersAction($ctx->company)->execute();
+            $numbers = new CompanyPhoneNumbersService($ctx->company)->list();
         } catch (Throwable) {
             return [];
         }
@@ -68,9 +68,9 @@ class TwilioPhoneNumbersQuery
         ];
 
         try {
-            $action = new ListCompanyPhoneNumbersAction($ctx->company);
-            $account = $action->account();
-            $numbers = $action->execute();
+            $service = new CompanyPhoneNumbersService($ctx->company);
+            $account = $service->account();
+            $numbers = $service->list();
         } catch (Throwable $e) {
             return [...$source, 'error' => $e->getMessage()];
         }

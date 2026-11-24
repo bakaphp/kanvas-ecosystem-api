@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Meta\Services\MetaWhatsAppIntegration;
+use Kanvas\Connectors\Meta\Services\MetaWhatsAppIntegrationService;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
@@ -118,7 +118,7 @@ class CreateSocialChannelForContactAction
     {
         return (int) $this->contact->contacts_types_id === ContactTypeEnum::CELLPHONE->value
             && $this->contact->people !== null
-            && MetaWhatsAppIntegration::isActive($this->app, $this->contact->people->company);
+            && MetaWhatsAppIntegrationService::isActive($this->app, $this->contact->people->company);
     }
 
     /**

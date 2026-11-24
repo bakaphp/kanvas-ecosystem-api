@@ -18,7 +18,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
 use Kanvas\Connectors\Twilio\Actions\RecordStatusCallbackAction;
 use Kanvas\Connectors\Twilio\Handlers\TwilioHandlers;
-use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
+use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidatorService;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
@@ -61,7 +61,7 @@ class TwilioInbound implements InboundSource
     #[Override]
     public function authenticate(Request $request, ReceiverWebhook $receiver): bool
     {
-        return WebhookSignatureValidator::validate(
+        return WebhookSignatureValidatorService::validate(
             request: $request,
             company: $receiver->company,
             app: $receiver->app,

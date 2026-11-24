@@ -12,11 +12,11 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
-class MetaWhatsAppIntegration
+class MetaWhatsAppIntegrationService
 {
     /**
-     * On: the company completed the integration in this app, it was not switched off, and the
-     * number it set up is still on the company.
+     * On: the company completed the integration in this app, it was not switched off, and it still
+     * has a number: the setting names its default one for as long as it has any.
      */
     public static function isActive(AppInterface $app, Companies $company): bool
     {

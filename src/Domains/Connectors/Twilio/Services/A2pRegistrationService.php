@@ -11,7 +11,7 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
  * US carriers drop texts from an unregistered 10DLC sender (Twilio error 30034). A tenant that
  * enforces registration has to be stopped before Twilio is called, not told afterwards.
  */
-final class A2pRegistration
+final class A2pRegistrationService
 {
     private const array APPROVED_STATUSES = ['approved', 'registered', 'verified', 'active'];
 

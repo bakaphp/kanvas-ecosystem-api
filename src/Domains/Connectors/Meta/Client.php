@@ -22,6 +22,8 @@ class Client
 {
     public const string DEFAULT_GRAPH_VERSION = 'v23.0';
 
+    private const int MAX_PHONE_NUMBER_PAGES = 20;
+
     public function __construct(
         protected string $accessToken,
         protected string $graphVersion = self::DEFAULT_GRAPH_VERSION
@@ -95,6 +97,37 @@ class Client
             ->get(self::graphId($phoneNumberId), ['fields' => 'display_phone_number,verified_name,quality_rating'])
             ->throw()
             ->json();
+    }
+
+    /**
+     * Every number of the WABA, whatever its state at Meta. Paged by cursor; the page cap only
+     * keeps a cursor Meta never ends from looping.
+     *
+     * @return list<array{id: string, display_phone_number?: string, verified_name?: string, quality_rating?: string}>
+     */
+    public function phoneNumbers(string $wabaId): array
+    {
+        $numbers = [];
+        $after = null;
+
+        for ($page = 0; $page < self::MAX_PHONE_NUMBER_PAGES; $page++) {
+            $response = $this->request()
+                ->get(self::graphId($wabaId) . '/phone_numbers', array_filter([
+                    'fields' => 'id,display_phone_number,verified_name,quality_rating',
+                    'limit' => 100,
+                    'after' => $after,
+                ]))
+                ->throw();
+
+            array_push($numbers, ...($response->json('data') ?? []));
+            $after = $response->json('paging.next') !== null ? $response->json('paging.cursors.after') : null;
+
+            if ($after === null) {
+                break;
+            }
+        }
+
+        return $numbers;
     }
 
     /**

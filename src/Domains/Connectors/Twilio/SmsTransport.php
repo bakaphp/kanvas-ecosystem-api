@@ -18,7 +18,7 @@ use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum;
 use Kanvas\Connectors\Twilio\Handlers\TwilioHandlers;
-use Kanvas\Connectors\Twilio\Services\MessageErrorClassifier;
+use Kanvas\Connectors\Twilio\Services\MessageErrorClassifierService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Messages\Models\Message;
@@ -127,7 +127,7 @@ class SmsTransport implements Transport
         } catch (RestException $exception) {
             // Twilio answered, so the outcome is known: it refused. Anything else — a timeout, a
             // dropped connection — is left to bubble, and is recorded as unknown.
-            $classification = MessageErrorClassifier::classify($exception);
+            $classification = MessageErrorClassifierService::classify($exception);
 
             // `opted_out` is Twilio's 21610: the recipient texted STOP to Twilio, which unsubscribed
             // them itself and refuses the send.
