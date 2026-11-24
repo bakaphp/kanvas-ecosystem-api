@@ -104,7 +104,15 @@ class MailgunHandler extends BaseIntegration implements CommunicationProvider
     #[Override]
     public static function accounts(IntegrationsCompany $integrationCompany): array
     {
-        $companyAddress = self::sendingAddress($integrationCompany->app, $integrationCompany->company);
+        $app = $integrationCompany->app;
+
+        // The domain belongs to the app's Mailgun account, so a row saved before integrations
+        // recorded their app has nothing to name: ResolveIntegrationAppAction leaves it unresolved.
+        if ($app === null) {
+            return [];
+        }
+
+        $companyAddress = self::sendingAddress($app, $integrationCompany->company);
         $accounts = [];
 
         if ($companyAddress !== null) {
@@ -133,10 +141,7 @@ class MailgunHandler extends BaseIntegration implements CommunicationProvider
 
         // The accounting inbox turns attached PDFs into bills on its own receiver. It is not a
         // conversation: as a connection its route would be moved here and the invoices filed as mail.
-        $accountingInbox = new AccountingInboxService()->storedAddress(
-            $integrationCompany->app,
-            $integrationCompany->company
-        );
+        $accountingInbox = new AccountingInboxService()->storedAddress($app, $integrationCompany->company);
         unset($accounts[strtolower((string) $accountingInbox)]);
 
         return array_values($accounts);

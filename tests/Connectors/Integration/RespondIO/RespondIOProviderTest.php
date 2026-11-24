@@ -107,6 +107,19 @@ final class RespondIOProviderTest extends TestCase
         $this->assertSame('+18095550111', RespondIOHandler::accounts($integration)[0]->key);
     }
 
+    /**
+     * A workspace that has not stated its number is keyed by its app, so a row saved before
+     * integrations recorded theirs names no account and waits for an operator.
+     */
+    public function testALegacyRowWithoutAnAppNamesNoAccounts(): void
+    {
+        $integration = new IntegrationsCompany(['companies_id' => $this->currentCompany()->getId()]);
+        $integration->setRelation('company', $this->currentCompany());
+        $integration->setRelation('app', null);
+
+        $this->assertSame([], RespondIOHandler::accounts($integration));
+    }
+
     public function testTheAgentWhoseWhatsAppNumberIsTheWorkspacesAnswersItBeforeTheOneCarriedOver(): void
     {
         $carriedOver = $this->agent();

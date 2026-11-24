@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Communication\Connections\Actions\ReleaseUnusedRegistrationsAction;
+use Kanvas\Communication\Connections\Actions\ResolveIntegrationAppAction;
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\Enums\CleanupTaskStatusEnum;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
@@ -46,6 +47,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -183,6 +185,26 @@ final class MailgunProviderTest extends TestCase
         $this->assertSame('Pérez', $person->lastname);
         $this->assertSame('ana@customer.test', $person->contacts()->where('contacts_types_id', ContactTypeEnum::EMAIL->value)->value('value'));
         $this->assertInstanceOf(Lead::class, $message->entity(Lead::class));
+    }
+
+    /**
+     * A row saved before integrations recorded their app has no Mailgun account to read a domain
+     * from, so it names no accounts and waits for an operator. `communication:setup --all-apps` asks
+     * every such row before it sweeps any app: a throw here stops the sweep for all of them.
+     */
+    public function testALegacyRowWithoutAnAppNamesNoAccounts(): void
+    {
+        $this->agentWithMailbox('sofia@' . self::DOMAIN);
+        $integration = new IntegrationsCompany(['companies_id' => $this->currentCompany()->getId()]);
+        $integration->setRelation('company', $this->currentCompany());
+        $integration->setRelation('app', null);
+        $integration->setRelation('integration', new Integrations(['handler' => MailgunHandler::class]));
+
+        $this->assertSame([], MailgunHandler::accounts($integration));
+        $this->assertSame(
+            ['outcome' => ResolveIntegrationAppAction::UNRESOLVED, 'apps' => []],
+            new ResolveIntegrationAppAction($integration)->execute(),
+        );
     }
 
     /**
