@@ -6,13 +6,14 @@ namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Bouncer;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
-use Kanvas\Intelligence\Agents\Actions\Voice\Concerns\RunsInAppScope;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -42,8 +43,6 @@ use function Sentry\captureException;
  */
 class RecordVoiceTranscriptAction
 {
-    use RunsInAppScope;
-
     public const string MESSAGE_VERB = 'voice';
     public const int MAX_TURNS = 300;
     public const int MAX_TURN_CHARS = 2000;
@@ -68,8 +67,22 @@ class RecordVoiceTranscriptAction
      */
     public function execute(): array
     {
+        return Bouncer::scope()->onceTo(
+            RolesEnums::getScope($this->app),
+            fn (): array => $this->recordOrReport(),
+        );
+    }
+
+    /**
+     * Caught here and not around onceTo(): it only puts the previous scope back when its callback
+     * returns.
+     *
+     * @return array<string, mixed>
+     */
+    private function recordOrReport(): array
+    {
         try {
-            return $this->inAppScope($this->app, fn (): array => $this->record());
+            return $this->record();
         } catch (Throwable $e) {
             captureException($e);
             logger()->error('recordVoiceTranscript failed', [

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
+use Baka\Traits\KanvasJobsTrait;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\Voice\Concerns\RunsInAppScope;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceAgentSpecService;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
@@ -28,7 +29,7 @@ use Throwable;
  */
 class RunVoiceAgentToolAction
 {
-    use RunsInAppScope;
+    use KanvasJobsTrait;
 
     /**
      * @param array<string, mixed> $arguments the LLM-supplied tool arguments
@@ -46,7 +47,14 @@ class RunVoiceAgentToolAction
      */
     public function execute(): mixed
     {
-        return $this->inApp($this->agent->app, fn (): mixed => $this->run());
+        $previousApp = app(Apps::class);
+        $this->overwriteAppService($this->agent->app);
+
+        try {
+            return $this->run();
+        } finally {
+            $this->overwriteAppService($previousApp);
+        }
     }
 
     private function run(): mixed

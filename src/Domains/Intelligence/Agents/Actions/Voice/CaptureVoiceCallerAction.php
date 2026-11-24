@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
+use Baka\Traits\KanvasJobsTrait;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -21,7 +23,6 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
-use Kanvas\Intelligence\Agents\Actions\Voice\Concerns\RunsInAppScope;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -43,7 +44,7 @@ use function Sentry\captureException;
  */
 class CaptureVoiceCallerAction
 {
-    use RunsInAppScope;
+    use KanvasJobsTrait;
 
     private readonly ?string $name;
     private readonly ?string $interest;
@@ -72,8 +73,13 @@ class CaptureVoiceCallerAction
      */
     public function execute(): array
     {
+        // The runtime's app key is not always the agent's app, and lead creation reads the bound
+        // app and the Bouncer scope (CreateLeadAction's getById(), the role behind the lead's channel).
+        $previousApp = app(Apps::class);
+        $this->overwriteAppService($this->agent->app);
+
         try {
-            return $this->inApp($this->agent->app, fn (): array => $this->capture());
+            return $this->capture();
         } catch (Throwable $e) {
             captureException($e);
             // The spoken message is deliberately generic, so the reason is logged here.
@@ -86,6 +92,8 @@ class CaptureVoiceCallerAction
             ]);
 
             return ['status' => 'error', 'message' => "I couldn't save the caller details just now."];
+        } finally {
+            $this->overwriteAppService($previousApp);
         }
     }
 
