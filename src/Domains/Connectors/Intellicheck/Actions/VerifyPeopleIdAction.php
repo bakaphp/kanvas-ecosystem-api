@@ -20,6 +20,7 @@ use Kanvas\Connectors\SalesAssist\Services\DriverLicenseCombinedPdfService;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
@@ -27,6 +28,7 @@ use Kanvas\Guild\Leads\Enums\IdVerificationFilesModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadFileCountService;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Throwable;
@@ -34,6 +36,9 @@ use Throwable;
 class VerifyPeopleIdAction
 {
     protected const string REPORT_FILE_BASE = 'id-verification-report';
+
+    /** A link holds a handful of children (one per open), so the newest few are enough. */
+    protected const int CHILD_MESSAGES_SEARCHED = 20;
 
     public function __construct(
         protected People $people,
@@ -394,9 +399,41 @@ class VerifyPeopleIdAction
         return is_array($images) ? $images : [];
     }
 
+    /**
+     * The scan's engagement holds the licence on its own message when the link was created with it, but
+     * the web flow saves the customer's upload on an "opened" child of that message, so the newest child
+     * carrying the field is the next place to look.
+     */
     protected function parentMessageImage(?Engagement $parentEngagement, string $fieldName): ?string
     {
-        return $parentEngagement?->message?->getFileByName($fieldName)?->filesystem?->uuid;
+        $message = $parentEngagement?->message;
+
+        if ($message === null) {
+            return null;
+        }
+
+        $file = $message->getFileByName($fieldName) ?? $this->childMessageFile($message, $fieldName);
+
+        return $file?->filesystem?->uuid;
+    }
+
+    protected function childMessageFile(Message $message, string $fieldName): ?FilesystemEntities
+    {
+        $children = Message::query()
+            ->where('parent_id', $message->getId())
+            ->orderByDesc('id')
+            ->limit(self::CHILD_MESSAGES_SEARCHED)
+            ->get();
+
+        foreach ($children as $child) {
+            $file = $child->getFileByName($fieldName);
+
+            if ($file !== null) {
+                return $file;
+            }
+        }
+
+        return null;
     }
 
     protected function processDriverLicenseImages(

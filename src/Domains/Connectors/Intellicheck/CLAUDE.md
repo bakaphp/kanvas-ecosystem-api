@@ -66,7 +66,7 @@ Auth is the receiver uuid in the path plus the presence of the three query param
 
 | Caller | Source | Mechanism |
 |---|---|---|
-| `IdVerificationReceiverJob` | the engagement's own message | `resolveImageFields()` reads the parent message's `drivers_license_front` / `_back` and re-links those rows by uuid |
+| `IdVerificationReceiverJob` | the engagement's own message, else its newest children | `resolveImageFields()` reads the parent message's `drivers_license_front` / `_back` and re-links those rows by uuid. The web flow saves the customer's upload on an "opened" child of the link's message, so `parentMessageImage()` falls back to the newest children (`CHILD_MESSAGES_SEARCHED`) that carry the field |
 | Mobile | the `images` param | uploads first, sends uuids |
 
 Both are known at call time, which is the point: **`generate-id-verification` never reads

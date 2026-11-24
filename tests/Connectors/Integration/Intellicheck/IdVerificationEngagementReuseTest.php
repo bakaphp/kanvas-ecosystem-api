@@ -251,6 +251,63 @@ final class IdVerificationEngagementReuseTest extends TestCase
         $this->assertNull($resolved['drivers_license_back'], 'a side the parent lacks stays unset');
     }
 
+    /**
+     * The web flow saves the customer's upload on an "opened" child of the link's message, so the parent
+     * itself holds nothing; the report must still find both sides and relink them onto its own child.
+     */
+    public function testTheLicenceSavedOnAnOpenedChildIsRelinkedOntoTheReport(): void
+    {
+        $lead = $this->makeLead();
+        $parent = $this->createEngagement($lead, $lead->people);
+        $this->assertNotNull($parent);
+
+        $opened = $this->invokeActionResolveEngagement($lead, $lead->people, $parent);
+        $this->assertNotNull($opened);
+
+        $front = $this->makeFilesystem('drivers_license_front.jpg');
+        $back = $this->makeFilesystem('drivers_license_back.jpg');
+        $opened->message->addFile($front, 'drivers_license_front');
+        $opened->message->addFile($back, 'drivers_license_back');
+
+        $resolved = $this->invokeResolveImageFields($lead, null, $parent);
+
+        $this->assertSame((string) $front->uuid, $resolved['drivers_license_front']);
+        $this->assertSame((string) $back->uuid, $resolved['drivers_license_back']);
+    }
+
+    public function testTheParentMessagesOwnFileWinsOverAChildsFile(): void
+    {
+        $lead = $this->makeLead();
+        $parent = $this->createEngagement($lead, $lead->people);
+        $this->assertNotNull($parent);
+
+        $own = $this->makeFilesystem('drivers_license_front.jpg');
+        $parent->message->addFile($own, 'drivers_license_front');
+
+        $child = $this->invokeActionResolveEngagement($lead, $lead->people, $parent);
+        $this->assertNotNull($child);
+        $child->message->addFile($this->makeFilesystem('drivers_license_front.jpg'), 'drivers_license_front');
+
+        $resolved = $this->invokeResolveImageFields($lead, null, $parent);
+
+        $this->assertSame((string) $own->uuid, $resolved['drivers_license_front']);
+    }
+
+    public function testASideNoChildHoldsStaysUnset(): void
+    {
+        $lead = $this->makeLead();
+        $parent = $this->createEngagement($lead, $lead->people);
+        $this->assertNotNull($parent);
+
+        $child = $this->invokeActionResolveEngagement($lead, $lead->people, $parent);
+        $this->assertNotNull($child);
+        $child->message->addFile($this->makeFilesystem('drivers_license_front.jpg'), 'drivers_license_front');
+
+        $resolved = $this->invokeResolveImageFields($lead, null, $parent);
+
+        $this->assertNull($resolved['drivers_license_back']);
+    }
+
     public function testWhatTheCallerSendsWinsOverTheParentMessage(): void
     {
         $lead = $this->makeLead();
