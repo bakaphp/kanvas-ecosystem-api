@@ -260,7 +260,12 @@ class AppleRenewableSubscriptionTest extends TestCase
         $cancelledAt = now()->subHour();
 
         $this->executeRenewable(5, 'refund_tx_5', [
-            $this->receiptInfo(5, 'refund_tx_5', now()->subDays(2), now()->addMonth())
+            $this->receiptInfo(
+                lineage: 5,
+                transactionId: 'refund_tx_5',
+                purchasedAt: now()->subDays(2),
+                expiresAt: now()->addMonth()
+            )
                 + ['cancellation_date_ms' => $cancelledAt->getTimestampMs()],
         ]);
 
@@ -274,18 +279,33 @@ class AppleRenewableSubscriptionTest extends TestCase
 
     public function testOnlyAPurchaseAfterTheRefundReactivatesTheSubscription(): void
     {
-        $refunded = $this->receiptInfo(6, 'refund_tx_6_a', now()->subDays(3), now()->addMonth())
+        $refunded = $this->receiptInfo(
+            lineage: 6,
+            transactionId: 'refund_tx_6_a',
+            purchasedAt: now()->subDays(3),
+            expiresAt: now()->addMonth()
+        )
             + ['cancellation_date_ms' => now()->subDay()->getTimestampMs()];
 
         $refundedOrder = $this->executeRenewable(6, 'refund_tx_6_a', [$refunded]);
 
-        $boughtBeforeRefund = $this->receiptInfo(6, 'refund_tx_6_b', now()->subDays(2), now()->addMonths(2));
+        $boughtBeforeRefund = $this->receiptInfo(
+            lineage: 6,
+            transactionId: 'refund_tx_6_b',
+            purchasedAt: now()->subDays(2),
+            expiresAt: now()->addMonths(2)
+        );
         $replayed = $this->executeRenewable(6, 'refund_tx_6_b', [$refunded, $boughtBeforeRefund]);
 
         $this->assertEquals($refundedOrder->getId(), $replayed->getId());
         $this->assertEquals('canceled', $this->findSubscription(6)->stripe_status);
 
-        $boughtAfterRefund = $this->receiptInfo(6, 'refund_tx_6_c', now()->subMinute(), now()->addMonth());
+        $boughtAfterRefund = $this->receiptInfo(
+            lineage: 6,
+            transactionId: 'refund_tx_6_c',
+            purchasedAt: now()->subMinute(),
+            expiresAt: now()->addMonth()
+        );
         $resubscribed = $this->executeRenewable(6, 'refund_tx_6_c', [$refunded, $boughtAfterRefund]);
 
         $this->assertNotEquals($refundedOrder->getId(), $resubscribed->getId());
@@ -302,7 +322,12 @@ class AppleRenewableSubscriptionTest extends TestCase
         new Setup($app, $user, $company)->run();
         $region = Regions::fromApp($app)->fromCompany($company)->firstOrFail();
 
-        $this->createProduct($app, $company, $user, 'sub_monthly_005');
+        $this->createProduct(
+            app: $app,
+            company: $company,
+            user: $user,
+            sku: 'sub_monthly_005'
+        );
 
         $response = ReceiptResponse::fromArray([
             'status' => 0,
@@ -351,7 +376,14 @@ class AppleRenewableSubscriptionTest extends TestCase
             $this->executeRenewable(
                 lineage: 6,
                 transactionId: 'renew_tx_6',
-                latestReceiptInfo: [$this->receiptInfo(6, 'renew_tx_6', now()->subDay(), now()->addMonth())],
+                latestReceiptInfo: [
+                    $this->receiptInfo(
+                        lineage: 6,
+                        transactionId: 'renew_tx_6',
+                        purchasedAt: now()->subDay(),
+                        expiresAt: now()->addMonth()
+                    ),
+                ],
                 receiptBundleId: 'com.someone.else'
             );
         } finally {
@@ -409,7 +441,12 @@ class AppleRenewableSubscriptionTest extends TestCase
         new Setup($app, $user, $company)->run();
 
         if (! Variants::query()->where('sku', $this->lineageSku($lineage))->exists()) {
-            $this->createProduct($app, $company, $user, $this->lineageSku($lineage));
+            $this->createProduct(
+                app: $app,
+                company: $company,
+                user: $user,
+                sku: $this->lineageSku($lineage)
+            );
         }
 
         return $this->mockedRenewableAction(
