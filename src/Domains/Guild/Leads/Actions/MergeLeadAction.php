@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Leads\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Duplicates\Actions\MarkDuplicateGroupsResolvedAction;
+use Kanvas\Guild\Followers\Repositories\FollowersRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as LedgerEventData;
@@ -82,6 +83,8 @@ class MergeLeadAction
                 );
             }
         }
+
+        $rowsRewritten += FollowersRepository::moveFollowers($this->source, $this->target);
 
         $customFieldsAdopted = $this->adoptCustomFields();
         $contactFieldsAdopted = $this->adoptContactFields();

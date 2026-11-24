@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Kanvas\Connectors\SalesAssist\DataTransferObject\CrmLeadSync;
 use Kanvas\Connectors\SalesAssist\Exceptions\CrmLeadSyncException;
+use Kanvas\Guild\Followers\Actions\AddFollowerAction;
+use Kanvas\Guild\Followers\Actions\RemoveFollowerAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
 
@@ -40,11 +42,11 @@ class SyncCrmLeadFollowersAction
     public function execute(Lead $lead): void
     {
         foreach ($this->attach as $user) {
-            $user->follow($lead);
+            new AddFollowerAction($lead, $user)->execute();
         }
 
         foreach ($this->detach as $user) {
-            $user->unFollow($lead, $this->data->app);
+            new RemoveFollowerAction($lead, $user)->execute();
         }
     }
 

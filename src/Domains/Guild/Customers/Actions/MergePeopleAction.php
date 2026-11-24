@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Duplicates\Actions\MarkDuplicateGroupsResolvedAction;
+use Kanvas\Guild\Followers\Repositories\FollowersRepository;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as LedgerEventData;
@@ -72,6 +73,8 @@ class MergePeopleAction
                 ->where('peoples_id', $sourceId)
                 ->update(['peoples_id' => $targetId]);
         }
+
+        $guildRewrittenCount += FollowersRepository::moveFollowers($this->source, $this->target);
 
         $employmentHistoryRebound = $this->rebindEmploymentHistory($sourceId, $targetId);
         $organizationsPeoplesRebound = $this->rebindOrganizationsPeoples($sourceId, $targetId);

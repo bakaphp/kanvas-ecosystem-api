@@ -9,7 +9,9 @@ use Baka\Support\Url;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Followers\Actions\AddFollowerAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -34,7 +36,11 @@ class LeadEngagementHooks
 
     public function follow(Users $user): void
     {
-        $user->follow($this->lead);
+        try {
+            new AddFollowerAction($this->lead, $user)->execute();
+        } catch (ModelNotFoundException) {
+            // Following is a side effect; an engagement by a user outside the company is still valid.
+        }
     }
 
     public function receiver(): LeadReceiver

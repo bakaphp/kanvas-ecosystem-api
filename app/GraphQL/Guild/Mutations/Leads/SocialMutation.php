@@ -5,51 +5,40 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Followers\Actions\AddFollowerAction;
+use Kanvas\Guild\Followers\Actions\RemoveFollowerAction;
+use Kanvas\Guild\Followers\Models\Follower;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class SocialMutation
 {
-    /**
-     * follow a lead
-     */
     public function follow(mixed $root, array $req): bool
     {
-        $app = app(Apps::class);
-        $userId = $req['input']['user_id'];
-        $user = auth()->user();
+        $user = $this->userFor($req['input']);
 
-        $user = Users::getById($userId);
-
-        UsersRepository::belongsToThisApp($user, $app);
-
-        $lead = Lead::getByUuidFromBranch(
-            $req['input']['entity_id'],
-            $user->getCurrentBranch()
-        );
-
-        return $user->follow($lead) instanceof UsersFollows;
+        return new AddFollowerAction($this->leadFor($req['input'], $user), $user)->execute() instanceof Follower;
     }
 
-    /**
-     * unFollow a lead
-     */
     public function unFollow(mixed $root, array $req): bool
     {
-        $app = app(Apps::class);
-        $userId = $req['input']['user_id'];
-        $user = auth()->user();
+        $user = $this->userFor($req['input']);
 
-        $user = Users::getById($userId);
+        return new RemoveFollowerAction($this->leadFor($req['input'], $user), $user)->execute();
+    }
 
-        UsersRepository::belongsToThisApp($user, $app);
-        $lead = Lead::getByUuidFromBranch(
-            $req['input']['entity_id'],
-            $user->getCurrentBranch()
-        );
+    private function userFor(array $input): Users
+    {
+        $user = Users::getById($input['user_id']);
 
-        return $user->unFollow($lead);
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        return $user;
+    }
+
+    private function leadFor(array $input, Users $user): Lead
+    {
+        return Lead::getByUuidFromBranch($input['entity_id'], $user->getCurrentBranch());
     }
 }

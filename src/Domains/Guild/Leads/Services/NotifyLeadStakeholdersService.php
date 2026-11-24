@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Services;
 
 use Illuminate\Support\Collection;
 use Kanvas\Companies\Services\CompanyManagerService;
+use Kanvas\Guild\Followers\Repositories\FollowersRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
@@ -14,7 +15,6 @@ use Kanvas\Notifications\Services\CompanyNameNotificationService;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
 
 class NotifyLeadStakeholdersService
@@ -116,12 +116,12 @@ class NotifyLeadStakeholdersService
     }
 
     /**
-     * Read from users_follows directly: Lead::followers() joins on the follower's own id, and the
-     * social-count custom field is only maintained for user-to-user follows.
+     * Not Lead::followers(): that relation comes from the social FollowersTrait and joins on the
+     * follower's own id.
      */
     protected function followersExceptOwner(): Collection
     {
-        return UsersFollowsRepository::getEntityFollowersBuilder($this->lead, $this->lead->app)
+        return FollowersRepository::getFollowersBuilder($this->lead)
             ->where('users.id', '!=', (int) $this->lead->leads_owner_id)
             ->get();
     }

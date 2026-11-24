@@ -28,6 +28,11 @@ type People {
     notes: SocialChannel @hasOne(relation: "notes")
     events: [Event!]! @morphToMany(relation: "events")
     channels: [SocialChannel!]! @hasMany(relation: "socialChannels")
+    followers: [User!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Guild\\Builders\\Followers\\FollowerBuilder@getFollowers"
+        )
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -293,6 +298,14 @@ extend type Mutation @guard {
     createPeople(input: PeopleInput!): People
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@create"
+        )
+    followPeople(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleFollowerMutation@follow"
+        )
+    unFollowPeople(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleFollowerMutation@unFollow"
         )
     updatePeople(id: ID!, input: PeopleInput!): People
         @field(
