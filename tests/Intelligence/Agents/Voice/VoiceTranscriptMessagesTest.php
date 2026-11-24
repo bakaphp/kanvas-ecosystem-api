@@ -13,7 +13,6 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Services\LeadConversationTranscriptService;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Intelligence\Agents\Actions\Voice\BuildVoiceAgentLeadContextAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\CaptureVoiceCallerAction;
@@ -21,6 +20,7 @@ use Kanvas\Intelligence\Agents\Actions\Voice\RecordVoiceTranscriptAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
@@ -62,7 +62,8 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $this->assertSame('voice', $message->messageType->verb);
         $this->assertSame(self::SUMMARY, $message->message['content']);
         $this->assertSame(self::TURNS, $message->message['transcript']);
-        $this->assertFalse($message->message['from_ia']);
+        $this->assertTrue($message->message['from_ia']);
+        $this->assertSame(MessageSenderTypeEnum::AGENT->value, $message->sender_type);
         $this->assertSame($people->getId(), $message->people_id);
     }
 
@@ -91,20 +92,17 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $this->assertCount(1, $this->messagesOn($people));
     }
 
-    public function testTheNextContactReadsTheSummary(): void
+    public function testTheNextContactReadsTheCallAsTheAgents(): void
     {
         $agent = $this->createAgent();
         $phone = $this->uniquePhone();
         $people = $this->capture($agent, $phone);
+        $this->attachText($people, 'Is the Civic still available?');
 
         $this->record($agent, $phone, 'CAnext');
         $context = new BuildVoiceAgentLeadContextAction(agent: $agent, phone: $phone)->execute();
-        // The call first, then the customer texts: the summary still opens the SMS agent's history.
-        $this->attachText($people, 'Can we move it to 5?');
-        $lines = LeadConversationTranscriptService::lines($people->refresh());
 
-        $this->assertStringContainsString('booked for Tuesday at 4 PM', $context['recent_messages']);
-        $this->assertStringContainsString('booked for Tuesday at 4 PM', $lines[0]);
+        $this->assertStringContainsString('[Agent] ' . self::SUMMARY, $context['recent_messages']);
     }
 
     public function testWithoutASummaryTheTranscriptIsTheContent(): void
@@ -113,7 +111,12 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $phone = $this->uniquePhone();
         $people = $this->capture($agent, $phone);
 
-        $this->record($agent, $phone, 'CAnosummary', summary: null);
+        $this->record(
+            $agent,
+            $phone,
+            'CAnosummary',
+            summary: null,
+        );
 
         $this->assertSame(
             "Agent: Hi, this is Sally from the dealership.\n"

@@ -177,12 +177,13 @@ class RecordVoiceTranscriptAction
         string $content,
         array $turns,
     ): Message {
-        // Not from_ia: an agent's history drops assistant turns before the first customer turn, so
-        // a call followed by a text would lose the call. The header marks it as a call record.
+        // The agent's record of the call, not something the customer sent: a contact message would
+        // count as their last inbound (follow-up silence, the WhatsApp reply window) and as a reply
+        // in engagement reports.
         $payload = AiChatMessagePayload::from([
             'content' => $content,
-            'from_me' => false,
-            'from_ia' => false,
+            'from_me' => true,
+            'from_ia' => true,
             'session_id' => $this->callSid,
             'agent_id' => $this->agent->getId(),
             'message_id' => $this->callSid,
