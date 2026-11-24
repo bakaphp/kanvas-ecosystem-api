@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\InAppPurchase;
 
 use Carbon\Carbon;
 use Firebase\JWT\JWT;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Imdhemy\AppStore\Jws\JsonWebSignature;
 use Imdhemy\AppStore\Jws\JwsVerifier;
 use Kanvas\Apps\Models\Apps;
@@ -34,6 +35,13 @@ use Tests\TestCase;
 #[Group('serial')]
 class AppleSignedTransactionTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    // A purchase files the suite's shared user as a CRM person; committed, it turns that user's email
+    // into a company contact for every serial test after this one. Not inventory: CreateProductAction
+    // retries its own transaction, which a savepoint would break.
+    protected $connectionsToTransact = [null, 'crm', 'commerce'];
+
     private const string BUNDLE_ID = 'com.kanvas.signed.test';
 
     private Apps $kanvasApp;
