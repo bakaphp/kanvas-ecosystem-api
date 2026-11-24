@@ -63,9 +63,11 @@ class VoiceAgentCallerMutation
 
         $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['agent_uuid'], app(Apps::class));
 
-        // The agent's own app, not the runtime's app key: a cross-app agent's caller lives there.
+        // A cross-app runtime key resolves agents of other apps: the role behind the lead and person
+        // channels is looked up in the scope of the agent's app.
+        $this->overwriteAppService($agent->app);
+
         return new RecordVoiceTranscriptAction(
-            app: $agent->app,
             agent: $agent,
             phone: (string) $args['phone'],
             callSid: (string) $args['call_sid'],

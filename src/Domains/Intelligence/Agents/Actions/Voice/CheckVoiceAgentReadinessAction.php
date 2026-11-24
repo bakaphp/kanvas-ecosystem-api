@@ -148,7 +148,7 @@ class CheckVoiceAgentReadinessAction
 
     private function prompt(): array
     {
-        if (new VoiceAgentSpecService($this->agent, $this->agent->app)->systemInstruction() === '') {
+        if (new VoiceAgentSpecService($this->agent)->systemInstruction() === '') {
             return $this->error('prompt', 'The agent has no instructions, so it doesn\'t know who it is on a call.', 'edit_prompt');
         }
 

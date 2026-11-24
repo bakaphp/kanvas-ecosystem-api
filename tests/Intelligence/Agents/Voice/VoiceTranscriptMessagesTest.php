@@ -9,7 +9,7 @@ use App\GraphQL\Intelligence\Queries\Agent\VoiceAgentTwilioQuery;
 use Bouncer;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Event;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -21,7 +21,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
-use RuntimeException;
 use Tests\TestCase;
 
 final class VoiceTranscriptMessagesTest extends TestCase
@@ -116,7 +115,6 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $people = $this->capture($agent, $phone);
 
         $result = new RecordVoiceTranscriptAction(
-            app: $agent->app,
             agent: $agent,
             phone: $phone,
             callSid: 'CAblank',
@@ -134,69 +132,33 @@ final class VoiceTranscriptMessagesTest extends TestCase
         );
     }
 
-    public function testRolesAreLookedUpInTheGivenAppAndTheScopeIsPutBack(): void
+    public function testTheMutationFilesACrossAppAgentsCallInTheAgentsApp(): void
     {
+        config(['kanvas.voice_runtime.api_token' => 'runtime-token', 'kanvas.voice_runtime.cross_app' => true]);
+        request()->headers->set(VoiceAgentTwilioQuery::TOKEN_HEADER, 'runtime-token');
         $agent = $this->createAgent();
         $phone = $this->uniquePhone();
         $people = $this->capture($agent, $phone);
-        $previousScope = Bouncer::scope()->get();
-        // Another app's scope, as under the runtime's app key: filing on the person's channel looks
-        // up the agent's app Admin role, which isn't found unless the action scopes itself.
-        $otherScope = 'app_0_company_0';
-        Bouncer::scope()->to($otherScope);
+        $agentApp = app(Apps::class);
+        $runtimeApp = Apps::where('id', '!=', $agent->apps_id)->firstOrFail();
+        // The runtime's key belongs to another app, whose scope has no Admin role for the agent's app.
+        app()->scoped(Apps::class, fn () => $runtimeApp);
+        Bouncer::scope()->to('app_0_company_0');
 
         try {
-            $result = $this->record($agent, $phone, 'CAscope');
-            $scopeAfter = Bouncer::scope()->get();
+            $result = new VoiceAgentCallerMutation()->recordTranscript(null, [
+                'agent_uuid' => $agent->uuid,
+                'phone' => $phone,
+                'call_sid' => 'CAcrossapp' . $phone,
+                'turns' => self::TURNS,
+            ]);
         } finally {
-            Bouncer::scope()->to($previousScope);
+            app()->scoped(Apps::class, fn () => $agentApp);
+            Bouncer::scope()->to(RolesEnums::getScope($agentApp));
         }
 
         $this->assertSame('success', $result['status']);
-        $this->assertSame($otherScope, $scopeAfter);
         $this->assertCount(3, $this->messagesOn($people));
-    }
-
-    public function testTheScopeIsPutBackWhenSavingFails(): void
-    {
-        $agent = $this->createAgent();
-        $phone = $this->uniquePhone();
-        $this->capture($agent, $phone);
-        $previousScope = Bouncer::scope()->get();
-        $otherScope = 'app_0_company_0';
-        $creatingMessage = 'eloquent.creating: ' . Message::class;
-        Event::listen($creatingMessage, fn () => throw new RuntimeException('The message store is down.'));
-        Bouncer::scope()->to($otherScope);
-
-        try {
-            $result = $this->record($agent, $phone, 'CAfails');
-            $scopeAfter = Bouncer::scope()->get();
-        } finally {
-            Bouncer::scope()->to($previousScope);
-            Event::forget($creatingMessage);
-        }
-
-        $this->assertSame('error', $result['status']);
-        $this->assertSame($otherScope, $scopeAfter);
-    }
-
-    public function testAnAppThatIsNotTheAgentsSavesNothing(): void
-    {
-        $agent = $this->createAgent();
-        $phone = $this->uniquePhone();
-        $people = $this->capture($agent, $phone);
-        $otherApp = Apps::where('id', '!=', $agent->apps_id)->firstOrFail();
-
-        $result = new RecordVoiceTranscriptAction(
-            app: $otherApp,
-            agent: $agent,
-            phone: $phone,
-            callSid: 'CAotherapp',
-            turns: self::TURNS,
-        )->execute();
-
-        $this->assertSame('error', $result['status']);
-        $this->assertCount(0, $this->messagesOn($people));
     }
 
     public function testTheMutationRefusesAnAppKeyWithoutTheRuntimeToken(): void
@@ -237,7 +199,6 @@ final class VoiceTranscriptMessagesTest extends TestCase
     private function record(Agent $agent, string $phone, string $callSid): array
     {
         return new RecordVoiceTranscriptAction(
-            app: $agent->app,
             agent: $agent,
             phone: $phone,
             callSid: $callSid . $phone,

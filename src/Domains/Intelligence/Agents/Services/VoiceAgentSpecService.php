@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
-use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -28,10 +27,8 @@ use Throwable;
  */
 class VoiceAgentSpecService
 {
-    public function __construct(
-        private readonly Agent $agent,
-        private readonly AppInterface $app,
-    ) {
+    public function __construct(private readonly Agent $agent)
+    {
     }
 
     /**
@@ -200,7 +197,7 @@ class VoiceAgentSpecService
             return (string) $config['model'];
         }
 
-        $appModel = $this->app->get(ConfigurationEnum::GEMINI_MODEL->value);
+        $appModel = $this->agent->app->get(ConfigurationEnum::GEMINI_MODEL->value);
 
         return $appModel !== null && $appModel !== '' ? (string) $appModel : 'gemini-2.5-flash';
     }

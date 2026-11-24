@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
-use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Bouncer;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
@@ -32,9 +29,9 @@ use function Sentry\captureException;
  * caller's person and active lead — the histories every channel's agent reads, the same way SMS
  * turns are filed.
  *
- * The app comes in through the constructor and is passed to every lookup and write, so the
- * runtime's app key never decides where the transcript lands. Filing on the lead and person
- * channels looks up a role, which Bouncer filters by its scope, so that runs in this app's scope.
+ * Every lookup and write takes the agent's app, so the runtime's app key never decides where the
+ * transcript lands. Filing on the lead and person channels looks up a role under Bouncer's scope,
+ * which the mutation sets to that app.
  *
  * Runs after capture, so the caller already has a person; a number with none is skipped, never
  * created here. Each turn's slug is the call's CallSid plus its position, so a re-sent call saves
@@ -53,7 +50,6 @@ class RecordVoiceTranscriptAction
      * @param list<array{role: string, text: string}> $turns in call order
      */
     public function __construct(
-        private readonly AppInterface $app,
         private readonly Agent $agent,
         private readonly string $phone,
         private readonly string $callSid,
@@ -66,20 +62,6 @@ class RecordVoiceTranscriptAction
      * @return array<string, mixed>
      */
     public function execute(): array
-    {
-        return Bouncer::scope()->onceTo(
-            RolesEnums::getScope($this->app),
-            fn (): array => $this->recordOrReport(),
-        );
-    }
-
-    /**
-     * Caught here and not around onceTo(): it only puts the previous scope back when its callback
-     * returns.
-     *
-     * @return array<string, mixed>
-     */
-    private function recordOrReport(): array
     {
         try {
             return $this->record();
@@ -102,24 +84,19 @@ class RecordVoiceTranscriptAction
      */
     private function record(): array
     {
-        // The agent is the tenant: another app's transcript would be filed on the wrong customers.
-        if ((int) $this->agent->apps_id !== $this->app->getId()) {
-            return ['status' => 'error', 'message' => 'The agent does not belong to this app.'];
-        }
-
         $company = $this->agent->company;
         if ($company === null) {
             return ['status' => 'error', 'message' => 'No company is set for this agent.'];
         }
 
-        $people = VoiceCallerLookupService::find($this->app, $company, $this->phone);
+        $people = VoiceCallerLookupService::find($this->agent->app, $company, $this->phone);
         if ($people === null) {
             return ['status' => 'skipped', 'reason' => 'no_contact', 'saved' => 0];
         }
 
         $lead = LeadsRepository::getPeopleActiveLead($people);
         $user = $company->getAiAgentUser() ?? $this->agent->user;
-        $type = MessageTypeService::getOrCreate($this->app, self::MESSAGE_VERB);
+        $type = MessageTypeService::getOrCreate($this->agent->app, self::MESSAGE_VERB);
         $turns = $this->speakableTurns();
         $alreadySaved = $this->savedSlugs(array_keys($turns));
 
@@ -187,7 +164,7 @@ class RecordVoiceTranscriptAction
         }
 
         return Message::query()
-            ->fromApp($this->app)
+            ->fromApp($this->agent->app)
             ->whereIn('slug', $slugs)
             ->pluck('slug')
             ->all();
@@ -206,7 +183,7 @@ class RecordVoiceTranscriptAction
         $fromAgent = $turn['role'] === 'agent';
 
         $createMessage = new CreateMessageAction(new MessageInput(
-            app: $this->app,
+            app: $this->agent->app,
             company: $company,
             user: $user,
             type: $type,
