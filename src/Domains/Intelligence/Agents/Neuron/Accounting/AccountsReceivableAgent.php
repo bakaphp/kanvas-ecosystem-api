@@ -33,6 +33,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetExchangeRateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
@@ -136,6 +137,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new UpdateOrganizationTool(),
             new SetOrganizationAddressTool(),
             new EcfStatusTool(),
+            new GetExchangeRateTool(),
             new AccountingDigestTool(),
             new FindSalesOrderTool(),
             new ListOpenSalesOrdersTool(),

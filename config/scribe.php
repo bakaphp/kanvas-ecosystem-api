@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Kanvas\Connectors\Alanube\AlanubeEcfProvider;
 use Kanvas\Connectors\AllRatesToday\AllRatesTodayCentralBankRateProvider;
+use Kanvas\Connectors\AllRatesToday\AllRatesTodayMarketRateProvider;
 use Kanvas\Connectors\WebPos\Providers\WebPosEcfProvider;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 
@@ -35,4 +36,10 @@ return [
 
     // Foreign currencies whose official rate is synced daily, for every country with a fiscal regime.
     'fx_currencies' => ['USD'],
+
+    /*
+     * Where a live market rate for any pair comes from (MarketRateProviderInterface). Answers a question only;
+     * a fiscal document never declares it.
+     */
+    'market_rate_provider' => AllRatesTodayMarketRateProvider::class,
 ];

@@ -36,4 +36,14 @@ class NumberTest extends TestCase
         $this->assertNull(Number::ratio(0, 0));
         $this->assertNull(Number::ratio(3, 0));
     }
+
+    public function testWithoutTrailingZerosKeepsTheZerosOfAWholeNumber(): void
+    {
+        $this->assertSame('70.5', Number::withoutTrailingZeros(70.5, 8));
+        $this->assertSame('0.0141844', Number::withoutTrailingZeros(1 / 70.5, 8));
+        $this->assertSame('18', Number::withoutTrailingZeros(18.0));
+        $this->assertSame('100', Number::withoutTrailingZeros(100.0));
+        $this->assertSame('100', Number::withoutTrailingZeros(100, 0));
+        $this->assertSame('0', Number::withoutTrailingZeros(0.0));
+    }
 }

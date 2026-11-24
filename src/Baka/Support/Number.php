@@ -51,6 +51,17 @@ class Number extends IlluminateNumber
         return $whole > 0 ? round($part / $whole, $precision) : null;
     }
 
+    /**
+     * "70.5", not "70.50000000": a plain decimal with no grouping and no trailing zeros. A whole number keeps
+     * its own zeros ("100", never "1").
+     */
+    public static function withoutTrailingZeros(int|float $value, int $maxDecimals = 2): string
+    {
+        $formatted = number_format((float) $value, $maxDecimals, '.', '');
+
+        return str_contains($formatted, '.') ? rtrim(rtrim($formatted, '0'), '.') : $formatted;
+    }
+
     /** MULTIPLIERS as a regex alternation, so no pattern matches a suffix applyMultiplier() ignores. */
     public static function multiplierPattern(): string
     {
