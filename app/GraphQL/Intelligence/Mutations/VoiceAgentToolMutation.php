@@ -29,6 +29,11 @@ class VoiceAgentToolMutation
             $arguments = [];
         }
 
-        return new RunVoiceAgentToolAction($agent, (string) $args['tool_name'], $arguments)->execute();
+        return new RunVoiceAgentToolAction(
+            agent: $agent,
+            callerApp: $app,
+            toolName: (string) $args['tool_name'],
+            arguments: $arguments,
+        )->execute();
     }
 }

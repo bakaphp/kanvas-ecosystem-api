@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Voice;
 
+use Bouncer;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Support\Setup;
@@ -25,6 +27,7 @@ final class VoiceLeadContinuityTest extends TestCase
 
         $result = new CaptureVoiceCallerAction(
             agent: $agent,
+            callerApp: app(Apps::class),
             phone: $phone,
             interest: '2021 Civic',
             direction: 'inbound',
@@ -48,6 +51,7 @@ final class VoiceLeadContinuityTest extends TestCase
 
         new CaptureVoiceCallerAction(
             agent: $agent,
+            callerApp: app(Apps::class),
             phone: $phone,
             name: 'Ana Perez',
             direction: 'inbound',
@@ -64,7 +68,12 @@ final class VoiceLeadContinuityTest extends TestCase
         $agent = $this->createAgent();
         $local = (string) random_int(1000000, 9999999);
 
-        new CaptureVoiceCallerAction(agent: $agent, phone: '+1809' . $local, direction: 'inbound')->execute();
+        new CaptureVoiceCallerAction(
+            agent: $agent,
+            callerApp: app(Apps::class),
+            phone: '+1809' . $local,
+            direction: 'inbound',
+        )->execute();
 
         $formatted = '+1 (809) ' . substr($local, 0, 3) . '-' . substr($local, 3);
         $context = new BuildVoiceAgentLeadContextAction(agent: $agent, phone: $formatted)->execute();
@@ -73,11 +82,38 @@ final class VoiceLeadContinuityTest extends TestCase
         $this->assertTrue($context['is_returning']);
     }
 
+    public function testTheCallersAppIsBoundAgainAfterACapture(): void
+    {
+        $agent = $this->createAgent();
+        $agentApp = app(Apps::class);
+        $callerApp = Apps::where('id', '!=', $agent->apps_id)->firstOrFail();
+
+        try {
+            $result = new CaptureVoiceCallerAction(
+                agent: $agent,
+                callerApp: $callerApp,
+                phone: $this->uniquePhone(),
+                direction: 'inbound',
+            )->execute();
+            $boundAfter = app(Apps::class)->getId();
+        } finally {
+            app()->scoped(Apps::class, fn () => $agentApp);
+            Bouncer::scope()->to(RolesEnums::getScope($agentApp));
+        }
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame($callerApp->getId(), $boundAfter);
+    }
+
     public function testAWithheldCallerIdMatchesNobody(): void
     {
         $agent = $this->createAgent();
-        new CaptureVoiceCallerAction(agent: $agent, phone: $this->uniquePhone(), direction: 'inbound')
-            ->execute();
+        new CaptureVoiceCallerAction(
+            agent: $agent,
+            callerApp: app(Apps::class),
+            phone: $this->uniquePhone(),
+            direction: 'inbound',
+        )->execute();
 
         $this->assertNull(VoiceCallerLookupService::find($agent->app, $agent->company, ''));
         $this->assertNull(VoiceCallerLookupService::find($agent->app, $agent->company, 'anonymous'));
@@ -89,6 +125,7 @@ final class VoiceLeadContinuityTest extends TestCase
 
         $result = new CaptureVoiceCallerAction(
             agent: $this->createAgent(),
+            callerApp: app(Apps::class),
             phone: $phone,
             name: '   ',
             direction: 'inbound',
@@ -101,6 +138,7 @@ final class VoiceLeadContinuityTest extends TestCase
     {
         $result = new CaptureVoiceCallerAction(
             agent: $this->createAgent(),
+            callerApp: app(Apps::class),
             phone: $this->uniquePhone(),
             direction: 'outbound',
             wantsAppointment: true,
@@ -116,6 +154,7 @@ final class VoiceLeadContinuityTest extends TestCase
     {
         $result = new CaptureVoiceCallerAction(
             agent: $this->createAgent(),
+            callerApp: app(Apps::class),
             phone: $this->uniquePhone(),
             direction: 'outbound',
         )->execute();
@@ -129,7 +168,12 @@ final class VoiceLeadContinuityTest extends TestCase
         $agent = $this->createAgent();
         $phone = $this->uniquePhone();
 
-        $result = new CaptureVoiceCallerAction(agent: $agent, phone: $phone, direction: 'inbound')->execute();
+        $result = new CaptureVoiceCallerAction(
+            agent: $agent,
+            callerApp: app(Apps::class),
+            phone: $phone,
+            direction: 'inbound',
+        )->execute();
         $people = People::find($result['people_id']);
 
         for ($i = 1; $i <= 8; $i++) {
