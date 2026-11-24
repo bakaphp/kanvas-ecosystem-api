@@ -157,6 +157,15 @@ class EntityRollupMessageStore extends KanvasMessageStore
     }
 
     /**
+     * The prompt is filed by the path's own writer: after the turn on userChat, never for a wake.
+     */
+    #[Override]
+    public function holdsTurnPrompt(): bool
+    {
+        return false;
+    }
+
+    /**
      * Persists ONLY tool-call / tool-result telemetry. The conversational rows (user prompt + assistant
      * reply) are written, and attached to this same Lead/People entity, by the canonical writer of every
      * path that uses this store: connector createMessage(), PersistChatTurnToSocialAction (userChat),

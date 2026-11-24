@@ -42,6 +42,9 @@ class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
     /** What the model says alongside its tool call, as Claude usually does and Gemini rarely. */
     public static ?string $toolCallLeadIn = null;
 
+    /** @var list<list<Message>> every request the provider was sent, in order */
+    public static array $requests = [];
+
     private ?AIProviderInterface $stubProvider = null;
 
     public static function reset(): void
@@ -51,6 +54,7 @@ class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
         self::$dieOnNextReply = false;
         self::$writes = 0;
         self::$toolCallLeadIn = null;
+        self::$requests = [];
     }
 
     #[Override]
@@ -65,6 +69,7 @@ class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
             public function chat(Message ...$messages): ProviderResponse
             {
                 FakeNeuronProvider::$lastMessages = $messages;
+                DurableNeuronAgentStub::$requests[] = $messages;
                 $last = end($messages);
 
                 if (! $last instanceof ToolResultMessage) {

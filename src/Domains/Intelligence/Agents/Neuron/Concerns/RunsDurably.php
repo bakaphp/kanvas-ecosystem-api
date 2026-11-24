@@ -91,6 +91,15 @@ trait RunsDurably
 
         $store = $this->resolveMessageStore();
         $transcript = $store instanceof KanvasMessageStore ? $store : null;
+
+        // The engine drops the prompt once the first inference commits, so a resumed request is what
+        // the store loads. Without the prompt it ends on the agent's previous reply, which Gemini
+        // refuses (KANVAS-ECOSYSTEM-6TX), or answers an older message. That turn starts over instead,
+        // and a tool the dead worker already ran runs again.
+        if ($transcript?->holdsTurnPrompt() === false && $this->inboundMessageIds === []) {
+            return null;
+        }
+
         $transcript?->resumeInterruptedTurn();
 
         // Only this run reads the dead turn's tool rounds: a refused resume falls through to a plain
