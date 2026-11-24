@@ -116,6 +116,8 @@ final class PortalPaymentProcessorAmountTest extends TestCaseUnit
         $payment->shouldReceive('markAsPaid')->andReturnNull();
         $payment->shouldReceive('addMetadata')->andReturnNull();
         $payment->shouldReceive('save')->andReturnSelf();
+        $payment->shouldReceive('claimForSettlement')->andReturnTrue();
+        $payment->shouldReceive('releaseSettlementClaim')->andReturnTrue();
         $payment->exists = true;
         $paymentMethod = new PaymentMethods();
         $paymentMethod->stripe_card_id = 'card-1';
