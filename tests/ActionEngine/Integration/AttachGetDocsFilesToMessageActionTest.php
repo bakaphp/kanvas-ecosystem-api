@@ -12,9 +12,11 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
+use Tests\Traits\CreatesFilesystemRecords;
 
 final class AttachGetDocsFilesToMessageActionTest extends TestCase
 {
+    use CreatesFilesystemRecords;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'social', 'ecosystem'];
@@ -82,6 +84,31 @@ final class AttachGetDocsFilesToMessageActionTest extends TestCase
         $attached = new AttachGetDocsFilesToMessageAction($message)->execute();
 
         $this->assertCount(1, $attached, 'an upload is stamped with the uploader\'s current company, not the lead\'s');
+    }
+
+    public function testAttachesFilesReferencedByIdWithoutNeedingAnUpload(): void
+    {
+        $income = $this->createFilesystemRecord('paystub.png');
+        $taxes = $this->createFilesystemRecord('1040.png');
+
+        $message = $this->makeGetDocsMessage([
+            1 => ['name' => 'Income documents', 'files' => [$income]],
+            2 => ['name' => 'Personal tax returns', 'files' => [$taxes]],
+        ]);
+
+        $action = new AttachGetDocsFilesToMessageAction($message);
+        $attached = $action->execute();
+
+        $this->assertCount(2, $attached);
+        $this->assertSame(
+            [
+                $income->getId() => 'Income documents',
+                $taxes->getId() => 'Personal tax returns',
+            ],
+            $action->documentTypes()
+        );
+        $this->assertNotNull($message->getFileByName('income_documents_' . $income->getId()));
+        $this->assertNotNull($message->getFileByName('personal_tax_returns_' . $taxes->getId()));
     }
 
     public function testReturnsEmptyWhenThePayloadHasNoFiles(): void

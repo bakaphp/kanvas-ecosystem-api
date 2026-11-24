@@ -50,6 +50,11 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateEngagementAction
 {
+    /** Verbs whose submitted `data` carries uploaded files to attach to the lead. */
+    protected const array VERBS_WITH_UPLOADED_FILES = [
+        ActionEnum::GET_DOCS->value,
+    ];
+
     protected ?Lead $lead = null;
     protected EngageableInterface $reference;
     protected ?LeadEngagementHooks $leadHooks = null;
@@ -105,6 +110,8 @@ class CreateEngagementAction
                 return $existingEngagement;
             }
         }
+
+        $this->attachUploadedFilesToLead();
 
         return DB::transaction(function () {
             $this->createCompanyActionVisitor();
@@ -399,6 +406,23 @@ class CreateEngagementAction
     private function visitorLeadId(): mixed
     {
         return $this->lead !== null ? $this->lead->uuid : '';
+    }
+
+    /**
+     * Runs before the engagement transaction: attaching writes to `crm` and `ecosystem`, which that
+     * transaction does not cover. A failure stops the submission; a retry skips what is attached.
+     */
+    protected function attachUploadedFilesToLead(): void
+    {
+        if (
+            $this->lead === null
+            || $this->engagementData->status !== ActionStatusEnum::SUBMITTED
+            || ! in_array($this->actionSlug, self::VERBS_WITH_UPLOADED_FILES, true)
+        ) {
+            return;
+        }
+
+        new AttachUploadedFilesToLeadAction($this->lead, $this->engagementData->data)->execute();
     }
 
     protected function createMessage(): Message

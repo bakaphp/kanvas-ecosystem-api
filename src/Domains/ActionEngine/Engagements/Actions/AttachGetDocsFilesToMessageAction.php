@@ -6,6 +6,7 @@ namespace Kanvas\ActionEngine\Engagements\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Collection;
+use Kanvas\ActionEngine\Engagements\Support\UploadedDocumentsPayload;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -71,19 +72,9 @@ class AttachGetDocsFilesToMessageAction
 
         $this->documentTypes = [];
 
-        foreach ($this->message->getMessage()['data'] ?? [] as $typeId => $document) {
-            if (! is_array($document)) {
-                continue;
-            }
-
-            $typeName = (string) ($document['type']['name'] ?? 'Document ' . $typeId);
-
-            foreach ($document['files'] ?? [] as $file) {
-                $fileId = (int) ($file['id'] ?? 0);
-
-                if ($fileId > 0) {
-                    $this->documentTypes[$fileId] = $typeName;
-                }
+        foreach (UploadedDocumentsPayload::files($this->message->getMessage()['data'] ?? []) as $file) {
+            if ($file['id'] > 0) {
+                $this->documentTypes[$file['id']] = $file['typeName'];
             }
         }
 
