@@ -43,6 +43,10 @@ use Kanvas\Social\Messages\Models\Message;
  *
  * And one on failure:
  *   plan.agent.invocation_failed — when the agent turn throws
+ *
+ * A factory agent takes no plan wake; instead:
+ *   plan.agent.handed_to_factory — a plan_assigned wake handed its pending tasks to the factory
+ *   plan.agent.wake_skipped      — any other wake, with whether the plan's creator was told instead
  */
 class WakeAgentForPlanJob implements ShouldQueue
 {
@@ -116,7 +120,13 @@ class WakeAgentForPlanJob implements ShouldQueue
             if ($this->reason === self::REASON_PLAN_ASSIGNED) {
                 $this->handOverToTheFactory($agent);
             } else {
-                $this->tellWhoeverAskedForThePlan();
+                $forwarded = $this->tellWhoeverAskedForThePlan();
+
+                $this->plan->emitLedgerEvent('plan.agent.wake_skipped', payload: [
+                    'agent_id' => $agent->getId(),
+                    'reason' => $this->reason,
+                    'forwarded_to_creator' => $forwarded,
+                ]);
             }
 
             return;
@@ -220,8 +230,9 @@ class WakeAgentForPlanJob implements ShouldQueue
     /**
      * The fact a factory-owned plan cannot act on (a task finished, a person commented) goes to the agent
      * that created the plan, which is the one deciding its next step. Nothing to forward wakes nobody.
+     * Returns whether the creator was woken.
      */
-    private function tellWhoeverAskedForThePlan(): void
+    private function tellWhoeverAskedForThePlan(): bool
     {
         $creator = $this->plan->createdByAgent;
         $project = $this->plan->project;
@@ -233,13 +244,13 @@ class WakeAgentForPlanJob implements ShouldQueue
             || $creator->is($this->plan->agent)
             || CodingChatSettingEnum::isEnabledFor($creator)
         ) {
-            return;
+            return false;
         }
 
         // The last task finishing is reported by WakeProjectManagerOnPlanOutcomeListener, into the
         // conversation the plan was asked in; forwarding it too would wake the creator twice.
         if ($this->reason === self::REASON_TASK_COMPLETED && $this->plan->everyTaskFinished()) {
-            return;
+            return false;
         }
 
         WakeAgentForProjectJob::dispatch(
@@ -255,6 +266,8 @@ class WakeAgentForPlanJob implements ShouldQueue
             ),
             wakeAgent: $creator,
         );
+
+        return true;
     }
 
     /**

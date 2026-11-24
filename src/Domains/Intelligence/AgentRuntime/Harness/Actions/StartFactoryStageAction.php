@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
@@ -58,13 +59,17 @@ class StartFactoryStageAction
             return $open;
         }
 
+        // A plan owner that is not a factory agent is woken on the plan, and its task is woken as well: two
+        // paid turns for one step. Such a stage runs through its task only, so the plan has no owner.
+        $firstAgent = $this->stage->steps[0]->agent;
+
         $plan = new CreatePlanAction(
             new PlanData(
                 app: $project->app,
                 company: $project->company,
                 title: $this->stage->title,
                 planType: 'project_work',
-                agent: $this->stage->steps[0]->agent,
+                agent: CodingChatSettingEnum::isEnabledFor($firstAgent) ? $firstAgent : null,
                 user: $this->orchestrator->user,
                 description: $this->stage->description,
                 status: PlanStatusEnum::ACTIVE,

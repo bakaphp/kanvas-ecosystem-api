@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
@@ -621,6 +622,7 @@ final class FactoryStageTest extends TestCase
         $this->assertStringContainsString('"Rejected:"', (string) $read->description);
         $this->assertStringContainsString('never a fix', (string) $read->description);
         Queue::assertPushed(WakeAgentForTaskJob::class, 1);
+        Queue::assertNotPushed(WakeAgentForPlanJob::class);
     }
 
     /** A factory agent has a checkout and no data tools: reading Amplitude and Sentry is not its job. */
@@ -634,6 +636,31 @@ final class FactoryStageTest extends TestCase
         $onTheMac = $this->learn()($project->getId(), 'example-app');
 
         foreach ([$missing, $onTheMac] as $result) {
+            $this->assertFalse($result['success']);
+            $this->assertStringContainsString(FactoryProjectSettingEnum::LEARN_AGENT->value, json_encode($result));
+        }
+        Queue::assertNotPushed(WakeAgentForTaskJob::class);
+    }
+
+    /** A Learn agent carries Amplitude and Sentry tools: another company's agent, or a switched-off one, must not get the step. */
+    public function testALearnAgentOfAnotherCompanyOrSwitchedOffIsNeverGivenTheStep(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $foreign = $this->makeAgent();
+        $foreign->update(['is_active' => true]);
+        $foreign->companies_id = Companies::factory()->create()->getId();
+        $foreign->saveQuietly();
+        $inactive = $this->makeAgent();
+        $inactive->update(['is_active' => false]);
+        $results = [];
+
+        foreach ([$foreign, $inactive] as $agent) {
+            $project->set(FactoryProjectSettingEnum::LEARN_AGENT->value, $agent->getId());
+            $results[] = $this->learn()($project->getId(), 'example-app');
+        }
+
+        foreach ($results as $result) {
             $this->assertFalse($result['success']);
             $this->assertStringContainsString(FactoryProjectSettingEnum::LEARN_AGENT->value, json_encode($result));
         }
@@ -670,6 +697,25 @@ final class FactoryStageTest extends TestCase
         $this->assertFalse($first['reused']);
         $this->assertTrue($again['reused']);
         $this->assertSame($first['plan_id'], $again['plan_id']);
+    }
+
+    public function testALearnForAnotherRepositoryWhoseNameMatchesAsAPatternStartsItsOwnPlan(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+
+        $underscore = $this->learn()($project->getId(), 'my_app');
+        $lookalike = $this->learn()($project->getId(), 'myXapp');
+        $again = $this->learn()($project->getId(), 'my_app');
+
+        $this->assertTrue($underscore['success']);
+        $this->assertTrue($lookalike['success']);
+        $this->assertTrue($again['success']);
+        $this->assertFalse($lookalike['reused']);
+        $this->assertNotSame($underscore['plan_id'], $lookalike['plan_id']);
+        $this->assertTrue($again['reused']);
+        $this->assertSame($underscore['plan_id'], $again['plan_id']);
     }
 
     public function testWithoutABuilderNothingIsStarted(): void

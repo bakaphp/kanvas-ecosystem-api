@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
@@ -1292,6 +1293,13 @@ class CodingChatTest extends TestCase
                 && $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
                 && str_contains((string) $job->triggerMessage, 'is now done')
         );
+        $skipped = Event::query()
+            ->where('event_type', 'plan.agent.wake_skipped')
+            ->where('source_entity_id', $plan->getId())
+            ->first();
+        $this->assertNotNull($skipped, 'the skipped wake is recorded');
+        $this->assertSame(WakeAgentForPlanJob::REASON_TASK_COMPLETED, $skipped->payload['reason']);
+        $this->assertTrue($skipped->payload['forwarded_to_creator']);
     }
 
     public function testAPlanWakeForAFactoryAgentWithNothingToPassOnWakesNobody(): void
@@ -1305,6 +1313,26 @@ class CodingChatTest extends TestCase
         $this->assertFalse(AgentTaskSession::query()->where('agent_id', $builder->getId())->exists());
         Queue::assertNotPushed(LaunchCodingChatJob::class);
         Queue::assertNotPushed(WakeAgentForProjectJob::class);
+    }
+
+    public function testAnApprovedPlanOfAFactoryAgentWithNoMessageIsSkippedAndRecorded(): void
+    {
+        Queue::fake();
+        $builder = $this->factoryAgent();
+        $plan = $this->planAFactoryAgentOwns($builder);
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_APPROVED)->handle();
+
+        Queue::assertNotPushed(WakeAgentForProjectJob::class);
+        Queue::assertNotPushed(WakeAgentForTaskJob::class);
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+        $skipped = Event::query()
+            ->where('event_type', 'plan.agent.wake_skipped')
+            ->where('source_entity_id', $plan->getId())
+            ->first();
+        $this->assertNotNull($skipped, 'a skip that told nobody is still on the ledger');
+        $this->assertSame(WakeAgentForPlanJob::REASON_APPROVED, $skipped->payload['reason']);
+        $this->assertFalse($skipped->payload['forwarded_to_creator']);
     }
 
     /**
@@ -1494,17 +1522,42 @@ class CodingChatTest extends TestCase
     public function testALaunchThatCannotFindItsSessionLooksAgainAndThenGivesUpOutLoud(): void
     {
         Queue::fake();
+        Log::spy();
         $missing = (int) AgentTaskSession::query()->max('id') + 1000;
 
         new LaunchCodingChatJob(app(Apps::class), $missing, 'the brief')->handle();
 
         Queue::assertPushed(
             LaunchCodingChatJob::class,
-            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $missing && $job->lookups === 1 && $job->delay !== null
+            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $missing
+                && $job->lookups === 1
+                && $job->delay instanceof Carbon
+                && abs($job->delay->diffInSeconds(Carbon::now()->addSeconds(5), false)) <= 3
         );
 
         Queue::fake();
-        new LaunchCodingChatJob(app(Apps::class), $missing, 'the brief', lookups: 5)->handle();
+        new LaunchCodingChatJob(
+            app(Apps::class),
+            $missing,
+            'the brief',
+            lookups: 5,
+        )->handle();
+
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'giving up')
+                && $context['session_id'] === $missing
+                && $context['lookups'] === 5);
+    }
+
+    public function testALaunchWhoseRowIsAlreadyClosedIsNeverLookedForAgain(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $closed = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::COMPLETED);
+
+        new LaunchCodingChatJob(app(Apps::class), $closed->getId(), 'the brief')->handle();
 
         Queue::assertNotPushed(LaunchCodingChatJob::class);
     }
@@ -1516,13 +1569,32 @@ class CodingChatTest extends TestCase
         $plan = $this->makePlan(['title' => 'Second Look build'], $akira);
         $pending = $this->makeTask($plan);
         $done = $this->makeTask($plan, TaskStatusEnum::DONE, sequence: 1);
+        $ownedByAkira = $this->makeTask($plan, sequence: 2);
+        $ownedByAkira->agent_id = $akira->getId();
+        $ownedByAkira->saveOrFail();
+        $ownedByAnother = $this->makeTask($plan, sequence: 3);
+        $ownedByAnother->agent_id = $this->makeAgent()->getId();
+        $ownedByAnother->saveOrFail();
+        $anotherAgentId = $ownedByAnother->agent_id;
 
         new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_PLAN_ASSIGNED)->handle();
 
         $this->assertSame($akira->getId(), $pending->refresh()->agent_id, 'an unassigned task becomes the agent\'s');
+        $this->assertSame($akira->getId(), $ownedByAkira->refresh()->agent_id);
+        $this->assertSame($anotherAgentId, $ownedByAnother->refresh()->agent_id, 'another agent\'s task is left alone');
         Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($pending));
+        Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($ownedByAkira));
         Queue::assertNotPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($done));
+        Queue::assertNotPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($ownedByAnother));
         Queue::assertNotPushed(LaunchCodingChatJob::class);
+
+        $handed = Event::query()
+            ->where('event_type', 'plan.agent.handed_to_factory')
+            ->where('source_entity_id', $plan->getId())
+            ->first();
+        $this->assertNotNull($handed, 'the handover is on the ledger');
+        $this->assertEqualsCanonicalizing([$pending->getId(), $ownedByAkira->getId()], $handed->payload['task_ids']);
+        $this->assertNotContains($ownedByAnother->getId(), $handed->payload['task_ids']);
     }
 
     public function testTheFactoryClientReportsWhoHoldsACheckoutInUse(): void

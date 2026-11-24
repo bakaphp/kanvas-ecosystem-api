@@ -46,21 +46,9 @@ enum FactoryProjectSettingEnum: string
      */
     public static function learnAgentFor(Project $project): ?Agent
     {
-        $id = (int) $project->get(self::LEARN_AGENT->value);
+        $agent = self::LEARN_AGENT->activeAgentOf($project);
 
-        if ($id <= 0) {
-            return null;
-        }
-
-        $agent = Agent::query()
-            ->where('id', $id)
-            ->fromApp($project->app)
-            ->fromCompany($project->company)
-            ->notDeleted()
-            ->where('is_active', 1)
-            ->first();
-
-        return $agent instanceof Agent && ! CodingChatSettingEnum::isEnabledFor($agent) ? $agent : null;
+        return $agent !== null && ! CodingChatSettingEnum::isEnabledFor($agent) ? $agent : null;
     }
 
     public static function learnSourceFor(Project $project, self $setting): ?string
@@ -73,8 +61,8 @@ enum FactoryProjectSettingEnum: string
         return Str::trimToNull((string) $project->get(self::TEMPLATE_REPO->value)) ?? self::DEFAULT_TEMPLATE;
     }
 
-    /** Only an agent of the project's own tenant that works tasks on the Mac. */
-    private function factoryAgentOf(Project $project): ?Agent
+    /** Returns only an active agent of the project's own tenant. */
+    private function activeAgentOf(Project $project): ?Agent
     {
         $id = (int) $project->get($this->value);
 
@@ -90,8 +78,14 @@ enum FactoryProjectSettingEnum: string
             ->where('is_active', 1)
             ->first();
 
-        return $agent instanceof Agent && CodingChatSettingEnum::runsTaskInFactory($agent, 'Repo: app')
-            ? $agent
-            : null;
+        return $agent instanceof Agent ? $agent : null;
+    }
+
+    /** Only an agent of the project's own tenant that works tasks on the Mac. */
+    private function factoryAgentOf(Project $project): ?Agent
+    {
+        $agent = $this->activeAgentOf($project);
+
+        return $agent !== null && CodingChatSettingEnum::runsTaskInFactory($agent, 'Repo: app') ? $agent : null;
     }
 }

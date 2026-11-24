@@ -208,7 +208,7 @@ child, and its first turn closes it — the reply becomes `worker_summary`, the 
 worker, which closes the task from that answer instead of running the factory again. **Plan-owner wakes never
 reach the factory either** (see the bullet on factory-owned plans below): a fact goes to the plan's creator,
 and an assignment (`plan_assigned`) hands the plan's pending tasks to `WakeAgentForTaskJob`, ledger
-`plan.agent.handed_to_factory`. Other paths (`VerifyPlanAction`, receivers, "run agent on record") are not
+`plan.agent.handed_to_factory`; every other wake is recorded as `plan.agent.wake_skipped`. Other paths (`VerifyPlanAction`, receivers, "run agent on record") are not
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
@@ -305,14 +305,16 @@ Things that bite:
   `factory_learn_amplitude_project` / `factory_learn_sentry_project` settings name the sources in the
   text. When it finishes, the orchestrator is told to start each improvement with `start_factory_ticket`
   (improvements skip the go/no-go gate) and then `start_factory_release`; the next Learn reads what they
-  did. Starting it while one is open returns the open one.
+  did. Starting it while one is open returns the open one. Its plan has no owning agent (a plan owner that
+  is not a factory agent is woken on the plan on top of its task), so only the task wake runs the Learn agent.
 - **Mixed plans: a Kanvas step waits for the factory step ahead of it** (`Task::waitsOnEarlierFactoryWork()`),
   and the factory worker that finishes starts it. A reopened task on a factory-owned plan, or one that runs
   on the Mac, is woken as a task; its blocked plan unblocks itself (`Plan::resumeIfNothingBlocks()`), only
   for factory work. Plans with no factory work behave as before.
 - **A plan a factory agent owns never wakes that agent's chat.** A plan wake (task done, comment) would
   otherwise be typed into its opencode session as a request; `WakeAgentForPlanJob` forwards the fact to
-  the agent that created the plan instead (`REASON_PLAN_OUTCOME`).
+  the agent that created the plan instead (`REASON_PLAN_OUTCOME`), and records the skip as ledger
+  `plan.agent.wake_skipped` (`reason`, `forwarded_to_creator`).
 - **A new app is created on the Mac, by the agent, never by Kanvas.** `gh` only works inside the Mac's
   desktop login, which is where the session runs and where an SSH call from here does not. The kickoff
   is a task in the template's checkout (`Repo: kanvas-mobile-skeleton`) that runs the factory's

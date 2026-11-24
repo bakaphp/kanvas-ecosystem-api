@@ -412,7 +412,7 @@ final readonly class FactoryStage
             self::LEARN_TITLE . $repository . ' (' . $date . ')',
             'What ' . $repository . ' improves next, from its product analytics and production errors.',
             [new FactoryStep('Learn ' . $date . ': read the data, name the improvements', $text, $agent)],
-            self::LEARN_TITLE . self::likeLiteral($repository) . ' (%',
+            self::LEARN_TITLE . Str::escapeLike($repository) . ' (%',
         );
     }
 

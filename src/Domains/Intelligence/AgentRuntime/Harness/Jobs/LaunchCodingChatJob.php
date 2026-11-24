@@ -274,8 +274,12 @@ class LaunchCodingChatJob implements ShouldQueue
             return;
         }
 
-        self::dispatch($this->app, $this->sessionId, $this->instruction, lookups: $this->lookups + 1)
-            ->delay(Carbon::now()->addSeconds(self::MISSING_ROW_DELAY_SECONDS));
+        self::dispatch(
+            $this->app,
+            $this->sessionId,
+            $this->instruction,
+            lookups: $this->lookups + 1,
+        )->delay(Carbon::now()->addSeconds(self::MISSING_ROW_DELAY_SECONDS));
     }
 
     /**
