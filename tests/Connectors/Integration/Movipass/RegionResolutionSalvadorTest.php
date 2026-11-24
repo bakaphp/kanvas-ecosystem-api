@@ -45,11 +45,13 @@ final class RegionResolutionSalvadorTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->originalCountryMap === null
-            ? $this->appInstance->del(ConfigurationEnum::REGION_COUNTRY_MAP->value)
-            : $this->appInstance->set(ConfigurationEnum::REGION_COUNTRY_MAP->value, $this->originalCountryMap);
-        Cache::forget('ipinfo:country:' . self::SALVADOR_IP);
-        Cache::forget('ipinfo:country:' . self::OTHER_COUNTRY_IP);
+        if (isset($this->appInstance)) {
+            $this->originalCountryMap === null
+                ? $this->appInstance->del(ConfigurationEnum::REGION_COUNTRY_MAP->value)
+                : $this->appInstance->set(ConfigurationEnum::REGION_COUNTRY_MAP->value, $this->originalCountryMap);
+            Cache::forget('ipinfo:country:' . self::SALVADOR_IP);
+            Cache::forget('ipinfo:country:' . self::OTHER_COUNTRY_IP);
+        }
 
         parent::tearDown();
     }
