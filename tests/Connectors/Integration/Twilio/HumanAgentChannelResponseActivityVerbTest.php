@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -29,6 +30,8 @@ class HumanAgentChannelResponseActivityVerbTest extends TestCase
 {
     use DatabaseTransactions;
     use HasIntegrationCompany;
+
+    private const string FROM_PHONE = '+15005550006';
 
     public function testHumanReplyPayloadIsNotTaggedWithTheMessageTypeVerb(): void
     {
@@ -75,12 +78,56 @@ class HumanAgentChannelResponseActivityVerbTest extends TestCase
         $this->assertEquals($updatedAt, $message->updated_at);
     }
 
-    private function runActivity(Channel $channel, Apps $app, Message $message): array
+    /**
+     * The thread and a resend both read the stored row, so the clause the customer received has
+     * to be on it and not only on the text handed to the provider.
+     */
+    public function testFirstHumanSmsStoresTheOptOutNotice(): void
+    {
+        $payload = ['content' => 'Hi from a human', 'from_me' => true, 'from_human' => true];
+
+        [$app, $channel, $message] = $this->makeChannelMessage(verb: 'sms', payload: $payload);
+
+        $this->runActivity($channel, $app, $message, self::FROM_PHONE);
+
+        $this->assertSame(
+            ['content' => "Hi from a human\n\n" . SmsOptOutNoticeService::NOTICE] + $payload,
+            $message->refresh()->message,
+        );
+    }
+
+    public function testLaterHumanSmsIsStoredAsWritten(): void
+    {
+        $payload = ['content' => 'Second one', 'from_me' => true, 'from_human' => true];
+
+        [$app, $channel, $message] = $this->makeChannelMessage(verb: 'sms', payload: $payload);
+        $channel->addMessage($this->makeMessage($app, 'sms', ['content' => 'First one', 'from_me' => true]));
+
+        $updatedAt = $message->updated_at;
+
+        $this->runActivity($channel, $app, $message, self::FROM_PHONE);
+
+        $this->assertSame($payload, $message->refresh()->message);
+        $this->assertEquals($updatedAt, $message->updated_at);
+    }
+
+    public function testHumanSmsThatAlreadyCarriesANoticeIsStoredAsWritten(): void
+    {
+        $payload = ['content' => 'Hi. Reply STOP to opt out.', 'from_me' => true, 'from_human' => true];
+
+        [$app, $channel, $message] = $this->makeChannelMessage(verb: 'sms', payload: $payload);
+
+        $this->runActivity($channel, $app, $message, self::FROM_PHONE);
+
+        $this->assertSame($payload, $message->refresh()->message);
+    }
+
+    private function runActivity(Channel $channel, Apps $app, Message $message, ?string $from = null): array
     {
         return new HumanAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
             $channel,
             $app,
-            ['message' => $message],
+            ['message' => $message] + ($from !== null ? ['from' => $from] : []),
         );
     }
 
@@ -117,6 +164,21 @@ class HumanAgentChannelResponseActivityVerbTest extends TestCase
             ])
         )->execute();
 
+        $message = $this->makeMessage($app, $verb, $payload);
+
+        $message->addEntity($lead);
+        $channel->addMessage($message);
+
+        return [$app, $channel, $message];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function makeMessage(Apps $app, string $verb, array $payload): Message
+    {
+        $user = auth()->user();
+
         $messageType = MessageType::firstOrCreate(
             ['apps_id' => $app->getId(), 'languages_id' => 1, 'verb' => $verb],
             ['name' => ucfirst($verb)]
@@ -124,18 +186,14 @@ class HumanAgentChannelResponseActivityVerbTest extends TestCase
 
         $create = new CreateMessageAction(new MessageInput(
             app: $app,
-            company: $company,
+            company: $user->getCurrentCompany(),
             user: $user,
             type: $messageType,
             message: $payload,
             is_public: 1,
         ));
         $create->runWorkflow = false;
-        $message = $create->execute();
 
-        $message->addEntity($lead);
-        $channel->addMessage($message);
-
-        return [$app, $channel, $message];
+        return $create->execute();
     }
 }

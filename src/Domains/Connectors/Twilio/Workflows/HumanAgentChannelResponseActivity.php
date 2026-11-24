@@ -179,7 +179,15 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 $message->addTag('engagement');
 
                 if ($channelType === LeadCommunicationChannelEnum::SMS->value) {
-                    $content = SmsOptOutNoticeService::appendIfFirstOutbound($channel, $content, $message);
+                    $contentWithNotice = SmsOptOutNoticeService::appendIfFirstOutbound($channel, $content, $message);
+
+                    // The stored row is what the thread shows and what a resend reads, so it has to
+                    // carry the clause the customer received.
+                    if ($contentWithNotice !== $content) {
+                        $content = $contentWithNotice;
+                        $message->message = array_merge($message->message, ['content' => $content]);
+                        $message->save();
+                    }
                 }
 
                 // Message::user is a UserFullTableName, which caches its settings under another Redis key
