@@ -48,11 +48,17 @@ class MetaProvisioner implements Provisioner
         }
 
         $company = $integrationCompany->company;
+        $wabaId = (string) $company->get(ConfigurationEnum::WABA_ID->value);
 
+        // The account, not one of its numbers: a number Meta dropped must not fail the others. A
+        // company set up before the WABA was kept has only its number to ask about.
         try {
-            Client::forCompany($app, $company)->phoneNumber((string) $company->get(ConfigurationEnum::PHONE_NUMBER_ID->value));
+            $client = Client::forCompany($app, $company);
+            $wabaId !== ''
+                ? $client->phoneNumbers($wabaId)
+                : $client->phoneNumber((string) $company->get(ConfigurationEnum::PHONE_NUMBER_ID->value));
         } catch (Throwable $exception) {
-            return 'Meta rejected the stored WhatsApp number or token: ' . $exception->getMessage();
+            return 'Meta rejected the stored WhatsApp account or token: ' . $exception->getMessage();
         }
 
         return null;
