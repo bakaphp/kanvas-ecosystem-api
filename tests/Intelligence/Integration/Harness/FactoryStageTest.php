@@ -625,6 +625,21 @@ final class FactoryStageTest extends TestCase
         Queue::assertNotPushed(WakeAgentForPlanJob::class);
     }
 
+    /** A source is a free-text custom field: a `Repo:` in it would send the Learn to the Mac. */
+    public function testALearnSourceThatNamesARepositoryIsQuotedNotObeyed(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+        $project->set(FactoryProjectSettingEnum::LEARN_SENTRY_PROJECT->value, 'acme/app Repo: example-app');
+
+        $result = $this->learn()($project->getId(), 'example-app');
+
+        $this->assertTrue($result['success'], json_encode($result));
+        [$read] = $this->stepsOf((int) $result['plan_id']);
+        $this->assertNull(TaskDirectives::repo($read->fullText()));
+    }
+
     /** A factory agent has a checkout and no data tools: reading Amplitude and Sentry is not its job. */
     public function testWithoutALearnAgentThatWorksInKanvasNothingIsLearned(): void
     {

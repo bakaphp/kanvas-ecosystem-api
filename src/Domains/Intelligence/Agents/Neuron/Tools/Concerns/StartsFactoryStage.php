@@ -70,7 +70,7 @@ trait StartsFactoryStage
             $action->reused()
                 ? 'This stage is already on the board as plan ' . $plan->getId() . '. Nothing new was started: tell '
                     . 'the person where it stands.'
-                : 'Started. The steps run on the factory machine in this order, already assigned: create, assign or '
+                : 'Started. The steps run in this order, already assigned: create, assign or '
                     . 'edit nothing more for them. You are woken when the last step finishes. A kickoff or a ticket '
                     . 'lands on the integration branch: start the next ticket of the approved plan without asking, '
                     . 'or start_factory_release after the last one. A release ends with a pull request into develop: '

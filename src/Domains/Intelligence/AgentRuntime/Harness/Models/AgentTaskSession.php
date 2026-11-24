@@ -78,6 +78,9 @@ class AgentTaskSession extends BaseModel
     /** The line a factory task run ends its final reply with; without it a stopped turn is not a finish. */
     public const string RUN_FINISHED_MARKER = 'TASK COMPLETE';
 
+    /** Silence past this is a dead session, unless its launch stage asks for longer. */
+    public const int STALE_MINUTES = 10;
+
     protected $table = 'agent_task_sessions';
     protected $guarded = [];
 
@@ -232,6 +235,19 @@ class AgentTaskSession extends BaseModel
     /**
      * Saved quietly: a stage change is progress, not an outcome, and nothing should fire on it.
      */
+    public function launchStaleMinutes(): int
+    {
+        return $this->launchStage()?->staleMinutes(self::STALE_MINUTES) ?? self::STALE_MINUTES;
+    }
+
+    /** A row that never got a heartbeat is judged by when it was created. */
+    public function heardFromWithin(int $minutes): bool
+    {
+        $lastSeen = $this->heartbeat_at ?? $this->created_at;
+
+        return $lastSeen !== null && $lastSeen->gte(Carbon::now()->subMinutes($minutes));
+    }
+
     public function markLaunchStage(?LaunchStageEnum $stage): void
     {
         $this->launch_stage = $stage?->value;

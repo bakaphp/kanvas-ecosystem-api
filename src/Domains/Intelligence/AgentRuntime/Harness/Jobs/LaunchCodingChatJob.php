@@ -48,15 +48,11 @@ class LaunchCodingChatJob implements ShouldQueue
 
     /**
      * A launch can reach the worker before the row that dispatched it is visible (a transaction still
-     * open on the dispatching side). Returning then left the row STARTING until the sweeper reaped it as
-     * "the launch job never ran", with nothing in any log.
+     * open on the dispatching side), so a missing row is looked for again before the launch gives up.
      */
     private const int MISSING_ROW_LOOKUPS = 5;
 
     private const int MISSING_ROW_DELAY_SECONDS = 5;
-
-    /** Same default as `kanvas:coding:sweep-sessions`: a launch silent longer than its stage allows is dead. */
-    private const int STALE_MINUTES = 10;
 
     /** A provisioned run is polled every minute; one unheard-of for this long is not holding the devices. */
     private const int RUNNING_SILENT_MINUTES = 30;
@@ -249,17 +245,14 @@ class LaunchCodingChatJob implements ShouldQueue
 
     /**
      * Only a run that is still being heard from holds the Mac. A row whose launch or poller died stays
-     * live until the sweeper closes it; counted, one such row kept every later run on the machine waiting
-     * forever (a waiting run touches its own heartbeat each minute, so it is never swept itself).
+     * live until the sweeper closes it, and a waiting run touches its own heartbeat every minute so it is
+     * never swept: counting a dead row would keep every later run on the machine waiting for good.
      */
     private static function isAlive(AgentTaskSession $other): bool
     {
-        $minutes = $other->isProvisioned()
-            ? self::RUNNING_SILENT_MINUTES
-            : ($other->launchStage()?->staleMinutes(self::STALE_MINUTES) ?? self::STALE_MINUTES);
-        $lastSeen = $other->heartbeat_at ?? $other->created_at;
-
-        return $lastSeen !== null && $lastSeen->gte(Carbon::now()->subMinutes($minutes));
+        return $other->heardFromWithin(
+            $other->isProvisioned() ? self::RUNNING_SILENT_MINUTES : $other->launchStaleMinutes()
+        );
     }
 
     private function lookAgainLater(): void

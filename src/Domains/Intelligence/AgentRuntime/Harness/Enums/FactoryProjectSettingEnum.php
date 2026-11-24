@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Enums;
 
 use Baka\Support\Str;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Project\Models\Project;
 
 /**
- * Who builds and who designs a factory project's apps, kept on the project (custom fields) so each
- * project names its own agents instead of the orchestrator's prompt carrying ids.
+ * Who builds, designs and learns for a factory project's apps, and what the Learn agent reads, kept on
+ * the project (custom fields) so each project names its own agents instead of the orchestrator's prompt
+ * carrying ids.
  */
 enum FactoryProjectSettingEnum: string
 {
@@ -51,9 +53,12 @@ enum FactoryProjectSettingEnum: string
         return $agent !== null && ! CodingChatSettingEnum::isEnabledFor($agent) ? $agent : null;
     }
 
+    /** A custom field is free text, so it is quoted into the task with its directives defused. */
     public static function learnSourceFor(Project $project, self $setting): ?string
     {
-        return Str::trimToNull((string) $project->get($setting->value));
+        $source = Str::trimToNull((string) $project->get($setting->value));
+
+        return $source !== null ? TaskDirectives::neutralize($source) : null;
     }
 
     public static function templateFor(Project $project): string

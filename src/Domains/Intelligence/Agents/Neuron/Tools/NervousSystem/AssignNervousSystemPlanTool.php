@@ -137,13 +137,14 @@ class AssignNervousSystemPlanTool extends Tool
             ];
         }
 
-        // A factory agent works the tasks assigned to it, never a whole plan: its plan wake does nothing
-        // (WakeAgentForPlanJob).
+        // A factory agent works the tasks assigned to it, never a whole plan: a plan given to it hands every
+        // pending task to the factory at once (WakeAgentForPlanJob), and a task with no `Repo:` line runs in
+        // its default checkout.
         if (CodingChatSettingEnum::isEnabledFor($agent)) {
             return ['error' => sprintf(
-                'Plan %d was NOT assigned to \'%s\': it works tasks on the factory machine, never a whole plan, so a '
-                    . 'plan given to it never starts. Give each task of the plan exactly one `Repo: <folder>` line '
-                    . 'and assign each task to it with assign_nervous_system_task, in sequence order.',
+                'Plan %d was NOT assigned to \'%s\': it works tasks on the factory machine, never a whole plan. '
+                    . 'Give each task of the plan exactly one `Repo: <folder>` line and assign each task to it with '
+                    . 'assign_nervous_system_task, in sequence order.',
                 $plan->getId(),
                 $agent->name,
             )];
