@@ -7,11 +7,12 @@ namespace Tests\Guild\Leads;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Followers\Models\Follower;
+use Kanvas\Guild\Followers\Repositories\FollowersRepository;
 use Kanvas\Guild\Leads\Actions\FollowLeadOnMessageAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -26,9 +27,26 @@ final class LeadFollowersNotificationTest extends TestCase
         $follow = new FollowLeadOnMessageAction($lead, $sender)->execute();
         $again = new FollowLeadOnMessageAction($lead, $sender)->execute();
 
-        $this->assertInstanceOf(UsersFollows::class, $follow);
+        $this->assertInstanceOf(Follower::class, $follow);
         $this->assertSame($follow->getId(), $again->getId());
         $this->assertSame(1, $this->followRows($lead, $sender));
+    }
+
+    public function testMessagingTheLeadAlsoFollowsItsPerson(): void
+    {
+        $sender = auth()->user();
+        $lead = $this->makeLead(Users::factory()->create());
+
+        new FollowLeadOnMessageAction($lead, $sender)->execute();
+        new FollowLeadOnMessageAction($lead, $sender)->execute();
+
+        $this->assertSame(
+            1,
+            FollowersRepository::forEntity($lead->people)
+                ->where('users_id', $sender->getId())
+                ->where('is_deleted', 0)
+                ->count()
+        );
     }
 
     public function testTheOwnerAndTheCreatorAreNotAddedAsFollowers(): void
@@ -153,9 +171,7 @@ final class LeadFollowersNotificationTest extends TestCase
 
     private function followRows(Lead $lead, Users $user): int
     {
-        return UsersFollows::query()
-            ->where('entity_namespace', Lead::class)
-            ->where('entity_id', $lead->getId())
+        return FollowersRepository::forEntity($lead)
             ->where('users_id', $user->getId())
             ->where('is_deleted', 0)
             ->count();

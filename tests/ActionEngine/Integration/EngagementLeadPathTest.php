@@ -16,6 +16,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Support\Setup;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Followers\Repositories\FollowersRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
 use PHPUnit\Framework\Attributes\Group;
@@ -108,7 +109,7 @@ final class EngagementLeadPathTest extends TestCase
         $this->assertSame($this->lead->people->uuid, $visitor->contacts_id);
         $this->assertSame((int) $engagement->companies_actions_id, (int) $visitor->companies_actions_id);
 
-        $this->assertTrue(auth()->user()->isFollowing($this->lead));
+        $this->assertTrue(FollowersRepository::isFollowing(auth()->user(), $this->lead));
     }
 
     private function linkFullFromVisitor(string $requestId): string

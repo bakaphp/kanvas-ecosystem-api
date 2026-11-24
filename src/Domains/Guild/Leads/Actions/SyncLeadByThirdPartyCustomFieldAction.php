@@ -6,8 +6,10 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Followers\Actions\AddFollowerAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\Events\LeadCompanySyncEvent;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
@@ -95,7 +97,11 @@ class SyncLeadByThirdPartyCustomFieldAction
 
         if (count($this->lead->followers)) {
             foreach ($this->lead->followers as $follower) {
-                $follower->follow($lead);
+                try {
+                    new AddFollowerAction($lead, $follower)->execute();
+                } catch (ModelNotFoundException) {
+                    // A follower outside the lead's company is dropped, not a reason to fail the sync.
+                }
             }
         }
 

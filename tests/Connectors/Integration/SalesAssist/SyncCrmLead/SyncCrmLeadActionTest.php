@@ -28,6 +28,7 @@ use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
+use Kanvas\Guild\Followers\Repositories\FollowersRepository;
 use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
@@ -578,7 +579,7 @@ final class SyncCrmLeadActionTest extends TestCase
 
         $result = $this->sync($input);
 
-        $this->assertTrue($user->isFollowing($result->lead));
+        $this->assertTrue(FollowersRepository::isFollowing($user, $result->lead));
     }
 
     public function testAnUnknownFollowerEmailIsRefusedBeforeAnythingIsWritten(): void

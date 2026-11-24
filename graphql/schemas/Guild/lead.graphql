@@ -51,7 +51,7 @@ type Lead {
     followers: [User!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
+            builder: "App\\GraphQL\\Guild\\Builders\\Followers\\FollowerBuilder@getFollowers"
         )
     followUpPlan: LeadFollowUpPlan
         @field(
