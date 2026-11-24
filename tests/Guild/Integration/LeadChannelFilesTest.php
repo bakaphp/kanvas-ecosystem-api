@@ -354,6 +354,103 @@ final class LeadChannelFilesTest extends TestCase
         }
     }
 
+    public function testAReadChildsLicenseShowsNextToTheSubmittedReport(): void
+    {
+        $lead = $this->makeLead();
+        $root = $this->makeIdVerificationMessage($lead);
+
+        $read = $this->makeChildMessage($lead, $root, 'read');
+        $read->addFile($this->makeFilesystem($lead, 'front.jpg'), 'drivers_license_front');
+        $read->addFile($this->makeFilesystem($lead, 'back.jpg'), 'drivers_license_back');
+
+        $submitted = $this->makeIdVerificationMessage($lead, $root);
+        $submitted->addFile($this->makeFilesystem($lead, 'face.jpg'), 'face_image');
+
+        $this->assertSame(
+            ['drivers_license_back', 'drivers_license_front', 'face_image', 'id-verification'],
+            $this->fieldNamesOf($this->groupFor($lead, $root))
+        );
+    }
+
+    public function testTheShownMessagesFileWinsOverAReadChildsSameField(): void
+    {
+        $lead = $this->makeLead();
+        $root = $this->makeIdVerificationMessage($lead);
+
+        $read = $this->makeChildMessage($lead, $root, 'read');
+        $read->addFile($this->makeFilesystem($lead, 'front-from-read.jpg'), 'drivers_license_front');
+
+        $submitted = $this->makeIdVerificationMessage($lead, $root);
+        $submitted->addFile($this->makeFilesystem($lead, 'front-from-submitted.jpg'), 'drivers_license_front');
+
+        $fronts = array_values(array_filter(
+            $this->groupFor($lead, $root)['files'],
+            fn (array $file): bool => $file['field_name'] === 'drivers_license_front'
+        ));
+
+        $this->assertCount(1, $fronts);
+        $this->assertSame('front-from-submitted.jpg', $fronts[0]['name']);
+    }
+
+    public function testTheNewestReadChildWinsAFieldSeveralHold(): void
+    {
+        $lead = $this->makeLead();
+        $root = $this->makeIdVerificationMessage($lead);
+
+        $old = $this->makeChildMessage($lead, $root, 'read');
+        $old->addFile($this->makeFilesystem($lead, 'front-old.jpg'), 'drivers_license_front');
+
+        $new = $this->makeChildMessage($lead, $root, 'read');
+        $new->addFile($this->makeFilesystem($lead, 'front-new.jpg'), 'drivers_license_front');
+
+        $fronts = array_values(array_filter(
+            $this->groupFor($lead, $root)['files'],
+            fn (array $file): bool => $file['field_name'] === 'drivers_license_front'
+        ));
+
+        $this->assertCount(1, $fronts);
+        $this->assertSame('front-new.jpg', $fronts[0]['name']);
+    }
+
+    /** A child of the thread that is not a submitted report: the same message shape, with the given status. */
+    private function makeChildMessage(Lead $lead, Message $parent, string $status): Message
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $messageType = MessageType::firstOrCreate([
+            'apps_id' => $app->getId(),
+            'languages_id' => 1,
+            'verb' => ConfigurationEnum::ID_VERIFICATION->value,
+        ], [
+            'name' => 'ID Verification',
+        ]);
+
+        $message = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $lead->company,
+                user: $user,
+                type: $messageType,
+                message: [
+                    'engagement_status' => $status,
+                    'hashtagVisited' => ConfigurationEnum::ID_VERIFICATION->value,
+                    'text' => 'ID Verification',
+                    'source' => 'workflow',
+                    'status' => $status,
+                    'verb' => ConfigurationEnum::ID_VERIFICATION->value,
+                ],
+                parent_id: $parent->getId(),
+            ),
+            SystemModulesRepository::getByModelName(Lead::class, $app),
+            $lead->getId()
+        )->execute();
+
+        $lead->socialChannels()->firstOrFail()->addMessage($message, $user);
+
+        return $message;
+    }
+
     private function groupFor(Lead $lead, Message $message): array
     {
         $groups = new LeadChannelFilesService($lead)->getChannelFiles()['groups'];

@@ -8,7 +8,7 @@ There is no client and no outbound request in this connector. Intellicheck's bot
 
 ## The folder rule — why the report threads as a child
 
-A "folder" in the lead's files UI is **a root message**. [`LeadChannelFilesService::getMessageFileGroups()`](../../Guild/Leads/Services/LeadChannelFilesService.php) groups on `messages.parent_id = 0 OR NULL`, then reads the files off the **newest submitted child** of each root.
+A "folder" in the lead's files UI is **a root message**. [`LeadChannelFilesService::getMessageFileGroups()`](../../Guild/Leads/Services/LeadChannelFilesService.php) groups on `messages.parent_id = 0 OR NULL`, then reads the files off the **newest submitted child** of each root (falling back to the newest child, then the root) and adds the **named** files (`field_name`) of the other children of the thread that the shown message does not hold; the newest child wins a field. A file without a `field_name` from another child is never merged.
 
 So an ID-verification report that creates its own engagement gets its own root message and renders as a **second folder**, next to the one already holding the licence images and the selfie. That was the long-standing bug: `CreateEngagementAction` creates roots, and the report path called it unconditionally.
 
@@ -96,7 +96,7 @@ the mailbox `after-id-verification` is still waiting on.
 
 Deleting the deprecated source later is deleting the flag, its `false` branch, and `customFieldImages()`.
 
-**Re-linking the parent's files onto the child is required, not an optimization.** `LeadChannelFilesService::formatMessageFileGroup()` renders the files of the **last submitted child only** — `getLastSubmittedMessage($root) ?? $root` — never the union with the root. So an image left behind on the parent message vanishes from the folder the moment the report threads a child under it. This is exactly what the legacy controller was doing when it copied the images across, and why "the images are already on the engagement" is not enough on its own.
+**Re-linking the parent's files onto the child is required, not an optimization.** `LeadChannelFilesService::formatMessageFileGroup()` renders the files of the **last submitted child**, `getLastSubmittedMessage($root) ?? $root`, plus the named files other children hold (`getFilesFromThread()`) — never the union with the root itself. So an image left behind on the *root* message vanishes from the folder the moment the report threads a child under it; one left on a sibling child (the web flow's "opened" child) still shows. This is exactly what the legacy controller was doing when it copied the images across, and why "the images are already on the engagement" is not enough on its own.
 
 ⚠️ **Open: the parent's pivot may not carry the canonical `field_name` yet.**
 `CreateEngagementAction::attachFiles()` attaches a form upload as `addFile($file, $file->name)` — the

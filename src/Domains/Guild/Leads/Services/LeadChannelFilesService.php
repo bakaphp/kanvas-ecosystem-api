@@ -17,6 +17,9 @@ use Throwable;
 
 class LeadChannelFilesService
 {
+    /** A thread holds a handful of children (one per open), so the newest few are enough. */
+    protected const int THREAD_MESSAGES_READ = 20;
+
     public function __construct(
         protected Lead $lead
     ) {
@@ -109,7 +112,7 @@ class LeadChannelFilesService
     {
         $lastMessage = $this->getLastSubmittedMessage($message) ?? $message;
 
-        $files = $this->getFilesFromMessage($lastMessage);
+        $files = $this->getFilesFromThread($message, $lastMessage);
         $verb = 'message';
         $action = 'Message Files';
         $status = 'submitted';
@@ -270,6 +273,46 @@ class LeadChannelFilesService
         }
 
         return $lastMessage;
+    }
+
+    /**
+     * A flow can leave its files on a child that is not the one the folder shows: the web ID verification saves
+     * the licence on the "opened" child of the link, while the report lands on a later "submitted" child. So the
+     * folder keeps the shown message's files and adds, from the rest of the thread, the named files (`field_name`)
+     * it does not already hold. The newest child wins a field, and a file without a `field_name` is never merged.
+     */
+    protected function getFilesFromThread(Message $root, Message $shown): array
+    {
+        $files = $this->getFilesFromMessage($shown);
+        $taken = [];
+
+        foreach ($files as $file) {
+            if (($file['field_name'] ?? '') !== '') {
+                $taken[$file['field_name']] = true;
+            }
+        }
+
+        $others = Message::query()
+            ->where('parent_id', $root->getId())
+            ->where('id', '!=', $shown->getId())
+            ->orderByDesc('id')
+            ->limit(self::THREAD_MESSAGES_READ)
+            ->get();
+
+        foreach ($others as $other) {
+            foreach ($this->getFilesFromMessage($other) as $file) {
+                $field = $file['field_name'] ?? '';
+
+                if ($field === '' || isset($taken[$field])) {
+                    continue;
+                }
+
+                $taken[$field] = true;
+                $files[] = $file;
+            }
+        }
+
+        return $files;
     }
 
     protected function getFilesFromMessage(Message $message): array
