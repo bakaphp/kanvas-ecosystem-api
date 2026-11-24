@@ -93,6 +93,26 @@ final class MoneyTest extends TestCaseUnit
         $this->assertSame('0.00', $result->__toString());
     }
 
+    public function testFormatPrintsTheCodeTheGroupingAndTheCurrencysOwnDecimals(): void
+    {
+        $this->assertSame('USD 1,250.50', Money::format(1250.5, 'USD'));
+        $this->assertSame('USD 1.01', Money::format('1.005', 'USD'));
+        $this->assertSame('JPY 1,251', Money::format(1250.5, 'JPY'));
+        $this->assertSame('KWD 1,250.500', Money::format(1250.5, 'KWD'));
+        $this->assertSame('USD -300.00', Money::format(-300, 'USD'));
+    }
+
+    public function testFormatReadsACodeHoweverItWasStored(): void
+    {
+        $this->assertSame('JPY 1,251', Money::format(1250.5, ' jpy '));
+    }
+
+    public function testFormatWithoutACurrencyIsOnlyTheNumber(): void
+    {
+        $this->assertSame('300.00', Money::format(300));
+        $this->assertSame('300.00', Money::format(300, ''));
+    }
+
     public function testRoundCollectPreservesTwoDecimalScale(): void
     {
         $result = Money::roundCollect(Money::of('12.345'));

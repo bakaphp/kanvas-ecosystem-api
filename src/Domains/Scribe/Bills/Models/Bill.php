@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Bills\Models;
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Support\Money;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Contracts\DeliversApprovalNoticesInterface;
+use Kanvas\Approvals\Contracts\DescribesApprovalDetailsInterface;
 use Kanvas\Approvals\Contracts\ReactsToApprovalExpiryInterface;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
@@ -98,7 +100,7 @@ use Override;
  * @property int|null $users_id
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class Bill extends BaseModel implements PayableInterface, DeliversApprovalNoticesInterface, ReactsToApprovalExpiryInterface
+class Bill extends BaseModel implements PayableInterface, DeliversApprovalNoticesInterface, DescribesApprovalDetailsInterface, ReactsToApprovalExpiryInterface
 {
     use HasApprovals;
     use HasInternalNotes;
@@ -196,16 +198,27 @@ class Bill extends BaseModel implements PayableInterface, DeliversApprovalNotice
         return ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value;
     }
 
+    #[Override]
+    public function approvalDetails(): array
+    {
+        return [
+            'party' => $this->vendor_display_name ?? $this->vendor?->name,
+            'amount' => (float) $this->total_native,
+            'currency' => $this->currency,
+            'due_date' => $this->due_date?->toDateString(),
+        ];
+    }
+
     protected function approvalNoticeBody(): string
     {
-        $vendor = $this->vendor_display_name ?? $this->vendor?->name ?? 'Unknown vendor';
+        $vendor = $this->approvalDetails()['party'] ?? 'Unknown vendor';
         $lines = $this->lines()->with('expenseAccount')->orderBy('sort_order')->get()
             ->map(fn (BillLine $line): string => '- ' . ($line->expenseAccount?->account_number ?? '?') . ' '
-                . $this->currency . ' ' . number_format((float) $line->line_total_native, 2) . ' ' . $line->description)
+                . Money::format((float) $line->line_total_native, $this->currency) . ' ' . $line->description)
             ->implode("\n");
 
-        return "You have an AP bill pending approval:\nVendor: {$vendor}\nAmount: {$this->currency} "
-            . number_format((float) $this->total_native, 2)
+        return "You have an AP bill pending approval:\nVendor: {$vendor}\nAmount: "
+            . Money::format((float) $this->total_native, $this->currency)
             . ($this->bill_number !== null ? "\nVendor invoice #: {$this->bill_number}" : '')
             . ($lines !== '' ? "\nLines:\n{$lines}" : '')
             . ($this->notes !== null && $this->notes !== '' ? "\nMemo: {$this->notes}" : '')

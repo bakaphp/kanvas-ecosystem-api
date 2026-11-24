@@ -15,6 +15,9 @@
                 <tr>
                     <td style="padding: 10px 8px; border-bottom: 1px solid #eaecf0; font-size: 14px;">
                         <strong>{{ approval.name }}</strong><br>
+                        {% if approval.details %}
+                            {{ approval.details }}<br>
+                        {% endif %}
                         <span style="color: #667085; font-size: 12px;">{{ approval.type }}</span>
                     </td>
                     <td style="padding: 10px 8px; border-bottom: 1px solid #eaecf0; font-size: 14px;">{{ approval.action }}</td>

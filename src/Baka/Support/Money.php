@@ -95,6 +95,21 @@ final class Money
         return self::decimal($amount)->toScale(2, RoundingMode::HalfUp)->toFloat();
     }
 
+    /**
+     * For people, never for storage: "USD 1,250.50", at the currency's own decimals (JPY has none, KWD three).
+     */
+    public static function format(BigDecimal|string|int|float $amount, ?string $currency = null): string
+    {
+        $code = Str::trimToNull($currency);
+        $scale = self::scaleFor($code);
+        $number = number_format(
+            self::decimal($amount)->toScale($scale, RoundingMode::HalfUp)->toFloat(),
+            $scale
+        );
+
+        return $code === null ? $number : strtoupper($code) . ' ' . $number;
+    }
+
     public static function toBase(BigDecimal|string|int|float $native, BigDecimal|string|int|float $fxRate): float
     {
         return self::stored(self::decimal($native)->multipliedBy(self::decimal($fxRate)));

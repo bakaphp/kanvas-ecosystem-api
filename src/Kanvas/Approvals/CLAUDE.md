@@ -150,9 +150,15 @@ built-in HTML, never an empty body.
 
 Template variables, all plain values: `heading`, `count`, `approvals` (list), `approval` (the first),
 `company_name`, `review_url`. Each approval: `id`, `name`, `type`, `action`, `approval_type`,
-`requested_at` (`ApprovalRequest::emailSummary()`). `review_url` is the app setting
+`requested_at`, `details` (`ApprovalRequest::emailSummary()`). `review_url` is the app setting
 `approvals_review_url` (`ApprovalConfigurationEnum::REVIEW_URL`); the repo templates show the review
 button only when it is set.
+
+`details` is one line ("Acme Supplies · USD 300.00 · due 2026-12-01") or null. It exists because a
+number is not an identity: two vendors can both send bill 1001. An entity opts in by implementing
+`DescribesApprovalDetailsInterface` (Bill and Invoice do); the same array is the `details` key of
+`entitySummary()`, which is what the Approvals window reads. All three approval templates and the
+built-in HTML print it, so a template added later has to as well.
 
 ## Every decision goes to the ledger
 

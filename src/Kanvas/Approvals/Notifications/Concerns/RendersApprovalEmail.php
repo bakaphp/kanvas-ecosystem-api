@@ -12,7 +12,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
  * Both approval emails render a named template when the company or app has one, and fall back to
  * built-in HTML otherwise, so an app that never synced its templates still sends a readable email.
  * Template variables: heading, intro, count, approvals (list), approval (the first), company_name, review_url.
- * Each approval: id, name, type, action, approval_type, requested_at.
+ * Each approval: id, name, type, action, approval_type, requested_at, details (e.g. "Acme · USD 300.00 · due 2026-12-01", or null).
  */
 trait RendersApprovalEmail
 {
@@ -52,6 +52,7 @@ trait RendersApprovalEmail
         foreach ($this->data['approvals'] as $approval) {
             $rows .= '<tr>'
                 . '<td style="padding: 8px; border-bottom: 1px solid #eaecf0;"><strong>' . e($approval['name']) . '</strong><br>'
+                . (($approval['details'] ?? null) !== null ? e($approval['details']) . '<br>' : '')
                 . '<span style="color: #667085; font-size: 12px;">' . e($approval['type']) . '</span></td>'
                 . '<td style="padding: 8px; border-bottom: 1px solid #eaecf0;">' . e($approval['action']) . '</td>'
                 . '</tr>';
