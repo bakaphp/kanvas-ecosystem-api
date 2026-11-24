@@ -190,8 +190,7 @@ class CaptureVoiceCallerAction
      */
     private function applyName(People $people): void
     {
-        $current = trim($people->firstname . ' ' . $people->lastname);
-        if (! VoiceCallerLookupService::isPlaceholderName($current)) {
+        if (! VoiceCallerLookupService::isPlaceholderName($people->getName())) {
             return;
         }
 

@@ -279,7 +279,7 @@ final class VoiceLeadContinuityTest extends TestCase
             direction: 'inbound',
         )->execute();
 
-        return People::findOrFail($result['people_id']);
+        return People::getByIdFromCompanyApp($result['people_id'], $agent->company, $agent->app);
     }
 
     private function createAgent(): Agent
