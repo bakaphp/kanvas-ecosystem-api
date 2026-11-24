@@ -8,6 +8,7 @@ use Baka\Traits\ScalarCoercionTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -27,6 +28,7 @@ use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Tools\ToolCall;
 use Override;
 
 /**
@@ -97,14 +99,23 @@ class ConversationMessageStore extends KanvasMessageStore
     #[Override]
     public function loadActive(string $threadId): array
     {
-        return $this->activeRows($threadId)
+        $rows = $this->activeRows($threadId)
             ->orderByDesc('sequence')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(self::MAX_LOADED_ROWS)
-            ->get(['id', 'role', 'content', 'attachments', 'meta'])
+            ->get(['id', 'role', 'kind', 'content', 'attachments', 'meta'])
             ->reverse()
-            ->map(function (object $row): ?Message {
+            ->values();
+
+        $interrupted = $this->resumesInterruptedTurn ? $this->interruptedToolRounds($rows) : [];
+
+        return $rows
+            ->map(function (object $row) use ($interrupted): ?Message {
+                if (array_key_exists($row->id, $interrupted)) {
+                    return $interrupted[$row->id];
+                }
+
                 $content = (string) ($row->content ?? '');
                 $marker = self::attachmentMarker($this->decodeJsonArray($row->attachments ?? null) ?? []);
 
@@ -118,18 +129,105 @@ class ConversationMessageStore extends KanvasMessageStore
                     ? new AssistantMessage($content)
                     : new UserMessage($content);
 
-                // Decoded here, not through decodeJsonArray(): that helper re-indexes to a list and the flags are keyed.
-                $meta = is_string($row->meta ?? null) ? json_decode($row->meta, true) : null;
-
-                foreach ((array) ($meta['__meta'] ?? []) as $key => $value) {
-                    $message->addMetadata((string) $key, $value);
-                }
-
-                return $message->setId((string) $row->id);
+                return self::asStoredRow($message, $row);
             })
             ->filter()
             ->values()
             ->all();
+    }
+
+    private static function asStoredRow(Message $message, object $row): Message
+    {
+        // Decoded here, not through decodeJsonArray(): that helper re-indexes to a list and the flags are keyed.
+        $meta = is_string($row->meta ?? null) ? json_decode($row->meta, true) : null;
+
+        foreach ((array) ($meta['__meta'] ?? []) as $key => $value) {
+            $message->addMetadata((string) $key, $value);
+        }
+
+        return $message->setId((string) $row->id);
+    }
+
+    /**
+     * The tool rounds a dead worker left at the end of the transcript, as the messages they were. Read
+     * as text, a resumed turn ends on the call's lead-in, which Claude refuses as a prefill
+     * (KANVAS-ECOSYSTEM-6QX), or shows the question alone and the tool runs twice. A call whose result
+     * never landed maps to null: the resumed tool node writes that call itself.
+     *
+     * @param Collection<int, object> $rows oldest first
+     * @return array<string, Message|null> by row id
+     */
+    private function interruptedToolRounds(Collection $rows): array
+    {
+        $toolKinds = [
+            ConversationMessageKindEnum::TOOL_CALL->value,
+            ConversationMessageKindEnum::TOOL_RESULT->value,
+        ];
+        $trailing = $rows
+            ->reverse()
+            ->takeWhile(static fn (object $row): bool => in_array($row->kind, $toolKinds, true))
+            ->reverse()
+            ->values();
+
+        if ($trailing->isEmpty()) {
+            return [];
+        }
+
+        $steps = DB::connection(self::CONNECTION)
+            ->table(self::TABLE_MESSAGES)
+            ->whereIn('id', $trailing->pluck('id')->all())
+            ->pluck('steps', 'id');
+
+        $rounds = [];
+
+        foreach ($trailing as $row) {
+            $answered = $row->kind === ConversationMessageKindEnum::TOOL_RESULT->value;
+            $calls = self::toolCallsOf($this->decodeJsonArray($steps[$row->id] ?? null) ?? [], $answered);
+            $content = (string) ($row->content ?? '');
+
+            $message = $answered
+                ? new ToolResultMessage($calls)
+                : new ToolCallMessage($content === '' ? null : $content, $calls);
+
+            // The metadata is part of the call: Gemini refuses a function call replayed without the
+            // thought signature it came with.
+            $rounds[$row->id] = self::asStoredRow($message, $row);
+        }
+
+        $last = $trailing->last();
+
+        if ($last->kind === ConversationMessageKindEnum::TOOL_CALL->value) {
+            $rounds[$last->id] = null;
+        }
+
+        return $rounds;
+    }
+
+    /**
+     * @param array<int, mixed> $steps
+     * @param bool $answered a result row: every call gets a result, because the row stores none for an
+     *                       empty one and a provider mapper throws on a call that has none
+     * @return list<ToolCall>
+     */
+    private static function toolCallsOf(array $steps, bool $answered): array
+    {
+        $calls = [];
+
+        foreach ($steps as $step) {
+            foreach ((array) ($step['tool_calls'] ?? []) as $stored) {
+                $name = (string) ($stored['name'] ?? '');
+                $callId = (string) ($stored['id'] ?? '');
+                $call = new ToolCall($name, $callId, (array) ($stored['arguments'] ?? []));
+
+                if ($answered) {
+                    $call->setResult($stored['result'] ?? '');
+                }
+
+                $calls[] = $call;
+            }
+        }
+
+        return $calls;
     }
 
     /**

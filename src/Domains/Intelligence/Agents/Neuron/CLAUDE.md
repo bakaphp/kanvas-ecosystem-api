@@ -226,9 +226,13 @@ real hook, and only `ConversationMessageStore` implements it (`archived_at`).
   rows out; `messages(include_internal: true)` returns every row with its `kind` for the backend view
   of what the agent did. The summary text is also written
   to Social as a private `agent_summary` message (`AgentMessageTypeEnum`, distinct from the lead
-  `summary` verb) on the session channel and entity, with the covered id range, `archived_count` and the
-  token counts before and after. That write never fails the turn.
-- `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
+  `summary` verb) on the session entity, with the covered id range, `archived_count` and the
+  token counts before and after. That write never fails the turn. **The note is never attached to the
+  session channel**: a channel renders it as a post from the agent, and the oldest turns it covers are
+  rarely what the room is talking about (a PM thanked for a summary posted a recap of a month-old
+  meeting above its reply). A human reads it through `messages(include_internal: true)`.
+- Notes written before that change are still on their channels, so every reader keeps skipping them.
+  `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
   skips it, so a customer-facing agent never replays the agent's own compaction note. Three more
   readers skip it through `AgentChannelActivity::isCompactionNote()`: `MessageObserver` never parses
   it for mentions (it quotes the thread, handles included, so it woke the PM that wrote it with its own
@@ -349,6 +353,16 @@ only when the dead run was started by that same message, continues it by run id
 running them. `RunNeuronChatAction` tries that before `chat()`, so a redelivered job never repeats a
 write (`DurableAgentRunTest`). A different message is a new turn.
 
+The resumed worker rebuilds its history from the store, and the transcript reloads as text. So
+`recoverInterruptedRun()` calls `resumeInterruptedTurn()` on the store, and `ConversationMessageStore`
+then rebuilds the tool rounds left at the end of the transcript as real `ToolCallMessage` /
+`ToolResultMessage` from the rows' `steps`, metadata included (Gemini wants a call's thought signature
+back with it). Read as text, a resumed request is the question plus the call's lead-in as a plain
+assistant turn, which Claude refuses as a prefill (KANVAS-ECOSYSTEM-6QX, 705), or the question alone,
+and the tool runs a second time. The flag is on for that one run only: a resume that fails falls
+through to a plain `chat()` on the same store, which is a new turn and reads text. The rollup and
+channel stores do not rebuild anything. `DurableResumeOnConversationStoreTest`.
+
 A second inbound on a thread whose run still holds its lease, two emails minutes apart on one AP
 mailbox, is refused with `RunInFlightException`. `RunNeuronChatAction::chatOnceTheThreadSettles()`
 waits for it, polling every 5 s for up to 150 s, and only then lets the exception through
@@ -415,6 +429,24 @@ changes per turn and sits early makes every later token full price.
   still miss between turns. A history that is trimmed from the front misses too; one that is
   summarised in batches hits between summaries. The cache lives five minutes.
 - A hit shows as `cache_read` in the turn's `usage`, with `input_tokens` down to what was new.
+
+## Claude on Bedrock: a thinking block is replayed only under the request that produced it
+
+Claude signs each thinking block with the request it came from (instructions, the set of tools, every
+message before it) and answers a replay under anything else with a 400 for the whole request
+(`Invalid signature in thinking block ... The tools list differs`, KANVAS-ECOSYSTEM-704). Thinking is on
+by default on the current models and we never configure it, so every tool round carries one. Our tool
+list changes inside a turn by design: the tool search loads a tool, an unknown-tool stub gets declared,
+a summary replaces the oldest turns.
+
+`KanvasBedrock::keepReasoningOfThisConversation()` is the guard. Each reply that carries reasoning is
+stamped (`aws_reasoning_conversation` metadata) with a fingerprint of the request as it was sent, and
+`createPayLoad()` recomputes that fingerprint for every reasoning block it is about to replay; a block
+whose request no longer matches is left out of the payload, tool calls and text untouched. The cost is
+that one piece of reasoning. A block reloaded without a stamp (a stored row's `aws_redacted_reasoning`)
+is always left out. Cache points are excluded from the fingerprint and tools are compared as a set.
+Anything new that edits a request mid-turn is covered by the same check, with no code of its own.
+`KanvasBedrockReasoningBindingTest`.
 
 ## Unknown tool calls have two halves
 

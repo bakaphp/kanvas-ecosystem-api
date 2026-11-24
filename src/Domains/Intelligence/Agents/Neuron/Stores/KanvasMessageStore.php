@@ -37,6 +37,17 @@ abstract class KanvasMessageStore implements MessageStoreInterface
      */
     private array $appended = [];
 
+    protected bool $resumesInterruptedTurn = false;
+
+    /**
+     * A durable resume continues a turn in the middle of its tool loop, so its loads have to hand the
+     * model the rounds the dead worker already ran. A store that cannot rebuild them ignores this.
+     */
+    public function resumeInterruptedTurn(bool $resuming = true): void
+    {
+        $this->resumesInterruptedTurn = $resuming;
+    }
+
     final public function append(string $threadId, Message $message): void
     {
         $id = $message->getId();
