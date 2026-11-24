@@ -70,7 +70,7 @@ final class VoiceAgentToolsTest extends TestCase
     {
         $agent = $this->agentWithTools([CurrentTimeTool::class, AddLeadNoteTool::class]);
 
-        $tools = collect(new VoiceAgentSpecService($agent, $this->testApp)->compile()['tools'])->keyBy('name');
+        $tools = collect(new VoiceAgentSpecService($agent)->compile()['tools'])->keyBy('name');
 
         $this->assertCount(2, $tools);
         foreach ($tools as $tool) {

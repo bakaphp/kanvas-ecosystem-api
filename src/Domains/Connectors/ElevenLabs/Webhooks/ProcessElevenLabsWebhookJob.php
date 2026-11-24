@@ -11,7 +11,6 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
@@ -21,6 +20,7 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Spatie\LaravelData\DataCollection;
@@ -36,28 +36,16 @@ abstract class ProcessElevenLabsWebhookJob extends ProcessWebhookJob
     {
         $normalizedPhone = Str::normalizePhoneNumber($phone);
 
-        $people = $this->findPeopleByPhone($normalizedPhone, $phone)
+        $people = $this->findPeopleByPhone($phone)
             ?? $this->createPeopleFromPhone($normalizedPhone);
 
         return LeadsRepository::getPeopleActiveLead($people)
             ?? $this->createLeadFromPeople($people);
     }
 
-    protected function findPeopleByPhone(string $normalizedPhone, string $rawPhone): ?People
+    protected function findPeopleByPhone(string $phone): ?People
     {
-        $digitsOnly = Str::sanitizePhoneNumber($rawPhone);
-
-        $query = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->receiver->company,
-            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
-        );
-
-        $allCustomers = $query->get();
-
-        return $allCustomers->first(function (People $customer): bool {
-            return LeadsRepository::getPeopleActiveLead($customer) !== null;
-        }) ?? $allCustomers->first();
+        return VoiceCallerLookupService::find($this->receiver->app, $this->receiver->company, $phone);
     }
 
     protected function createPeopleFromPhone(string $phone): People

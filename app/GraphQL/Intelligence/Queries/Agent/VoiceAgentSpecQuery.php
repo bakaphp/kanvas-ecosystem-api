@@ -19,9 +19,8 @@ class VoiceAgentSpecQuery
 {
     public function __invoke(mixed $root, array $args): array
     {
-        $app = app(Apps::class);
-        $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['uuid'], $app);
+        $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['uuid'], app(Apps::class));
 
-        return new VoiceAgentSpecService($agent, $app)->compile();
+        return new VoiceAgentSpecService($agent)->compile();
     }
 }

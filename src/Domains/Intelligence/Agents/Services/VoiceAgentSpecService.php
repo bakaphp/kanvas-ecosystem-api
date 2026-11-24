@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
-use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -29,10 +27,8 @@ use Throwable;
  */
 class VoiceAgentSpecService
 {
-    public function __construct(
-        private readonly Agent $agent,
-        private readonly AppInterface $app,
-    ) {
+    public function __construct(private readonly Agent $agent)
+    {
     }
 
     /**
@@ -92,30 +88,35 @@ class VoiceAgentSpecService
     }
 
     /**
-     * The agent's callable tools, advertised so the voice runtime can register
-     * them as function-calling tools on the LLM. Only NEURON-framework tools
-     * whose handler class can be introspected are included; anything that fails
-     * to instantiate is skipped rather than breaking the whole spec fetch.
+     * A handler that can't be built is skipped, never fatal. RunVoiceAgentToolAction builds through
+     * here too, so the tools a call can run are the ones this spec advertised.
+     */
+    public static function buildHandler(string $handlerClass): ?NeuronTool
+    {
+        try {
+            $handler = app($handlerClass);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $handler instanceof NeuronTool ? $handler : null;
+    }
+
+    /**
+     * The agent's NEURON tools, for the voice runtime to register as function-calling tools.
      *
      * @return array<int, array<string, mixed>>
      */
     private function tools(): array
     {
         $tools = [];
+        $catalogTools = new CapabilityProvider()
+            ->getActiveTools($this->agent, CapabilityFrameworkEnum::NEURON->value);
 
-        foreach (new CapabilityProvider()->getActiveTools($this->agent, CapabilityFrameworkEnum::NEURON->value) as $catalogTool) {
+        foreach ($catalogTools as $catalogTool) {
             $handlerClass = $catalogTool->handlerClass();
-            if ($handlerClass === null) {
-                continue;
-            }
-
-            try {
-                $handler = app($handlerClass);
-            } catch (Throwable) {
-                continue;
-            }
-
-            if (! $handler instanceof NeuronTool) {
+            $handler = $handlerClass !== null ? self::buildHandler($handlerClass) : null;
+            if ($handler === null) {
                 continue;
             }
 
@@ -196,7 +197,7 @@ class VoiceAgentSpecService
             return (string) $config['model'];
         }
 
-        $appModel = $this->app->get(ConfigurationEnum::GEMINI_MODEL->value);
+        $appModel = $this->agent->app->get(ConfigurationEnum::GEMINI_MODEL->value);
 
         return $appModel !== null && $appModel !== '' ? (string) $appModel : 'gemini-2.5-flash';
     }
@@ -217,12 +218,8 @@ class VoiceAgentSpecService
         $voice = $this->agent->voice_config ?? [];
         $agentNumber = $voice['phone_number'] ?? null;
 
-        // Load the owning company defensively — find() returns null instead of
-        // throwing on a missing/invalid companies_id, so a telephony problem can
-        // never 503 the whole spec fetch.
-        $company = $this->agent->companies_id > 0
-            ? Companies::find($this->agent->companies_id)
-            : null;
+        // Null for an agent with no company, so a telephony gap never fails the whole spec fetch.
+        $company = $this->agent->company;
 
         $fromNumber = ($agentNumber !== null && $agentNumber !== '')
             ? $agentNumber
