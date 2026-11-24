@@ -17,6 +17,16 @@ final class MoneyTest extends TestCaseUnit
         $this->assertTrue($result->isZero());
     }
 
+    public function testIsCurrencyCodeChecksTheShapeOnly(): void
+    {
+        $this->assertTrue(Money::isCurrencyCode('DOP'));
+        $this->assertTrue(Money::isCurrencyCode('XXX'));
+        $this->assertFalse(Money::isCurrencyCode('dop'));
+        $this->assertFalse(Money::isCurrencyCode('US'));
+        $this->assertFalse(Money::isCurrencyCode('DOLLARS'));
+        $this->assertFalse(Money::isCurrencyCode(''));
+    }
+
     public function testOfIntegerInput(): void
     {
         $result = Money::of(100);

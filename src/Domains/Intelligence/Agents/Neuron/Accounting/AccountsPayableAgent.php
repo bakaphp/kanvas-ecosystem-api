@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetExchangeRateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\IngestBankStatementTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\IssuePurchaseEcfTool;
@@ -153,6 +154,7 @@ class AccountsPayableAgent extends SystemUserAgent
             // Emails only the company's own payer (closed set), and moves no money.
             new BuildPaymentRunTool(),
             new EcfStatusTool(),
+            new GetExchangeRateTool(),
             new AccountingDigestTool(),
             new ListOrganizationPeopleTool(),
             new CreatePersonTool(),

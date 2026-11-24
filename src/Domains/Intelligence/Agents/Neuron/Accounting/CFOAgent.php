@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetExchangeRateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
@@ -76,6 +77,7 @@ class CFOAgent extends SystemUserAgent
             new ListOverdueInvoicesTool(),
             new TopLatePayersTool(),
             new QueryCashPositionTool(),
+            new GetExchangeRateTool(),
             new QueryRecentExpensesTool(),
             new QueryDueToEmployeesTool(),
             new QueryExpenseReportTool(),
