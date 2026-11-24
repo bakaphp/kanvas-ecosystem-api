@@ -38,6 +38,14 @@ final class Money
         return self::decimal($value);
     }
 
+    /**
+     * The shape of an ISO 4217 code only (three capitals): it does not check that the code is assigned.
+     */
+    public static function isCurrencyCode(string $code): bool
+    {
+        return preg_match('/^[A-Z]{3}$/', $code) === 1;
+    }
+
     public static function minorUnits(BigDecimal|string|int|float $amount, ?string $currency = 'DOP'): int
     {
         return (int) self::decimal($amount)
