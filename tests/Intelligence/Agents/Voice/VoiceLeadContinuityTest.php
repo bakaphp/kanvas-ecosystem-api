@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Voice;
 
+use App\GraphQL\Intelligence\Mutations\VoiceAgentCallerMutation;
 use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
@@ -100,6 +101,30 @@ final class VoiceLeadContinuityTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame($agent->apps_id, People::find($result['people_id'])->apps_id);
         $this->assertSame($agent->apps_id, Lead::find($result['lead_id'])->apps_id);
+    }
+
+    public function testTheMutationBindsTheAgentsAppForACrossAppRuntimeKey(): void
+    {
+        config(['kanvas.voice_runtime.cross_app' => true]);
+        $agent = $this->createAgent();
+        $agentApp = app(Apps::class);
+        $runtimeApp = Apps::where('id', '!=', $agent->apps_id)->firstOrFail();
+        app()->scoped(Apps::class, fn () => $runtimeApp);
+
+        try {
+            $result = new VoiceAgentCallerMutation()->capture(null, [
+                'agent_uuid' => $agent->uuid,
+                'phone' => $this->uniquePhone(),
+                'direction' => 'inbound',
+            ]);
+            $boundApp = app(Apps::class)->getId();
+        } finally {
+            app()->scoped(Apps::class, fn () => $agentApp);
+            Bouncer::scope()->to(RolesEnums::getScope($agentApp));
+        }
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame($agent->apps_id, $boundApp);
     }
 
     public function testAWithheldCallerIdMatchesNobody(): void

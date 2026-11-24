@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Intelligence\Mutations;
 
 use App\GraphQL\Intelligence\Queries\Agent\VoiceAgentTwilioQuery;
+use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Voice\CaptureVoiceCallerAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\RecordVoiceTranscriptAction;
@@ -20,6 +21,8 @@ use Nuwave\Lighthouse\Exceptions\AuthorizationException;
  */
 class VoiceAgentCallerMutation
 {
+    use KanvasJobsTrait;
+
     /**
      * @param array{agent_uuid: string, phone: string, name?: string|null, interest?: string|null, interested?: bool|null, direction?: string|null, summary?: string|null, wants_appointment?: bool|null, appointment_preference?: string|null} $args
      *
@@ -28,6 +31,9 @@ class VoiceAgentCallerMutation
     public function capture(mixed $root, array $args): array
     {
         $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['agent_uuid'], app(Apps::class));
+        // A cross-app runtime key (VOICE_RUNTIME_CROSS_APP) resolves agents of other apps, and the
+        // request is bound to the key's app: custom-field definitions go to the bound app.
+        $this->overwriteAppService($agent->app);
 
         return new CaptureVoiceCallerAction(
             agent: $agent,

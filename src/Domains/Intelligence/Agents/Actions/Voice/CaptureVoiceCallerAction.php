@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -43,8 +42,6 @@ use function Sentry\captureException;
  */
 class CaptureVoiceCallerAction
 {
-    use KanvasJobsTrait;
-
     private readonly ?string $name;
     private readonly ?string $interest;
     private readonly ?string $summary;
@@ -72,11 +69,6 @@ class CaptureVoiceCallerAction
      */
     public function execute(): array
     {
-        // Only matters for a cross-app runtime (VOICE_RUNTIME_CROSS_APP), where the request's app is
-        // the runtime's key and not the agent's: a custom field's definition is registered under
-        // the bound app (HasCustomFields::createCustomField()).
-        $this->overwriteAppService($this->agent->app);
-
         try {
             return $this->capture();
         } catch (Throwable $e) {

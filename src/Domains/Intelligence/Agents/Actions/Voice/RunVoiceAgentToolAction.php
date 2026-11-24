@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceAgentSpecService;
@@ -21,15 +20,12 @@ use Throwable;
  * result. This is what the external voice runtime hits when the LLM makes a
  * function call mid-call.
  *
- * The tool runs in the agent's own app: a write tool resolves People and Roles under the
- * current app and Bouncer scope, which are the runtime's app key until switched. Entity ids
- * arrive as tool arguments, and NeuronAI's Tool::execute() maps and dispatches them exactly
- * as on the in-process agent path.
+ * The tool gets the agent's app, company and AI user as its context. Entity ids arrive as
+ * tool arguments, and NeuronAI's Tool::execute() maps and dispatches them exactly as on the
+ * in-process agent path.
  */
 class RunVoiceAgentToolAction
 {
-    use KanvasJobsTrait;
-
     /**
      * @param array<string, mixed> $arguments the LLM-supplied tool arguments
      */
@@ -46,19 +42,10 @@ class RunVoiceAgentToolAction
      */
     public function execute(): mixed
     {
-        // Only matters for a cross-app runtime (VOICE_RUNTIME_CROSS_APP), where the request's app is
-        // the runtime's key and not the agent's: a tool that creates a row without an app of its own
-        // gets the bound one (AppsIdTrait, HasCustomFields::createCustomField()).
-        $this->overwriteAppService($this->agent->app);
-
-        return $this->run();
-    }
-
-    private function run(): mixed
-    {
         $handler = $this->resolveHandler();
 
-        // This is not a request path, so the acting user is the company's AI user, never auth().
+        // The request comes in on the runtime's app key, so the acting user is the company's AI
+        // user, never auth().
         $company = $this->agent->company;
         if ($company !== null && method_exists($handler, 'withContext')) {
             $handler->withContext($this->agent->app, $company, $company->getAiAgentUserOrFail());
