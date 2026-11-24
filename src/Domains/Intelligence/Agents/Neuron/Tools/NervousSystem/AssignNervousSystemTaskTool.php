@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
-use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -76,13 +79,33 @@ class AssignNervousSystemTaskTool extends Tool
             return ['error' => "Agent {$agent_id} was not found — pick an agent_id from the project members."];
         }
 
+        // Its work is already running (a factory run under the current assignee): moving the record would
+        // leave the board naming one agent while another does the work, and the run would not move with it.
+        if ($task->agent_id !== null && $task->agent_id !== $agent->getId() && $task->hasALiveRun()) {
+            return [
+                'error' => "Task {$task_id} is already being worked by '{$task->agent?->name}', so it was NOT "
+                    . 'reassigned. Wait for its result; if it comes back blocked, put it back to pending first.',
+            ];
+        }
+
         if (! $agent->canExecuteBoardWork()) {
             return ['error' => "Agent '{$agent->name}' can't execute task work (it's a remote/container or "
                 . 'non-executor agent). Assign to a member whose can_execute is true.'];
         }
 
-        $task->agent_id = $agent->getId();
-        $task->saveQuietly();
+        $refusal = CodingChatSettingEnum::repositoryRefusal($agent, $task->fullText());
+
+        if ($refusal !== null) {
+            return ['error' => "Task {$task_id} was NOT assigned to '{$agent->name}'. " . $refusal];
+        }
+
+        if (CodingChatSettingEnum::isEnabledFor($agent)) {
+            try {
+                TaskDirectives::repo($task->fullText());
+            } catch (ValidationException $e) {
+                return ['error' => "Task {$task_id} was NOT assigned to '{$agent->name}'. " . $e->getMessage()];
+            }
+        }
 
         // A plan nobody owns is inert: WakeWorkerForPlanJob returns on its first line, the plan-change
         // wake bails, and a comment on its board wakes nobody — so the work sits there while the PM
@@ -97,8 +120,7 @@ class AssignNervousSystemTaskTool extends Tool
             $adoptedPlan = true;
         }
 
-        // Delegation means the assignee actually runs — wake it to execute the task.
-        WakeAgentForTaskJob::dispatch($task);
+        $task->handTo($agent);
 
         return [
             'task_id' => $task->getId(),
@@ -108,6 +130,31 @@ class AssignNervousSystemTaskTool extends Tool
             // display name ("Format Specialist") becomes "@Format" and reaches nobody.
             'agent_handle' => MentionHandle::forUser($agent->user, $this->app),
             'plan_owner_set' => $adoptedPlan,
+            ...$this->whereItRuns($agent, $task),
+        ];
+    }
+
+    /**
+     * A factory task without a `Repo:` line runs in the agent's default checkout, which is correct for
+     * some work and silently wrong for a kickoff, which belongs in the template's checkout.
+     *
+     * @return array<string, string>
+     */
+    private function whereItRuns(Agent $agent, Task $task): array
+    {
+        if (! CodingChatSettingEnum::isEnabledFor($agent) || TaskDirectives::repo($task->fullText()) !== null) {
+            return [];
+        }
+
+        $default = CodingChatSettingEnum::defaultRepoFor($agent) ?? 'its default checkout';
+
+        return [
+            'note' => sprintf(
+                'Task %d has no `Repo: <folder>` line, so on the factory machine it runs in the checkout its text names, '
+                    . 'else in %s. If it belongs in another repository, give it that line now.',
+                $task->getId(),
+                $default,
+            ),
         ];
     }
 }

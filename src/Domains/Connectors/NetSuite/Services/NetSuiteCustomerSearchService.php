@@ -108,6 +108,7 @@ class NetSuiteCustomerSearchService
                 'phone' => $customer->phone[0]->searchValue ?? null,
             ];
         }
+
         return $customers;
     }
 }

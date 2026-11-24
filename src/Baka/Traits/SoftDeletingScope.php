@@ -36,6 +36,7 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
 
         $builder->onDelete(function (Builder $builder) {
             $column = $this->getDeletedAtColumn($builder);
+
             return $builder->update([
                 $column => 1,
             ]);

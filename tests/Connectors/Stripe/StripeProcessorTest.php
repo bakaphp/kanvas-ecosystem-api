@@ -148,14 +148,14 @@ class StripeProcessorTest extends TestCase
         return $pm;
     }
 
-    private function buildOrderMock(string $currency = 'USD', float $total = 100.00): Order
+    private function buildOrderMock(string $currency = 'USD', float $total = 100.00, ?float $net = null): Order
     {
         $order = Mockery::mock(Order::class)->makePartial();
         $order->exists = true;
         $order->id = 1;
         $order->currency = $currency;
         $order->total_gross_amount = $total;
-        $order->total_net_amount = $total;
+        $order->total_net_amount = $net ?? $total;
 
         $order->shouldReceive('getId')->andReturn(1)->byDefault();
         $order->shouldReceive('getTotalAmount')->andReturn($total)->byDefault();
@@ -170,6 +170,22 @@ class StripeProcessorTest extends TestCase
         $this->assertSame('stripe', $processor->name());
         $this->assertInstanceOf(PaymentProcessorInterface::class, $processor);
         $this->assertInstanceOf(ThreeDSProcessorInterface::class, $processor);
+    }
+
+    public function testAuthorizeChargesNetAmountAfterOrderDiscount(): void
+    {
+        $payment = $this->buildPaymentMock();
+        $order = $this->buildOrderMock(total: 100.00, net: 70.00);
+
+        $client = new FakeStripeClient();
+        $client->getPaymentIntents()->queueResponse('create', $this->fakeIntent('pi_1', 'succeeded', [
+            'latest_charge' => 'ch_1',
+        ]));
+
+        $this->processor($client)->authorize($payment, $order);
+
+        $createCalls = $client->getPaymentIntents()->getCalls('create');
+        $this->assertSame(7000, $createCalls[0]['params']['amount']);
     }
 
     public function testAuthorizeSucceededMarksPaid(): void
@@ -568,6 +584,30 @@ class StripeProcessorTest extends TestCase
 
         $payment->refresh();
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
+    }
+
+    public function testRetryAfterFailedRefundSendsANewStripeIdempotencyKey(): void
+    {
+        $payment = $this->persistPayment(100.00, 'pi_ref_retry', 'ch_ref_retry');
+        $context = ['idempotency_key' => 'admin-retry-1'];
+
+        $client = new FakeStripeClient();
+        $client->getRefunds()->queueResponse('create', $this->stripeError('refund failed'));
+        $client->getRefunds()->queueResponse('create', Refund::constructFrom([
+            'id' => 're_retry',
+            'object' => 'refund',
+            'status' => 'succeeded',
+        ]));
+
+        $this->assertFalse($this->processor($client)->refund($payment, $this->buildOrderMock(), 30.00, $context)->success);
+        $this->assertTrue($this->processor($client)->refund($payment, $this->buildOrderMock(), 30.00, $context)->success);
+
+        $keys = array_column(array_column($client->getRefunds()->getCalls('create'), 'options'), 'idempotency_key');
+        $this->assertSame([
+            'refund:' . $payment->getId() . ':admin-retry-1:1',
+            'refund:' . $payment->getId() . ':admin-retry-1:2',
+        ], $keys);
+        $this->assertSame(1, PaymentRefund::where('payments_id', $payment->getId())->count());
     }
 
     private function persistPayment(float $amount, string $intentId, string $chargeId): Payments

@@ -9,6 +9,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\HumanResources\Employees\Services\EmployeeBriefService;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
@@ -16,6 +17,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AskRepositoryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
@@ -35,6 +37,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\Intelligence\Knowledge\Research\Services\CompanyProfileService;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
@@ -67,11 +70,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
     private ?Channel $mentionChannel = null;
 
-    #[Override]
-    protected function usesOrganizationWideKnowledge(): bool
-    {
-        return true;
-    }
+    private ?bool $companyHasFactory = null;
 
     #[Override]
     protected function remembersForCompany(): bool
@@ -124,7 +123,9 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     #[Override]
     public function instructions(): string
     {
-        $instructions = $this->selfIdentityBlock() . parent::instructions();
+        $instructions = $this->selfIdentityBlock()
+            . CompanyProfileService::promptBlock($this->company)
+            . parent::instructions();
 
         $human = $this->conversationHumanBlock();
         if ($human !== '') {
@@ -364,6 +365,12 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             ...$this->scheduleTools($agent, $human),
         ];
 
+        // Only where a factory exists, which is the only place a repository can be read; a factory agent
+        // works in the repository itself.
+        if (! CodingChatSettingEnum::isEnabledFor($agent) && $this->companyHasFactory()) {
+            $tools[] = new AskRepositoryTool()->withContext($this->app, $this->company, $human);
+        }
+
         if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
             $tools[] = new SendSlackDirectMessageTool($agent, $this->session)->withContext(
                 $this->app,
@@ -392,6 +399,13 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             new ListScheduledActionsTool($this->session)->withContext($this->app, $this->company, $human),
             new CancelScheduledActionTool($this->session)->withContext($this->app, $this->company, $human),
         ];
+    }
+
+    /** Read for every turn's toolset, and it loads every active agent of the company. */
+    protected function companyHasFactory(): bool
+    {
+        return $this->companyHasFactory ??= CodingChatSettingEnum::factoryAgentsOf($this->app, $this->company)
+            ->isNotEmpty();
     }
 
     /**

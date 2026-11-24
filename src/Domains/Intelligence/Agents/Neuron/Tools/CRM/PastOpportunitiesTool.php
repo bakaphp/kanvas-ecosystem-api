@@ -49,7 +49,7 @@ class PastOpportunitiesTool extends Tool
 
     public function __invoke(int $lead_id): array
     {
-        $result = $this->resolveLeadOrError($lead_id);
+        $result = $this->resolveLeadInReadScopeOrError($lead_id);
         if (is_array($result)) {
             return $result;
         }

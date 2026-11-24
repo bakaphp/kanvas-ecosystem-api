@@ -364,6 +364,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return trim((string) $this->firstname . ' ' . (string) $this->lastname);
     }
 
+    public function nameOrEmail(): string
+    {
+        return $this->fullName() ?: (string) $this->email;
+    }
+
     public function getMainRoleAttribute(): string
     {
         $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();
@@ -850,6 +855,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             RolesEnums::getScope($app),
             fn () => $this->isAn(RolesEnums::OWNER->value)
         );
+    }
+
+    /**
+     * Bouncer's role cache is per scope and assign() never clears it, so the refresh must run in here.
+     */
+    public function assignOwnerOf(AppInterface $app): void
+    {
+        Bouncer::scope()->onceTo(RolesEnums::getScope($app), function (): void {
+            $this->assign(RolesEnums::OWNER->value);
+            Bouncer::refreshFor($this);
+        });
     }
 
     public function isMemberOf(CompanyInterface $company): bool

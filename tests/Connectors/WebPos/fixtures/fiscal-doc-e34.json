@@ -1,0 +1,44 @@
+{
+    "fiscalDoc": {
+        "companyLicCod": "YPSPUFLH",
+        "branchCod": "0001",
+        "posCod": "001",
+        "docType": 34,
+        "docNumber": "E340000000001",
+        "docNumberDueDate": "2028-12-31",
+        "systemRef": "KREF000000000034",
+        "docDate": "2026-06-20",
+        "currency": "USD",
+        "currencyRate": 58.5123,
+        "customerName": "Cliente Ejemplo SRL",
+        "customerRUC": "101000001",
+        "invoiceNumber": "E310000000004",
+        "invoiceNumberRefDate": "2026-06-15",
+        "fedo": {
+            "taxMode": "0",
+            "operMode": "01",
+            "paymentType": "2",
+            "totales": {
+                "subtotalExento": 0.0,
+                "subtotalGravado": 100.0,
+                "totalItbis": 18.0,
+                "subtotalNet": 100.0,
+                "total": 118.0
+            },
+            "codigoModificacion": "3"
+        },
+        "items": [
+            {
+                "qty": 1.0,
+                "price": 100.0,
+                "code": "SVC-1",
+                "desc": "Ajuste consultoria",
+                "itemClass": 1,
+                "tax": 1,
+                "subTotal": 100.0,
+                "taxTotal": 18.0
+            }
+        ],
+        "payments": []
+    }
+}

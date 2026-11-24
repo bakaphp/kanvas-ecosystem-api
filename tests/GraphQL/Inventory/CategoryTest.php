@@ -11,7 +11,6 @@ class CategoryTest extends TestCase
 {
     /**
      * testCreateCategory.
-     *
      */
     public function testCreateCategory(): void
     {
@@ -20,7 +19,7 @@ class CategoryTest extends TestCase
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -34,13 +33,12 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
+            'data' => ['createCategory' => $data],
         ]);
     }
 
     /**
      * testGetCategory.
-     *
      */
     public function testGetCategory(): void
     {
@@ -49,7 +47,7 @@ class CategoryTest extends TestCase
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -63,7 +61,7 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
+            'data' => ['createCategory' => $data],
         ]);
         $response = $this->graphQL('
             query {
@@ -82,7 +80,6 @@ class CategoryTest extends TestCase
 
     /**
      * testUpdateCategory.
-     *
      */
     public function testUpdateCategory(): void
     {
@@ -91,7 +88,7 @@ class CategoryTest extends TestCase
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -105,7 +102,7 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
+            'data' => ['createCategory' => $data],
         ]);
         $response = $this->graphQL('
             query {
@@ -127,13 +124,12 @@ class CategoryTest extends TestCase
                     name
                 }
             }', ['id' => $id, 'data' => $data])->assertJson([
-            'data' => ['updateCategory' => $data]
+            'data' => ['updateCategory' => $data],
         ]);
     }
 
     /**
      * testUpdateCategory.
-     *
      */
     public function testUpdateCategoryTranslation(): void
     {
@@ -142,7 +138,7 @@ class CategoryTest extends TestCase
         $id = $response['data']['createCategory']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name . ' en'
+            'name' => fake()->name . ' en',
         ];
 
         $response = $this->graphQL('
@@ -162,7 +158,7 @@ class CategoryTest extends TestCase
             }', [
                 'dataUpdate' => $dataUpdate,
                 'id' => $id,
-                'code' => $language->code
+                'code' => $language->code,
             ]);
 
         $this->assertEquals(
@@ -173,7 +169,6 @@ class CategoryTest extends TestCase
 
     /**
      * testDeleteCategory.
-     *
      */
     public function testDeleteCategory(): void
     {
@@ -189,13 +184,13 @@ class CategoryTest extends TestCase
                     name
                 }
             }', ['id' => $id, 'data' => $data])->assertJson([
-            'data' => ['updateCategory' => $data]
+            'data' => ['updateCategory' => $data],
         ]);
         $this->graphQL('
             mutation($id: ID!) {
                 deleteCategory(id: $id)
             }', ['id' => $id])->assertJson([
-            'data' => ['deleteCategory' => true]
+            'data' => ['deleteCategory' => true],
         ]);
     }
 
@@ -209,7 +204,7 @@ class CategoryTest extends TestCase
         mutation($id: ID!) {
             deleteCategory(id: $id)
         }', ['id' => $id])->assertJson([
-        'data' => ['deleteCategory' => true]
+        'data' => ['deleteCategory' => true],
         ]);
 
         $data = [
@@ -217,7 +212,7 @@ class CategoryTest extends TestCase
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -231,7 +226,7 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
+            'data' => ['createCategory' => $data],
         ]);
     }
 
@@ -243,7 +238,7 @@ class CategoryTest extends TestCase
             'code' => fake()->unique()->word,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
 
         $parentResponse = $this->graphQL('
@@ -258,7 +253,7 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $parentData])->assertJson([
-            'data' => ['createCategory' => $parentData]
+            'data' => ['createCategory' => $parentData],
         ]);
 
         $parentId = $parentResponse->json()['data']['createCategory']['id'];
@@ -270,7 +265,7 @@ class CategoryTest extends TestCase
             'position' => 1,
             'is_published' => true,
             'weight' => 0,
-            'parent_id' => (int) $parentId
+            'parent_id' => (int) $parentId,
         ];
 
         $childResponse = $this->graphQL('
@@ -324,7 +319,7 @@ class CategoryTest extends TestCase
             'code' => fake()->unique()->word,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
 
         $parentResponse = $this->graphQL('
@@ -347,7 +342,7 @@ class CategoryTest extends TestCase
                 'position' => $i + 1,
                 'is_published' => true,
                 'weight' => 0,
-                'parent_id' => (int) $parentId
+                'parent_id' => (int) $parentId,
             ];
 
             $childResponse = $this->graphQL('
@@ -408,7 +403,7 @@ class CategoryTest extends TestCase
             'position' => 1,
             'is_published' => true,
             'weight' => 0,
-            'parent_id' => (int) $parent1Id
+            'parent_id' => (int) $parent1Id,
         ];
 
         $childResponse = $this->graphQL('
@@ -429,7 +424,7 @@ class CategoryTest extends TestCase
         // Update child to have parent2 as parent
         $updateData = [
             'name' => fake()->name,
-            'parent_id' => (int) $parent2Id
+            'parent_id' => (int) $parent2Id,
         ];
 
         $updateResponse = $this->graphQL('
@@ -454,8 +449,9 @@ class CategoryTest extends TestCase
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
+
         return $this->graphQL('
             mutation($data: CategoryInput!) {
                 createCategory(input: $data)

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Actions\AssignCorporateOrderOwnerAction;
+use Kanvas\Souk\Orders\Actions\ResolveCorporateOrderCreatorAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderProvider;
 use Kanvas\Users\Models\Users;
@@ -22,8 +23,6 @@ use Throwable;
 class BackfillCorporateOrderCustomersCommand extends Command
 {
     use KanvasJobsTrait;
-
-    private const string METADATA_COMPANY = "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.data.user_company_id')), JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.user_company_id')))";
 
     protected $signature = 'kanvas-souk:backfill-corporate-order-customers
                             {app_id}
@@ -86,13 +85,13 @@ class BackfillCorporateOrderCustomersCommand extends Command
 
         $query->where(function (Builder $corporate) use ($companyIds): void {
             if ($companyIds === []) {
-                $corporate->whereRaw(self::METADATA_COMPANY . ' IS NOT NULL');
+                $corporate->whereRaw(ResolveCorporateOrderCreatorAction::COMPANY_METADATA_SQL . ' IS NOT NULL');
 
                 return;
             }
 
             $corporate
-                ->whereIn(DB::raw(self::METADATA_COMPANY), $companyIds)
+                ->whereIn(DB::raw(ResolveCorporateOrderCreatorAction::COMPANY_METADATA_SQL), $companyIds)
                 ->orWhereIn('id', OrderProvider::query()->select('order_id')->whereIn('company_id', $companyIds));
         });
 

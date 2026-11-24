@@ -23,6 +23,7 @@ use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Intelligence\Integration\Harness\Concerns\CreatesHarnessAgents;
 use Tests\TestCase;
 
 /**
@@ -38,6 +39,7 @@ use Tests\TestCase;
 #[Group('serial')]
 class DispatchHarnessTaskActionTest extends TestCase
 {
+    use CreatesHarnessAgents;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
@@ -138,6 +140,24 @@ class DispatchHarnessTaskActionTest extends TestCase
         $this->expectExceptionMessageMatches('/coding session\(s\) running \(limit 1\)/');
 
         new DispatchHarnessTaskAction(agent: $agent, task: 'Should never be recorded')->execute();
+    }
+
+    public function testARunOnlyJobIsRecordedAsSuch(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $session = $this->dispatchAndFetch($agent, 'Boot the simulator and screenshot it', expectsChanges: false);
+
+        $this->assertFalse($session->expectsChanges());
+    }
+
+    public function testAJobExpectsChangesUnlessToldOtherwise(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $this->assertTrue($this->dispatchAndFetch($agent, 'Change the login redirect')->expectsChanges());
     }
 
     public function testDispatchRejectsAnEmptyBrief(): void
@@ -306,6 +326,23 @@ class DispatchHarnessTaskActionTest extends TestCase
         return $session;
     }
 
+    /**
+     * The unroutable endpoint refuses the first request after the rows are written, so the session
+     * row is what a dispatch leaves behind.
+     */
+    private function dispatchAndFetch(Agent $agent, string $task, bool $expectsChanges = true): AgentTaskSession
+    {
+        try {
+            new DispatchHarnessTaskAction(agent: $agent, task: $task, expectsChanges: $expectsChanges)->execute();
+        } catch (HarnessTransportException) {
+        }
+
+        /** @var AgentTaskSession $session */
+        $session = AgentTaskSession::query()->where('agent_id', $agent->getId())->latest('id')->firstOrFail();
+
+        return $session;
+    }
+
     private function makeFilesystem(
         Apps $app,
         CompanyInterface $company,
@@ -325,27 +362,5 @@ class DispatchHarnessTaskActionTest extends TestCase
         $filesystem->saveOrFail();
 
         return $filesystem;
-    }
-
-    private function makeAgent(Apps $app, CompanyInterface $company, Users $user): Agent
-    {
-        return Agent::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->create([
-                'user_id' => $user->getId(),
-                'is_active' => true,
-            ]);
-    }
-
-    /**
-     * @return array{0: Apps, 1: CompanyInterface, 2: Users}
-     */
-    private function context(): array
-    {
-        /** @var Users $user */
-        $user = auth()->user();
-
-        return [app(Apps::class), $user->getCurrentCompany(), $user];
     }
 }

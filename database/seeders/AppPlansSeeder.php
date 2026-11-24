@@ -117,7 +117,7 @@ class AppPlansSeeder extends Seeder
                 'is_default' => 0,
                 'payment_frequencies_id' => 2,
                 'created_at' => date('Y-m-d H:i:s'),
-            ]
+            ],
         ]);
     }
 }

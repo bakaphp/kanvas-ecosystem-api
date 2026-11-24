@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Credit700\DataTransferObject;
 
 use Baka\Support\DateHelper;
+use Baka\Support\Str;
 use Baka\Traits\ScalarCoercionTrait;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Customers\Models\People;
@@ -48,6 +49,7 @@ class CreditApplication extends Data
         public readonly ?string $previousState = null,
         public readonly ?string $previousZip = null,
         public readonly ?int $previousAddressPeriod = null,
+        public readonly ?string $comments = null,
     ) {
     }
 
@@ -81,7 +83,7 @@ class CreditApplication extends Data
             phone: self::nullableString($personal['home_number'] ?? null),
             mobileNumber: self::nullableString($personal['mobile_number'] ?? null),
             employer: self::nullableString($financial['current_employer'] ?? null),
-            employmentStatus: self::nullableString($financial['employment_status'] ?? null),
+            employmentStatus: self::normalizeEmploymentStatus($financial['employment_status'] ?? null),
             position: self::nullableString($financial['current_employment_title'] ?? null),
             employmentYears: $employmentDuration['years'],
             employmentMonths: $employmentDuration['months'],
@@ -95,8 +97,8 @@ class CreditApplication extends Data
                 $financial['income_interval'] ?? null
             ),
             otherIncome: self::nullableFloat($financial['other_income'] ?? null),
-            otherIncomeExplanation: self::nullableString($financial['other_income_source'] ?? null),
-            housingType: self::nullableString($housing['residence_type'] ?? null),
+            otherIncomeExplanation: self::plainText($financial['other_income_source'] ?? null),
+            housingType: self::normalizeHousing($housing['residence_type'] ?? null),
             housingPayment: self::nullableFloat($housing['rent'] ?? null),
             driversLicenseNumber: self::nullableString($personal['drivers_license'] ?? null)
                 ?? $peopleLicense?->number,
@@ -110,7 +112,75 @@ class CreditApplication extends Data
             previousAddressPeriod: $hasPreviousAddress
                 ? self::normalizeYears($housing['previous_time_at_address'] ?? null)
                 : null,
+            comments: self::buildComments($housing, $financial),
         );
+    }
+
+    /**
+     * HOUSING is a case-sensitive enum (spec 6.90: Rent/Own/OwnFreeAndClear/Other) and
+     * anything else is dropped, so the form's free labels ("Mortgage", "With Relatives")
+     * have to be folded into it. The original label still reaches the dealer via COMMENTS.
+     */
+    private static function normalizeHousing(?string $residenceType): ?string
+    {
+        $type = Str::lowerTrim($residenceType);
+
+        return match (true) {
+            $type === '' => null,
+            str_contains($type, 'free and clear'),
+            str_contains($type, 'ownfreeandclear'),
+            str_contains($type, 'paid off') => 'OwnFreeAndClear',
+            str_contains($type, 'rent') => 'Rent',
+            str_contains($type, 'own'), str_contains($type, 'mortgage') => 'Own',
+            default => 'Other',
+        };
+    }
+
+    /**
+     * Same case-sensitive enum rule as HOUSING: Employed/Unemployed/SelfEmployed/Retired/Other.
+     */
+    private static function normalizeEmploymentStatus(?string $status): ?string
+    {
+        $status = Str::lowerTrim($status);
+        $employed = ['employed', 'full time', 'part time', 'contract', 'seasonal', 'temporary', 'military'];
+
+        return match (true) {
+            $status === '' => null,
+            str_contains($status, 'self'), $status === 'freelancer' => 'SelfEmployed',
+            str_contains($status, 'unemployed'), $status === 'not applicable' => 'Unemployed',
+            str_contains($status, 'retired') => 'Retired',
+            in_array($status, $employed, true) => 'Employed',
+            default => 'Other',
+        };
+    }
+
+    /**
+     * RouteOne does not receive HOUSINGPAY or EMPLOYMENTSTATUS (spec 6.90, the R column is
+     * blank for both), and HOUSING loses the form's wording once folded into the enum, so the
+     * dealer would otherwise never see them. COMMENTS is the one free-text field RouteOne takes.
+     */
+    private static function buildComments(array $housing, array $financial): ?string
+    {
+        $residence = self::plainText($housing['residence_type'] ?? null);
+        $rent = self::nullableFloat($housing['rent'] ?? null);
+        $status = self::plainText($financial['employment_status'] ?? null);
+
+        $parts = array_filter([
+            $residence !== null ? 'Housing: ' . $residence : null,
+            $rent !== null ? 'Housing Payment: $' . round($rent) . ' per month' : null,
+            $status !== null ? 'Employment Status: ' . $status : null,
+        ]);
+
+        return $parts === [] ? null : implode('. ', $parts);
+    }
+
+    /**
+     * The spec rejects extended characters and most punctuation in free-text fields, and the
+     * form passes through whatever the customer typed (curly apostrophes, parentheses).
+     */
+    private static function plainText(mixed $value): ?string
+    {
+        return Str::trimToNull(Str::squish(Str::cleanup(Str::ascii((string) $value))));
     }
 
     /**

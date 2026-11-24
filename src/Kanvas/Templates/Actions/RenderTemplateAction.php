@@ -7,7 +7,9 @@ namespace Kanvas\Templates\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\File;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Templates\Support\TemplateSandbox;
@@ -37,6 +39,21 @@ class RenderTemplateAction
          * @psalm-suppress PossiblyNullArgument
          */
         $template = TemplatesRepository::getByName($templateName, $this->app, $this->company);
+
+        return $this->renderTemplate($template, $templateParams);
+    }
+
+    /**
+     * The stored row named `$templateName` (company, then app, then platform), else the packaged file under
+     * resources/ through the sandbox: a tenant restyles without code and never needs seeding first.
+     */
+    public function renderNamedOrPackaged(string $templateName, array $templateParams, string $resourcePath): string
+    {
+        try {
+            $template = TemplatesRepository::getByName($templateName, $this->app, $this->company);
+        } catch (ModelNotFoundException) {
+            return $this->execute($templateName, $templateParams, File::get(resource_path($resourcePath)));
+        }
 
         return $this->renderTemplate($template, $templateParams);
     }

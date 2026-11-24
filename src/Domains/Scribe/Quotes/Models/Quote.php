@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Quotes\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\EngageableInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -17,10 +18,15 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
+use Kanvas\Scribe\BillingSchedules\Models\BillingSchedule;
+use Kanvas\Scribe\Delivery\Concerns\IsEngageableDocument;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
+use Kanvas\Scribe\Quotes\Sow\DataTransferObject\StatementOfWork;
+use Kanvas\Social\Messages\Models\Message;
 use Override;
 
 /**
@@ -72,17 +78,20 @@ use Override;
  * @property JournalEntryOriginEnum $origin
  * @property int|null $parent_quote_id
  * @property int $revision_number
+ * @property int|null $sow_message_id
  * @property array|null $metadata
  * @property bool $is_deleted
  * @property int|null $users_id
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class Quote extends BaseModel
+class Quote extends BaseModel implements EngageableInterface
 {
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
+    use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
+    use IsEngageableDocument;
     use UuidTrait;
 
     protected $table = 'quotes';
@@ -118,6 +127,55 @@ class Quote extends BaseModel
         return $this->hasMany(QuoteLine::class, 'quote_id', 'id')->orderBy('sort_order');
     }
 
+    /**
+     * Every invoice made from this quote: the one conversion, or each payment its SOW schedule billed.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'quote_id', 'id')->orderBy('id');
+    }
+
+    /**
+     * What has already been billed from this quote, so whoever reads it reports those invoices instead of billing again.
+     *
+     * @return list<array{invoice_id: int, invoice_number: ?string, status: string, total: float}>
+     */
+    public function invoiceSummaries(): array
+    {
+        return $this->invoices()->get()->map(fn (Invoice $invoice): array => [
+            'invoice_id' => $invoice->getId(),
+            'invoice_number' => $invoice->invoice_number,
+            'status' => $invoice->document_status->value,
+            'total' => (float) $invoice->total_native,
+            'due_date' => $invoice->due_date?->toDateString(),
+        ])->values()->all();
+    }
+
+    /** One per payment of its SOW, created when the quote is accepted. */
+    public function billingSchedules(): HasMany
+    {
+        return $this->hasMany(BillingSchedule::class, 'source_quote_id', 'id')->orderBy('id');
+    }
+
+    /**
+     * A payment already due is invoiced by a queued job, so `invoiceSummaries()` read right after the
+     * acceptance is still empty: this is what says an invoice is on its way.
+     *
+     * @return list<array{name: ?string, status: string, bills_on: ?string, amount: float, billing_now: bool}>
+     */
+    public function billingSummaries(): array
+    {
+        $today = Carbon::today();
+
+        return $this->billingSchedules()->with('lines')->get()->map(fn (BillingSchedule $schedule): array => [
+            'name' => $schedule->name,
+            'status' => $schedule->status->value,
+            'bills_on' => $schedule->next_run_at?->toDateString(),
+            'amount' => $schedule->linesTotal(),
+            'billing_now' => $schedule->isDue($today),
+        ])->values()->all();
+    }
+
     public function parentQuote(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_quote_id', 'id');
@@ -143,6 +201,20 @@ class Quote extends BaseModel
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
     }
 
+    /** The current SOW revision; older revisions hang off it through the message parent chain. */
+    public function sowMessage(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'sow_message_id', 'id');
+    }
+
+    public function statementOfWork(): ?StatementOfWork
+    {
+        /** @var Message|null $message */
+        $message = $this->sowMessage;
+
+        return $message !== null ? StatementOfWork::fromMessage($message) : null;
+    }
+
     public function searchableAs(): string
     {
         $model = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
@@ -161,7 +233,7 @@ class Quote extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => "Kanvas\Scribe\Quotes\Models\Quote::{$this->id}",
+            'objectID' => self::class . "::{$this->id}",
             'id' => (string) $this->id,
             'uuid' => (string) $this->uuid,
             'apps_id' => $this->apps_id,
@@ -247,5 +319,10 @@ class Quote extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'ScribeQuote';
+    }
+
+    protected function sourceDomainForLedger(): string
+    {
+        return 'Scribe';
     }
 }

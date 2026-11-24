@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
 use Kanvas\Connectors\Apollo\Services\CsvExportService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\RecordExporterRegistry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
@@ -66,14 +67,19 @@ class ExportRecordsTool extends Tool
                     . 'Omit it, or pass "{}", for no filters.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $record_type, array|string|null $filters = null): array
+    public function __invoke(string $record_type, array|string|null $filters = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $filters = $this->decodeJsonObjectParam($filters);
         $registry = new RecordExporterRegistry();
         $exporter = $registry->for($record_type);
@@ -84,9 +90,13 @@ class ExportRecordsTool extends Tool
         }
 
         try {
-            $rows = $exporter->rows($this->app, $this->company, $filters);
-        } catch (Throwable $e) {
+            $rows = $exporter->rows($this->app, $this->auditedReadScope(), $filters);
+        } catch (ValidationException $e) {
             return ['error' => $e->getMessage()];
+        } catch (Throwable $e) {
+            report($e);
+
+            return ['error' => 'The export failed unexpectedly. Do not retry; tell the user the export is unavailable right now.'];
         }
 
         return app(CsvExportService::class)->export(

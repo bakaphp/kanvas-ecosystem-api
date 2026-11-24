@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ECF xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Encabezado>
+    <Version>1.0</Version>
+    <IdDoc>
+      <TipoeCF>31</TipoeCF>
+      <eNCF>E310000000123</eNCF>
+      <FechaVencimientoSecuencia>31-12-2028</FechaVencimientoSecuencia>
+      <TipoIngresos>01</TipoIngresos>
+      <TipoPago>2</TipoPago>
+      <FechaLimitePago>15-07-2026</FechaLimitePago>
+    </IdDoc>
+    <Emisor>
+      <RNCEmisor>101000009</RNCEmisor>
+      <RazonSocialEmisor>Proveedora Ejemplo SRL</RazonSocialEmisor>
+      <DireccionEmisor>Calle Ficticia 10</DireccionEmisor>
+      <FechaEmision>10-06-2026</FechaEmision>
+    </Emisor>
+    <Comprador>
+      <RNCComprador>130000001</RNCComprador>
+      <RazonSocialComprador>Empresa Compradora SRL</RazonSocialComprador>
+    </Comprador>
+    <Totales>
+      <MontoGravadoTotal>1500.00</MontoGravadoTotal>
+      <MontoGravadoI1>1500.00</MontoGravadoI1>
+      <MontoExento>200.00</MontoExento>
+      <ITBIS1>18</ITBIS1>
+      <TotalITBIS>270.00</TotalITBIS>
+      <TotalITBIS1>270.00</TotalITBIS1>
+      <MontoTotal>1970.00</MontoTotal>
+    </Totales>
+  </Encabezado>
+  <DetallesItems>
+    <Item>
+      <NumeroLinea>1</NumeroLinea>
+      <IndicadorFacturacion>1</IndicadorFacturacion>
+      <NombreItem>Servicio de soporte</NombreItem>
+      <IndicadorBienoServicio>2</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>333.35</PrecioUnitarioItem>
+      <MontoItem>333.35</MontoItem>
+    </Item>
+    <Item>
+      <NumeroLinea>2</NumeroLinea>
+      <IndicadorFacturacion>1</IndicadorFacturacion>
+      <NombreItem>Licencia anual</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>333.35</PrecioUnitarioItem>
+      <MontoItem>333.35</MontoItem>
+    </Item>
+    <Item>
+      <NumeroLinea>3</NumeroLinea>
+      <IndicadorFacturacion>1</IndicadorFacturacion>
+      <NombreItem>Equipo de red</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>2.00</CantidadItem>
+      <PrecioUnitarioItem>450.00</PrecioUnitarioItem>
+      <DescuentoMonto>66.70</DescuentoMonto>
+      <MontoItem>833.30</MontoItem>
+    </Item>
+    <Item>
+      <NumeroLinea>4</NumeroLinea>
+      <IndicadorFacturacion>4</IndicadorFacturacion>
+      <NombreItem>Libro tecnico</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>200.00</PrecioUnitarioItem>
+      <MontoItem>200.00</MontoItem>
+    </Item>
+    <Item>
+      <NumeroLinea>5</NumeroLinea>
+      <IndicadorFacturacion>0</IndicadorFacturacion>
+      <NombreItem>Muestra sin valor</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>0.00</PrecioUnitarioItem>
+      <MontoItem>0.00</MontoItem>
+    </Item>
+  </DetallesItems>
+  <FechaHoraFirma>10-06-2026 10:00:00</FechaHoraFirma>
+  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+    <SignedInfo/>
+    <SignatureValue>AAAAsyntheticsignature</SignatureValue>
+  </Signature>
+</ECF>

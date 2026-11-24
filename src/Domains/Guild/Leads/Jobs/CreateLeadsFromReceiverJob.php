@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Leads\Jobs;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use JsonException;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Enums\AppEnum;
@@ -132,13 +133,26 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         return $finalJson;
     }
 
-    private function loadReceiver(): LeadReceiver
+    protected function loadReceiver(): LeadReceiver
     {
         return LeadReceiver::getByIdFromCompanyApp(
-            $this->receiver->configuration['receiver_id'],
+            $this->configuredReceiverId(),
             $this->receiver->company,
             $this->receiver->app,
         );
+    }
+
+    protected function configuredReceiverId(): int
+    {
+        $receiverId = (int) ($this->receiver->configuration['receiver_id'] ?? 0);
+
+        if ($receiverId <= 0) {
+            throw new ValidationException(
+                sprintf('Receiver webhook %d has no receiver_id in its configuration', $this->receiver->getId())
+            );
+        }
+
+        return $receiverId;
     }
 
     private function resolveRealIp(): string
@@ -148,7 +162,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         return is_array($ipAddresses) && ! empty($ipAddresses) ? reset($ipAddresses) : '127.0.0.1';
     }
 
-    private function createAttempt(LeadReceiver $leadReceiver): LeadAttempt
+    protected function createAttempt(LeadReceiver $leadReceiver): LeadAttempt
     {
         return new CreateLeadAttemptAction(
             $this->webhookRequest->payload,
@@ -160,13 +174,20 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         )->execute();
     }
 
-    private function buildPayload(LeadReceiver $leadReceiver): array
+    protected function rawPayload(): array
     {
         $payload = $this->webhookRequest->payload;
 
         if (isset($this->receiver->configuration['double_encoded_json'])) {
             $payload = $this->parseDoubleEncodedJsonToArray($payload);
         }
+
+        return $payload;
+    }
+
+    protected function buildPayload(LeadReceiver $leadReceiver): array
+    {
+        $payload = $this->rawPayload();
 
         if (! empty($leadReceiver->template) && is_array($leadReceiver->template)) {
             $payload = new ConvertJsonTemplateToLeadStructureAction(
@@ -331,7 +352,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         }
     }
 
-    private function buildResponse(
+    protected function buildResponse(
         LeadReceiver $leadReceiver,
         Lead $lead,
         array $sentEmail,

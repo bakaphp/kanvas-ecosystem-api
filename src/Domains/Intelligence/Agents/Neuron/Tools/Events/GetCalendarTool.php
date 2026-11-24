@@ -19,7 +19,7 @@ use Override;
  * pushed into SQL (via the versions' dates), so it returns exactly what falls in the window.
  * Company-scoped.
  */
-#[AgentTool(name: 'Get Calendar', category: 'events')]
+#[AgentTool(name: 'Get Calendar', category: 'events', readOnly: true)]
 class GetCalendarTool extends Tool
 {
     use HasKanvasContext;

@@ -34,7 +34,6 @@ class PushFollowRecommendationNotificationCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -44,10 +43,10 @@ class PushFollowRecommendationNotificationCommand extends Command
         $this->overwriteAppService($app);
 
         $notificationMessages = [
-            "✨ Based on your interests, we think you would like @username! Tap to view their profile.",
-            "We found a creator you might like! @username creates AI prompts about [category] that match your interests.",
-            "Heads up! @username created something you might like. (Others do!)",
-            "You and @username have similar tastes! See their latest creation."
+            '✨ Based on your interests, we think you would like @username! Tap to view their profile.',
+            'We found a creator you might like! @username creates AI prompts about [category] that match your interests.',
+            'Heads up! @username created something you might like. (Others do!)',
+            'You and @username have similar tastes! See their latest creation.',
         ];
 
         $via = ['push'];
@@ -68,7 +67,7 @@ class PushFollowRecommendationNotificationCommand extends Command
                         $app,
                         $messageType->getId(),
                     );
-                    $randomRecommendedUserTag =  $userMessagesCategories[array_rand($userMessagesCategories)];
+                    $randomRecommendedUserTag = $userMessagesCategories[array_rand($userMessagesCategories)];
                     $dynamicMessage = html_entity_decode($notificationMessages[array_rand($notificationMessages)], ENT_QUOTES, 'UTF-8');
 
                     if (str_contains($dynamicMessage, '[category]')) {
@@ -78,7 +77,7 @@ class PushFollowRecommendationNotificationCommand extends Command
                     $dynamicMessage = str_replace('@username', $randomRecommendedUser->displayname, $dynamicMessage);
                     $followsRecommendationsNotification = new FollowsRecommendationsPushNotication(
                         $randomRecommendedUser,
-                        "Follow Recommendation",
+                        'Follow Recommendation',
                         $dynamicMessage,
                         $via,
                         [

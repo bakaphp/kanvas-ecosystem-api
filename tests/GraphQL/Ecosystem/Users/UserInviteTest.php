@@ -87,7 +87,6 @@ class UserInviteTest extends TestCase
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
                     'custom_fields' => [],
-
                 ],
             ]
         );
@@ -109,7 +108,6 @@ class UserInviteTest extends TestCase
                     'password' => fake()->password(8),
                     'invite_hash' => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),
-
                 ],
             ]
         )->assertSuccessful()
@@ -141,7 +139,6 @@ class UserInviteTest extends TestCase
                     'email' => fake()->email(),
                     'firstname' => fake()->firstName(),
                     'custom_fields' => [],
-
                 ],
             ]
         );
@@ -162,7 +159,6 @@ class UserInviteTest extends TestCase
                     'password' => fake()->password(8),
                     'invite_hash' => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),
-
                 ],
             ]
         )->assertSuccessful()
@@ -249,7 +245,6 @@ class UserInviteTest extends TestCase
                     }
                 }',
             [
-
                     'hash' => $invite['invite_hash'],
             ]
         )
@@ -297,7 +292,6 @@ class UserInviteTest extends TestCase
                     }
                 }',
             [
-
                     'hash' => $invite['invite_hash'],
             ]
         )
@@ -345,7 +339,6 @@ class UserInviteTest extends TestCase
                     }
                 }',
             [
-
             ]
         )
         ->assertSuccessful()

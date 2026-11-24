@@ -144,17 +144,39 @@ class CheckAgentRuntimeHealthCommand extends Command
                     ? EventStatusEnum::SUCCESS
                     : EventStatusEnum::ERROR;
 
-                /** @var Apps $app */
-                $app = Apps::getById($agent->apps_id);
-                $company = Companies::getById($agent->companies_id);
+                try {
+                    /** @var Apps $app */
+                    $app = Apps::getById($agent->apps_id);
+                    $company = Companies::getById($agent->companies_id);
+                    $this->overwriteAppService($app);
 
-                $changed = $writer->write(
-                    $agent,
-                    $app,
-                    $company,
-                    $expected,
-                    $eventStatus,
-                );
+                    $changed = $writer->write(
+                        $agent,
+                        $app,
+                        $company,
+                        $expected,
+                        $eventStatus,
+                    );
+                } catch (ModelNotFoundException $e) {
+                    // Agent outlived its app/company. Nothing to reconcile, and one such row must
+                    // not abort the sweep for every agent after it.
+                    $this->warn(sprintf(
+                        '  agent=%d orphaned: %s',
+                        $agent->getId(),
+                        $e->getMessage(),
+                    ));
+
+                    continue;
+                } catch (Throwable $e) {
+                    report($e);
+                    $this->error(sprintf(
+                        '  agent=%d failed: %s',
+                        $agent->getId(),
+                        $e->getMessage(),
+                    ));
+
+                    continue;
+                }
 
                 if ($changed) {
                     $reconciled++;

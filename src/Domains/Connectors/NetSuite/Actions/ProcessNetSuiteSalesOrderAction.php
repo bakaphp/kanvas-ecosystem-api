@@ -8,22 +8,17 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Kanvas\Connectors\NetSuite\Client;
-use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteSalesOrderService;
 use Kanvas\Users\Models\Users;
-use NetSuite\Classes\GetRequest;
-use NetSuite\Classes\RecordRef;
+use NetSuite\Classes\SalesOrder;
 
 class ProcessNetSuiteSalesOrderAction
 {
-    protected NetSuiteQuoteService $quoteService;
-
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $mainAppCompany,
         protected UserInterface $user
     ) {
-        $this->quoteService = new NetSuiteQuoteService($app, $mainAppCompany);
     }
 
     /**
@@ -33,7 +28,6 @@ class ProcessNetSuiteSalesOrderAction
     {
         $processedProducts = [];
 
-        // Get the sales order from NetSuite using the quote service
         $salesOrder = $this->getSalesOrderById($orderId);
 
         if (! $salesOrder || ! isset($salesOrder->itemList) || ! $salesOrder->itemList->item) {
@@ -105,24 +99,9 @@ class ProcessNetSuiteSalesOrderAction
         ];
     }
 
-    /**
-     * Get sales order by internal ID using the NetSuite service
-     */
-    private function getSalesOrderById(string|int $salesOrderInternalId): \NetSuite\Classes\SalesOrder
+    private function getSalesOrderById(string|int $salesOrderInternalId): SalesOrder
     {
-        $getRequest = new GetRequest();
-        $salesOrderRef = new RecordRef();
-        $salesOrderRef->internalId = $salesOrderInternalId;
-        $salesOrderRef->type = 'salesOrder';
-        $getRequest->baseRef = $salesOrderRef;
-
-        $service = (new Client($this->app, $this->mainAppCompany))->getService();
-        $response = $service->get($getRequest);
-
-        if ($response->readResponse->status->isSuccess) {
-            return $response->readResponse->record;
-        } else {
-            throw new Exception('Error retrieving sales order: ' . $response->readResponse->status->statusDetail[0]->message);
-        }
+        return new NetSuiteSalesOrderService($this->app, $this->mainAppCompany)
+            ->getSalesOrderById($salesOrderInternalId);
     }
 }

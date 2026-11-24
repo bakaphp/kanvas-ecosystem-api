@@ -13,6 +13,7 @@ use Kanvas\Analytics\Reporting\Services\ReportSchemaService;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\RegistrationMapper;
+use Kanvas\Connectors\Intras\Support\CustomFieldsBatch;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Participants\Models\ParticipantType;
@@ -355,7 +356,7 @@ class InscripcionDefinition implements RefreshableReportInterface
      */
     protected function versionCustomFieldsFor(array $versionIds): array
     {
-        return $this->customFieldsFor(EventVersion::class, $versionIds);
+        return CustomFieldsBatch::forEntities(EventVersion::class, $versionIds);
     }
 
     /**
@@ -365,38 +366,7 @@ class InscripcionDefinition implements RefreshableReportInterface
      */
     protected function registrationCustomFieldsFor(array $registrationIds): array
     {
-        return $this->customFieldsFor(EventVersionParticipant::class, $registrationIds);
-    }
-
-    /**
-     * Not filtered by companies_id — that column records the writer's company context, not the
-     * entity's owner. See EjecutivoDefinition::customFieldsFor().
-     *
-     * @param array<int, int> $entityIds
-     *
-     * @return array<int, array<string, string>>
-     */
-    protected function customFieldsFor(string $modelName, array $entityIds): array
-    {
-        if ($entityIds === []) {
-            return [];
-        }
-
-        $rows = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('model_name', $modelName)
-            ->whereIn('entity_id', $entityIds)
-            ->where('is_deleted', 0)
-            ->select('entity_id', 'name', 'value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->entity_id][(string) $row->name] = (string) $row->value;
-        }
-
-        return $map;
+        return CustomFieldsBatch::forEntities(EventVersionParticipant::class, $registrationIds);
     }
 
     /**

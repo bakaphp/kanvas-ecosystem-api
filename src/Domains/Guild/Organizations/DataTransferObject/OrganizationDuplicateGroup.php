@@ -19,7 +19,7 @@ use Spatie\LaravelData\Data;
  * WHY these were grouped:
  *   - exact_name        — `LOWER(TRIM(name))` matched between rows
  *   - email_match       — a People contact email is shared
- *   - tax_id_match      — same value in `tax_id` / `rnc` / `ein` custom fields
+ *   - tax_id_match      — same `organizations.tax_id` (reserved; no detector emits it yet)
  */
 class OrganizationDuplicateGroup extends Data
 {

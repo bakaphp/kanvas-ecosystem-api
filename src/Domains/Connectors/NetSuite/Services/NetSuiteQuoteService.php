@@ -17,6 +17,7 @@ use NetSuite\Classes\Estimate;
 use NetSuite\Classes\EstimateItem;
 use NetSuite\Classes\EstimateItemList;
 use NetSuite\Classes\RecordRef;
+use NetSuite\Classes\RecordType;
 use NetSuite\NetSuiteService;
 
 class NetSuiteQuoteService
@@ -35,7 +36,6 @@ class NetSuiteQuoteService
     /**
      * Create a NetSuite quote (estimate) from a Kanvas order
      */
-
     public function createQuoteFromOrder(Order $order, ?string $netsuiteCustomerId = null, bool $customRate = true): Estimate
     {
         $estimate = new Estimate();
@@ -228,21 +228,7 @@ class NetSuiteQuoteService
      */
     public function getQuoteById(string|int $quoteInternalId): Estimate
     {
-        $getRequest = new \NetSuite\Classes\GetRequest();
-        $estimateRef = new RecordRef();
-        $estimateRef->internalId = $quoteInternalId;
-        $estimateRef->type = 'estimate';
-        $getRequest->baseRef = $estimateRef;
-
-        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($getRequest) {
-            $response = $service->get($getRequest);
-
-            if ($response->readResponse->status->isSuccess) {
-                return $response->readResponse->record;
-            }
-
-            throw new Exception('Error retrieving quote: ' . $response->readResponse->status->statusDetail[0]->message);
-        });
+        return $this->client->getRecord(RecordType::estimate, $quoteInternalId, 'quote');
     }
 
     /**

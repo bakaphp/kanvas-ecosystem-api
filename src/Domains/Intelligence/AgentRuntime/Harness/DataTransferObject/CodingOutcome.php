@@ -24,17 +24,29 @@ final readonly class CodingOutcome
         public ?string $pullRequestError = null,
         public ?ApprovalRequest $approval = null,
         public ?int $decidedByUserId = null,
+        /** What the agent itself said it did, when it said anything — a factory run's whole account. */
+        public ?string $reply = null,
     ) {
     }
 
     public static function awaitingPush(HarnessDiff $diff, ApprovalRequest $approval, ?string $branch): self
     {
-        return new self(CodingOutcomeEnum::AWAITING_PUSH, $diff, branch: $branch, approval: $approval);
+        return new self(
+            CodingOutcomeEnum::AWAITING_PUSH,
+            $diff,
+            branch: $branch,
+            approval: $approval
+        );
     }
 
     public static function reviewOnly(HarnessDiff $diff): self
     {
         return new self(CodingOutcomeEnum::REVIEW_ONLY, $diff);
+    }
+
+    public static function ran(HarnessDiff $diff, ?string $reply = null): self
+    {
+        return new self(CodingOutcomeEnum::RAN, $diff, reply: $reply);
     }
 
     /**
@@ -119,6 +131,8 @@ final readonly class CodingOutcome
     {
         return array_filter([
             'outcome' => $this->kind->value,
+            // The key a resumed parent task reads first (`RecordChildOutcomeAction::summary()`).
+            'worker_summary' => $this->reply,
             'summary' => $this->diff?->summary(),
             'files' => $this->diff?->paths(),
             'branch' => $this->branch ?? $session->branch,
@@ -135,6 +149,7 @@ final readonly class CodingOutcome
             CodingOutcomeEnum::AWAITING_PUSH => 'Waiting on your approval to push `' . (string) $this->branch . '`.',
             CodingOutcomeEnum::PUSHED => $this->pushedLine(),
             CodingOutcomeEnum::REVIEW_ONLY => 'Nothing has been pushed — the diff is waiting on the workspace for review.',
+            CodingOutcomeEnum::RAN => 'The job was run-only: no files were meant to change, and none did. The handoff has what it found.',
             default => (string) $this->reason,
         };
     }

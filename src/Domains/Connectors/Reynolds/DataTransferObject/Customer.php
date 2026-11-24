@@ -170,7 +170,7 @@ class Customer extends Data
             'Text' => self::ynOrNull($people->get(CustomFieldEnum::CONSENT_TEXT->value)),
             'Phone' => self::ynOrNull($people->get(CustomFieldEnum::CONSENT_PHONE->value)),
             'Mail' => self::ynOrNull($people->get(CustomFieldEnum::CONSENT_MAIL->value)),
-            'OptOut' => self::ynOrNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT->value)) ?? 'N',
+            'OptOut' => self::ynOrNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT->value)),
             'OptOutUse' => self::ynOrNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT_USE->value)),
         ];
     }

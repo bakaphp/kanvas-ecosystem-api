@@ -19,7 +19,6 @@ class Jwt
 {
     /**
      * Get the JWT Configuration.
-     *
      */
     public static function getConfig(): Configuration
     {
@@ -32,7 +31,6 @@ class Jwt
 
     /**
      * Create a new session based off the refresh token session id.
-     *
      */
     public static function createToken(string $sessionId, string $email, float $expirationAt = 0, ?string $deviceId = null): Plain
     {
@@ -61,7 +59,6 @@ class Jwt
      *
      * @throws RequiredConstraintsViolated
      * @throws NoConstraintsGiven
-     *
      */
     public static function validateToken(Token $token): bool
     {

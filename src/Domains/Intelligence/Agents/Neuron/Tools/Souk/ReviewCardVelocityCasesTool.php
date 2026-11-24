@@ -9,7 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\ResolvesReviewWindow;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsOrderReports;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Services\CardVelocityReviewService;
@@ -24,8 +24,8 @@ class ReviewCardVelocityCasesTool extends Tool
     use GuardsAdminForTool;
     use GuardsRepeatCalls;
     use HasKanvasContext;
-    use ParsesOrderTypesFilter;
     use ReportsToolOutcome;
+    use RunsOrderReports;
     use ResolvesReviewWindow;
 
     protected string $name = 'review_card_velocity_cases';
@@ -149,7 +149,7 @@ class ReviewCardVelocityCasesTool extends Tool
             return $window;
         }
 
-        $names = $this->parseOrderTypes($orderTypes);
+        $names = $this->parseNames($orderTypes);
         $orderTypeIds = null;
 
         if ($names !== null) {

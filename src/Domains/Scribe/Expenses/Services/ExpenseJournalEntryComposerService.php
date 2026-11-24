@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Expenses\Services;
 
+use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
@@ -14,6 +15,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
+use Kanvas\Scribe\Ledger\Services\JournalEntryRoundingService;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 
@@ -71,8 +73,8 @@ class ExpenseJournalEntryComposerService
                 );
             }
 
-            $lineTotalNative = (float) $line->amount_native + (float) $line->tax_amount_native;
-            $lineTotalBase = (float) $line->amount_base + (float) $line->tax_amount_base;
+            $lineTotalNative = Money::stored(Money::of((float) $line->amount_native)->plus(Money::of((float) $line->tax_amount_native)));
+            $lineTotalBase = Money::stored(Money::of((float) $line->amount_base)->plus(Money::of((float) $line->tax_amount_base)));
 
             $lines[] = new JournalEntryLineData(
                 account_id: $line->expense_account_id,
@@ -139,7 +141,7 @@ class ExpenseJournalEntryComposerService
             company: $company,
             postedAt: $expense->approved_at ?? Carbon::now(),
             sourceType: 'expense',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 0)),
             sourceId: $expense->id,
             memo: "Expense {$expense->expense_number} approved",
             source: $expense->source,
@@ -218,27 +220,9 @@ class ExpenseJournalEntryComposerService
 
     private function resolveCreditAccount(Expense $expense): Account
     {
-        // COMPANY_BANK_TRANSFER may have a specific bank_account_id; use its GL cash account.
-        if ($expense->paid_by === ExpensePaidByEnum::COMPANY_BANK_TRANSFER && $expense->bank_account_id !== null) {
-            $bankAccount = BankAccount::query()
-                ->where('id', $expense->bank_account_id)
-                ->where('apps_id', $expense->apps_id)
-                ->where('companies_id', $expense->companies_id)
-                ->first();
+        $glAccount = $expense->paid_by === ExpensePaidByEnum::COMPANY_BANK_TRANSFER ? $this->bankGlAccount($expense) : null;
 
-            if ($bankAccount !== null && $bankAccount->gl_account_id !== null) {
-                $glAccount = Account::query()
-                    ->where('id', $bankAccount->gl_account_id)
-                    ->where('is_active', true)
-                    ->first();
-
-                if ($glAccount !== null) {
-                    return $glAccount;
-                }
-            }
-        }
-
-        return $this->accountResolver->bySubType(
+        return $glAccount ?? $this->accountResolver->bySubType(
             $expense->app,
             $expense->company,
             $expense->paid_by->creditAccountSubType(),
@@ -247,31 +231,36 @@ class ExpenseJournalEntryComposerService
 
     private function resolveCashAccount(Expense $expense): Account
     {
-        // If a specific bank account is linked, use its GL cash account.
-        if ($expense->bank_account_id !== null) {
-            $bankAccount = BankAccount::query()
-                ->where('id', $expense->bank_account_id)
-                ->where('apps_id', $expense->apps_id)
-                ->where('companies_id', $expense->companies_id)
-                ->first();
-
-            if ($bankAccount !== null && $bankAccount->gl_account_id !== null) {
-                $glAccount = Account::query()
-                    ->where('id', $bankAccount->gl_account_id)
-                    ->where('is_active', true)
-                    ->first();
-
-                if ($glAccount !== null) {
-                    return $glAccount;
-                }
-            }
-        }
-
-        return $this->accountResolver->bySubType(
+        return $this->bankGlAccount($expense) ?? $this->accountResolver->bySubType(
             $expense->app,
             $expense->company,
             AccountSubTypeEnum::CASH_CHECKING,
         );
+    }
+
+    /**
+     * The GL cash account behind the expense's own bank account, when it names one that is still active.
+     */
+    private function bankGlAccount(Expense $expense): ?Account
+    {
+        if ($expense->bank_account_id === null) {
+            return null;
+        }
+
+        $bankAccount = BankAccount::query()
+            ->where('id', $expense->bank_account_id)
+            ->where('apps_id', $expense->apps_id)
+            ->where('companies_id', $expense->companies_id)
+            ->first();
+
+        if ($bankAccount?->gl_account_id === null) {
+            return null;
+        }
+
+        return Account::query()
+            ->where('id', $bankAccount->gl_account_id)
+            ->where('is_active', true)
+            ->first();
     }
 
     private function creditLineMemo(Expense $expense): string

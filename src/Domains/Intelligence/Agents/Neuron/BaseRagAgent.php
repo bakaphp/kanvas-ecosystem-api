@@ -13,9 +13,4 @@ class BaseRagAgent extends RAG implements BehavesAsKanvasAgent
 {
     use HasKanvasAgentBehavior;
     use HasKnowledgeRag;
-
-    protected function usesOrganizationWideKnowledge(): bool
-    {
-        return false;
-    }
 }

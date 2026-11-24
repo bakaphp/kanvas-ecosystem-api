@@ -6,12 +6,11 @@ namespace Tests\Intelligence\Agents\Neuron;
 
 use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\RefusedToolStub;
 use NeuronAI\Agent\AgentResources;
 use NeuronAI\Agent\AgentState;
-use NeuronAI\Agent\Events\AIInferenceEvent;
 use NeuronAI\Agent\Events\ToolCallEvent;
-use NeuronAI\Agent\InferenceRequest;
 use NeuronAI\Agent\Nodes\ParallelToolNode;
 use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Chat\History\ChatHistory;
@@ -252,6 +251,62 @@ class BoundToolResultsMiddlewareTest extends TestCase
         );
     }
 
+    /**
+     * The history persists on write, so a full result that reaches it is replayed on every retry and on
+     * the next turn, even when the request that followed was cut.
+     */
+    public function testTheHistoryNeverHoldsTheFullResult(): void
+    {
+        $tool = new CallbackTool(
+            'get_pull_request_diff',
+            'Returns the PR diff',
+            fn () => str_repeat('+ line', BoundToolResultsMiddleware::MAX_CHARS_PER_RESULT)
+        );
+
+        $agent = new CapturingNeuronAgentStub()->setThreadId('bounded-history');
+        $agent->capturedProvider = new ScriptedToolCallNeuronProvider($tool);
+        $agent->addTool($tool);
+        $agent->chat(new UserMessage('Review pull request 233'));
+
+        $stored = array_values(array_filter(
+            $agent->getChatHistory()->getMessages(),
+            fn (Message $message): bool => $message instanceof ToolResultMessage,
+        ));
+
+        $this->assertCount(1, $stored);
+        $this->assertLessThan(
+            BoundToolResultsMiddleware::MAX_CHARS_PER_RESULT + 500,
+            mb_strlen((string) $stored[0]->getToolCalls()[0]->getResult())
+        );
+    }
+
+    public function testAReplayedRoundIsNotCountedAgainstItself(): void
+    {
+        $call = $this->callWithResult('get_diff', str_repeat('d', BoundToolResultsMiddleware::MAX_CHARS_PER_TURN));
+        $round = new ToolResultMessage([$call]);
+        $state = new AgentState();
+        $resources = $this->resources([
+            new UserMessage('Review pull request 233'),
+            new ToolCallMessage(null, [$call]),
+            $round,
+        ]);
+
+        BoundToolResultsMiddleware::bound($round, $resources->history, $state);
+
+        $this->assertSame(BoundToolResultsMiddleware::MAX_CHARS_PER_TURN, mb_strlen((string) $call->getResult()));
+        $this->assertFalse(BoundToolResultsMiddleware::exhausted($state));
+    }
+
+    public function testKanvasAgentsRunTheBoundedToolNode(): void
+    {
+        $agent = new CapturingNeuronAgentStub();
+
+        $nodes = new ReflectionMethod($agent, 'nodes')->invoke($agent);
+
+        $this->assertNotEmpty(array_filter($nodes, fn (object $node): bool => $node instanceof BoundedToolNode));
+        $this->assertEmpty(array_filter($nodes, fn (object $node): bool => $node::class === ToolNode::class));
+    }
+
     private function runBefore(AgentState $state, AgentResources $resources, string $name): void
     {
         $event = new ToolCallEvent(new ToolCallMessage(null, [ToolCall::make($name, 'c-before', [])]));
@@ -265,22 +320,11 @@ class BoundToolResultsMiddlewareTest extends TestCase
     }
 
     /**
-     * ToolNode hands the round to the next inference through the request; the round reaches the history
-     * only after that inference, which commit() stands in for.
+     * BoundedToolNode bounds the round just before writing it; commit() stands in for that write.
      */
     private function runAfter(AgentState $state, AgentResources $resources, ToolCall $call): void
     {
-        $state->request = new InferenceRequest(
-            new SystemMessage('test'),
-            [new ToolCallMessage(null, [$call]), new ToolResultMessage([$call])],
-        );
-
-        new BoundToolResultsMiddleware()->after(
-            new ToolNode(),
-            AIInferenceEvent::fromRequest($state->request),
-            $state,
-            $resources,
-        );
+        BoundToolResultsMiddleware::bound(new ToolResultMessage([$call]), $resources->history, $state);
     }
 
     private function commit(AgentResources $resources, ToolCall $call): void

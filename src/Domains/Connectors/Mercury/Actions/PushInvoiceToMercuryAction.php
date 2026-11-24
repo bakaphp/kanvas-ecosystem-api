@@ -52,19 +52,20 @@ class PushInvoiceToMercuryAction
                 invoice: $this->invoice,
                 mercuryCustomerId: $customerId,
                 destinationAccountId: $this->destinationAccountId(),
-                sendEmail: $this->shouldSendEmail(),
+                cardEnabled: (bool) $this->invoice->company->get(ConfigurationEnum::AR_CARD_ENABLED->value),
             ),
         );
 
         $this->invoice->set(CustomFieldEnum::INVOICE_ID->value, $created->id);
 
+        // The one place the pay link lives: provider-agnostic, already on the Invoice GraphQL type, so the
+        // engagement page reads it without knowing which payment rail produced it.
         $this->invoice->external_url = $created->payPageUrl();
         $this->invoice->saveQuietly();
 
         $this->invoice->emitLedgerEvent('accounting.invoice.pushed_to_mercury', payload: [
             'mercury_invoice_id' => $created->id,
             'pay_page_url' => $created->payPageUrl(),
-            'emailed' => $this->shouldSendEmail(),
         ]);
 
         return $created;
@@ -148,10 +149,5 @@ class PushInvoiceToMercuryAction
         }
 
         return $externalId;
-    }
-
-    private function shouldSendEmail(): bool
-    {
-        return (bool) $this->invoice->company->get(ConfigurationEnum::AR_SEND_EMAIL->value);
     }
 }

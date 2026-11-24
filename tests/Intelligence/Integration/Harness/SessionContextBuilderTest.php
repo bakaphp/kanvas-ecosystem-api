@@ -9,14 +9,16 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
+use Kanvas\Connectors\OpenCode\Services\CodingHostToolsService;
 use Kanvas\Connectors\OpenCode\Services\SessionContextBuilder;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Users\Models\Users;
+use Tests\Intelligence\Integration\Harness\Concerns\CreatesHarnessAgents;
 use Tests\TestCase;
 
 class SessionContextBuilderTest extends TestCase
 {
+    use CreatesHarnessAgents;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
@@ -116,6 +118,58 @@ class SessionContextBuilderTest extends TestCase
         $this->assertStringContainsString('You edit files yourself', $document);
     }
 
+    public function testXcodeHostToolsAddTheSimulatorParagraph(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $document = new SessionContextBuilder(
+            $agent,
+            hostTools: ['xcode'],
+            simulatorName: 'Kanvas-01a1a8a5',
+            packagerPort: 8114,
+        )->agentDocument();
+
+        $this->assertStringContainsString('## Xcode and the Simulator', $document);
+        $this->assertStringContainsString('xcrun simctl create "Kanvas-01a1a8a5"', $document);
+        $this->assertStringContainsString('never `booted`', $document);
+        $this->assertStringContainsString('.kanvas/shots/', $document);
+        $this->assertStringContainsString('CODE_SIGNING_ALLOWED=NO', $document);
+        $this->assertStringContainsString('run:ios --device', $document);
+        $this->assertStringContainsString("Run the scheme's tests before handing off", $document);
+        $this->assertStringContainsString('xcrun simctl shutdown "Kanvas-01a1a8a5"', $document);
+        $this->assertStringContainsString('open -a "Device Hub"', $document);
+        $this->assertStringContainsString('nohup npx expo start --port 8114 > .kanvas/logs/metro.log 2>&1 & echo $! > .kanvas/logs/metro.pid', $document);
+        $this->assertStringContainsString('per-command time limit', $document);
+        $this->assertStringContainsString('Kanvas stops', $document);
+        $this->assertStringNotContainsString('pkill', $document);
+        $this->assertStringNotContainsString('8081', $document);
+    }
+
+    public function testNoHostToolsLeavesTheDocumentUnchanged(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $this->assertStringNotContainsString('Simulator', new SessionContextBuilder($agent)->agentDocument());
+    }
+
+    public function testTheSimulatorNameComesFromTheSessionTheWayProvisionBuildsIt(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $session = new AgentTaskSession();
+        $session->id = 4514;
+
+        $document = new SessionContextBuilder(
+            $agent,
+            hostTools: ['xcode'],
+            simulatorName: CodingHostToolsService::simulatorNameFor($session),
+        )->agentDocument();
+
+        $this->assertStringContainsString('"Kanvas-4514"', $document);
+    }
+
     private function repository(?string $rules = null): CodingRepository
     {
         return new CodingRepository(
@@ -146,35 +200,5 @@ class SessionContextBuilderTest extends TestCase
         $session->saveOrFail();
 
         return $session;
-    }
-
-    /**
-     * @param array<string, mixed> $attributes
-     */
-    private function makeAgent(
-        Apps $app,
-        CompanyInterface $company,
-        Users $user,
-        array $attributes = []
-    ): Agent {
-        return Agent::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->create([
-                'user_id' => $user->getId(),
-                'is_active' => true,
-                ...$attributes,
-            ]);
-    }
-
-    /**
-     * @return array{0: Apps, 1: CompanyInterface, 2: Users}
-     */
-    private function context(): array
-    {
-        /** @var Users $user */
-        $user = auth()->user();
-
-        return [app(Apps::class), $user->getCurrentCompany(), $user];
     }
 }

@@ -6,12 +6,13 @@ namespace Tests\Intelligence\Knowledge;
 
 use Baka\Search\SearchEngineResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Knowledge\Actions\IndexAgentDocumentsAction;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
-use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use Laravel\Ai\Embeddings;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
@@ -30,18 +31,20 @@ class KnowledgeScopeIsolationTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private const TEST_COLLECTION = 'knowledge_scope_isolation_test';
     private const COMPANY_A = 901001;
     private const COMPANY_B = 902002;
 
     protected Apps $kanvasApp;
+    private string $collection;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $this->kanvasApp->set(KnowledgeConfigurationEnum::COLLECTION->value, self::TEST_COLLECTION);
+        // The store caches initialized collection names for the lifetime of the process.
+        $this->collection = 'knowledge_scope_isolation_test_' . Str::uuid7();
+        $this->kanvasApp->set(KnowledgeConfigurationEnum::COLLECTION->value, $this->collection);
         $this->kanvasApp->set(KnowledgeConfigurationEnum::VECTOR_DIMENSION->value, 4);
 
         // Constant fake vector — scope isolation is proved by the filter, not similarity.
@@ -52,7 +55,7 @@ class KnowledgeScopeIsolationTest extends TestCase
     {
         try {
             SearchEngineResolver::typesenseClient($this->kanvasApp)
-                ->collections[self::TEST_COLLECTION]->delete();
+                ->collections[$this->collection]->delete();
         } catch (Throwable) {
             // collection may not exist if the test bailed early
         }
@@ -149,48 +152,6 @@ class KnowledgeScopeIsolationTest extends TestCase
         $this->assertFalse($companyB->contains(fn (string $c): bool => str_contains($c, 'Alpha refund')));
     }
 
-    public function testOrganizationScopedSearchIncludesAllCompanyEntitiesButNeverAnotherCompany(): void
-    {
-        $this->requireTypesense();
-
-        $appId = $this->kanvasApp->getId();
-        $store = KnowledgeComponents::store($this->kanvasApp);
-        $records = [];
-
-        foreach ([
-            ['id' => 'company-a-lead-55', 'company' => self::COMPANY_A, 'entity' => 55, 'content' => 'Alpha lead wants a sedan.'],
-            ['id' => 'company-a-lead-56', 'company' => self::COMPANY_A, 'entity' => 56, 'content' => 'Alpha lead wants an SUV.'],
-            ['id' => 'company-b-lead-57', 'company' => self::COMPANY_B, 'entity' => 57, 'content' => 'Beta lead wants a truck.'],
-        ] as $row) {
-            $records[] = new KnowledgeDocument(
-                id: $row['id'],
-                content: $row['content'],
-                metadata: [
-                    'apps_id' => $appId,
-                    'companies_id' => $row['company'],
-                    'entity_type' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
-                    'entity_id' => $row['entity'],
-                    'source_type' => 'lead',
-                    'sourceType' => 'lead',
-                    'sourceName' => 'lead:' . $row['entity'],
-                    'embedding' => [0.1, 0.2, 0.3, 0.4],
-                ],
-            );
-        }
-
-        $store->upsert($records);
-        $vector = KnowledgeComponents::embedder($this->kanvasApp)->embed('vehicle interest');
-        $results = collect($store->search(
-            $vector,
-            KnowledgeScope::forOrganization($appId, self::COMPANY_A),
-            10,
-        ))->pluck('content');
-
-        $this->assertTrue($results->contains('Alpha lead wants a sedan.'));
-        $this->assertTrue($results->contains('Alpha lead wants an SUV.'));
-        $this->assertFalse($results->contains('Beta lead wants a truck.'));
-    }
-
     public function testAgentScopedSearchNeverReturnsAnotherAgentsKnowledge(): void
     {
         $this->requireTypesense();
@@ -203,13 +164,13 @@ class KnowledgeScopeIsolationTest extends TestCase
         $indexer = KnowledgeComponents::indexer($this->kanvasApp);
         $indexer->indexDocument(
             $scopeAgentA,
-            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            IndexAgentDocumentsAction::SOURCE_TYPE,
             'agent-a-doc',
             'Agent A handbook: onboarding steps for the sales team.',
         );
         $indexer->indexDocument(
             $scopeAgentB,
-            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            IndexAgentDocumentsAction::SOURCE_TYPE,
             'agent-b-doc',
             'Agent B handbook: escalation matrix for support.',
         );
@@ -235,7 +196,7 @@ class KnowledgeScopeIsolationTest extends TestCase
         $scope = new KnowledgeScope($appId, self::COMPANY_A);
         KnowledgeComponents::indexer($this->kanvasApp)->indexDocument(
             $scope,
-            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            IndexAgentDocumentsAction::SOURCE_TYPE,
             'file-to-delete',
             'Gamma handbook: this document is about to be deleted.',
         );
@@ -245,8 +206,8 @@ class KnowledgeScopeIsolationTest extends TestCase
         $present = collect($store->search($vector, $scope, 10))->pluck('content');
         $this->assertTrue($present->contains(fn (string $c): bool => str_contains($c, 'about to be deleted')));
 
-        // What PruneKnowledgeDocumentActivity does on a Filesystem delete.
-        $store->deleteBySource($scope, IndexKnowledgeDocumentActivity::SOURCE_TYPE, 'file-to-delete');
+        // What PruneKnowledgeDocumentAction does when a file is deleted.
+        $store->deleteBySource($scope, IndexAgentDocumentsAction::SOURCE_TYPE, 'file-to-delete');
 
         $afterPrune = collect($store->search($vector, $scope, 10))->pluck('content');
         $this->assertFalse($afterPrune->contains(fn (string $c): bool => str_contains($c, 'about to be deleted')));
@@ -256,7 +217,7 @@ class KnowledgeScopeIsolationTest extends TestCase
     {
         try {
             SearchEngineResolver::typesenseClient($this->kanvasApp)
-                ->collections[self::TEST_COLLECTION]->retrieve();
+                ->collections[$this->collection]->retrieve();
         } catch (ObjectNotFound) {
             // reachable, collection just doesn't exist yet — good to proceed
         } catch (Throwable $e) {

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Ledger\Services;
 
 use BackedEnum;
+use Baka\Support\Money;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 
 /**
  * Shared recompute-and-transition workflow for "mark payable as paid" Actions on every Scribe
@@ -81,8 +83,8 @@ class PayableMarkAsPaidExecutorService
 
             $entity->paid_native = $paidNative;
             $entity->paid_base = $paidBase;
-            $entity->balance_due_native = max(0.0, (float) $entity->total_native - $paidNative);
-            $entity->balance_due_base = max(0.0, (float) $entity->total_base - $paidBase);
+            $entity->balance_due_native = max(0.0, Money::stored(Money::of((float) $entity->total_native)->minus(Money::of($paidNative))));
+            $entity->balance_due_base = max(0.0, Money::stored(Money::of((float) $entity->total_base)->minus(Money::of($paidBase))));
 
             if ($entity->balance_due_native <= 0 && ! $entity->document_status->isTerminal()) {
                 if ($canTransitionToPaid($entity->document_status)) {
@@ -90,7 +92,7 @@ class PayableMarkAsPaidExecutorService
                     $entity->collection_state = null;
                     $entity->paid_at = $allocationModelClass::query()
                         ->where($allocationFkColumn, $entity->id)
-                        ->where('status', 'active')
+                        ->where('status', AllocationStatusEnum::ACTIVE->value)
                         ->max('allocated_at');
                 }
             }

@@ -12,6 +12,7 @@ use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesAddressesForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
+use Kanvas\Intelligence\Tools\Traits\AnnouncesAgentEdits;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -26,6 +27,7 @@ use Override;
 #[AgentTool(name: 'Set Person Address', category: 'crm')]
 class SetPersonAddressTool extends Tool
 {
+    use AnnouncesAgentEdits;
     use HandlesAddressesForTool;
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
@@ -142,6 +144,10 @@ class SetPersonAddressTool extends Tool
 
         if ($is_default === true) {
             $person->makeDefaultAddress($stored);
+        }
+
+        if ($fields !== [] || $is_default === true) {
+            $this->announceAgentEdit($person);
         }
 
         return $this->ok([

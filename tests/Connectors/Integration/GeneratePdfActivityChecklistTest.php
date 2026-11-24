@@ -11,14 +11,9 @@ use Kanvas\ActionEngine\Tasks\Events\ChecklistGeneratePdfEvent;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Enums\StatusEnum;
-use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
-use Kanvas\Workflow\Integrations\Models\Status;
-use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\RegistersInternalIntegration;
 use Tests\TestCase;
 use Tests\Traits\BuildsChecklistFixtures;
 
@@ -30,6 +25,7 @@ final class GeneratePdfActivityChecklistTest extends TestCase
 {
     use BuildsChecklistFixtures;
     use DatabaseTransactions;
+    use RegistersInternalIntegration;
 
     protected $connectionsToTransact = [null, 'crm', 'action_engine', 'social', 'ecosystem', 'workflow'];
 
@@ -169,32 +165,5 @@ final class GeneratePdfActivityChecklistTest extends TestCase
             'message' => $message,
             'wiring' => $wiring,
         ];
-    }
-
-    private function registerInternalIntegration(): void
-    {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-
-        $region = Regions::getDefault($company, $app) ?? Regions::create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'users_id' => 0,
-            'name' => 'Region ' . uniqid(),
-            'is_default' => 1,
-            'is_deleted' => 0,
-        ]);
-
-        IntegrationsCompany::firstOrCreate(
-            [
-                'companies_id' => $company->getId(),
-                'integrations_id' => Integrations::getByName(IntegrationsEnum::INTERNAL->value)->getId(),
-                'region_id' => $region->getId(),
-            ],
-            [
-                'status_id' => Status::where('slug', StatusEnum::ACTIVE->value)->where('apps_id', 0)->firstOrFail()->getId(),
-                'is_active' => 1,
-            ]
-        );
     }
 }

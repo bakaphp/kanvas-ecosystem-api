@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -11,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
@@ -78,6 +80,10 @@ class AssignNervousSystemPlanTool extends Tool
      */
     public function __invoke(int $plan_id, ?int $agent_id = null, ?int $users_id = null): array
     {
+        // A model fills an optional id it has no value for with 0, and no row has id 0.
+        $agent_id = $agent_id > 0 ? $agent_id : null;
+        $users_id = $users_id > 0 ? $users_id : null;
+
         if (($agent_id === null) === ($users_id === null)) {
             return ['error' => 'Provide exactly one of agent_id or users_id (from the project members).'];
         }
@@ -129,6 +135,40 @@ class AssignNervousSystemPlanTool extends Tool
                     $agent->name,
                 ),
             ];
+        }
+
+        // A factory agent works the tasks assigned to it, never a whole plan: its plan wake does nothing
+        // (WakeAgentForPlanJob).
+        if (CodingChatSettingEnum::isEnabledFor($agent)) {
+            return ['error' => sprintf(
+                'Plan %d was NOT assigned to \'%s\': it works tasks on the factory machine, never a whole plan, so a '
+                    . 'plan given to it never starts. Give each task of the plan exactly one `Repo: <folder>` line '
+                    . 'and assign each task to it with assign_nervous_system_task, in sequence order.',
+                $plan->getId(),
+                $agent->name,
+            )];
+        }
+
+        // The plan's agent works every task nobody else was given, so one of those that declares a
+        // checkout would reach an agent with no repository to read.
+        $unassigned = $plan->tasks()
+            ->whereNull('agent_id')
+            ->whereNotIn('status', TaskStatusEnum::completedStatusValues())
+            ->get();
+
+        foreach ($unassigned as $task) {
+            $refusal = CodingChatSettingEnum::repositoryRefusal($agent, $task->fullText());
+
+            if ($refusal !== null) {
+                return ['error' => sprintf(
+                    'Plan %d was NOT assigned to \'%s\': its task %d has no agent of its own. %s Assign that '
+                        . 'task first, then the plan.',
+                    $plan->getId(),
+                    $agent->name,
+                    $task->getId(),
+                    $refusal,
+                )];
+            }
         }
 
         // Reported, never enforced: these are the REGISTRY grants only — an agent also carries its

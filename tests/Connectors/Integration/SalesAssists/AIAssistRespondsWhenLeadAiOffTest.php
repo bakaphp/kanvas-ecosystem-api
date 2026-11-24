@@ -6,8 +6,8 @@ namespace Tests\Connectors\Integration\SalesAssists;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\SalesAssist\Actions\AIAssistAgentResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\AIAssistAgentResponderAction;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;

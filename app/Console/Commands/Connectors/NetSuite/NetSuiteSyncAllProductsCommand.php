@@ -113,11 +113,11 @@ class NetSuiteSyncAllProductsCommand extends Command
             }
 
             $barcode = $record['Copic Item No/ UPC'];
-            $sku = $record["Macpherson  Item #"];
+            $sku = $record['Macpherson  Item #'];
             $productList[$barcode] = [
-                "sku" => $sku,
-                "name" => $record["Description"],
-                "barcode" => $barcode
+                'sku' => $sku,
+                'name' => $record['Description'],
+                'barcode' => $barcode,
             ];
         }
 

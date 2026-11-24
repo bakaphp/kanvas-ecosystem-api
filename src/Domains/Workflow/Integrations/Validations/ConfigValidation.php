@@ -42,6 +42,7 @@ class ConfigValidation
         if ($validator->fails()) {
             // Return errors with field names as keys
             $errorMessages = $validator->errors()->all();
+
             throw new ValidationException($validator, response()->json(['errors' => $errorMessages]));
         }
     }

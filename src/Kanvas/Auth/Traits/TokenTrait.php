@@ -51,7 +51,6 @@ trait TokenTrait
 
     /**
      * Given a token format it to the standard response.
-     *
      */
     public function format(array $token): array
     {
@@ -127,7 +126,6 @@ trait TokenTrait
 
     /**
      * Get the user Auth Response.
-     *
      */
     protected function generateToken(Request $request): array
     {

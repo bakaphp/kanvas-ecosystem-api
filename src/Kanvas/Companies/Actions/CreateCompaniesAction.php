@@ -19,7 +19,6 @@ class CreateCompaniesAction
 
     /**
      * Invoke function.
-     *
      */
     public function execute(): Companies
     {

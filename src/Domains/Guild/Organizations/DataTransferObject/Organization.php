@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Organizations\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
 use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Spatie\LaravelData\Data;
 
@@ -25,6 +26,10 @@ class Organization extends Data
         public readonly ?string $zip = null,
         public readonly ?OrganizationType $organizationType = null,
         public readonly bool $runWorkflow = true,
+        /** null leaves the stored tax id alone; an empty string clears it */
+        public readonly ?string $taxId = null,
+        /** null infers the type from the company's country and the id's shape */
+        public readonly ?TaxIdTypeEnum $taxIdType = null,
     ) {
     }
 }

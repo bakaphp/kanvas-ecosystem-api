@@ -33,7 +33,8 @@ class OrderFactory extends Factory
                     'companies_id' => $attributes['companies_id'],
                 ]);
             },
-            'order_number' => $this->faker->numberBetween(1000, 9999),
+            // Unique per (app, company) and test rows are never rolled back, so 4 digits collides across runs.
+            'order_number' => $this->faker->numberBetween(1_000_000, 999_999_999_999),
             'total_gross_amount' => $this->faker->randomFloat(2, 50, 500),
             'total_net_amount' => $this->faker->randomFloat(2, 40, 450),
             'shipping_price_gross_amount' => $this->faker->randomFloat(2, 0, 50),

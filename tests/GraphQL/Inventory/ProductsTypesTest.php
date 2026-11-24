@@ -12,9 +12,9 @@ use Tests\TestCase;
 class ProductsTypesTest extends TestCase
 {
     use InventoryCases;
+
     /**
      * testCreate.
-     *
      */
     public function testCreate(): void
     {
@@ -30,13 +30,12 @@ class ProductsTypesTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createProductType' => $data]
+            'data' => ['createProductType' => $data],
         ]);
     }
 
     /**
      * testSearch.
-     *
      */
     public function testSearch(): void
     {
@@ -52,7 +51,7 @@ class ProductsTypesTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createProductType' => $data]
+            'data' => ['createProductType' => $data],
         ]);
         $response = $this->graphQL('
             query {
@@ -68,7 +67,6 @@ class ProductsTypesTest extends TestCase
 
     /**
      * testUpdate.
-     *
      */
     public function testUpdate(): void
     {
@@ -87,7 +85,7 @@ class ProductsTypesTest extends TestCase
                     weight
                 }
             }', ['data' => $data, 'id' => $id])->assertJson([
-            'data' => ['updateProductType' => $data]
+            'data' => ['updateProductType' => $data],
         ]);
     }
 
@@ -98,7 +96,7 @@ class ProductsTypesTest extends TestCase
         $id = $response['data']['createProductType']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name . ' en'
+            'name' => fake()->name . ' en',
         ];
 
         $response = $this->graphQL('
@@ -118,7 +116,7 @@ class ProductsTypesTest extends TestCase
             }', [
                 'dataUpdate' => $dataUpdate,
                 'id' => $id,
-                'code' => $language->code
+                'code' => $language->code,
             ]);
 
         $this->assertEquals(
@@ -129,7 +127,6 @@ class ProductsTypesTest extends TestCase
 
     /**
      * testDelete.
-     *
      */
     public function testDelete(): void
     {
@@ -139,7 +136,7 @@ class ProductsTypesTest extends TestCase
             mutation($id: ID!) {
                 deleteProductType(id: $id)
             }', ['id' => $id])->assertJson([
-            'data' => ['deleteProductType' => true]
+            'data' => ['deleteProductType' => true],
         ]);
     }
 
@@ -161,9 +158,9 @@ class ProductsTypesTest extends TestCase
             'products_attributes' => [
                 [
                     'id' => $attribute->getId(),
-                    'is_required' => true
-                ]
-            ]
+                    'is_required' => true,
+                ],
+            ],
         ];
 
         $productType = $this->graphQL('

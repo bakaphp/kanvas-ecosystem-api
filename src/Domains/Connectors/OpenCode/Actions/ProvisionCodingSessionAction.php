@@ -12,11 +12,15 @@ use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
 use Kanvas\Connectors\OpenCode\DataTransferObject\SessionAttachment;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Runtime\CodingRuntimeDriverFactory;
+use Kanvas\Connectors\OpenCode\Services\CodingHostToolsService;
+use Kanvas\Connectors\OpenCode\Services\CodingWorkspaceService;
 use Kanvas\Connectors\OpenCode\Services\SessionConfigBuilder;
 use Kanvas\Connectors\OpenCode\Services\SessionContextBuilder;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
@@ -27,11 +31,11 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  *
  *  - **attach** — `opencode_static_endpoint` points at a server that is already up. Nothing is created
  *    and nothing is destroyed. Local development, and the escape hatch when no machine is available.
- *  - **launch** — a machine is configured: prepare a worktree on the host, start a container there, and
- *    address it however that machine says it is reachable.
+ *  - **launch** — a machine is configured: prepare a worktree on the host, start the agent's runtime
+ *    there through the machine's driver, and address it however that machine says it is reachable.
  *
  * The endpoint it computes is stored on the session. Everything afterwards reads that column instead of
- * re-deriving it, so a session keeps talking to the container it actually started.
+ * re-deriving it, so a session keeps talking to the runtime it actually started.
  */
 class ProvisionCodingSessionAction
 {
@@ -60,62 +64,64 @@ class ProvisionCodingSessionAction
             return $this->attachTo($staticEndpoint);
         }
 
-        return $this->launchContainer();
+        return $this->launchRuntime();
     }
 
     private function attachTo(string $endpoint): AgentTaskSession
     {
         $this->session->endpoint = rtrim($endpoint, '/');
         $this->session->server_password = (string) $this->app->get(ConfigurationEnum::STATIC_PASSWORD->value);
-        $this->session->status = HarnessStatusEnum::STARTING->value;
-        $this->session->started_at ??= Carbon::now();
-        $this->session->touchHeartbeat();
-        $this->session->saveOrFail();
 
-        return $this->session;
+        return $this->markStarting();
     }
 
     /**
-     * Uses the agent's own container and gives this task its own directory inside it.
+     * Uses the agent's own runtime and gives this task its own directory inside it.
      *
-     * The container is per AGENT, not per task: starting one costs seconds a task should not pay, and a
-     * box hosts many agents by port rather than many tasks by container. Isolation between tasks comes
+     * The runtime is per AGENT, not per task: starting one costs seconds a task should not pay, and a
+     * box hosts many agents by port rather than many tasks by runtime. Isolation between tasks comes
      * from the worktree the session is pointed at.
      */
-    private function launchContainer(): AgentTaskSession
+    private function launchRuntime(): AgentTaskSession
     {
         $agent = $this->session->agent;
 
         if ($agent === null) {
-            throw new ValidationException('This session has no agent, so there is no container to use.');
+            throw new ValidationException('This session has no agent, so there is no runtime to use.');
         }
 
         $machine = $this->resolveMachine();
 
-        // Recorded BEFORE the container exists, not after provisioning succeeds. The reaper finds work
-        // by looking at the machines sessions point at, so a crash between `docker run` and the save
-        // below would otherwise strand a container on a machine nothing knows to sweep.
+        // Recorded BEFORE the runtime exists, not after provisioning succeeds. The reaper finds work
+        // by looking at the machines sessions point at, so a crash between the start and the final
+        // save would otherwise strand a runtime on a machine nothing knows to sweep.
         $this->session->agent_machine_id = $machine->getId();
-        $this->session->saveOrFail();
+        $this->session->markLaunchStage(LaunchStageEnum::STARTING_CONTAINER);
 
-        $runtime = new EnsureAgentCodingContainerAction($agent, $machine, $this->app)->execute();
-
+        $driver = CodingRuntimeDriverFactory::forMachine($machine);
         $client = SshClient::fromMachine($machine);
+        $hostTools = CodingHostToolsService::forMachine($machine);
 
         try {
-            $workspace = $this->prepareWorkspace($client, $runtime['worktreeRoot']);
-            $this->writeRuntimeConfig($client, $workspace);
+            $runtime = $driver->ensure($agent, $client);
+            $this->session->markLaunchStage(LaunchStageEnum::PREPARING_WORKTREE);
+            $workspace = $this->prepareWorkspace($client, $runtime->worktreeRoot);
+            $this->writeRuntimeConfig($client, $workspace, $hostTools);
         } finally {
             $client->disconnect();
         }
 
-        $this->session->container_name = $runtime['container'];
-        $this->session->server_password = $runtime['password'];
-        $this->session->port = $runtime['port'];
-        $this->session->endpoint = $runtime['endpoint'];
-        // The path the CONTAINER sees. The host path and the mounted path differ, and the session is
-        // created against the container's view.
-        $this->session->session_data_path = '/workspaces/' . basename($workspace);
+        $this->session->container_name = $runtime->handle;
+        $this->session->server_password = $runtime->password;
+        $this->session->port = $runtime->port;
+        $this->session->endpoint = $runtime->endpoint;
+        $this->session->session_data_path = $runtime->sessionDirectory($workspace);
+
+        return $this->markStarting();
+    }
+
+    private function markStarting(): AgentTaskSession
+    {
         $this->session->status = HarnessStatusEnum::STARTING->value;
         $this->session->started_at ??= Carbon::now();
         $this->session->touchHeartbeat();
@@ -151,7 +157,7 @@ class ProvisionCodingSessionAction
             repoSlug: $this->repository->slug,
             baseBranch: $this->repository->baseBranch,
             branchPrefix: $this->repository->branchPrefix,
-            root: rtrim((string) ($this->app->get(ConfigurationEnum::WORKSPACE_ROOT->value) ?? '/srv/kanvas'), '/'),
+            root: CodingWorkspaceService::rootFor($this->app),
             worktreeRoot: $root,
             references: $this->references,
         )->execute();
@@ -165,14 +171,21 @@ class ProvisionCodingSessionAction
      *
      * A file in the worktree would land in the agent's diff, so it goes into git's own local exclude
      * list — untracked and invisible to `git status`, without touching the repository's `.gitignore`.
+     *
+     * @param list<string> $hostTools
      */
-    private function writeRuntimeConfig(SshClient $client, string $workspace): void
+    private function writeRuntimeConfig(SshClient $client, string $workspace, array $hostTools): void
     {
-        $config = new SessionConfigBuilder($this->app, $this->repository, agent: $this->session->agent)->toJson();
+        $config = new SessionConfigBuilder(
+            $this->app,
+            $this->repository,
+            agent: $this->session->agent,
+            hostTools: $hostTools,
+        )->toJson();
 
         $client->writeFile($workspace . '/opencode.json', $config);
 
-        $this->writeKanvasContext($client, $workspace);
+        $this->writeKanvasContext($client, $workspace, $hostTools);
         $this->writeAttachments($client, $workspace);
 
         if ($this->repository === null) {
@@ -186,9 +199,8 @@ class ProvisionCodingSessionAction
      * Keeps Kanvas's own files out of the agent's diff.
      *
      * `--absolute-git-dir`, not `--git-dir`: the latter answers `.git` relative to the repository, and
-     * the command that consumes it runs in the SSH session's home directory, so the exclusions were
-     * written somewhere harmless and the config and context files showed up in the diff — and would
-     * have been pushed to the customer's repository.
+     * the command that consumes it runs in the SSH session's home directory, so the exclusions land
+     * somewhere harmless and the config and context files reach the diff — and the customer's repository.
      */
     private function excludeFromGit(SshClient $client, string $workspace): void
     {
@@ -218,8 +230,10 @@ class ProvisionCodingSessionAction
      *
      * Under `.kanvas/` on purpose — `AGENTS.md` belongs to the repository, and writing there would both
      * clobber its rules and appear in the diff.
+     *
+     * @param list<string> $hostTools
      */
-    private function writeKanvasContext(SshClient $client, string $workspace): void
+    private function writeKanvasContext(SshClient $client, string $workspace, array $hostTools): void
     {
         $agent = $this->session->agent;
 
@@ -227,7 +241,14 @@ class ProvisionCodingSessionAction
             return;
         }
 
-        $builder = new SessionContextBuilder($agent, $this->repository, $this->references);
+        $builder = new SessionContextBuilder(
+            $agent,
+            $this->repository,
+            $this->references,
+            hostTools: $hostTools,
+            simulatorName: CodingHostToolsService::simulatorNameFor($this->session),
+            packagerPort: CodingHostToolsService::packagerPortFor($this->session),
+        );
 
         $client->exec('mkdir -p ' . escapeshellarg($workspace . '/.kanvas'), 30);
         $client->writeFile($workspace . '/.kanvas/agent.md', $builder->agentDocument());
@@ -256,12 +277,7 @@ class ProvisionCodingSessionAction
 
     private function resolveMachine(): AgentMachine
     {
-        $machine = $this->configuredMachine($this->session->agent) ?? AgentMachine::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where('is_active', 1)
-            ->first();
+        $machine = $this->machineFor($this->session->agent, $this->app, $this->company);
 
         if ($machine === null) {
             throw new ValidationException(

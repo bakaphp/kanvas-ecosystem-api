@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\File;
 use Kanvas\ActionEngine\Engagements\Enums\NotificationTemplateEnum as EngagementsEnumsNotificationTemplateEnum;
+use Kanvas\Approvals\Enums\ApprovalEmailTemplateEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpEmailTemplateEnum;
@@ -19,6 +20,7 @@ use Kanvas\Notifications\Templates\EmailVerification;
 use Kanvas\Notifications\Templates\Invite;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Notifications\Templates\Welcome;
+use Kanvas\Scribe\Notifications\Enums\ScribeEmailTemplateEnum;
 use Kanvas\Social\Follows\Enums\NotificationTemplateEnum;
 use Kanvas\Social\Messages\Enums\NotificationTemplateEnum as EnumsNotificationTemplateEnum;
 use Kanvas\Souk\Orders\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
@@ -123,7 +125,20 @@ class SyncEmailTemplateAction
             ], [
                 'name' => FollowUpEmailTemplateEnum::DAILY_SUMMARY->value,
                 'template' => File::get(resource_path('views/emails/leadFollowUpDailySummary.twig')),
+            ], [
+                'name' => ApprovalEmailTemplateEnum::REQUESTED->value,
+                'template' => File::get(resource_path('views/emails/approvalRequested.twig')),
+            ], [
+                'name' => ApprovalEmailTemplateEnum::DIGEST->value,
+                'template' => File::get(resource_path('views/emails/approvalDigest.twig')),
+            ], [
+                'name' => ApprovalEmailTemplateEnum::EXPIRED->value,
+                'template' => File::get(resource_path('views/emails/approvalExpired.twig')),
             ],
+            ...array_map(fn (ScribeEmailTemplateEnum $template): array => [
+                'name' => $template->value,
+                'template' => File::get(resource_path($template->file())),
+            ], ScribeEmailTemplateEnum::cases()),
         ];
 
         $dto = TemplateInput::from([

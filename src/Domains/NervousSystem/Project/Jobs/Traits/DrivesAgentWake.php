@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Project\Jobs\Traits;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentChannelActivity;
@@ -40,6 +38,8 @@ trait DrivesAgentWake
     /**
      * @param object $ledgerEntity a model using EmitsLedgerEventsForEntity (Project or Plan)
      * @param array<int, object> $tools board tools injected for this run only
+     * @param list<string> $images image URLs the model takes natively
+     * @param list<string> $documents non-image attachment URLs (PDF, audio, text) sent natively
      *
      * @return array{0: string, 1: int} the agent's response and the elapsed milliseconds
      */
@@ -52,6 +52,8 @@ trait DrivesAgentWake
         string $ledgerPrefix,
         array $failurePayload,
         array $tools = [],
+        array $images = [],
+        array $documents = [],
     ): ?array {
         $startedAt = microtime(true);
 
@@ -61,6 +63,8 @@ trait DrivesAgentWake
                 session: $session,
                 message: $message,
                 user: $owner,
+                images: $images,
+                documents: $documents,
                 additionalTools: $tools,
                 // The reply is posted explicitly by the caller; never persist the (large, scaffolded)
                 // wake prompt — it would be re-read as "context" on the next wake and re-trigger this
@@ -136,36 +140,5 @@ trait DrivesAgentWake
             $sinceMessageId,
             $author
         );
-    }
-
-    /**
-     * The per-entity wake session (one continuous LLM thread per waked entity). The match key defaults
-     * to the entity's tenant + identity; pass $extraKey to widen it (e.g. per-agent, so a reassigned
-     * plan starts fresh) and $create to override the defaults on first creation.
-     *
-     * @param array<string, mixed> $create overrides for the create-only attributes
-     * @param array<string, mixed> $extraKey extra columns added to the firstOrCreate match key
-     */
-    protected function firstOrCreateWakeSession(Model $entity, array $create = [], array $extraKey = []): Session
-    {
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $entity->apps_id,
-                'companies_id' => $entity->companies_id,
-                'entity_namespace' => $entity::class,
-                'entity_id' => $entity->getKey(),
-                ...$extraKey,
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
-                'channel_id' => null,
-                'content' => '',
-                'user' => [],
-                ...$create,
-            ],
-        );
-
-        return $session;
     }
 }

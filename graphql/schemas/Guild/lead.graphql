@@ -27,6 +27,7 @@ type Lead {
     events: [Event!]! @morphToMany(relation: "events")
     variantInterests: [LeadVariantInterest!]!
         @hasMany(relation: "variantInterests")
+    deals: [Deal!]! @hasMany(relation: "deals")
     ai_session: [AIAgentSession!]!
         @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
@@ -51,6 +52,10 @@ type Lead {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
+        )
+    followUpPlan: LeadFollowUpPlan
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\Leads\\LeadFollowUpPlanQuery@get"
         )
     custom_fields: [CustomField!]!
         @paginate(
@@ -93,6 +98,7 @@ type LeadChannelFileGroup {
 
 type LeadChannelFile {
     id: ID!
+    attachment_uuid: String
     name: String!
     url: String!
     file_type: String
@@ -118,6 +124,7 @@ type LeadStatus {
     id: ID!
     name: String!
     is_default: Boolean!
+    is_open: Boolean!
 }
 
 type LeadSource {
@@ -331,9 +338,7 @@ extend type Query @guard {
         timezone: String
         pipeline_id: ID
     ): LeadAnalytics!
-        @field(
-            resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery"
-        )
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery")
 }
 
 type LeadAnalytics {

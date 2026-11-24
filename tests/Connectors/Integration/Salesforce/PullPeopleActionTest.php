@@ -126,4 +126,71 @@ final class PullPeopleActionTest extends TestCase
 
         $this->assertTrue($organization->peoples()->where('peoples.id', $people->getId())->exists());
     }
+
+    public function testReimportLinksAContactWithNoAccountByItsEmailDomain(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $suffix = uniqid();
+        $payload = ['FirstName' => 'Jane', 'LastName' => 'Doe', 'Email' => "jane@acme-{$suffix}.com"];
+
+        $people = new PullPeopleAction(
+            $app,
+            $company,
+            $payload,
+            '003xxNOACCOUNT' . $suffix,
+        )->execute();
+        $this->assertFalse($people->organizations()->exists());
+
+        $organization = new PullOrganizationAction(
+            $app,
+            $company,
+            ['Name' => 'Acme Corp', 'Website' => "https://acme-{$suffix}.com"],
+            '001xxDOMAIN' . $suffix,
+        )->execute();
+
+        $reimported = new PullPeopleAction(
+            $app,
+            $company,
+            $payload,
+            '003xxNOACCOUNT' . $suffix,
+        )->execute();
+
+        $this->assertSame($people->getId(), $reimported->getId());
+        $this->assertSame([$organization->getId()], $reimported->organizations()->pluck('organizations.id')->all());
+    }
+
+    public function testAccountIdWinsOverTheEmailDomain(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $suffix = uniqid();
+
+        $account = new PullOrganizationAction(
+            $app,
+            $company,
+            ['Name' => 'Account Org'],
+            '001xxACCOUNT' . $suffix,
+        )->execute();
+        new PullOrganizationAction(
+            $app,
+            $company,
+            ['Name' => 'Domain Org', 'Website' => "domain-{$suffix}.com"],
+            '001xxOTHER' . $suffix,
+        )->execute();
+
+        $people = new PullPeopleAction(
+            $app,
+            $company,
+            [
+                'FirstName' => 'John',
+                'LastName' => 'Doe',
+                'Email' => "john@domain-{$suffix}.com",
+                'AccountId' => '001xxACCOUNT' . $suffix,
+            ],
+            '003xxWITHACCOUNT' . $suffix,
+        )->execute();
+
+        $this->assertSame([$account->getId()], $people->organizations()->pluck('organizations.id')->all());
+    }
 }

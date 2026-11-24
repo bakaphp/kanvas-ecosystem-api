@@ -27,7 +27,6 @@ class DeleteCompanyCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

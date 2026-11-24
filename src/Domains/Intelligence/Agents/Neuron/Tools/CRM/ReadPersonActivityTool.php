@@ -53,7 +53,7 @@ class ReadPersonActivityTool extends Tool
             return $refusal;
         }
 
-        $person = $this->resolvePersonOrError($person_id);
+        $person = $this->resolvePersonInReadScopeOrError($person_id);
         if (is_array($person)) {
             return $person;
         }

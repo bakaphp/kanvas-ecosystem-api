@@ -1,0 +1,59 @@
+{
+    "idDoc": {
+        "encf": "E310000000005",
+        "sequenceDueDate": "2028-12-31",
+        "incomeType": 1,
+        "paymentType": 2
+    },
+    "sender": {
+        "rnc": "130000001",
+        "companyName": "Empresa de Prueba SRL",
+        "address": "Av. Winston Churchill 1",
+        "municipality": "010100",
+        "province": "010000",
+        "mail": "facturas@example.com",
+        "stampDate": "2026-06-15"
+    },
+    "buyer": {
+        "rnc": "101000001",
+        "companyName": "Cliente Corporativo SRL"
+    },
+    "totals": {
+        "totalTaxedAmount": 6000.0,
+        "i1AmountTaxed": 6000.0,
+        "itbisS1": 18,
+        "itbisTotal": 1080.0,
+        "itbis1Total": 1080.0,
+        "totalAmount": 7080.0
+    },
+    "otherCurrency": {
+        "currencyType": "USD",
+        "exchangeRate": 60.0,
+        "totalTaxedAmountOtherCurrency": 100.0,
+        "amountTaxed1OtherCurrency": 100.0,
+        "itbisTotalOtherCurrency": 18.0,
+        "itbis1TotalOtherCurrency": 18.0,
+        "totalAmountOtherCurrency": 118.0
+    },
+    "itemDetails": [
+        {
+            "lineNumber": 1,
+            "itemCodeTable": [
+                {
+                    "codeType": "Interna",
+                    "itemCode": "SRV-02"
+                }
+            ],
+            "billingIndicator": 1,
+            "itemName": "Soporte mensual",
+            "goodServiceIndicator": 2,
+            "quantityItem": 1.0,
+            "unitPriceItem": 6000.0,
+            "otherCurrencyDetail": {
+                "priceOtherCurrency": 100.0,
+                "amountItemOtherCurrency": 100.0
+            },
+            "itemAmount": 6000.0
+        }
+    ]
+}

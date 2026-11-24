@@ -7,21 +7,18 @@ namespace Kanvas\Connectors\Zoho\Workflows;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
+use Kanvas\Connectors\Zoho\Actions\CreateZohoLeadChannelsAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
-use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
@@ -29,7 +26,8 @@ use Throwable;
 #[WorkflowAction(
     name: 'Zoho Pull Lead',
     description: 'Resolves a Zoho lead by zoho_id or entity_id. If found locally, returns it directly; '
-        . 'otherwise pulls it from Zoho CRM, creates it with social channels, and triggers the AI workflow.',
+        . 'otherwise pulls it from Zoho CRM, creates it with social channels, and triggers the AI workflow. '
+        . 'Pass refresh=true to re-sync an existing lead and its person from Zoho.',
     integration: IntegrationsEnum::ZOHO,
 )]
 class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -59,8 +57,10 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
             $company,
         );
 
+        $refresh = filter_var($params['refresh'] ?? false, FILTER_VALIDATE_BOOL);
+
         // The SalesAssist pull button reads a ranked candidate list, the same shape every CRM pull returns.
-        if ($localLead instanceof Lead) {
+        if ($localLead instanceof Lead && ! $refresh) {
             return [new LeadCandidate($localLead)->toArray()];
         }
 
@@ -70,46 +70,28 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
 
         $lead = $this->syncLeadFromZoho($app, $company, $receiver, $zohoLeadId);
 
-        if ($lead instanceof Lead) {
-            try {
-                $agentName = $company->get(SalesAssistConfigurationEnum::AGENT_NAME->value)
-                    ?? SalesAssistConfigurationEnum::DEFAULT_AGENT_NAME;
-                $agent = Agent::where('name', $agentName)
-                    ->fromApp($app)
-                    ->fromCompany($company)
-                    ->notDeleted()
-                    ->first() ?? Agent::fromApp($app)->fromCompany($company)->notDeleted()->first();
+        if (! $lead instanceof Lead) {
+            return $this->failWorkflow(['error' => 'Failed to sync lead from Zoho', 'lead' => null]);
+        }
 
-                if ($agent) {
-                    new CreateLeadSocialChannelsAction(
-                        $lead,
-                        $app,
-                        $params,
-                        $agent->getId(),
-                    )->execute();
-                }
-
-                new ApplyLeadClosingStatusAction($lead)->execute();
-
-                if ($lead->get('ai_mode') === null) {
-                    $lead->fireWorkflow(
-                        WorkflowEnum::TRIGGER_AI->value,
-                        true,
-                        [
-                            'app' => $lead->app,
-                            'company' => $lead->company,
-                            'trigger_type' => TriggersEnum::NEW_LEAD->value,
-                        ]
-                    );
-                }
-            } catch (Throwable $e) {
-                report($e);
-            }
-
+        // A refreshed lead already has its channels and AI mode; only a lead new to Kanvas gets set up.
+        if ($localLead instanceof Lead) {
             return [new LeadCandidate($lead)->toArray()];
         }
 
-        return $this->failWorkflow(['error' => 'Failed to sync lead from Zoho', 'lead' => null]);
+        try {
+            new CreateZohoLeadChannelsAction($lead, $params)->execute();
+
+            new ApplyLeadClosingStatusAction($lead)->execute();
+
+            if ($lead->get('ai_mode') === null) {
+                $lead->announceAiTrigger(TriggersEnum::NEW_LEAD->value);
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return [new LeadCandidate($lead)->toArray()];
     }
 
     protected function syncLeadFromZoho(

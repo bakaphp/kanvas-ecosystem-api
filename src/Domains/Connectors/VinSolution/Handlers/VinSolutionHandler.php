@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\SalesAssist\Concerns\DeclaresSalesAssistPullRules;
 use Kanvas\Connectors\VinSolution\Client;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;

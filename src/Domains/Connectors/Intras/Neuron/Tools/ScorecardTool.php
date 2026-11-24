@@ -8,6 +8,8 @@ use Kanvas\Analytics\Reporting\DataTransferObject\AggregateRequest;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportFilter;
 use Kanvas\Analytics\Reporting\Services\ReportQueryService;
 use Kanvas\Analytics\Reporting\Support\ReportRegistry;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Connectors\Intras\Reporting\Scoring\IntrasScorecards;
 use Kanvas\Connectors\Intras\Reporting\Scoring\ScorecardMeasurementService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -85,6 +87,7 @@ class ScorecardTool extends Tool
                 required: false,
                 enum: ['clasificacion', 'potencialidad', 'ambas'],
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -95,8 +98,13 @@ class ScorecardTool extends Tool
         string $entidad,
         ?string $nombre = null,
         ?int $id = null,
-        ?string $tarjeta = null
+        ?string $tarjeta = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $entidad = mb_strtolower(trim($entidad));
         $tarjeta = mb_strtolower(trim($tarjeta ?? 'ambas'));
 
@@ -137,7 +145,7 @@ class ScorecardTool extends Tool
      */
     private function scoreEjecutivo(int $peopleId, array $row, string $tarjeta): array
     {
-        $measurements = new ScorecardMeasurementService($this->app, $this->company);
+        $measurements = $this->measurementsFor($row);
         $cards = [];
 
         if ($tarjeta !== 'potencialidad') {
@@ -151,7 +159,7 @@ class ScorecardTool extends Tool
             // cards have to run first. A person with no company contributes null for both, which
             // `Scorecard::score()` drops from the score rather than counting as the worst band.
             $empresaId = (int) ($row['empresa_id'] ?? 0);
-            $letters = $empresaId > 0 ? $this->empresaLetters($empresaId) : [];
+            $letters = $empresaId > 0 ? $this->empresaLetters($empresaId, $row) : [];
 
             $cards['potencialidad'] = IntrasScorecards::ejecutivoPotencialidad()
                 ->score($measurements->forEjecutivoPotential($peopleId, $letters))
@@ -180,7 +188,7 @@ class ScorecardTool extends Tool
      */
     private function scoreEmpresa(int $organizationId, array $row, string $tarjeta): array
     {
-        $measurements = new ScorecardMeasurementService($this->app, $this->company);
+        $measurements = $this->measurementsFor($row);
         $cards = [];
 
         if ($tarjeta !== 'potencialidad') {
@@ -211,7 +219,7 @@ class ScorecardTool extends Tool
      */
     private function scoreEvento(int $eventoId, array $row): array
     {
-        $measurements = new ScorecardMeasurementService($this->app, $this->company);
+        $measurements = $this->measurementsFor($row);
 
         return $this->present('evento', [
             'evento_id' => $eventoId,
@@ -225,11 +233,13 @@ class ScorecardTool extends Tool
     }
 
     /**
+     * @param array<string, mixed> $row
+     *
      * @return array<string, string>
      */
-    private function empresaLetters(int $organizationId): array
+    private function empresaLetters(int $organizationId, array $row): array
     {
-        $measurements = new ScorecardMeasurementService($this->app, $this->company);
+        $measurements = $this->measurementsFor($row);
 
         return [
             'clasificacion' => IntrasScorecards::empresaClasificacion()
@@ -237,6 +247,21 @@ class ScorecardTool extends Tool
             'potencialidad' => IntrasScorecards::empresaPotencialidad()
                 ->score($measurements->forEmpresaPotential($organizationId))->letter,
         ];
+    }
+
+    /**
+     * A record is scored against its own agency's base, not the agent's own company; on a
+     * cross-company read the matched row says which agency that is.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function measurementsFor(array $row): ScorecardMeasurementService
+    {
+        $company = CompanyScope::needsTenantLabel($this->companyScope) && isset($row['companies_id'])
+            ? Companies::getById((int) $row['companies_id'])
+            : $this->company;
+
+        return new ScorecardMeasurementService($this->app, $company);
     }
 
     /**
@@ -338,7 +363,13 @@ class ScorecardTool extends Tool
         $service = new ReportQueryService();
 
         if ($id !== null && $id > 0) {
-            $rows = $service->search($definition, $this->app, $this->company, [new ReportFilter($key, '=', $id)], limit: 1);
+            $rows = $service->search(
+                $definition,
+                $this->app,
+                $this->auditedReadScope(),
+                [new ReportFilter($key, '=', $id)],
+                limit: 1
+            );
 
             return $rows === []
                 ? ['status' => 'error', 'message' => sprintf('No existe ese %s (%s %d).', $entity, $key, $id)]
@@ -354,7 +385,7 @@ class ScorecardTool extends Tool
         $rows = $service->search(
             $definition,
             $this->app,
-            $this->company,
+            $this->auditedReadScope(),
             [new ReportFilter($nameColumn, 'LIKE', '%' . $nombre . '%')],
             limit: 10
         );
@@ -373,6 +404,7 @@ class ScorecardTool extends Tool
                         'nombre' => $row['nombre_completo'] ?? $row['nombre'] ?? null,
                         'empresa' => $row['empresa'] ?? null,
                         'sector' => $row['sector'] ?? null,
+                        'tenant_company' => $row['tenant_company'] ?? null,
                     ], fn ($value) => $value !== null),
                     $rows
                 ),
@@ -399,10 +431,10 @@ class ScorecardTool extends Tool
         $rows = new ReportQueryService()->aggregate(
             new ReportRegistry()->find($this->app, 'evento_version'),
             $this->app,
-            $this->company,
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT', 'alias' => 'versiones']],
-                groupBy: ['evento_id', 'evento'],
+                groupBy: [...$this->tenantGroupBy(), 'evento_id', 'evento'],
                 orderBy: 'versiones',
                 limit: 10
             ),
@@ -422,11 +454,12 @@ class ScorecardTool extends Tool
                 'status' => 'ambiguo',
                 'message' => 'Varias coincidencias. Vuelve a llamar con el evento_id de la que corresponda.',
                 'coincidencias' => array_map(
-                    static fn (array $row): array => [
+                    static fn (array $row): array => array_filter([
                         'id' => $row['evento_id'],
                         'nombre' => $row['evento'],
                         'versiones' => $row['versiones'],
-                    ],
+                        'tenant_company' => $row['tenant_company'] ?? null,
+                    ], fn ($value) => $value !== null),
                     $rows
                 ),
             ];

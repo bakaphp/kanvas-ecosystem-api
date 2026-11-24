@@ -8,6 +8,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Jobs\RetryPaymentReversalJob;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\SendPaymentReceiptAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -27,6 +28,12 @@ class ProcessPaymentAction
 
     public function execute(ConsumerAuthentication $consumerData): array
     {
+        $roadsidePriceError = $this->guardRoadsidePrice();
+
+        if ($roadsidePriceError !== null) {
+            return $roadsidePriceError;
+        }
+
         $paymentProcessor = $this->paymentProcessor ?? new PortalPaymentProcessor(
             $this->app,
             $this->payment->company,
@@ -96,6 +103,13 @@ class ProcessPaymentAction
 
         $this->order->markAsPaid($this->payment->user);
 
+        // The card is already charged; a dispatch failure must not report the payment as failed.
+        try {
+            new DispatchRegionalRoadsideCaseAction($this->order)->execute();
+        } catch (Exception $e) {
+            report($e);
+        }
+
         try {
             new SendPaymentReceiptAction(
                 $this->order,
@@ -107,6 +121,61 @@ class ProcessPaymentAction
         }
 
         return $result;
+    }
+
+    /**
+     * Asistencia Regional only: for every other order (parking, Paso Rápido, roadside elsewhere) the
+     * action returns null before touching anything.
+     *
+     * A regional roadside order is repriced by an async workflow after creation, so the payment may
+     * have been opened at the cart price before that lands. Reprice synchronously here, before the card is
+     * touched, and refuse any amount that is not the quoted total: the client opens a new payment at
+     * the corrected amount instead of being charged the wrong one.
+     */
+    private function guardRoadsidePrice(): ?array
+    {
+        try {
+            $quote = new ApplyRoadsideQuoteToOrderAction($this->order)->execute();
+        } catch (ValidationException $exception) {
+            return $this->failBeforeCharging('The roadside assistance order could not be priced: ' . $exception->getMessage());
+        }
+
+        if ($quote === null) {
+            return null;
+        }
+
+        try {
+            new AssertRoadsideCaseIsPayableAction($this->order)->execute();
+        } catch (ValidationException $exception) {
+            return $this->failBeforeCharging($exception->getMessage());
+        }
+
+        if (round((float) $this->payment->amount, 2) === $quote->price->total) {
+            return null;
+        }
+
+        return $this->failBeforeCharging(sprintf(
+            'The order total is %.2f but this payment is for %.2f. Start the payment again for the order total.',
+            $quote->price->total,
+            (float) $this->payment->amount,
+        ));
+    }
+
+    private function failBeforeCharging(string $message): array
+    {
+        $this->payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+        $this->payment->addLog('roadside_price_rejected', [
+            'order_id' => $this->order->id,
+            'payment_amount' => (float) $this->payment->amount,
+            'order_total' => (float) $this->order->total_net_amount,
+            'reason' => $message,
+        ]);
+
+        return [
+            'status' => 'error',
+            'message' => $message,
+            'data' => [],
+        ];
     }
 
     private function handleReversal(PortalPaymentProcessor $paymentProcessor, string $bankTransaction, string $reason): array

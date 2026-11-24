@@ -90,6 +90,83 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
     }
 
     /**
+     * Regression: a checklist holding the same document once per buyer (Mainbuyer / Cobuyer
+     * Drivers License, both config.id 3) completed both on a single upload. The request
+     * message names the item it was sent from, so only that one may complete.
+     */
+    public function testGetDocsRequestedFromOneBuyerItemLeavesItsTwinUntouched(): void
+    {
+        [$company, $lead] = $this->bootChecklist();
+
+        $mainBuyer = $this->createDocItem('Mainbuyer Drivers License', 3);
+        $coBuyer = $this->createDocItem('Cobuyer Drivers License', 3);
+        $insurance = $this->createDocItem('Insurance', 5);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->getDocsMessage($lead, [3, 5], $this->getDocsRequest($lead, $mainBuyer)),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($mainBuyer, $lead, 'completed');
+        $this->assertItemStatus($insurance, $lead, 'completed');
+        $this->assertItemUntouched($coBuyer, $lead);
+
+        $company->del('default_checklist_id');
+    }
+
+    public function testGetDocsWithoutARequestedItemStillCompletesEveryMatch(): void
+    {
+        [$company, $lead] = $this->bootChecklist();
+
+        $mainBuyer = $this->createDocItem('Mainbuyer Drivers License', 3);
+        $coBuyer = $this->createDocItem('Cobuyer Drivers License', 3);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->getDocsMessage($lead, [3]),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($mainBuyer, $lead, 'completed');
+        $this->assertItemStatus($coBuyer, $lead, 'completed');
+
+        $company->del('default_checklist_id');
+    }
+
+    /**
+     * Regression: with checklist_auto_complete_siblings on, the get-docs fan-out matched
+     * siblings by config.id alone, so it re-completed the co-buyer twin on the same checklist
+     * and on every other checklist.
+     */
+    public function testGetDocsSiblingFanOutStaysOnTheRequestedBuyer(): void
+    {
+        [$company, $lead] = $this->bootChecklist();
+        $company->set('checklist_auto_complete_siblings', 1);
+
+        $otherChecklist = $this->createChecklist($company, 'Secondary Checklist');
+
+        $mainBuyer = $this->createDocItem('Mainbuyer Drivers License', 3);
+        $coBuyer = $this->createDocItem('Cobuyer Drivers License', 3);
+        $mainBuyerSibling = $this->createDocItem('Mainbuyer Drivers License', 3, $otherChecklist);
+        $coBuyerSibling = $this->createDocItem('Cobuyer Drivers License', 3, $otherChecklist);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->getDocsMessage($lead, [3], $this->getDocsRequest($lead, $mainBuyer)),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($mainBuyer, $lead, 'completed');
+        $this->assertItemStatus($mainBuyerSibling, $lead, 'completed');
+        $this->assertItemUntouched($coBuyer, $lead);
+        $this->assertItemUntouched($coBuyerSibling, $lead);
+
+        $company->del('checklist_auto_complete_siblings');
+        $company->del('default_checklist_id');
+    }
+
+    /**
      * Regression: a co-buyer's ID-verification submission used to complete the main
      * buyer's task because both tasks share the same company action and the query
      * ignored who was verified. A co-buyer item is flagged with a cobuyer-picker step;
@@ -174,13 +251,7 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
         // Default checklist only carries the main buyer; the co-buyer item is on another list.
         $mainBuyerOnDefault = $this->createRoleItem('Verify Mainbuyer DL', isCoBuyer: false);
 
-        $activeChecklist = TaskList::create([
-            'companies_id' => $company->getId(),
-            'apps_id' => app(Apps::class)->getId(),
-            'users_id' => auth()->user()->getId(),
-            'name' => 'Active Checklist ' . fake()->uuid(),
-            'config' => [],
-        ]);
+        $activeChecklist = $this->createChecklist($company, 'Active Checklist');
         $coBuyerOffDefault = $this->createRoleItem('Verify Cobuyer DL', isCoBuyer: true, taskList: $activeChecklist);
 
         new ProcessMessageTaskUpdatesAction(
@@ -205,13 +276,7 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
         [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
         $company->set('checklist_auto_complete_siblings', 1);
 
-        $otherChecklist = TaskList::create([
-            'companies_id' => $company->getId(),
-            'apps_id' => app(Apps::class)->getId(),
-            'users_id' => auth()->user()->getId(),
-            'name' => 'Secondary Checklist ' . fake()->uuid(),
-            'config' => [],
-        ]);
+        $otherChecklist = $this->createChecklist($company, 'Secondary Checklist');
 
         // Same name across roles is what used to make the fan-out cross.
         $coBuyer = $this->createRoleItem('Verify DL', isCoBuyer: true);
@@ -351,10 +416,21 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
         return [$company, $lead];
     }
 
-    private function createDocItem(string $name, int $documentTypeId): TaskListItem
+    private function createChecklist(Companies $company, string $name): TaskList
+    {
+        return TaskList::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => app(Apps::class)->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => $name . ' ' . fake()->uuid(),
+            'config' => [],
+        ]);
+    }
+
+    private function createDocItem(string $name, int $documentTypeId, ?TaskList $taskList = null): TaskListItem
     {
         return TaskListItem::create([
-            'task_list_id' => $this->taskList->getId(),
+            'task_list_id' => ($taskList ?? $this->taskList)->getId(),
             'companies_action_id' => $this->companyAction->getId(),
             'name' => $name,
             'config' => ['id' => $documentTypeId],
@@ -410,7 +486,27 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
     /**
      * @param array<int, int> $documentTypeIds
      */
-    private function getDocsMessage(Lead $lead, array $documentTypeIds): Message
+    private function getDocsRequest(Lead $lead, TaskListItem $sentFrom): Message
+    {
+        $message = Message::factory()->create([
+            'message' => [
+                'verb' => 'get-docs',
+                'status' => 'sent',
+                'data' => [(string) $sentFrom->config['id']],
+                'taskItemId' => (string) $sentFrom->getId(),
+                'checkListId' => $sentFrom->task_list_id,
+            ],
+        ]);
+
+        $message->addEntity($lead);
+
+        return $message;
+    }
+
+    /**
+     * @param array<int, int> $documentTypeIds
+     */
+    private function getDocsMessage(Lead $lead, array $documentTypeIds, ?Message $request = null): Message
     {
         $data = [];
         foreach ($documentTypeIds as $id) {
@@ -421,6 +517,7 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
         }
 
         $message = Message::factory()->create([
+            'parent_id' => $request?->getId(),
             'message' => [
                 'verb' => 'get-docs',
                 'status' => 'submitted',

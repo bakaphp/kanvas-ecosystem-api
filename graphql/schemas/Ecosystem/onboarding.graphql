@@ -1,0 +1,256 @@
+enum OnboardingStatus {
+    STARTED
+    PROFILED
+    AREAS_SELECTED
+    PROVISIONING
+    TEAM_READY
+    COMPLETED
+    SKIPPED
+}
+
+enum ResearchStatus {
+    NOT_STARTED
+    QUEUED
+    COLLECTING
+    EXTRACTING
+    INDEXED
+    FAILED
+    SKIPPED
+}
+
+enum ProvisionStatus {
+    WAITING
+    CREATING
+    READY
+    FAILED
+}
+
+enum RequirementStatus {
+    MISSING
+    PENDING_CONNECT
+    CONNECTED
+    SETUP_REQUESTED
+    UPLOADED
+    NOT_USED
+    NOT_LISTED
+}
+
+enum RequirementMode {
+    CONNECT
+    REQUEST_SETUP
+    UPLOAD
+    KANVAS_PROVIDED
+    WEBHOOK
+}
+
+"One company's onboarding: the single object every onboarding screen renders from."
+type CompanyOnboarding {
+    id: ID!
+    uuid: String!
+    status: OnboardingStatus!
+    current_step: String
+    company: Company!
+    profile: OnboardingProfile!
+    research: CompanyResearch!
+    "The catalog with `selected` set from this company's picks."
+    areas: [OnboardingArea!]!
+    first_area: String
+    "What the selected areas provision, with per-item progress."
+    items: [OnboardingItem!]!
+    "Every slot the selected items need, company-level: a shared slot appears once."
+    requirements: [OnboardingRequirement!]!
+    setup_plan: NervousSystemPlan
+    setup_session_id: String
+    "The company's knowledge documents (same list as companyKnowledgeDocuments)."
+    knowledge_documents: [Filesystem!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@knowledgeDocuments"
+        )
+    knowledge_count: Int!
+    observations_count: Int!
+    started_at: DateTime!
+    completed_at: DateTime
+}
+
+type OnboardingProfile {
+    name: String!
+    website: String
+    offering: String
+    job_role: String
+    industry: String
+    summary: String
+    facts: Mixed
+}
+
+type CompanyResearch {
+    status: ResearchStatus!
+    website: String
+    pages_found: Int!
+    pages_indexed: Int!
+    started_at: DateTime
+    finished_at: DateTime
+    error: String
+}
+
+type OnboardingArea {
+    slug: String!
+    label: String!
+    title: String!
+    description: String!
+    icon: String
+    "false renders the card as Soon; it stays selectable and the pick is kept as a waitlist."
+    available: Boolean!
+    selected: Boolean!
+    capabilities: [String!]!
+    setup_steps: [String!]!
+    items: [OnboardingItemTemplate!]!
+}
+
+type OnboardingItemTemplate {
+    slug: String!
+    "agent | module"
+    kind: String!
+    name: String!
+    description: String!
+    requirements: [String!]!
+}
+
+type OnboardingItem {
+    template: OnboardingItemTemplate!
+    area: String!
+    agent: AgentAi
+    status: ProvisionStatus!
+    "Provisioned and every required slot answered."
+    ready: Boolean!
+    requirements: [OnboardingRequirement!]!
+    error: String
+}
+
+type OnboardingRequirement {
+    slug: String!
+    label: String!
+    description: String
+    required: Boolean!
+    shared: Boolean!
+    "Item slug that answered a shared slot."
+    satisfied_by: String
+    status: RequirementStatus!
+    mode: RequirementMode
+    inbound_address: String
+    options: [OnboardingRequirementOption!]!
+    allow_not_used: Boolean!
+    allow_not_listed: Boolean!
+}
+
+type OnboardingRequirementOption {
+    label: String!
+    description: String
+    mode: RequirementMode!
+    integration: Integrations
+    connector: String
+    connected: Boolean!
+}
+
+type OnboardingWorkspace {
+    app: App!
+    "The new app's default key; switch X-Kanvas-App to it for every later call."
+    app_key: String!
+    company: Company!
+    onboarding: CompanyOnboarding!
+}
+
+input StartOnboardingInput {
+    app_name: String! @rules(apply: ["required", "min:2", "max:120"])
+    company_name: String @rules(apply: ["max:120"])
+}
+
+input OnboardingProfileInput {
+    name: String @rules(apply: ["max:120"])
+    website: String @rules(apply: ["max:255"])
+    offering: String @rules(apply: ["max:500"])
+    job_role: String @rules(apply: ["max:120"])
+}
+
+extend type Query @guard {
+    "Creates the company's onboarding row on first read."
+    companyOnboarding: CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@companyOnboarding"
+        )
+    onboardingAreas: [OnboardingArea!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@areas"
+        )
+}
+
+extend type Mutation @guard {
+    "Platform app only: creates the app with its owner company and the onboarding row inside it."
+    startOnboarding(input: StartOnboardingInput!): OnboardingWorkspace!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@start"
+        )
+    updateOnboardingProfile(input: OnboardingProfileInput!): CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@updateProfile"
+        )
+    selectOnboardingAreas(
+        areas: [String!]!
+        first_area: String
+    ): CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@selectAreas"
+        )
+    setOnboardingStep(
+        step: String! @rules(apply: ["max:32"])
+    ): CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@setStep"
+        )
+    skipOnboarding: CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@skip"
+        )
+}
+
+extend type Mutation @guard {
+    "Queues the website background check; a run less than 24 h after a successful one needs force."
+    researchCompanyWebsite(
+        website: String!
+        force: Boolean = false
+    ): CompanyResearch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingResearchMutation@research"
+        )
+}
+
+input ResolveOnboardingRequirementInput {
+    requirement: String!
+    mode: RequirementMode
+    integration_id: ID
+    connector: String
+    filesystem_id: ID
+    not_used: Boolean
+    tool_name: String
+    notes: String
+}
+
+extend type Mutation @guard {
+    provisionOnboardingItems: CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingProvisioningMutation@provision"
+        )
+    resolveOnboardingRequirement(
+        input: ResolveOnboardingRequirementInput!
+    ): OnboardingRequirement!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingProvisioningMutation@resolveRequirement"
+        )
+}
+
+extend type Mutation @guard {
+    "Creates the setup plan for the first area on Ginny, opens her session and queues her opening turn."
+    completeOnboarding: CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingCompletionMutation@complete"
+        )
+}

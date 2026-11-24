@@ -7,7 +7,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsOrderReports;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -20,7 +21,8 @@ class OrderProviderStatsTool extends Tool
 {
     use GuardsRepeatCalls;
     use HasKanvasContext;
-    use ParsesOrderTypesFilter;
+    use ReportsToolOutcome;
+    use RunsOrderReports;
     use TrackByInputs;
 
     protected string $name = 'order_provider_stats';
@@ -45,6 +47,7 @@ class OrderProviderStatsTool extends Tool
         return [
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Max providers to return. Default 10, max 50.', required: false),
             new ToolProperty(name: 'order_types', type: PropertyType::STRING, description: 'Optional comma-separated order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
+            new ToolProperty(name: 'tags', type: PropertyType::STRING, description: 'Optional comma-separated order tag names to restrict to, e.g. "corporativo" (see list_order_types for the tags in use). An order matching any of them counts. Omit for all orders.', required: false),
             new ToolProperty(name: 'since', type: PropertyType::STRING, description: 'Lower-bound order date, ISO YYYY-MM-DD. Omit for all-time.', required: false),
             new ToolProperty(name: 'until', type: PropertyType::STRING, description: 'Upper-bound order date, ISO YYYY-MM-DD. Omit for open-ended.', required: false),
         ];
@@ -56,6 +59,7 @@ class OrderProviderStatsTool extends Tool
     public function __invoke(
         ?int $limit = null,
         ?string $order_types = null,
+        ?string $tags = null,
         ?string $since = null,
         ?string $until = null,
     ): array {
@@ -63,14 +67,18 @@ class OrderProviderStatsTool extends Tool
             [
                 'limit' => $limit,
                 'order_types' => $order_types,
+                'tags' => $tags,
                 'since' => $since,
                 'until' => $until,
             ],
-            fn (): array => new OrderReportService($this->app, $this->company)->providerStats(
-                $this->parseOrderTypes($order_types),
-                $since,
-                $until,
-                max(1, min(50, $limit ?? 10)),
+            fn (): array => $this->runReport(
+                fn (): array => new OrderReportService($this->app, $this->company)->providerStats(
+                    $this->parseNames($order_types),
+                    $since,
+                    $until,
+                    max(1, min(50, $limit ?? 10)),
+                    $this->parseNames($tags),
+                )
             ),
         );
     }

@@ -28,7 +28,7 @@ use Override;
  * title, organizations, tags, addresses, employment history, linked leads, and scrubbed custom
  * fields. Company-wide read — an internal-teammate capability, NOT the customer-facing surface.
  */
-#[AgentTool(name: 'Get Person', category: 'crm')]
+#[AgentTool(name: 'Get Person', category: 'crm', readOnly: true)]
 class GetPersonTool extends Tool
 {
     use ExposesCustomFields;
@@ -66,7 +66,7 @@ class GetPersonTool extends Tool
      */
     public function __invoke(int $person_id): array
     {
-        $result = $this->resolvePersonOrError($person_id);
+        $result = $this->resolvePersonInReadScopeOrError($person_id);
         if (is_array($result)) {
             return $result;
         }
@@ -137,6 +137,7 @@ class GetPersonTool extends Tool
                     'is_open' => $lead->hasOpenLeadStatus(),
                 ])->all(),
             'custom_fields' => $this->relevantCustomFields($person),
+            ...$this->tenantLabel($person),
         ];
     }
 }

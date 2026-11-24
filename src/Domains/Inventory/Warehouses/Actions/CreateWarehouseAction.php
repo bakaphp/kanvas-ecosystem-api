@@ -24,7 +24,6 @@ class CreateWarehouseAction
 
     /**
      * execute.
-     *
      */
     public function execute(): Warehouses
     {

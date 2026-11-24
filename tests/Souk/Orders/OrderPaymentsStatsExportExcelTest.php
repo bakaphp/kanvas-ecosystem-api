@@ -16,9 +16,9 @@ class OrderPaymentsStatsExportExcelTest extends TestCase
     private function makeExport(?array $metadata = null, bool $includeSummary = true, string $language = 'en'): OrderPaymentsStatsExportExcel
     {
         $stats = $includeSummary ? [
-            'totals'   => ['total_transactions' => 0, 'total_amount' => 0],
+            'totals' => ['total_transactions' => 0, 'total_amount' => 0],
             'byPeriod' => [],
-            'periods'  => [],
+            'periods' => [],
         ] : [];
 
         return new OrderPaymentsStatsExportExcel(
@@ -32,7 +32,7 @@ class OrderPaymentsStatsExportExcelTest extends TestCase
 
     private function readProperty(object $object, string $property): mixed
     {
-        $ref  = new ReflectionClass($object);
+        $ref = new ReflectionClass($object);
         $prop = $ref->getProperty($property);
         $prop->setAccessible(true);
 
@@ -42,7 +42,7 @@ class OrderPaymentsStatsExportExcelTest extends TestCase
     private function invoke(object $object, string $method, array $args): mixed
     {
         $ref = new ReflectionClass($object);
-        $m   = $ref->getMethod($method);
+        $m = $ref->getMethod($method);
         $m->setAccessible(true);
 
         return $m->invokeArgs($object, $args);
@@ -74,11 +74,11 @@ class OrderPaymentsStatsExportExcelTest extends TestCase
     {
         $export = $this->makeExport([
             'custom_title' => 'Reporte de Pagos',
-            'subtitle'     => 'Periodo julio',
+            'subtitle' => 'Periodo julio',
         ]);
 
         $sheet = new Spreadsheet()->getActiveSheet();
-        $next  = $this->invoke($export, 'writeHeaderSection', [$sheet, 1]);
+        $next = $this->invoke($export, 'writeHeaderSection', [$sheet, 1]);
 
         $this->assertEquals('REPORTE DE PAGOS', $sheet->getCell('A1')->getValue());
         $this->assertEquals('Periodo julio', $sheet->getCell('A2')->getValue());
@@ -90,7 +90,7 @@ class OrderPaymentsStatsExportExcelTest extends TestCase
         $export = $this->makeExport();
 
         $sheet = new Spreadsheet()->getActiveSheet();
-        $next  = $this->invoke($export, 'writeHeaderSection', [$sheet, 1]);
+        $next = $this->invoke($export, 'writeHeaderSection', [$sheet, 1]);
 
         $this->assertEquals(1, $next);
         $this->assertNull($sheet->getCell('A1')->getValue());

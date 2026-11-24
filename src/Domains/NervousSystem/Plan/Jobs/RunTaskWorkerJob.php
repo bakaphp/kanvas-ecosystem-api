@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Jobs;
 
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -11,8 +12,15 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
@@ -21,6 +29,8 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
@@ -49,24 +59,6 @@ class RunTaskWorkerJob implements ShouldQueue
     use SerializesModels;
 
     public int $tries = 1;
-
-    /**
-     * Openings that mean the worker is reporting failure rather than a result. Deliberately few and
-     * headline-shaped: this decides whether finished work is thrown away, and the opposite error —
-     * marking successful work blocked — costs more than the one it prevents.
-     *
-     * @var list<string>
-     */
-    private const array SELF_BLOCKED_OPENINGS = [
-        'blocked',
-        'task status report: blocked',
-        'task status: blocked',
-        'status: blocked',
-        'unable to complete',
-        'i was unable to',
-        'i cannot complete',
-        'i could not complete',
-    ];
 
     public function __construct(
         public readonly Task $task,
@@ -106,13 +98,15 @@ class RunTaskWorkerJob implements ShouldQueue
         $startedAt = microtime(true);
 
         try {
-            $response = WorkerToolPolicy::within(fn (): string => new AgentChatKernel(
-                agent: $agent,
-                session: $this->workerSession(),
-                message: $this->resumeFact !== null ? $this->resumeBrief() : $this->brief(),
-                user: $owner,
-                persistConversation: false,
-            )->execute());
+            $response = CodingChatSettingEnum::runsTaskInFactory($agent, $this->task->fullText())
+                ? $this->workInTheFactory($agent, $owner)
+                : WorkerToolPolicy::within(fn (): string => new AgentChatKernel(
+                    agent: $agent,
+                    session: $this->workerSession(),
+                    message: $this->resumeFact !== null ? $this->resumeBrief() : $this->brief(),
+                    user: $owner,
+                    persistConversation: false,
+                )->execute());
         } catch (Throwable $e) {
             $this->markBlocked($e->getMessage());
 
@@ -153,7 +147,7 @@ class RunTaskWorkerJob implements ShouldQueue
         // metric" and was still marked done; the orchestrator then reported the count as 0, because a
         // done task with no contradiction looks like an answer. Marking it done is a claim, and the
         // only evidence for it is the text the worker just wrote.
-        if ($this->reportsItselfBlocked($response)) {
+        if (TaskDirectives::reportsItselfBlocked($response)) {
             $this->markBlocked($response, keepAsResult: true);
 
             $this->task->emitLedgerEvent(
@@ -183,7 +177,33 @@ class RunTaskWorkerJob implements ShouldQueue
             durationMs: (int) ((microtime(true) - $startedAt) * 1000.0),
         );
 
+        $this->startNextInLine();
         $this->wakeOrchestratorIfUnbatched();
+    }
+
+    /**
+     * A factory task that was assigned while this one ran has been waiting for it (`WakeAgentForTaskJob`);
+     * it starts now that this one is done. Only on done: a blocked task stops the line for the
+     * orchestrator to decide.
+     */
+    private function startNextInLine(): void
+    {
+        $next = $this->task->nextInLine();
+        $agent = $next?->agent;
+
+        if ($next === null || $agent === null) {
+            return;
+        }
+
+        // A Kanvas step after a factory step was held for it (WakeAgentForTaskJob), so it starts here too.
+        $finished = $this->task->agent;
+        $heldForThis = $finished !== null && CodingChatSettingEnum::runsTaskInFactory($finished, $this->task->fullText());
+
+        if (! $heldForThis && ! CodingChatSettingEnum::runsTaskInFactory($agent, $next->fullText())) {
+            return;
+        }
+
+        WakeAgentForTaskJob::dispatch($next);
     }
 
     /**
@@ -202,6 +222,122 @@ class RunTaskWorkerJob implements ShouldQueue
             WakeAgentForPlanJob::REASON_TASK_COMPLETED,
             sprintf('Task #%d ("%s") is now %s.', $this->task->getId(), (string) $this->task->title, (string) $this->task->status),
         );
+    }
+
+    /**
+     * An agent in factory mode has no model of its own here: the opencode agent in the factory checkout
+     * does the task. Started, the run becomes this task's child, so the flow below parks the task as
+     * waiting on it. Resumed, the run has ended and its answer IS the result — running the factory
+     * again would start the same work twice, so the answer goes straight into the same done/blocked
+     * decision a model worker's reply does.
+     */
+    private function workInTheFactory(Agent $agent, Users $owner): string
+    {
+        if ($this->resumeFact !== null) {
+            return $this->factoryAnswer();
+        }
+
+        $repo = new CodingChatCheckouts($agent)->forTask($this->task->fullText())
+            ?? CodingChatSettingEnum::defaultRepoFor($agent);
+
+        // Read before anything opens: a branch the task cannot have blocks it here, with the reason.
+        TaskDirectives::branch($this->task->fullText());
+
+        if ($repo === null) {
+            throw new ValidationException(
+                'No checkout to work in: name the app in the task (for example "Repo: example-app"), '
+                . 'or set CODING_CHAT_DEFAULT_REPO on ' . $agent->name . '.'
+            );
+        }
+
+        // Two assigns can queue two of these jobs before either has created the run, and two runs would
+        // work one ticket on one branch. Under the lock the second sees the first's run and waits on it.
+        return Cache::lock('factory-run:task-' . $this->task->getId(), 120)->block(
+            30,
+            function () use ($agent, $owner, $repo): string {
+                if ($this->task->children()->open()->exists()) {
+                    return 'Already in the factory.';
+                }
+
+                new OpenCodingChatAction(
+                    agent: $agent,
+                    chat: $this->workerSession(),
+                    repo: $repo,
+                    instruction: $this->factoryBrief(),
+                    requestedBy: $owner,
+                    parentTask: $this->task,
+                )->execute();
+
+                return 'Handed to the factory: working in ' . $repo . '.';
+            }
+        );
+    }
+
+    /**
+     * The run's own words when it finished, else why it did not. A run that did not end DONE is
+     * reported as BLOCKED whatever it said, so its last cheerful line cannot close the task as done.
+     */
+    private function factoryAnswer(): string
+    {
+        /** @var Task|null $run */
+        $run = $this->task->children()->latest('id')->first();
+        $result = is_array($run?->result) ? $run->result : [];
+        $said = Str::trimToNull(is_string($result['worker_summary'] ?? null) ? $result['worker_summary'] : null)
+            ?? (string) $this->resumeFact;
+
+        if ($run?->status === TaskStatusEnum::DONE->value) {
+            return $said;
+        }
+
+        return 'BLOCKED — ' . (Str::trimToNull((string) $run?->blocked_reason) ?? $said);
+    }
+
+    /**
+     * The brief for a coding agent that has none of the board tools `brief()` talks about, and nobody
+     * to ask: everything it needs to finish or to say clearly that it could not.
+     */
+    private function factoryBrief(): string
+    {
+        $plan = $this->task->plan;
+
+        $sharedBranch = TaskDirectives::branch($this->task->fullText()) !== null;
+
+        return implode("\n\n", array_filter([
+            'You are working ONE task of the plan "' . $plan->title . '", handed to you by '
+            . ($plan->agent?->name ?? 'the team') . '. You are working unattended: nobody will answer a '
+            . 'question, so do not ask one. The task\'s instructions count as the person\'s request.',
+            'Task: ' . $this->task->title,
+            Str::trimToNull((string) $this->task->description) !== null ? 'Detail: ' . $this->task->description : null,
+            // Every factory task, whoever wrote it: the repository's own rules decide how a change is made and
+            // proven, and a pull request opened on work nobody ran is the failure this prevents.
+            'Before you change anything, read the repository\'s `CLAUDE.md` and its `specs/` (or `docs/`) and '
+            . 'follow them. Before any pull request, run every check, test and QA step they require, and for a '
+            . 'mobile app run your change on both iOS and Android. Never open a pull request for work you have not '
+            . 'run.',
+            $sharedBranch
+                ? 'You are in a worktree of your own, on the branch the task names. Other tasks of the same '
+                    . 'ticket work on it too: build on the commits already there and change nothing they did '
+                    . 'unless the task asks you to.'
+                : 'You are in a worktree of your own, on a branch made for this task from the app\'s base branch '
+                    . '(usually develop).',
+            // On a shared branch "end to end" with push as the default reads as the whole ticket.
+            $sharedBranch
+                ? 'Do only what this task asks: the ticket\'s other steps come after you on this branch. Commit '
+                    . 'your work with Conventional Commit messages. Push the branch and open a pull request only '
+                    . 'if this task tells you to.'
+                : 'Finish the task end to end: commit your work with Conventional Commit messages, and once the '
+                    . 'checks pass, push the branch and open a draft pull request into the app\'s base branch, '
+                    . 'unless the task says otherwise.',
+            'A task that asks you to check, verify, audit, review or report is answered in your reply, and '
+            . 'that reply is the whole deliverable: change nothing, commit nothing, open no pull request. A '
+            . 'report is never a file in the repository.',
+            'When you finish, reply with what you did and where it is: branch, commits, pull request link, '
+            . 'reports. IF YOU COULD NOT DO IT, START YOUR REPLY WITH THE WORD BLOCKED, then say exactly '
+            . 'what stopped you and what someone has to do.',
+            'Your run ends when you reply, so do every step before you reply, and end that final reply with a '
+            . 'line that says exactly ' . AgentTaskSession::RUN_FINISHED_MARKER . '. A reply without it is read '
+            . 'as stopping midway, and you are asked to carry on.',
+        ]));
     }
 
     private function resumeBrief(): string
@@ -226,24 +362,7 @@ class RunTaskWorkerJob implements ShouldQueue
      */
     private function workerSession(): Session
     {
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->task->apps_id,
-                'companies_id' => $this->task->companies_id,
-                'entity_namespace' => Task::class,
-                'entity_id' => $this->task->getId(),
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
-                'agents_id' => $this->task->agent_id ?? $this->task->plan->agent_id,
-                'channel_id' => null,
-                'content' => '',
-                'user' => [],
-            ],
-        );
-
-        return $session;
+        return Session::firstOrCreateForEntity($this->task, create: ['agents_id' => $this->task->agent_id ?? $this->task->plan->agent_id]);
     }
 
     private function brief(): string
@@ -330,36 +449,18 @@ class RunTaskWorkerJob implements ShouldQueue
     }
 
     /**
+     * A model worker's summary is read back into prompts, so it is capped. A factory answer is kept whole:
+     * whoever it answers is pointed here for the full text (`RecordChildOutcomeAction`), and a cut copy
+     * only sends them back to the factory to ask again.
+     *
      * @return array<string, mixed>
      */
     private function resultWithSummary(string $text): array
     {
         return [
             ...(is_array($this->task->result) ? $this->task->result : []),
-            'worker_summary' => Str::limit($text, 4000),
+            'worker_summary' => $this->task->runsInFactory() ? $text : Str::limit($text, 4000),
         ];
-    }
-
-    /**
-     * Does the worker's own answer say it could not do the work?
-     *
-     * Anchored to the OPENING of the response, and to headline forms only. A task that mentions being
-     * blocked halfway through ("I unblocked the pipeline, then counted") has not failed, and matching
-     * the word anywhere would mark successful work as blocked — a worse error than the one this fixes,
-     * because it stops work that actually completed.
-     */
-    private function reportsItselfBlocked(string $response): bool
-    {
-        $opening = mb_strtolower(trim(Str::limit(strip_tags($response), 200, '')));
-        $opening = trim(preg_replace('/^[#*\s>_`-]+/u', '', $opening) ?? $opening);
-
-        foreach (self::SELF_BLOCKED_OPENINGS as $marker) {
-            if (str_starts_with($opening, $marker)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

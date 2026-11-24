@@ -1,0 +1,72 @@
+type CommunicationConnection {
+    id: ID!
+    uuid: String!
+    provider: String!
+    account_key: String!
+    label: String
+    channels: [String!]!
+    setup_status: String!
+    health: String!
+    enabled: Boolean!
+    last_error: String
+    last_probed_at: DateTime
+}
+
+type CommunicationDelivery {
+    id: ID!
+    channel: String!
+    provider: String
+    connection: CommunicationConnection
+    to_address: String
+    status: String!
+    external_id: String
+    error_code: String
+    error: String
+    warnings: [String!]
+    attempts: Int!
+    accepted_at: DateTime
+    last_event_at: DateTime
+}
+
+type CommunicationOperation {
+    id: ID!
+    status: String!
+    deliveries: [CommunicationDelivery!]!
+}
+
+input CommunicationContentInput {
+    text: String!
+    subject: String
+    attachments: [String!]
+    attachments_required: Boolean
+}
+
+input CommunicationSendInput {
+    people_id: ID!
+    content: CommunicationContentInput!
+    "Channel names (sms, email, whatsapp), or [\"all\"] for every channel the person can be reached on now."
+    channels: [String!]!
+    "Repeating a send with the same key returns the first operation instead of sending again."
+    idempotency_key: String
+    tag: String
+}
+
+extend type Query @guard {
+    communicationConnections(channel: String): [CommunicationConnection!]!
+        @field(resolver: "App\\GraphQL\\Communication\\Queries\\CommunicationQuery@connections")
+    communicationOperation(id: ID!): CommunicationOperation!
+        @field(resolver: "App\\GraphQL\\Communication\\Queries\\CommunicationQuery@operation")
+}
+
+extend type Mutation @guard {
+    communicationSend(input: CommunicationSendInput!): CommunicationOperation!
+        @field(resolver: "App\\GraphQL\\Communication\\Mutations\\CommunicationMutation@send")
+    communicationRetryDelivery(id: ID!): CommunicationDelivery!
+        @field(resolver: "App\\GraphQL\\Communication\\Mutations\\CommunicationMutation@retryDelivery")
+}
+
+extend type Mutation @guardByAdmin {
+    "The connection's On/Off. Off cancels what is queued on it; On never releases work queued before the Off."
+    communicationConnectionEnabled(id: ID!, enabled: Boolean!): CommunicationConnection!
+        @field(resolver: "App\\GraphQL\\Communication\\Mutations\\CommunicationMutation@connectionEnabled")
+}

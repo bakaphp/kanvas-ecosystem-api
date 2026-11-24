@@ -33,7 +33,6 @@ class CreditSpotlightCreatorsCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -74,7 +73,6 @@ class CreditSpotlightCreatorsCommand extends Command
                 ->where('companies_id', $company->getId())
                 ->first();
 
-
             if ($message === null) {
                 // New prompt found
                 // Log it or store it for further processing
@@ -98,6 +96,7 @@ class CreditSpotlightCreatorsCommand extends Command
 
             if (! $creator->get('order_credits')) {
                 $creator->set('order_credits', '{"video":{"veo-3.1-fast-generate-preview":1,"veo-3.1-generate-preview":1,"veo-3.1-fast-generate-001":1}}');
+
                 return;
             }
 

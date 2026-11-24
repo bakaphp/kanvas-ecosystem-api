@@ -17,8 +17,8 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Leads\Services\ContactHistoryService;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -134,7 +134,8 @@ class CreateContentSessionAction
                 'status' => $lead->status()->first()?->name,
                 'company_timezone' => $lead->company->timezone,
                 'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
-                'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+                'additional_context_information' => $lead->getAiContextInfo(),
+                'contact_history' => new ContactHistoryService()->forLead($lead),
                 'impersonate_email' => $lead->company->get('impersonate_email'),
                 'last_message_time' => $lastMessageTime,
                 'last_message' => $lastMessage,
@@ -152,7 +153,7 @@ class CreateContentSessionAction
                 'active_channel' => $activeChannel,
             ],
             $this->mapPeople($lead->people, $lead),
-            $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
+            $lead->getAiContextInfo()
         );
     }
 
@@ -248,7 +249,7 @@ class CreateContentSessionAction
      */
     public function generateValuesForRole(Lead $lead): array
     {
-        $additionalContext = $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value);
+        $additionalContext = $lead->getAiContextInfo();
         $companyIsHoliday = (new CompanyIsHolidayTool($lead))->execute();
         $companyWorkHours = (new CompanyWorkHoursTool($lead))->execute();
         $vehicleInterest = $additionalContext['vehicle_interest'] ?? null;

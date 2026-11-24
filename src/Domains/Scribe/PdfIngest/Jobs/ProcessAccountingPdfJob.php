@@ -15,6 +15,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\PdfIngest\Actions\ProcessAccountingPdfAction;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfIngestInput;
+use Kanvas\Users\Models\Users;
 
 /**
  * Queued wrapper around ProcessAccountingPdfAction.
@@ -46,6 +47,7 @@ final class ProcessAccountingPdfJob implements ShouldQueue
         public readonly ?string $fromName = null,
         public readonly ?string $subject = null,
         public readonly ?array $inboundMetadata = null,
+        public readonly ?Users $actingUser = null,
     ) {
         $this->onQueue('scribe-pdf-ingest');
     }
@@ -65,6 +67,7 @@ final class ProcessAccountingPdfJob implements ShouldQueue
                 subject: $this->subject,
                 inboundMetadata: $this->inboundMetadata,
             ),
+            user: $this->actingUser,
         )->execute();
     }
 }

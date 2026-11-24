@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Approvals\Enums\ApprovalOriginEnum;
+use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
@@ -122,8 +123,41 @@ class CreateArCreditMemoTool extends Tool
         ?string $currency = null,
         ?string $notes = null,
     ): array {
+        return ApprovalOriginService::during(
+            ApprovalOriginEnum::AGENT,
+            fn (): array => $this->issueCreditMemo(
+                $customer_name,
+                $invoice_number,
+                $lines,
+                $currency,
+                $notes,
+            )
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function issueCreditMemo(
+        string $customer_name,
+        string $invoice_number,
+        array $lines,
+        ?string $currency,
+        ?string $notes,
+    ): array {
         $app = $this->app;
         $company = $this->company;
+
+        // DGII's E34 must reference the e-CF it credits; a standalone rebate memo has none to point at.
+        if (new EcfIssuanceService()->issuesEcfFor($company)) {
+            return [
+                'created' => false,
+                'reason' => 'ecf_requires_parent_invoice',
+                'message' => 'This company issues electronic invoices (e-CF), and a credit note there must credit a '
+                    . 'specific issued invoice. A standalone credit memo cannot be issued; tell the user which '
+                    . 'invoice it should reverse instead.',
+            ];
+        }
 
         if (trim($customer_name) === '') {
             return [
@@ -172,7 +206,7 @@ class CreateArCreditMemoTool extends Tool
                 ];
             }
 
-            $account = $this->resolveAccount($accountNumber, $app, $company);
+            $account = $this->resolveAccount($accountNumber);
 
             if ($account === null) {
                 return [
@@ -229,19 +263,14 @@ class CreateArCreditMemoTool extends Tool
             'currency' => $currency,
             'processed_at' => Carbon::now()->toDateTimeString(),
             'next' => 'Credit memo issued in the Kanvas ledger. Any external synchronization is handled by '
-                . 'configured workflows. processed_at is the exact time this ran — copy it verbatim if logging '
-                . 'this to a sheet, never invent a timestamp yourself. Use add_invoice_note or attach_invoice_file '
+                . 'configured workflows. processed_at is the exact time this ran — copy it verbatim when you '
+                . 'report it, never invent a timestamp yourself. Use add_invoice_note or attach_invoice_file '
                 . 'if you need to attach the request form or manager approval.',
         ];
     }
 
-    private function resolveAccount(string $accountNumber, Apps $app, Companies $company): ?Account
+    private function resolveAccount(string $accountNumber): ?Account
     {
-        return Account::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('account_number', $accountNumber)
-            ->where('is_active', true)
-            ->first();
+        return Account::activeByNumber($this->app->getId(), $this->company->getId(), $accountNumber);
     }
 }

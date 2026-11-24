@@ -15,7 +15,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'User Availability', category: 'crm')]
+#[AgentTool(name: 'User Availability', category: 'crm', readOnly: true)]
 class UserAvailabilityTool extends Tool
 {
     use ResolvesLeadForTool;

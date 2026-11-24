@@ -12,6 +12,7 @@ use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use RuntimeException;
 
 class TransitionOrderStateAction
 {
@@ -51,6 +52,18 @@ class TransitionOrderStateAction
             }
 
             throw new Exception("The status {$this->newOrderStatus->name} is not a valid transition from {$currentOrderStatus->name}");
+        }
+
+        if ($this->order->orderType->capturesOnStatus($this->newOrderStatus->slug)) {
+            try {
+                new CaptureOrderPaymentsOnTransitionAction($this->order)->execute();
+            } catch (RuntimeException $e) {
+                if ($processQuietly) {
+                    return ['status' => 'error', 'message' => $e->getMessage()];
+                }
+
+                throw $e;
+            }
         }
 
         try {

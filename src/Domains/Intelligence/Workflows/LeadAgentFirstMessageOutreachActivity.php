@@ -11,14 +11,14 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Jobs\LeadVoiceFollowUpJob;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
@@ -183,7 +183,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         $firstLeadMessage['message'] = SmsOptOutNoticeService::appendTo($firstLeadMessage['message']);
                     }
 
-                    $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
+                    $leadContext = $lead->getAiContextInfo();
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                     $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
@@ -287,13 +287,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         title: $firstLeadMessage['title'] ?? null,
                                         fromAgent: $this->resolveOutreachAgent($params, $app),
                                     );
-                                    new StoreMessageSidAction($createMessage)->execute($providerResponse);
+                                    new LinkDeliveryMessageAction($createMessage)->execute($providerResponse);
 
                                     $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
-                                    $lead->set('title_email_follow_up', $firstLeadMessage['title'] ?? null);
+                                    $lead->anchorEmailThread($firstLeadMessage['title'] ?? null);
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
 
@@ -306,7 +306,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $createMessage->setLock();
                                     $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
-                                    $createMessage->set('from_number', $params['from'] ?? null);
+                                    $createMessage->set(
+                                        'from_number',
+                                        $this->resolveOutreachAgent($params, $app)?->smsPhoneNumber() ?? ($params['from'] ?? null)
+                                    );
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
 
                                     $stopTheClock = false;

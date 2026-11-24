@@ -21,7 +21,9 @@ use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Messages\UserMessage;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
+use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\Step;
 use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
@@ -412,7 +414,19 @@ class KanvasConversationStoreTest extends TestCase
             $type,
             $user->getId(),
             $this->prompt($handler, Decisions::from(['call-1' => true])),
-            new AgentResponse('inv-2', 'Deleted.', new TextUsage(5, 5), new Meta()),
+            // The stored text is read from the resumed run's steps, as a real provider returns it.
+            new AgentResponse('inv-2', 'Deleted.', new TextUsage(5, 5), new Meta())->withSteps(new Collection([
+                new Step(
+                    text: 'Deleted.',
+                    toolCalls: [],
+                    toolResults: [],
+                    finishReason: FinishReason::Stop,
+                    usage: new TextUsage(5, 5),
+                    meta: new Meta(),
+                    reasoning: '',
+                    replayBlocks: [],
+                ),
+            ])),
         );
 
         $this->assertSame($pausedId, $resumedId, 'a resume folds into the row it paused on');

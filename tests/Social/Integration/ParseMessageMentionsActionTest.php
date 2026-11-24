@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\ParseMessageMentionsAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -20,7 +21,7 @@ use Tests\TestCase;
 
 class ParseMessageMentionsActionTest extends TestCase
 {
-    private function makeMessage(string $content, bool $fromIa = false): Message
+    private function makeMessage(string $content, bool $fromIa = false, string $verb = 'note'): Message
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -31,7 +32,7 @@ class ParseMessageMentionsActionTest extends TestCase
                 app: $app,
                 company: $company,
                 user: $user,
-                type: MessageTypeService::getOrCreate($app, 'note'),
+                type: MessageTypeService::getOrCreate($app, $verb),
                 message: ['content' => $content, 'from_ia' => $fromIa],
                 is_public: 1,
             ),
@@ -142,12 +143,26 @@ class ParseMessageMentionsActionTest extends TestCase
     public function testAgentAuthoredMessageStillParsesSoItCanNotifyHumans(): void
     {
         // Agent (from_ia) messages ARE parsed now — an agent must be able to @mention a human to
-        // notify them. The anti-loop guard (agents never wake other agents) lives in
-        // RespondToAgentMentionListener, which skips from_ia — not in this dispatch decision.
+        // notify them. Agent-to-agent hops are bounded by RespondToAgentMentionListener's budget,
+        // not by this dispatch decision.
         Bus::fake([ProcessMessageMentionsJob::class]);
 
         $this->makeMessage('@Someone from the agent', fromIa: true);
 
         Bus::assertDispatched(ProcessMessageMentionsJob::class);
+    }
+
+    /**
+     * The compaction note quotes the conversation it summarized, handles included, so parsing it
+     * would ping every human named in it and wake the agent that wrote it with its own summary —
+     * which summarizes again, posts again, and loops until the hop budget runs out (project 23).
+     */
+    public function testAnAgentSummaryNoteIsNeverParsedForMentions(): void
+    {
+        Bus::fake([ProcessMessageMentionsJob::class]);
+
+        $this->makeMessage('Max (@kaioken) asked @rovenpm to track the notes.', fromIa: true, verb: AgentMessageTypeEnum::AGENT_SUMMARY->value);
+
+        Bus::assertNotDispatched(ProcessMessageMentionsJob::class);
     }
 }

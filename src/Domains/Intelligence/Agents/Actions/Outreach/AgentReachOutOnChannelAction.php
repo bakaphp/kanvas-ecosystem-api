@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnum;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
@@ -86,17 +88,8 @@ class AgentReachOutOnChannelAction
                 $responseText = $parsed['body'];
             }
 
-            // Anchor the email thread: the follow-up engine reuses this subject
-            // (as "Re: ...") so later touches thread under the original email
-            // instead of starting a fresh one. First touch wins — don't clobber
-            // an existing anchor on subsequent reach-outs.
-            if (
-                $emailSubject !== null
-                && $emailSubject !== ''
-                && ! $this->lead->get('title_email_follow_up')
-            ) {
-                $this->lead->set('title_email_follow_up', $emailSubject);
-            }
+            // Later touches reuse this subject (as "Re: ...") so they thread under this email.
+            $this->lead->anchorEmailThread($emailSubject);
         }
 
         // No first-outbound gate: this lane is the first touch by construction, and its
@@ -139,7 +132,13 @@ class AgentReachOutOnChannelAction
         $outbound = $createMessage->execute();
 
         $outbound->set('communicationChannel', $this->channelType);
-        $outbound->set('from_number', $this->from);
+        // SendDelayMessageCommand sends a held draft from this value, so it has to be the agent's number.
+        $outbound->set(
+            'from_number',
+            $this->channelType === LeadCommunicationChannelEnum::SMS->value
+                ? ($this->agent->smsPhoneNumber() ?? $this->from)
+                : $this->from
+        );
         $outbound->set('title', $emailSubject);
         // $channel is the master People channel. addMessage() handles the channel pivot;
         // the polymorphic People entity link (used by history loaders) needs an explicit
@@ -179,17 +178,19 @@ class AgentReachOutOnChannelAction
         // Deliver via the canonical Lead-level dispatcher (SMS/email/WhatsApp/voice),
         // unless the draft is held for human approval.
         if (! $outbound->isLocked()) {
-            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
-                channel: $this->channelType,
-                message: $responseText,
-                from: $this->from,
-                title: $emailSubject,
-                signature: false,
-                files: null,
-                to: $this->recipient,
-                fromAgent: $this->agent,
-            );
-            new StoreMessageSidAction($outbound)->execute($providerResponse);
+            $providerResponse = new SendMessageToLeadAction($this->lead)
+                ->withEmailTemplate(AgentReachOutConfigEnum::EMAIL_TEMPLATE)
+                ->execute(
+                    channel: $this->channelType,
+                    message: $responseText,
+                    from: $this->from,
+                    title: $emailSubject,
+                    signature: false,
+                    files: null,
+                    to: $this->recipient,
+                    fromAgent: $this->agent,
+                );
+            new LinkDeliveryMessageAction($outbound)->execute($providerResponse);
         }
 
         return $outbound;

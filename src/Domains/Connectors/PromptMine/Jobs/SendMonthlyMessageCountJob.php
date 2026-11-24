@@ -45,7 +45,7 @@ class SendMonthlyMessageCountJob implements ShouldQueue
             [
                 'push_template' => NotificationTemplateEnum::PUSH_MONTHLY_PROMPT_COUNT->value,
                 'title' => "You created $this->monthtlyCount AI creations this month!",
-                'message' => "Amazing work! Keep the streak going. Unlock even more creative ideas.",
+                'message' => 'Amazing work! Keep the streak going. Unlock even more creative ideas.',
             ],
             $this->via
         );

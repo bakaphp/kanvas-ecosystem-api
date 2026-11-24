@@ -12,4 +12,5 @@ namespace Kanvas\Connectors\Intras\Enums;
 enum PeopleIntrasSyncApprovalTypeEnum: string
 {
     case UPDATE = 'approve_people_intras_update';
+    case CREATE = 'approve_people_intras_create';
 }

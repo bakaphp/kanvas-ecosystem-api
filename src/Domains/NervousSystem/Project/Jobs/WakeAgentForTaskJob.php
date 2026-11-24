@@ -12,9 +12,11 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\ClaudeAgent\Actions\StartHostedTaskSessionAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
@@ -61,6 +63,16 @@ class WakeAgentForTaskJob implements ShouldQueue
             return;
         }
 
+        $this->overwriteAppService($agent->app);
+
+        // A factory agent has no board turn to take: its model is the opencode agent on the factory machine.
+        // The task goes through the worker, which hands it to the factory and records what comes back.
+        if ($agent->is_active && CodingChatSettingEnum::runsTaskInFactory($agent, $this->task->fullText())) {
+            $this->handToTheFactory();
+
+            return;
+        }
+
         // Only active, tool-capable agents can execute board work. Machine runtimes (Hermes/OpenClaw)
         // self-drive elsewhere; CRM/Lead-context agents would fatal on a Task entity. assign_task
         // guards this; this is the safety net.
@@ -68,7 +80,12 @@ class WakeAgentForTaskJob implements ShouldQueue
             return;
         }
 
-        $this->overwriteAppService($agent->app);
+        // The factory worker that finishes the step ahead starts this one (RunTaskWorkerJob).
+        if ($this->task->waitsOnEarlierFactoryWork()) {
+            $this->recordQueued();
+
+            return;
+        }
 
         $project = Project::query()->where('id', $plan->project_id)->notDeleted()->first();
         if ($project === null) {
@@ -182,10 +199,7 @@ class WakeAgentForTaskJob implements ShouldQueue
 
     protected function resolveSession(): Session
     {
-        return $this->firstOrCreateWakeSession(
-            $this->task,
-            create: ['agents_id' => $this->task->agent_id],
-        );
+        return Session::firstOrCreateForEntity($this->task, create: ['agents_id' => $this->task->agent_id]);
     }
 
     protected function buildMessage(Project $project): string
@@ -209,5 +223,35 @@ class WakeAgentForTaskJob implements ShouldQueue
             $plan?->title ?? '',
             $project->objective ?? '(not set)',
         );
+    }
+
+    /**
+     * Once per task: a task already finished, or already waiting on its factory run, is not handed over
+     * a second time when it is assigned again. A task assigned before the ones ahead of it are done
+     * waits its turn: the worker that finishes the task before it starts it (`RunTaskWorkerJob`), so a
+     * ticket's design, logic and ship steps never run at once on their shared branch.
+     */
+    private function handToTheFactory(): void
+    {
+        if ($this->task->isTerminal() || $this->task->children()->open()->exists()) {
+            return;
+        }
+
+        if ($this->task->waitsOnEarlierTasks()) {
+            $this->recordQueued();
+
+            return;
+        }
+
+        RunTaskWorkerJob::dispatch($this->task);
+    }
+
+    private function recordQueued(): void
+    {
+        $this->task->emitLedgerEvent('plan.task.queued', payload: [
+            'task_id' => $this->task->getId(),
+            'plan_id' => $this->task->plan_id,
+            'sequence' => (int) $this->task->sequence,
+        ]);
     }
 }

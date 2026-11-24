@@ -21,7 +21,7 @@ final class ForbiddenRoleTest extends TestCase
             'displayname' => fake()->name(),
             'email' => fake()->email(),
             'password' => fake()->password(),
-            'branch' => auth()->user()->getCurrentBranch()
+            'branch' => auth()->user()->getCurrentBranch(),
         ]);
         $user = (new CreateUserAction($dto))->execute();
         Bouncer::assign(RolesEnums::ADMIN->value)->to($user);

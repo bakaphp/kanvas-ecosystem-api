@@ -165,6 +165,58 @@ final class LeadFollowUpActivityService
         ];
     }
 
+    /**
+     * @return list<int>
+     */
+    public function sentLeadIds(
+        Apps $app,
+        Companies $company,
+        Carbon $from,
+        Carbon $to
+    ): array {
+        return $this->events($app, $from, $to)
+            ->where('companies_id', $company->getId())
+            ->where('event_type', 'lead.follow_up.sent')
+            ->where('source_entity_type', Lead::class)
+            ->distinct()
+            ->pluck('source_entity_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+    }
+
+    /**
+     * What the engine recorded for these leads. Reasons are keys only: `agent: <text>` carries free
+     * text from the model.
+     *
+     * @param list<int> $leadIds
+     * @return array<string, int>
+     */
+    public function reasonsForLeads(
+        Apps $app,
+        Companies $company,
+        array $leadIds,
+        Carbon $from,
+        Carbon $to
+    ): array {
+        $events = $this->events($app, $from, $to)
+            ->where('companies_id', $company->getId())
+            ->where('source_entity_type', Lead::class)
+            ->whereIn('source_entity_id', $leadIds)
+            ->whereIn('event_type', self::EVENT_TYPES)
+            ->get(['event_type', 'payload']);
+
+        $reasons = [];
+        foreach ($events as $event) {
+            $reason = (string) (((array) ($event->payload ?? []))['reason'] ?? '');
+            $key = $reason === '' ? $event->event_type : FollowUpFailureReasonEnum::reasonKey($reason);
+            $reasons[$key] = ($reasons[$key] ?? 0) + 1;
+        }
+
+        arsort($reasons);
+
+        return $reasons;
+    }
+
     private function events(Apps $app, Carbon $from, Carbon $to): Builder
     {
         return Event::query()

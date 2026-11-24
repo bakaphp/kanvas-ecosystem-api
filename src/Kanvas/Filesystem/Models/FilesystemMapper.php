@@ -50,13 +50,13 @@ class FilesystemMapper extends BaseModel
         'file_header',
         'mapping',
         'is_default',
-        'configuration'
+        'configuration',
     ];
 
     protected $casts = [
         'file_header' => Json::class,
         'mapping' => Json::class,
-        'configuration' => Json::class
+        'configuration' => Json::class,
     ];
 
     /**

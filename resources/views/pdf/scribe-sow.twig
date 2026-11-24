@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}{% if number %} {{ number }}{% endif %}</title>
+    <style>
+        @page { margin: 0; }
+        body { margin: 0; padding: 0 48px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.5; color: #1f2933; }
+        h1 { margin: 0; font-size: 24px; letter-spacing: 2px; text-transform: uppercase; color: #111827; }
+        h2 { margin: 28px 0 8px; padding-bottom: 4px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #111827; border-bottom: 2px solid #1f2933; page-break-after: avoid; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { display: table-header-group; }
+        tr, li { page-break-inside: avoid; }
+        p, li, td { orphans: 3; widows: 3; }
+        .keep-together { page-break-inside: avoid; }
+        .multiline { white-space: pre-line; word-wrap: break-word; }
+        ul { margin: 4px 0 0; padding-left: 18px; }
+        li { margin-bottom: 3px; }
+        .header td { vertical-align: top; }
+        .logo { display: block; width: auto; height: auto; max-height: 40px; max-width: 160px; margin-bottom: 8px; }
+        .issuer-name { font-size: 16px; font-weight: bold; }
+        .muted { color: #6b7280; }
+        .right { text-align: right; }
+        .meta div { margin-bottom: 2px; }
+        .parties { margin-top: 26px; }
+        .parties td { width: 50%; vertical-align: top; padding-right: 20px; }
+        .label { text-transform: uppercase; font-size: 10px; letter-spacing: 1px; color: #6b7280; margin-bottom: 4px; }
+        .summary { margin-top: 6px; }
+        .grid th { text-align: left; border-bottom: 1px solid #1f2933; padding: 6px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .grid td { padding: 7px 4px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+        .num { text-align: right; white-space: nowrap; }
+        .total td { border-top: 2px solid #1f2933; border-bottom: none; font-weight: bold; }
+        .two-col td { width: 50%; vertical-align: top; padding-right: 20px; }
+        .timeline { margin-top: 4px; }
+        .timeline td { width: 50%; vertical-align: top; }
+        .timeline .date { white-space: nowrap; }
+        .signatures { margin-top: 24px; page-break-inside: avoid; }
+        .signatures td { width: 50%; padding: 0 24px 28px 0; vertical-align: bottom; }
+        .sign-line { border-bottom: 1px solid #1f2933; height: 44px; }
+        .footer { margin-top: 30px; font-size: 10px; color: #6b7280; }
+    </style>
+</head>
+<body>
+<table class="header">
+    <tr>
+        <td>
+            {% if issuer.logo %}<img class="logo" src="{{ issuer.logo }}" alt="{{ issuer.name }}">{% endif %}
+            <div class="issuer-name">{{ issuer.name }}</div>
+            {% for line in issuer.address_lines %}<div class="muted multiline">{{ line }}</div>{% endfor %}
+            {% if issuer.email %}<div class="muted">{{ issuer.email }}</div>{% endif %}
+            {% if issuer.phone %}<div class="muted">{{ issuer.phone }}</div>{% endif %}
+        </td>
+        <td class="right">
+            <h1>{{ title }}</h1>
+            <div class="meta">
+                <div><strong>Quote {{ number ?? 'Draft' }}</strong> · Revision {{ revision }}</div>
+                {% if issued_date %}<div class="muted">Issued {{ issued_date }}</div>{% endif %}
+                {% if expiry_date %}<div class="muted">{{ expiry_label }} {{ expiry_date }}</div>{% endif %}
+            </div>
+        </td>
+    </tr>
+</table>
+
+<table class="parties">
+    <tr>
+        <td>
+            <div class="label">Provider</div>
+            <div><strong>{{ issuer.name }}</strong></div>
+            {% if issuer.website %}<div class="muted">{{ issuer.website }}</div>{% endif %}
+        </td>
+        <td>
+            <div class="label">Client</div>
+            <div><strong>{{ customer.name ?? 'No customer assigned' }}</strong></div>
+            {% if customer.legal_name and customer.legal_name != customer.name %}<div class="muted">{{ customer.legal_name }}</div>{% endif %}
+            {% if customer.attention %}<div class="muted">Attn: {{ customer.attention }}</div>{% endif %}
+            {% for line in customer.address_lines %}<div class="muted multiline">{{ line }}</div>{% endfor %}
+            {% if customer.tax_id %}<div class="muted">Tax ID: {{ customer.tax_id }}</div>{% endif %}
+        </td>
+    </tr>
+</table>
+
+<h2>Summary</h2>
+<div class="summary multiline">{{ sow.summary }}</div>
+
+<table class="two-col">
+    <tr>
+        <td>
+            <h2>In scope</h2>
+            <ul>{% for item in sow.scope %}<li class="multiline">{{ item }}</li>{% endfor %}</ul>
+        </td>
+        <td>
+            <h2>Out of scope</h2>
+            {% if sow.out_of_scope is empty %}
+                <div class="muted">Nothing listed.</div>
+            {% else %}
+                <ul>{% for item in sow.out_of_scope %}<li class="multiline">{{ item }}</li>{% endfor %}</ul>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+{% if sow.assumptions is not empty %}
+    <h2>Assumptions</h2>
+    <ul>{% for item in sow.assumptions %}<li class="multiline">{{ item }}</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>Deliverables</h2>
+<table class="grid">
+    <thead>
+    <tr>
+        <th style="width: 35%">Deliverable</th>
+        <th>Acceptance criteria</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for deliverable in sow.deliverables %}
+        <tr>
+            <td><strong class="multiline">{{ deliverable.name }}</strong></td>
+            <td class="multiline">{{ deliverable.acceptance_criteria }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<div class="keep-together">
+    <h2>Timeline</h2>
+    <table class="timeline">
+        <tr>
+            <td><div class="label">Start</div><div class="date">{{ sow.timeline.start }}</div></td>
+            <td><div class="label">End</div><div class="date">{{ sow.timeline.end }}</div></td>
+        </tr>
+    </table>
+</div>
+
+<div class="keep-together">
+<h2>Pricing</h2>
+<table class="grid">
+    <thead>
+    <tr>
+        <th>Item</th>
+        <th class="num">Qty</th>
+        <th class="num">Unit price</th>
+        <th class="num">Amount</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for line in lines %}
+        <tr>
+            <td class="multiline">{{ line.description }}</td>
+            <td class="num">{{ line.quantity|number_format(2) }}</td>
+            <td class="num">{{ line.unit_price|number_format(2) }}</td>
+            <td class="num">{{ line.total|number_format(2) }}</td>
+        </tr>
+    {% endfor %}
+    <tr class="total">
+        <td colspan="3">Total</td>
+        <td class="num">{{ currency }} {{ quote_total }}</td>
+    </tr>
+    </tbody>
+</table>
+</div>
+
+<div class="keep-together">
+<h2>Payment schedule</h2>
+<table class="grid">
+    <thead>
+    <tr>
+        <th>Payment</th>
+        <th>Due</th>
+        <th class="num">%</th>
+        <th class="num">Amount</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for row in payment_rows %}
+        <tr>
+            <td class="multiline">{{ row.label }}</td>
+            <td>{{ row.due }}</td>
+            <td class="num">{{ row.percent }}</td>
+            <td class="num">{{ currency }} {{ row.amount }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% if terms %}<div class="muted multiline" style="margin-top: 6px">{{ terms }}</div>{% endif %}
+</div>
+
+{% if sow.change_process %}
+    <h2>Changes</h2>
+    <div class="multiline">{{ sow.change_process }}</div>
+{% endif %}
+
+<div class="keep-together">
+<h2>Acceptance</h2>
+<div>Signing this Statement of Work accepts the scope, deliverables and payment schedule above and starts billing on that schedule.</div>
+<table class="signatures">
+    <tr>
+    {% for signatory in sow.signatories %}
+        <td>
+            <div class="sign-line"></div>
+            <div><strong>{{ signatory.name }}</strong></div>
+            <div class="muted">{{ signatory.role }}</div>
+            <div class="muted">Date: ____________________</div>
+        </td>
+        {% if loop.index % 2 == 0 and not loop.last %}</tr><tr>{% endif %}
+    {% endfor %}
+    </tr>
+</table>
+</div>
+
+<div class="footer">Statement of Work for quote {{ number ?? 'draft' }}, revision {{ revision }}.</div>
+</body>
+</html>

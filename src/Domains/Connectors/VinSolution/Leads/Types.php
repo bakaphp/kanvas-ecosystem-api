@@ -10,7 +10,6 @@ class Types
 {
     /**
      * Get all lead source.
-     *
      */
     public static function getAll(): array
     {

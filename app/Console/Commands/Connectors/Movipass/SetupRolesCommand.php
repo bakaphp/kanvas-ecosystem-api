@@ -64,6 +64,7 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::AGENT,
                 MovipassRolesEnum::PARKING_MANAGER,
                 MovipassRolesEnum::PARKING_OPERATOR,
+                MovipassRolesEnum::PARQUEAT,
             ],
             'update-vouchers' => [
                 RolesEnums::OWNER,
@@ -77,6 +78,7 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::TRUCK_DRIVER,
                 MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARQUEAT,
             ],
             'order-reports' => [
                 RolesEnums::OWNER,
@@ -188,6 +190,12 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
+            ],
+            'validate-pass' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
                 MovipassRolesEnum::PARKING_MANAGER,
                 MovipassRolesEnum::PARKING_OPERATOR,
             ],

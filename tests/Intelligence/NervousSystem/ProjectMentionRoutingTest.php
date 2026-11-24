@@ -32,12 +32,14 @@ use Kanvas\Users\Models\Users;
 use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
+use Tests\Traits\MakesFilesystemRows;
 
 class ProjectMentionRoutingTest extends TestCase
 {
     // Inert without the trait: declared alone, every row this test writes COMMITS. These create
     // agents on the shared auth user, and a leaked agent makes Agent::fromUser() call a human an agent.
     use DatabaseTransactions;
+    use MakesFilesystemRows;
 
     protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
 
@@ -100,10 +102,64 @@ class ProjectMentionRoutingTest extends TestCase
                 $job->project->id === $project->id
                 && $job->reason === WakeAgentForProjectJob::REASON_MENTION
                 // The reply must thread under the mentioning message.
-                && (int) $job->triggerMessageId === (int) $message->getId(),
+                && (int) $job->triggerMessageId === (int) $message->getId()
+                // The wake reads the mention's files off this id at run time, not at dispatch.
+                && (int) $job->mentionMessageId === (int) $message->getId(),
         );
         // The generic mention responder must NOT also fire — no double answer.
         Bus::assertNotDispatched(RespondToMentionJob::class);
+    }
+
+    /**
+     * The generic mention job hands the agent the mention's files; the project route must too, or
+     * the PM answers "no attachments" to a comment that carries the meeting notes. The comment UI
+     * uploads the file in a second request, so the wake waits for it the way the generic job does,
+     * and resolves the files when it RUNS rather than when it is queued.
+     */
+    public function testMentionWakeCarriesTheMentionsFileAndWaitsForTheUploadToSettle(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user)->refresh();
+        $pmUserId = (int) $project->pmAgent->user_id;
+
+        $message = new PostProjectMessageAction(
+            project: $project,
+            verb: 'note',
+            content: '@pm here are the meeting notes',
+            author: $user,
+        )->execute();
+
+        Bus::fake([WakeAgentForProjectJob::class, RespondToMentionJob::class]);
+        new RespondToAgentMentionListener()->handle(new MessageMentionsStoredEvent($message, [$pmUserId]));
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            static fn (WakeAgentForProjectJob $job): bool => $job->delay !== null,
+        );
+
+        $file = $this->makeFilesystemRow($company->getId(), 'MIS Sync oct 27 2026.md');
+        $message->addFile($file, 'attachment');
+
+        Bus::fake([WakeAgentForProjectJob::class, RespondToMentionJob::class]);
+        new RespondToAgentMentionListener()->handle(new MessageMentionsStoredEvent($message, [$pmUserId]));
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            static fn (WakeAgentForProjectJob $job): bool => $job->delay === null,
+        );
+
+        $job = new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_MENTION,
+            'here are the meeting notes',
+            (int) $message->getId(),
+            mentionMessageId: (int) $message->getId(),
+        );
+
+        $prompt = new ReflectionMethod(WakeAgentForProjectJob::class, 'buildMessage')->invoke($job);
+        $this->assertStringContainsString('filesystem_id: ' . $file->getId(), $prompt);
+
+        $media = new ReflectionMethod(WakeAgentForProjectJob::class, 'mentionMedia')->invoke($job);
+        $this->assertSame([], $media['images']);
+        $this->assertSame([$file->url], $media['documents']);
     }
 
     public function testMentioningPmOnPlanChannelRoutesToProjectLoopFocusedOnThePlan(): void

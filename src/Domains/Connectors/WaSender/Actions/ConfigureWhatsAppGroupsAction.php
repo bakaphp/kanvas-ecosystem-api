@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
-use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupReplyModeEnum;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 
 /**
- * Writes the group block onto the agent's WhatsApp receiver.
+ * Writes the group block onto the WhatsApp receiver of the agent's company.
  *
  * Everything here is opt-in and reversible: an empty allow-list ingests no group at all, and the
  * reply mode governs only whether the agent speaks — a group it listens to silently is still
@@ -92,14 +92,7 @@ class ConfigureWhatsAppGroupsAction
 
     private function receiver(): ReceiverWebhook
     {
-        $receiverId = (int) $this->agent->get(ConnectionFieldEnum::RECEIVER_ID->value);
-
-        $receiver = $receiverId > 0 ? ReceiverWebhook::find($receiverId) : null;
-
-        if ($receiver === null) {
-            throw new ValidationException('This agent has no WhatsApp connection to configure groups on');
-        }
-
-        return $receiver;
+        return WaSenderHandler::receiverFor($this->agent->app, $this->agent->company)
+            ?? throw new ValidationException('This agent has no WhatsApp connection to configure groups on');
     }
 }

@@ -1,0 +1,605 @@
+{
+  "data": [
+    {
+      "id": "msg_1a17aa43500120oeF7GJLAr7e1",
+      "time": {
+        "created": 1793710531924
+      },
+      "text": "Create a file named hello.txt containing the word hi. Then reply with exactly: done",
+      "type": "user"
+    },
+    {
+      "id": "msg_1a17aa55c001S6Ly23iF5UBL0w",
+      "time": {
+        "created": 1793710531934,
+        "streamed": 1793710534232,
+        "completed": 1793710534261
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "tool",
+          "id": "call_EQ2ew0XNXlQN2rCrOsNJrYkd",
+          "name": "patch",
+          "executed": false,
+          "native": {
+            "itemId": "fc_03d40758fdfffac6016ae9d9c5e55c87d1b0ca5f2f67e15aa8"
+          },
+          "state": {
+            "status": "completed",
+            "input": {
+              "patchText": "*** Begin Patch\n*** Add File: hello.txt\n+hi\n*** End Patch"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Success. Updated the following files:\nA hello.txt"
+              }
+            ],
+            "metadata": {
+              "files": [
+                {
+                  "file": "hello.txt",
+                  "patch": "Index: /workspaces/t1/hello.txt\n===================================================================\n--- /workspaces/t1/hello.txt\n+++ /workspaces/t1/hello.txt\n@@ -0,0 +1,1 @@\n+hi\n",
+                  "status": "added",
+                  "additions": 1,
+                  "deletions": 0
+                }
+              ],
+              "truncated": false
+            }
+          },
+          "time": {
+            "created": 1793710533896,
+            "ran": 1793710534196,
+            "completed": 1793710534202
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "f4e0f13b4834679d54b42e607bf566826b560342",
+        "end": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "files": [
+          "hello.txt"
+        ]
+      },
+      "finish": "tool-calls",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9c4c2b887d1b478157321ad6b45",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 34,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 3900
+        }
+      }
+    },
+    {
+      "id": "msg_1a17aae7b001SnVTH89wOdyQWo",
+      "time": {
+        "created": 1793710534269,
+        "streamed": 1793710535888,
+        "completed": 1793710535897
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "done",
+          "native": {
+            "itemId": "msg_03d40758fdfffac6016ae9d9c7d36c87d198b86c51421c7226",
+            "phase": "final_answer"
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "end": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "files": []
+      },
+      "finish": "stop",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9c6904487d1b51cd1be8a0a601d",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 5,
+        "reasoning": 0,
+        "cache": {
+          "read": 3900,
+          "write": 54
+        }
+      }
+    },
+    {
+      "id": "msg_1a17ab4db002s6KMkQ8X5d28rj",
+      "time": {
+        "created": 1793710535899
+      },
+      "type": "idle",
+      "outcome": "succeeded"
+    },
+    {
+      "id": "msg_1a17ab566001NEvu76BFihG7Wf",
+      "time": {
+        "created": 1793710536042
+      },
+      "text": "Before doing anything, use your question tool to ask me which color I prefer, offering the options red and blue, and wait for my answer.",
+      "type": "user"
+    },
+    {
+      "id": "msg_1a17ab56e001EdxcsL4Z8LznYR",
+      "time": {
+        "created": 1793710536047,
+        "streamed": 1793710537946,
+        "completed": 1793710563925
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "tool",
+          "id": "call_RAMYWbYpZ07RJ251pYaUbh7P",
+          "name": "question",
+          "executed": false,
+          "native": {
+            "itemId": "fc_03d40758fdfffac6016ae9d9c97f6c87d1a4f85b1226a48d07"
+          },
+          "state": {
+            "status": "completed",
+            "input": {
+              "questions": [
+                {
+                  "question": "Which color do you prefer?",
+                  "header": "Color",
+                  "options": [
+                    {
+                      "label": "Red",
+                      "description": "Choose red"
+                    },
+                    {
+                      "label": "Blue",
+                      "description": "Choose blue"
+                    }
+                  ]
+                }
+              ]
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "User has answered your questions: \"Which color do you prefer?\"=\"Red\". You can now continue with the user's answers in mind."
+              }
+            ],
+            "metadata": {
+              "answers": [
+                [
+                  "Red"
+                ]
+              ],
+              "truncated": false
+            }
+          },
+          "time": {
+            "created": 1793710537490,
+            "ran": 1793710537925,
+            "completed": 1793710563894
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "end": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "files": []
+      },
+      "finish": "tool-calls",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9c85a2487d1af9c84a281b5f321",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 52,
+        "reasoning": 0,
+        "cache": {
+          "read": 3954,
+          "write": 40
+        }
+      }
+    },
+    {
+      "id": "msg_1a17b2270001BY8FNZ6YMMbmlV",
+      "time": {
+        "created": 1793710563957,
+        "streamed": 1793710565742,
+        "completed": 1793710565752
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "reasoning",
+          "text": "",
+          "native": {
+            "itemId": "rs_03d40758fdfffac6016ae9d9e5038087d1885498440bc205f6",
+            "reasoningEncryptedContent": "gAAAAABq6dnlBJA_mGFjl6RJWShW8dyfOrHOXOO6y_9rsQyL85wADeb_gTfK--iRKBkW5FpNruE0Pyx0B7v-RzPAU_c5bmWQYFcysICqwzTf1e0I3wEKhOqbTBNQSxbOdrG6waXAvLIU3b9d2_Owmm5C1u5G-te5fDB2NeQKxKcel2fk6petv7kWQlKCKtMWJRL5FU_cnCSqZYCkvI4ugK0RZZhNvCeKLHF3mWfEksLR-iG0QFISBHEVih37C_txWv_KXV7IXz8-HQP_TxSBiB2dDErDdFe51rCky99Kt52cnNDtO7i5MZn-ERsMM-EnE5g2Hn000zI5u6Ih_cIeYTVKKNbM61-d9QW4hOwWMIHqrY3w3IBgTZh-8XQ3RSe2ivjkk8158GpUWUNYnKtgHHUyi8fivNSUNm_tR7gW6rBvNW9e--E_C6VM7mHY-q588ZWd6qWZmv9cPPt9HFuZiXu1JsY4slVlrSaQWOJlp9V6cUVT5AptPKruuZelpMOjFFY2c-A4fqea3vMwWCAq5XzYGtXv5ZJBGUo5pXNMFvT5q14j7wDUSOLjuUu7OHMMSuRU4U9hPLt40OpTDSFAqXGZNqAuS65s2KtgGkIIyDxF5eh70EEqJdAG2c-TVXcmoszsvdMgn-f9XNnRP2ZoN-f3SkU9fZLwk0rpxrB-UXTHIsS_hcz5mQhshQlkN8jUgaUtv1t-H1fD593cIgEmRnQ5JTvE1N4pHwhzWsXS4StyNOaQGk3ua17jPKlKwJNM9O3fIIBziuskyu7wRE8k_tBBVJHGfTA8kiw-XgvARTOxJK9d5KvEH4W3n9_K0DJdVVaAv6I7ZAb2UwvnhbOCuKWDtQ00T1JTU6g-3DNj14D33UKKw6g9bmPIptvs7_PZsq4AUrM1STNhXwOOqOA1GgLsrlzNXURCZ9njLlZRNz_WnSazFrNgSDtrpabgrhL0gBqe2UaiM_8hg-zpHFA1iFL6PrXQHyZHJoeLM3oGMY6f0EPdP828t1jaHrOJ18gLgfI6DKhN4xLSXKFx58uYHuoo0VvE02CHh3Etp0W4e09N4gRtcwYOliCPdC6BLjVyI9V2Y8Fr91E5lG9a-W-L1udUSyKyXqkq6BrFjAuSZnIKe1Sn7nFNOk9Q0TyBW7Yrvn4YEuZunLHT8RHP7jLyhUrSNVvesUNwfh-ynlCotvnT2bvhrh-KWY-FDVcauLZxvQhA01jYj_tqmsK9yQsyFi7YOKpXlEKJjs_V0InY-j_B3bEqXexNXboMZXWwfDhRxhblXPc7MMZeDSwPRJFbo3Ao7_sg5M-p9sDtR3E9yPVV0dJAV2ylnrtkW7YtPBxrIHRrPIf7zBtu4Yk5Ftwwlews8fjTrAPQrsOHRMBfV6bQBTI4qBwstwbNtObYQQxwzCfcobMCizPghkWA_vaLMGM3-xfJNQDTm2CK2uDoKVUGrP6G1Qprk2VZ3WMDptp01FPxnS4m2y0H_Jo4H3hwvaYMsK4Az6ua_VeQby9-oPKtuinpRqpyT6MsMu6Fqhwyj9vEiYPTUnCO_PaM2oVOmU0zfkvshS4sjRFTNYBI-UrVng3lQlwIefcE9ZpsFqJqxabMHiMjsKdYgKcuT_1mGOXPA8_pxjIAKZpbeQEKlOVxh8I-cT832QIitm-IkKP1JWrKckDuucafG5MvlaEoe1z4lRzu_8m_HL0Kpxai9XehOgX2IHpnzRhH25xba4OxP4hzSzctOWs8O3p2bhrrWjBwASioY53cTJ7803mawcdDsKunB7Jq6evk-dQWvsedhJhBzMvlqGuZatsHq9sZNR_DEUq42B4jFjZLHJZty6UlNnXu-nohQTbWYdNynv4emMPdM-7bOvGniy0U2BEuy7_8SWESHJ3u77Nvznj6Trzmql4MdiXE7yx9GejXU8ffggCsOlJY1q4A"
+          },
+          "time": {
+            "created": 1793710565007,
+            "completed": 1793710565579
+          }
+        },
+        {
+          "type": "text",
+          "text": "You prefer red.",
+          "native": {
+            "itemId": "msg_03d40758fdfffac6016ae9d9e597b087d1b688f2475371b44c",
+            "phase": "final_answer"
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "end": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "files": []
+      },
+      "finish": "stop",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9e43f8c87d1b900a038fd5971e6",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 10,
+        "reasoning": 40,
+        "cache": {
+          "read": 3994,
+          "write": 89
+        }
+      }
+    },
+    {
+      "id": "msg_1a17b297b002OeWbQSN27ON3eD",
+      "time": {
+        "created": 1793710565755
+      },
+      "type": "idle",
+      "outcome": "succeeded"
+    },
+    {
+      "id": "msg_1a17b32020010WMwjDVj52aW3o",
+      "time": {
+        "created": 1793710567951
+      },
+      "text": "Create files one.txt through fifty.txt, each containing its own name, one write tool call per step, and after every single write reply with the word next before continuing.",
+      "type": "user"
+    },
+    {
+      "id": "msg_1a17b3218001Ditwu2ISyh5ITp",
+      "time": {
+        "created": 1793710567968,
+        "streamed": 1793710571600,
+        "completed": 1793710571683
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "reasoning",
+          "text": "",
+          "native": {
+            "itemId": "rs_03d40758fdfffac6016ae9d9e93bf087d1a295fd13dcd3c818",
+            "reasoningEncryptedContent": "gAAAAABq6dnrtB29tapuL4dPh80EmYZLcVRK-3WjG093g56PIlBL9HrrGd3Ig-GA4FbJRxyNhtPHLJmtlL5wo7oMfLOmZKnzQ4HZxUlO2UHfLcDFZaGT50YoT0v-g8LUoobFfCLEncfgw1BOYYd7Jbl7bbm89yP9wdGt1CQkL_3iZAkqPd3BNYzxsWOMrvZVInzZSK2Kngg1FGWoJ059vvXlR3vbwm1L_7pkhcx1W3PmJMQubTToriVfjj7l7CS7orrfuAhZmBz-2Ieqq_T7t_uD0F-T59qeyldQBGmg4e_KtbC2-DYNTIwMGTl6vc1UzH8dBA5kU1MqNlAmeXvKYgKXHBrQD0GedUSHjYamEpXeiD6EhwRQwoKaKrFIeQcM1W73ILe1HL6Tcu0dpZm3hbCT4zZkHspf9eq4xwuslji760mHdhcCFYXfkmUKd0DFjAJD7Y_nuwaQl3Bx_35to-XQsGb3W1eZiordIUYnpg3_a8iWtOpyWcUKbGfugTt1gaAU3D4NpOYhrrwcRjGqzDCZo5wD1IEAWP9NcoBWejxNmaimYECjjClWfAt3UhBVoRZqofReUS97jKvdlzyQE9EaAWeDXI1ikcFtZWgNE6lV0EREdfAAC-vjrf0TepGdezYRT9tP8ccGRtbt4Z6MAu2Dx-IaPOBaWeA6mXVUsfXv86pd-1rQn1CP_yJ-SWobVOM8XRmc3Lzd_V0UkIWfy5UV_mP49OZU_dvKN9MnDRieIf84wsAY5q8Z4GZ2nGMyqLD7xHDTa8mkwjxkm0mpYtdyzOzfpJ-YtLcLgk8jbXCFY-3jOqFvmofEAEK2W0Gksp5QY8PLKpddMHscKxdxtHYkQkvgbsrpCzkrNV8Lxy19edPieul8RtkoRvlGiLcA6ck9vV6uqK8fOwSV2S57X7yPGH_-hR3r9mFlrAi1rWEAsEPE05hWM_cNGTjuBugyoJs8QmRveDrbIXMfp5pZduMZC_29JwivTY0tdU4wGnniaKvzFurPTpD8xNm8tDO5cn7yiC4OqisQyxABnfpRxA_u4QQGDDLAvCkApE5EL8yzzA-SHIHuv70Jo-ni-Xw0I5s8sM22kL5HYhCgqazD4s1McDNHhPZKajFO2oJZHNVDVrLP3mQx8mK87XaIUUuR1ux4UEr9f8QBshMSBnZJXCAQNxuNyz3HeXtqGkrodq3CyEgTQCDaT88mbp3D6ldHaVIGaGmUkC_hHTZs2QAULm2TP_1KsJCPhuL7An8YMQvcGfuyZ5gXji-kBEgaIRG3bXQ2gNndMWsupvx6phfWHNuW4GyD8W0p5a4St5WeAmomUhtLaokkStFR6NpH0FrsKcDaTP4JPkf_JU-WZrTktmKjmbtIwg0E3uKXUTf_MyBQTfrokx4vWpSX8PwLo8nFfKs6_yZTe47JfHqYa3X_Fnsyg8MSFCh94h26Rd2wfDR3GwzRyb7eyJWy5t65rjj9jH2vKeZ7bTxluGZkeD2YjxoRcCLz8Zy96d_v7BZiOcsJnZBfXR3hkoFax_ksUkwbTzgF-l7Fwf2t3LUogCGVLkQ2F6euUIjCW_emSRZRLCB1YiDVjzEdWMHegM5zr-jDkyv8XgIO7ccddFdiXiQfSK7ac4rV_t_VNEDMhHrrnBfSlW36WQtx2ImTBtw636o3ZhS15W7_RrpBek7sjmezJj_Xo4IPSt6p37LF9X_EKkyIc73eszSM11aLel_6hXNeYK0gQdDBeYdTm9IxxawTlF2b-3gTRWGt8KfMn-wo9PtCVCClICYYc5Ucyibpg93R6-9_FAG_8EoMmynxLh8tkQ75VC6m4rmp9U1KMQqge40_jBZw4JhKg2sLvaO29xAvfjYreS8HNAF1xjkOJvn3NVTC3rksVdWS6NEdbyLEAt7ODd3n6iXldVBG3BPE7dlNTMa9kSDeFDqAm5So2eLesHQY4XP9nMLAyKggyMyYmF7I2orRQQT3FUi4ywETmmExeS0IXNwxnHZc54lgQjjnvjl0vLrPOqo1bhDdLU2sHCryfM590_JlnUX4IVw67ZNdCPzmyF7JZS3VfcSHN5Mu_jfsv63I9TdTLa9PEgA_jYLHO0jIguIp61D1BwxxzGGQ6Jsml8L0avZr0zZXOxob-yy-PjBUB4DCievN62lBB4TK0A4Ar54RmjJl08ml0q7QZSce9WmfontNetgVXCAdDRnsKLv5F2jvzyWHLWjY6E6ks0VWHBD3WOA7LsYz8-DxyRnHsYJeRLeBFwoJbr485ES3HcuRYOjfv9hrkorI1lV05qIyyJpy0ww3lHlhczMgW_vOi30ItuPC4Ftma3MTS1yoVDK4kyHplc69gwuxNJnB8z0j9o8jxG9ZMIXrlk4BOSqD_OaawI2cTknNdMu7iH6UeEoaqK8oft0ccwjmtoTfksm42ywtmKPPWx6PK7tuzKozOIuX16heLa8QHpJsYWL38v6YC_fQFQUr3VxPe3whR2mYgI_XcqZSYORsn7YeRJ4ykYr_CCMlFY70uAQoQZHUcajd3pja7nEYyJfljFbRvBHVKDMVGN_ngv7JeJnM1weobMtN8-7OJmK__KXA2qBqsLT3qb4YlrRS_NIArQ9i4MOUwyWeIDkeJNl6mckX9BsibpiO25V_AvhUJbf9EbOQ6_LGMP5gpEv8ZFmz_ccnjjp5cdPThpLDBuxjWiX7u6xMNN5CbFIgw_ZvRBo4Liw7ZMQm0vgHbcIS_a011L5On3B7AUNqHQ_iTg-Z7anTUakVywqSgVtl6R3j91KFDGio54TgZ1UbXMgwxd1qgKZb-gw4sHabl_kIe9nVJeA9MZ-KtHpcrvUmlOcp5-OLJSJ0K7ML04y76Qua5v-utTqHER1BvgL5AwH_xjztRQkFs0B36KBw1JC2TUqfgnm6T0oJxWGiXV-V2jg4K0im9PuEpmdop758tRtCrsMy4HoSG3mm3W51MCP3xEf5WrBi6W83ayKjenrLOGwBO52NKhC1mjcQ-wm9B0o0om98RSnUiTP0xmqv5XXpcNVYOkfm0oomFo2DyI1PxQMPntZkgN7NrM-qSe-vwLWGd5Tdk8BUkRiT8ndH68rGbIAdlWe6vS9Fnnto2fTYmBZRcn7KxyrArO7GNT3DzSsXjsU2LffSc2Wx2w88yg39geVBqJr6lmGwfbtuYy6M0DiHCKvWQJx8f_TCSWKWCAw9xVWTHNt_iYWeR0TFhlw3d3pPZRfZfHO1dQgTcKG9xLttlKkDD1HrWK1GZF_Uh68urFq9edDuCtmhpJ_DnLde"
+          },
+          "time": {
+            "created": 1793710569221,
+            "completed": 1793710571444
+          }
+        },
+        {
+          "type": "tool",
+          "id": "call_j4wZFMacsRicE3QpJ2oCjXv7",
+          "name": "patch",
+          "executed": false,
+          "native": {
+            "itemId": "fc_03d40758fdfffac6016ae9d9eb4c3487d1ade28d67e91f3bca"
+          },
+          "state": {
+            "status": "completed",
+            "input": {
+              "patchText": "*** Begin Patch\n*** Add File: one.txt\n+one.txt\n*** End Patch"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Success. Updated the following files:\nA one.txt"
+              }
+            ],
+            "metadata": {
+              "files": [
+                {
+                  "file": "one.txt",
+                  "patch": "Index: /workspaces/t1/one.txt\n===================================================================\n--- /workspaces/t1/one.txt\n+++ /workspaces/t1/one.txt\n@@ -0,0 +1,1 @@\n+one.txt\n",
+                  "status": "added",
+                  "additions": 1,
+                  "deletions": 0
+                }
+              ],
+              "truncated": false
+            }
+          },
+          "time": {
+            "created": 1793710571480,
+            "ran": 1793710571592,
+            "completed": 1793710571621
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "end": "ad6aafc89620614ee0078b4df1d0f1b1fae2c440",
+        "files": [
+          "one.txt"
+        ]
+      },
+      "finish": "tool-calls",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9e848b087d1aee4fe59e6480d96",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 37,
+        "reasoning": 144,
+        "cache": {
+          "read": 4083,
+          "write": 90
+        }
+      }
+    },
+    {
+      "id": "msg_1a17b40b60010CjQwYwAr4mL2n",
+      "time": {
+        "created": 1793710571711,
+        "streamed": 1793710574032,
+        "completed": 1793710574109
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "next",
+          "native": {
+            "itemId": "msg_03d40758fdfffac6016ae9d9ed7e3487d1aa4532d434c3fe53",
+            "phase": "commentary"
+          }
+        },
+        {
+          "type": "tool",
+          "id": "call_xUQEGIc9wfrVonvMOWNTZ1xw",
+          "name": "patch",
+          "executed": false,
+          "native": {
+            "itemId": "fc_03d40758fdfffac6016ae9d9edb2d087d1922f8d4c3e9c764d"
+          },
+          "state": {
+            "status": "completed",
+            "input": {
+              "patchText": "*** Begin Patch\n*** Add File: two.txt\n+two.txt\n*** End Patch"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Success. Updated the following files:\nA two.txt"
+              }
+            ],
+            "metadata": {
+              "files": [
+                {
+                  "file": "two.txt",
+                  "patch": "Index: /workspaces/t1/two.txt\n===================================================================\n--- /workspaces/t1/two.txt\n+++ /workspaces/t1/two.txt\n@@ -0,0 +1,1 @@\n+two.txt\n",
+                  "status": "added",
+                  "additions": 1,
+                  "deletions": 0
+                }
+              ],
+              "truncated": false
+            }
+          },
+          "time": {
+            "created": 1793710573710,
+            "ran": 1793710574015,
+            "completed": 1793710574020
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "ad6aafc89620614ee0078b4df1d0f1b1fae2c440",
+        "end": "481351e845e4e5e14664e96608eb5889594a596c",
+        "files": [
+          "two.txt"
+        ]
+      },
+      "finish": "tool-calls",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9ec270087d1bcc32b2dbb234929",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 43,
+        "reasoning": 0,
+        "cache": {
+          "read": 4173,
+          "write": 201
+        }
+      }
+    },
+    {
+      "id": "msg_1a17b4a29001xfMw57U9rs2UUh",
+      "time": {
+        "created": 1793710574140,
+        "streamed": 1793710575779,
+        "completed": 1793710575819
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "next",
+          "native": {
+            "itemId": "msg_03d40758fdfffac6016ae9d9ef4c1c87d1bc4a578b9e38ca04",
+            "phase": "commentary"
+          }
+        },
+        {
+          "type": "tool",
+          "id": "call_DvjJkOHTrNnU2Bl5Zt5yUffv",
+          "name": "patch",
+          "executed": false,
+          "native": {
+            "itemId": "fc_03d40758fdfffac6016ae9d9ef7d9087d188557c089e345bbd"
+          },
+          "state": {
+            "status": "completed",
+            "input": {
+              "patchText": "*** Begin Patch\n*** Add File: three.txt\n+three.txt\n*** End Patch"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Success. Updated the following files:\nA three.txt"
+              }
+            ],
+            "metadata": {
+              "files": [
+                {
+                  "file": "three.txt",
+                  "patch": "Index: /workspaces/t1/three.txt\n===================================================================\n--- /workspaces/t1/three.txt\n+++ /workspaces/t1/three.txt\n@@ -0,0 +1,1 @@\n+three.txt\n",
+                  "status": "added",
+                  "additions": 1,
+                  "deletions": 0
+                }
+              ],
+              "truncated": false
+            }
+          },
+          "time": {
+            "created": 1793710575499,
+            "ran": 1793710575775,
+            "completed": 1793710575781
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "481351e845e4e5e14664e96608eb5889594a596c",
+        "end": "ad2167789d26d1a7c1dd32a61710aa35b40537b0",
+        "files": [
+          "three.txt"
+        ]
+      },
+      "finish": "tool-calls",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9ee731087d18c53ccd38528e384",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 43,
+        "reasoning": 0,
+        "cache": {
+          "read": 4374,
+          "write": 63
+        }
+      }
+    },
+    {
+      "id": "msg_1a17b50d30019DzXqJzYDJcz9c",
+      "time": {
+        "created": 1793710575831,
+        "completed": 1793710576973
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [],
+      "snapshot": {
+        "start": "ad2167789d26d1a7c1dd32a61710aa35b40537b0",
+        "end": "ad2167789d26d1a7c1dd32a61710aa35b40537b0",
+        "files": []
+      },
+      "finish": "error",
+      "error": {
+        "type": "aborted",
+        "message": "Step interrupted"
+      }
+    },
+    {
+      "id": "msg_1a17b5550001YUnudFNeCbduaU",
+      "time": {
+        "created": 1793710576976
+      },
+      "type": "idle",
+      "outcome": "interrupted"
+    }
+  ],
+  "cursor": {
+    "previous": "eyJpZCI6Im1zZ18xYTE3YWE0MzUwMDEyMG9lRjdHSkxBcjdlMSIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoicHJldmlvdXMifQ",
+    "next": "eyJpZCI6Im1zZ18xYTE3YjU1NTAwMDFZVW51ZEZOZUNiZHVhVSIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoibmV4dCJ9"
+  }
+}

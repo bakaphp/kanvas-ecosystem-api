@@ -14,4 +14,5 @@ enum AgentLlmProviderEnum: string
     case DEEPSEEK = 'deepseek';
     case XAI = 'xai';
     case OLLAMA = 'ollama';
+    case BEDROCK = 'bedrock';
 }

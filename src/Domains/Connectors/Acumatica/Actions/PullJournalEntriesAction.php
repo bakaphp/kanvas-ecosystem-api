@@ -13,7 +13,6 @@ use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportJournalEntry;
 use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportJournalEntryLine;
 use Kanvas\Connectors\Acumatica\SqlClient;
 use Kanvas\Connectors\Acumatica\Traits\ResolvesAcumaticaGlCoding;
-use Kanvas\Scribe\Ledger\Actions\OpenFiscalPeriodAction;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLineData;
@@ -21,9 +20,8 @@ use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Exceptions\ClosedFiscalPeriodException;
 use Kanvas\Scribe\Ledger\Exceptions\UnbalancedJournalEntryException;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
-use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
+use Kanvas\Scribe\Ledger\Services\FiscalPeriodAutoOpenService;
 use Kanvas\Users\Models\Users;
-use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 use stdClass;
 use Throwable;
@@ -50,7 +48,7 @@ class PullJournalEntriesAction
         protected int $acumaticaCompanyId,
         protected ?int $limit = null,
         protected ?Carbon $modifiedSince = null,
-        protected PeriodCloseService $periods = new PeriodCloseService(),
+        protected FiscalPeriodAutoOpenService $periodAutoOpen = new FiscalPeriodAutoOpenService(),
     ) {
     }
 
@@ -191,7 +189,12 @@ class PullJournalEntriesAction
                 continue;
             }
 
-            $this->ensurePeriod($je->postedAt);
+            $this->periodAutoOpen->ensureOpenPeriodFor(
+                $this->app,
+                $this->company,
+                $je->postedAt,
+                $this->user
+            );
 
             try {
                 new PostJournalEntryAction(
@@ -266,26 +269,6 @@ class PullJournalEntriesAction
         }
 
         return round($base / $native, 10);
-    }
-
-    private function ensurePeriod(Carbon $postedAt): void
-    {
-        if ($this->periods->findPeriodFor($this->app->getId(), $this->company->getId(), $postedAt) !== null) {
-            return;
-        }
-
-        try {
-            new OpenFiscalPeriodAction(
-                app: $this->app,
-                company: $this->company,
-                periodStart: $postedAt->copy()->startOfMonth(),
-                periodEnd: $postedAt->copy()->endOfMonth(),
-                user: $this->user,
-            )->execute();
-        } catch (RuntimeException) {
-            // Overlaps a non-calendar fiscal period edge — PostJournalEntryAction will surface
-            // the no-period case as a skip counter.
-        }
     }
 
     private function alreadyImported(string $externalId): bool

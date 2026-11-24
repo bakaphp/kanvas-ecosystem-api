@@ -9,8 +9,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
-use Throwable;
 
 /**
  * Lets a company's owner or an admin decide a request they were not resolved onto — by writing them an
@@ -23,8 +21,8 @@ use Throwable;
  */
 class ApproverSelfAssignService
 {
-    public const string OWNER = 'owner';
-    public const string ADMIN = 'admin';
+    public const string OWNER = CompanyAuthorityService::OWNER;
+    public const string ADMIN = CompanyAuthorityService::ADMIN;
 
     /**
      * Best-effort by design: a caller with no authority is simply left alone, so the refusal comes
@@ -49,35 +47,12 @@ class ApproverSelfAssignService
         $this->assign($request, $user, $authority);
     }
 
-    /**
-     * Membership is checked before the role: `isAdmin()` reads Bouncer state that is app-scoped, so on
-     * its own it would let an admin of one company decide another company's request.
-     */
     private function authorityOf(ApprovalRequest $request, Users $user): ?string
     {
         /** @var Companies|null $company */
         $company = $request->company;
 
-        if ($company === null) {
-            return null;
-        }
-
-        if ($company->isOwner($user)) {
-            return self::OWNER;
-        }
-
-        // belongsToCompany throws rather than returning false for a non-member, and a stranger has to
-        // come back as "no authority" so the action issues the refusal — not as a bare
-        // ModelNotFoundException out of an authorization check.
-        try {
-            if (! UsersRepository::belongsToCompany($user, $company)) {
-                return null;
-            }
-        } catch (Throwable) {
-            return null;
-        }
-
-        return $user->isAdmin() ? self::ADMIN : null;
+        return $company === null ? null : CompanyAuthorityService::authorityOf($company, $user);
     }
 
     private function assign(ApprovalRequest $request, Users $user, string $authority): void

@@ -10,6 +10,7 @@ use Kanvas\Analytics\Reporting\Contracts\RefreshableReportInterface;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\Enums\ReportGrainEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Intras\Support\CustomFieldsBatch;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Override;
@@ -218,7 +219,7 @@ class EjecutivoDefinition implements RefreshableReportInterface
             $people = $chunk->all();
             $peopleIds = array_map(fn (People $p) => (int) $p->getId(), $people);
 
-            $customFields = $this->customFieldsFor($peopleIds);
+            $customFields = CustomFieldsBatch::forEntities(People::class, $peopleIds);
             $organizations = $this->organizationsFor($peopleIds);
             $addresses = $this->addressesFor($peopleIds);
             $contacts = $this->contactsFor($peopleIds);
@@ -258,40 +259,6 @@ class EjecutivoDefinition implements RefreshableReportInterface
                 ->map(fn ($id) => (int) $id)
                 ->all(),
         ];
-    }
-
-    /**
-     * Pivot the EAV custom fields into a flat map, one query per chunk.
-     *
-     * This is the join the flat table exists to avoid — it runs here, once per person, on the
-     * write path, instead of on every Gestor query.
-     *
-     * @param array<int, int> $peopleIds
-     *
-     * @return array<int, array<string, string>>
-     */
-    protected function customFieldsFor(array $peopleIds): array
-    {
-        // Deliberately NOT filtered by companies_id. That column records the company context of
-        // whoever wrote the field, not the entity's owner — a person in company 11569 can carry
-        // fields tagged 19625 if the import ran under a different current company. `entity_id`
-        // is a globally unique People id and the ids were already company-scoped by the caller,
-        // so scoping on it alone is both correct and unambiguous.
-        $rows = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('model_name', People::class)
-            ->whereIn('entity_id', $peopleIds)
-            ->where('is_deleted', 0)
-            ->select('entity_id', 'name', 'value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->entity_id][(string) $row->name] = (string) $row->value;
-        }
-
-        return $map;
     }
 
     /**

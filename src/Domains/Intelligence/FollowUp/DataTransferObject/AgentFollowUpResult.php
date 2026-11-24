@@ -10,7 +10,7 @@ use Spatie\LaravelData\Data;
 /**
  * Parsed JSON response from FollowUpAgent. Shape contract enforced via the
  * agent's instructions(): `{ should_respond, advance_stage, message?, reason? }`.
- * Booleans combine — neither true = exhaust with `agent: <reason>`.
+ * Booleans combine — neither true skips this tick without exhausting the lead.
  */
 class AgentFollowUpResult extends Data
 {

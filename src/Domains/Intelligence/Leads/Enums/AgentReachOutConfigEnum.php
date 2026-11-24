@@ -19,6 +19,9 @@ enum AgentReachOutConfigEnum: string
     public const string STATUS_SKIPPED = 'skipped';
     public const string STATUS_MUTED = 'muted';
 
+    /** Signs as the persona unconditionally; a company without it falls back to first-time-agent-engagement. */
+    public const string EMAIL_TEMPLATE = 'first-time-agent-reach-out';
+
     case STATUS = 'agent_reach_out_status';
     case SENT_AT = 'agent_reach_out_sent_at';
     case REASON = 'agent_reach_out_reason';

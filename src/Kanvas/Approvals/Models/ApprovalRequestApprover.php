@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Approvals\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -29,6 +30,13 @@ class ApprovalRequestApprover extends BaseModel
         'decided_at' => 'datetime',
         'notified_at' => 'datetime',
     ];
+
+    public function markNotified(): void
+    {
+        $this->notified_at = Carbon::now();
+        $this->notification_channel = 'mail';
+        $this->saveOrFail();
+    }
 
     public function decisionName(): string
     {

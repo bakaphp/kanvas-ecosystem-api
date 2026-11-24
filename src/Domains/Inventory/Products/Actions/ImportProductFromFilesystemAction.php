@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
+use Baka\Support\Str;
 use Baka\Validations\Date;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\CsvReaderService;
 use Kanvas\Filesystem\Services\FilesystemRowMapper;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Actions\ResolveProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Tags\Models\Tag;
 use RuntimeException;
 use Throwable;
@@ -47,9 +50,10 @@ class ImportProductFromFilesystemAction
         // AbstractImporterJob::iterateImporterRows() — neither this action
         // nor the worker materializes the full payload in memory.
         //
-        // Assumption: the CSV is sorted by handler so all variants of a
-        // product are contiguous. We detect violations and fail with a clear
-        // error rather than silently producing duplicate products.
+        // Assumption: the CSV is sorted by handler (product_name when no handler
+        // is mapped) so all variants of a product are contiguous. We detect
+        // violations and fail with a clear error rather than silently producing
+        // duplicate products.
         $jsonlPath = $this->streamCsvToJsonl();
 
         try {
@@ -111,18 +115,21 @@ class ImportProductFromFilesystemAction
             throw new RuntimeException('Could not open temp JSONL file for transformed import: ' . $jsonlPath);
         }
 
-        $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
-        $mapping = $this->filesystemImports->filesystemMapper->mapping;
+        $inline = $this->filesystemImports->filesystem_mapper_id === null
+            ? ($this->filesystemImports->extra['inline_product_import'] ?? null)
+            : null;
+        $modelName = $inline !== null ? Products::class : $this->filesystemImports->filesystemMapper->systemModule->model_name;
+        $mapping = $inline['mapping'] ?? $this->filesystemImports->filesystemMapper->mapping;
         /** @var array<string, mixed> $configuration */
-        $configuration = is_array($this->filesystemImports->filesystemMapper->configuration)
+        $configuration = $inline['configuration'] ?? (is_array($this->filesystemImports->filesystemMapper->configuration)
             ? $this->filesystemImports->filesystemMapper->configuration
-            : [];
+            : []);
         $extra = is_array($this->filesystemImports->extra) ? $this->filesystemImports->extra : [];
         // A scheduled import passes its own channel per run, so one mapper can serve many rooftops.
         $channelsId = $extra['channels_id'] ?? $configuration['channels_id'] ?? null;
-        $productType ??= $this->resolveProductType($configuration);
 
         try {
+            $productType ??= $this->resolveProductType($configuration);
             $emittedHandlers = [];
             $currentHandler = null;
             $currentVariants = [];
@@ -130,6 +137,9 @@ class ImportProductFromFilesystemAction
             foreach ($reader->getRecords($headers) as $record) {
                 $record['extra'] = $this->filesystemImports->extra;
                 $variant = $this->mapper($mapping, $record);
+                if ($inline !== null) {
+                    $this->validateInlineVariant($variant, $configuration);
+                }
 
                 if ($channelsId !== null) {
                     // Without warehouses_id the channel lands on the company's default warehouse, and
@@ -149,19 +159,27 @@ class ImportProductFromFilesystemAction
                     ];
                 }
 
-                $handler = (string) ($variant['handler'] ?? '');
+                // handler is optional: rows without one group by product name, so a user-facing
+                // CSV doesn't need a technical column that just repeats the name.
+                $handler = Str::trimmedStringOrNull($variant['handler'] ?? null)
+                    ?? (string) ($variant['product_name'] ?? '');
 
                 if ($handler !== $currentHandler) {
                     if ($currentHandler !== null) {
-                        $this->emitProductIfNeeded($out, $modelName, $currentVariants, $productType);
+                        $this->emitProductIfNeeded(
+                            $out,
+                            $modelName,
+                            $currentVariants,
+                            $productType
+                        );
                         $emittedHandlers[$currentHandler] = true;
                     }
 
                     if (isset($emittedHandlers[$handler])) {
                         throw new RuntimeException(sprintf(
-                            'CSV rows must be grouped by handler for streaming import. '
-                            . "Found out-of-order handler '%s' after it was already emitted. "
-                            . 'Please sort the CSV by the handler column before uploading.',
+                            'CSV rows must be grouped by handler (or product name when no handler is mapped) for streaming import. '
+                            . "Found out-of-order product '%s' after it was already emitted. "
+                            . 'Please sort the CSV so all rows of the same product are together before uploading.',
                             $handler,
                         ));
                     }
@@ -174,7 +192,12 @@ class ImportProductFromFilesystemAction
             }
 
             if ($currentHandler !== null) {
-                $this->emitProductIfNeeded($out, $modelName, $currentVariants, $productType);
+                $this->emitProductIfNeeded(
+                    $out,
+                    $modelName,
+                    $currentVariants,
+                    $productType
+                );
             }
         } catch (Throwable $e) {
             fclose($out);
@@ -192,8 +215,12 @@ class ImportProductFromFilesystemAction
      * @param resource $out
      * @param array<int, array<array-key, mixed>> $variants
      */
-    private function emitProductIfNeeded($out, string $modelName, array $variants, ProductsTypes $productType): void
-    {
+    private function emitProductIfNeeded(
+        $out,
+        string $modelName,
+        array $variants,
+        ProductsTypes $productType
+    ): void {
         if ($modelName !== Products::class || $variants === []) {
             return;
         }
@@ -296,14 +323,35 @@ class ImportProductFromFilesystemAction
             );
         }
 
-        /** @var ProductsTypes $productType */
-        $productType = ProductsTypesRepository::getByIdOrGlobal(
-            (int) $productTypeId,
-            $this->filesystemImports->company,
-            $this->filesystemImports->app,
-        );
+        if ($this->filesystemImports->filesystem_mapper_id === null && isset($this->filesystemImports->extra['inline_product_import'])) {
+            return new ResolveProductTypeAction($this->filesystemImports->app, $this->filesystemImports->company, $this->filesystemImports->user)
+                ->execute(id: (int) $productTypeId);
+        }
 
-        return $productType;
+        return ProductsTypesRepository::getByIdOrGlobal((int) $productTypeId, $this->filesystemImports->company, $this->filesystemImports->app);
+    }
+
+    private function validateInlineVariant(array &$variant, array $configuration): void
+    {
+        foreach (['handler', 'product_name', 'name', 'sku'] as $field) {
+            if (! is_scalar($variant[$field] ?? null) || trim((string) $variant[$field]) === '') {
+                throw new ValidationException('Product import row requires ' . $field . '.');
+            }
+        }
+
+        foreach ($variant['warehouses'] ?? [] as $warehouse) {
+            Warehouses::getByIdFromCompanyApp((int) $warehouse['id'], $this->filesystemImports->company, $this->filesystemImports->app);
+        }
+        foreach ($variant['channels'] ?? [] as $channel) {
+            Channels::getByIdFromCompanyApp((int) $channel['channels_id'], $this->filesystemImports->company, $this->filesystemImports->app);
+            if (isset($channel['warehouses_id'])) {
+                Warehouses::getByIdFromCompanyApp((int) $channel['warehouses_id'], $this->filesystemImports->company, $this->filesystemImports->app);
+            }
+        }
+        if (isset($configuration['warehouse_id'])) {
+            Warehouses::getByIdFromCompanyApp((int) $configuration['warehouse_id'], $this->filesystemImports->company, $this->filesystemImports->app);
+            $variant['warehouses'] = [['id' => (int) $configuration['warehouse_id']]];
+        }
     }
 
     private function cleanPrice(mixed $price): float

@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Tests\TestCase;
 
 final class AgentSettingTest extends TestCase
@@ -74,5 +75,27 @@ final class AgentSettingTest extends TestCase
         $this->assertNull(
             Agent::getByUuidFromCompanyApp($foreignAgent->uuid, $otherCompany, $app)->get('welcome_message')
         );
+    }
+
+    public function testReadAccessCompaniesIsValidatedAndNormalizedOnWrite(): void
+    {
+        $agent = $this->makeAgent();
+        $member = Companies::factory()->create();
+        $member->associateUserApp(auth()->user(), app(Apps::class), 1);
+        $key = ConfigurationEnum::AGENT_READ_ACCESS_COMPANIES->value;
+
+        $refused = $this->graphQL(
+            'mutation($input: ModuleConfigInput!) { setAgentSetting(input: $input) }',
+            ['input' => ['entity_uuid' => $agent->uuid, 'key' => $key, 'value' => [999999999]]],
+        );
+        $this->assertNotEmpty($refused->json('errors'), 'a company outside the app must be refused');
+        $this->assertNull(Agent::getByUuid($agent->uuid, app(Apps::class))->get($key));
+
+        $this->graphQL(
+            'mutation($input: ModuleConfigInput!) { setAgentSetting(input: $input) }',
+            ['input' => ['entity_uuid' => $agent->uuid, 'key' => $key, 'value' => [(string) $member->getId(), (string) $member->getId()]]],
+        )->assertJson(['data' => ['setAgentSetting' => true]]);
+
+        $this->assertSame([$member->getId()], Agent::getByUuid($agent->uuid, app(Apps::class))->get($key));
     }
 }

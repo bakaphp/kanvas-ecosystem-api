@@ -12,6 +12,7 @@ use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Notifications\KanvasMailable;
+use Symfony\Component\Mime\Email;
 
 trait NotificationMailTrait
 {
@@ -37,6 +38,13 @@ trait NotificationMailTrait
             // what every mail client reads as "marked important". Never set unless setImportant()
             // was called explicitly; most mail is routine and must not carry this.
             $mailMessage->priority(1);
+        }
+
+        if ($this->messageId !== null) {
+            $messageId = $this->messageId;
+            $mailMessage->withSymfonyMessage(
+                fn (Email $email) => $email->getHeaders()->addIdHeader('Message-ID', $messageId)
+            );
         }
 
         $this->applyAttachments($mailMessage);

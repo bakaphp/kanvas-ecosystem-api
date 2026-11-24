@@ -6,8 +6,11 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
+use Kanvas\Connectors\Movipass\Enums\RoadsideCaseStateEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
+use Kanvas\Connectors\Movipass\Jobs\SyncRoadsideRegionalEventJob;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -64,6 +67,16 @@ class RegisterAssistanceIncidentAction
         $assistanceCase['status_updated_at'] = $now;
 
         $this->saveAssistanceCase($this->order, $assistanceCase);
+
+        if (RegionalAssistance::isEnabledFor($this->order) && ! empty($assistanceCase['state'])) {
+            new TransitionRoadsideCaseStateAction(
+                order: $this->order,
+                to: RoadsideCaseStateEnum::INCIDENT,
+                actor: $this->reportedBy,
+                reason: $reason,
+            )->execute();
+            SyncRoadsideRegionalEventJob::dispatchFor($this->order, 'incident', $incident);
+        }
 
         RefreshActiveAssistanceEvent::dispatch($this->order, (int) $this->order->users_id);
 

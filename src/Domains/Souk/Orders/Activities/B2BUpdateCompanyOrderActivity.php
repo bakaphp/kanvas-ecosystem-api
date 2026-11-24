@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Actions\MoveOrderToCompanyAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -33,23 +34,10 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
                 $order->refresh();
 
                 if ($orderCompany->getId() !== $userCompany->getId()) {
-                    // Check for conflict
-                    $conflict = Order::fromApp($app)
-                        ->where('companies_id', $userCompany->getId())
-                        ->where('order_number', $order->order_number)
-                        ->where('id', '!=', $order->id)
-                        ->exists();
-
-                    // If conflict exists, generate a new order number
-                    if ($conflict) {
-                        $order->companies_id = $userCompany->getId();
-                        $order->order_number = $order->generateOrderNumber(); // Uses lockForUpdate to avoid race
-                    } else {
-                        $order->companies_id = $userCompany->getId();
-                    }
-
-                    $order->updateOrFail();
+                    $previousNumber = $order->order_number;
+                    new MoveOrderToCompanyAction($order, $userCompany)->execute();
                     $order->refresh();
+                    $conflict = $order->order_number !== $previousNumber;
 
                     new SendUserNotificationAction(
                         $order->app,

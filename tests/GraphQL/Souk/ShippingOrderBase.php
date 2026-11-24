@@ -65,6 +65,15 @@ abstract class ShippingOrderBase extends OrderBase
         new ImportRateCardsAction($this->apps, $this->company, $mutate ? $mutate($cards) : $cards)->execute();
     }
 
+    protected function stopShippingToTheUs(): void
+    {
+        $this->configureRateCards(function (array $cards): array {
+            unset($cards['inposdom']['zones']['US']);
+
+            return $cards;
+        });
+    }
+
     protected function setVariantWeight(float $weight): void
     {
         $variant = Variants::findOrFail($this->variantId);
@@ -146,11 +155,11 @@ abstract class ShippingOrderBase extends OrderBase
         return array_column($quotes, null, 'service_code');
     }
 
-    protected function applyShippingQuote(string $service = 'ems', string $country = 'US'): TestResponse
+    protected function applyShippingQuote(string $service = 'ems', string $country = 'US', string $provider = 'inposdom'): TestResponse
     {
         return $this->graphQL('
-            mutation applyShippingQuote($service: String!, $destination: ShippingDestinationInput!) {
-                applyShippingQuote(provider: "inposdom", service: $service, destination: $destination) {
+            mutation applyShippingQuote($provider: String!, $service: String!, $destination: ShippingDestinationInput!) {
+                applyShippingQuote(provider: $provider, service: $service, destination: $destination) {
                     shipping {
                         name
                         value
@@ -159,6 +168,7 @@ abstract class ShippingOrderBase extends OrderBase
                 }
             }
         ', [
+            'provider' => $provider,
             'service' => $service,
             'destination' => ['country' => $country],
         ], [], $this->cartHeaders());
@@ -179,7 +189,7 @@ abstract class ShippingOrderBase extends OrderBase
         ', [], [], $this->cartHeaders())->json('data.cart.shipping');
     }
 
-    protected function placeOrderFromCart(mixed $metadata = null): TestResponse
+    protected function placeOrderFromCart(mixed $metadata = null, array $address = []): TestResponse
     {
         return $this->graphQL('
             mutation createOrderFromCart($input: OrderCartInput!) {
@@ -196,7 +206,7 @@ abstract class ShippingOrderBase extends OrderBase
                     'email' => fake()->email(),
                 ],
                 'currency' => 'USD',
-                'shipping_address' => [
+                'shipping_address' => $address + [
                     'address' => fake()->address(),
                     'address_2' => fake()->postcode(),
                     'city' => fake()->city(),

@@ -32,7 +32,7 @@ class CheckExpiringOrders
             ->notDeleted()
             ->whereNotFulfilled()
             ->whereNotNull('metadata')
-            ->whereRaw("JSON_VALID(metadata)")
+            ->whereRaw('JSON_VALID(metadata)')
             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
             ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
             ->when($orderIds, function ($query) use ($orderIds) {
@@ -52,12 +52,12 @@ class CheckExpiringOrders
         $orders->each(function ($order) use ($endViaList, $completeOrders) {
             $message = $order->ends_in >= 5
                 ? [
-                    "title" => "Atención tu parqueo está por expirar",
-                    "message" => "Tu tiempo de parqueo vence en {$order->ends_in} minutos, puedes extenderlo desde la app {$this->apps->name}."
+                    'title' => 'Atención tu parqueo está por expirar',
+                    'message' => "Tu tiempo de parqueo vence en {$order->ends_in} minutos, puedes extenderlo desde la app {$this->apps->name}.",
                 ]
                 : [
-                    "title" => "Último aviso: tu parqueo vencerá",
-                    "message" => "Solo te quedan {$order->ends_in} minutos, Extiende tu tiempo ahora desde {$this->apps->name}."
+                    'title' => 'Último aviso: tu parqueo vencerá',
+                    'message' => "Solo te quedan {$order->ends_in} minutos, Extiende tu tiempo ahora desde {$this->apps->name}.",
                 ];
             $completeOrder = $completeOrders->where('id', $order->id)->first();
             $newMessageNotification = new ExpiringReservationPushNotification(

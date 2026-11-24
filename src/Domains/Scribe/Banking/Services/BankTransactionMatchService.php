@@ -16,8 +16,9 @@ use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
+use Kanvas\Scribe\Payments\Models\Payment;
 
 /**
  * Scores which open document(s) a bank movement is settling.
@@ -86,6 +87,14 @@ class BankTransactionMatchService
     private const float AMOUNT_TOLERANCE = 0.005;
 
     private const int DATE_PROXIMITY_DAYS = 60;
+
+    /**
+     * How far a recorded payment's date may sit from the bank movement: it clears days after it was
+     * recorded, and a person sometimes records it a day or two late. A payment dated weeks after the
+     * movement is a different payment.
+     */
+    private const int RECORDED_PAYMENT_DAYS_BEFORE = 45;
+    private const int RECORDED_PAYMENT_DAYS_AFTER = 3;
 
     /**
      * Subset-sum is exponential. Above this many open documents for one party we only test the "pay
@@ -385,6 +394,55 @@ class BankTransactionMatchService
         return null;
     }
 
+    /**
+     * A payment someone recorded by hand (UI, agent, payment-provider webhook) that this bank movement is
+     * the cash side of. That payment already posted DR AP / CR Cash; posting the statement row too would
+     * credit cash twice for one transfer.
+     *
+     * Same amount, currency and direction, not yet reconciled, recorded shortly before the movement, and
+     * on this bank account when the payment named one. A reference that appears in the memo decides
+     * between several candidates; without one, only a single candidate is trusted.
+     */
+    public function findRecordedPayment(BankTransaction $bankTransaction): ?Payment
+    {
+        $amount = $bankTransaction->amount_native;
+        $date = $bankTransaction->transaction_date;
+
+        $candidates = Payment::query()
+            ->where('apps_id', $bankTransaction->apps_id)
+            ->where('companies_id', $bankTransaction->companies_id)
+            ->where('is_deleted', false)
+            ->whereNull('reconciled_at')
+            ->whereNotNull('recorded_via')
+            ->where('direction', $bankTransaction->direction->isMoneyOut()
+                ? PaymentDirectionEnum::OUTBOUND->value
+                : PaymentDirectionEnum::INBOUND->value)
+            ->where('currency', $bankTransaction->currency)
+            ->whereBetween('amount_native', [$amount - self::AMOUNT_TOLERANCE, $amount + self::AMOUNT_TOLERANCE])
+            ->whereBetween('payment_date', [
+                $date->copy()->subDays(self::RECORDED_PAYMENT_DAYS_BEFORE),
+                $date->copy()->addDays(self::RECORDED_PAYMENT_DAYS_AFTER),
+            ])
+            ->where(fn ($query) => $query
+                ->whereNull('bank_account_id')
+                ->orWhere('bank_account_id', $bankTransaction->bank_account_id))
+            ->orderBy('payment_date')
+            ->get();
+
+        if ($candidates->count() <= 1) {
+            return $candidates->first();
+        }
+
+        $memo = strtolower(($bankTransaction->memo ?? '') . ' ' . ($bankTransaction->metadata['bank_reference'] ?? ''));
+        $byReference = $candidates->filter(
+            fn (Payment $payment): bool => $payment->reference !== null
+                && $payment->reference !== ''
+                && str_contains($memo, strtolower($payment->reference)),
+        );
+
+        return $byReference->count() === 1 ? $byReference->first() : null;
+    }
+
     private function expenseAlreadyLinked(Expense $expense): bool
     {
         return BankTransaction::query()
@@ -548,11 +606,7 @@ class BankTransactionMatchService
             ->where('apps_id', $bankTransaction->apps_id)
             ->where('companies_id', $bankTransaction->companies_id)
             ->where('is_deleted', false)
-            ->whereIn('document_status', [
-                InvoiceDocumentStatusEnum::ISSUED->value,
-                InvoiceDocumentStatusEnum::SENT->value,
-            ])
-            ->where('balance_due_native', '>', 0)
+            ->open()
             ->get();
     }
 }

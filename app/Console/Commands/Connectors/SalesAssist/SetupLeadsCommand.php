@@ -68,7 +68,7 @@ class SetupLeadsCommand extends Command
                 'source_name' => $receiverName,
             ]);
 
-            $storedReceivers[]  = "$receiver->uuid - $receiver->name";
+            $storedReceivers[] = "$receiver->uuid - $receiver->name";
         }
 
         foreach ($storedReceivers as $id) {

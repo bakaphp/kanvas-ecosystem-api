@@ -9,8 +9,8 @@ use Illuminate\Contracts\Debug\ShouldntReport;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction as AgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -83,6 +83,34 @@ final class AgentReplySkippedTest extends TestCase
             $shouldntReport->invoke($handler, $exception),
             'A deactivated-agent skip must not reach the reporter.'
         );
+    }
+
+    /**
+     * A user turn with no text and nothing attached is ignored by Gemini, so the request ends on the
+     * previous model turn and comes back 400 (KANVAS-ECOSYSTEM-6QC). It is skipped before any backend,
+     * like a deactivated agent, so the connector records a skip rather than a provider error.
+     */
+    public function testAnEmptyInboundIsSkippedBeforeReachingAnyBackend(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agentType = AgentType::factory()->withAppId($app->getId())->create(['provider' => 'neuron']);
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['agent_type_id' => $agentType->getId()]);
+
+        $this->expectException(AgentReplySkippedException::class);
+        $this->expectExceptionMessage(sprintf('Empty inbound message for agent %d', $agent->getId()));
+
+        new AgentChatKernel(
+            agent: $agent,
+            session: null,
+            message: "  \n ",
+            user: $user,
+        )->execute();
     }
 
     /**

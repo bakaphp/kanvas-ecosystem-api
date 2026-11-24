@@ -6,13 +6,11 @@ namespace App\Console\Commands\Ecosystem;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Actions\CreateAppKeyAction;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Silber\Bouncer\BouncerFacade as Bouncer;
 
 class KanvasAppCreateKeyCommand extends Command
 {
@@ -59,7 +57,7 @@ class KanvasAppCreateKeyCommand extends Command
 
         // A key from this command is the platform granting app ownership; keys made elsewhere carry
         // no role of their own.
-        Bouncer::scope()->onceTo(RolesEnums::getScope($app), fn () => $user->assign(RolesEnums::OWNER->value));
+        $user->assignOwnerOf($app);
 
         $this->newLine();
         $this->info('App Key created successfully: ' . $appKey->client_id);

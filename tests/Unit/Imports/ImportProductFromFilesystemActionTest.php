@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Imports;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Models\FilesystemMapper;
 use Kanvas\Imports\Enums\ImportTemplateEnum;
@@ -27,6 +28,83 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
             }
         }
         parent::tearDown();
+    }
+
+    public function testInlineMappingImportsOneVehicleWithProductAttributesWithoutMapper(): void
+    {
+        $import = new FilesystemImports();
+        $import->extra = ['inline_product_import' => [
+            'mapping' => [
+                'handler' => 'Slug',
+                'product_name' => 'Name',
+                'variant_name' => 'Name',
+                'sku' => 'Plate',
+                'attributes' => [['fromProduct' => true, 'plate' => 'Plate']],
+            ],
+            'configuration' => ['product_type_id' => 999],
+        ]];
+        $import->setRelation('filesystemMapper', null);
+        $path = $this->makeJsonlPath();
+        $csv = $this->writeCsv([
+            ['Slug', 'Name', 'Plate'],
+            ['vehicle-a', 'Vehicle A', 'L520115'],
+        ]);
+
+        new ImportProductFromFilesystemAction($import)->streamCsvFileToJsonlFile($csv, $path, $this->stubProductType());
+
+        $products = $this->readProducts($path);
+        $this->assertCount(1, $products);
+        $this->assertCount(1, $products[0]['variants']);
+        $this->assertSame('Vehicle A', $products[0]['variants'][0]['name']);
+        $this->assertSame('L520115', $products[0]['attributes'][0]['value']);
+        $this->assertTrue($products[0]['attributes'][0]['fromProduct']);
+        $this->assertNull($import->filesystemMapper);
+    }
+
+    public function testSavedMapperIgnoresInlineMappingInExtra(): void
+    {
+        $action = $this->makeAction(extra: ['inline_product_import' => [
+            'mapping' => ['product_name' => '_Injected name'],
+            'configuration' => [],
+        ]]);
+        $action->filesystemImports->filesystem_mapper_id = 123;
+        $path = $this->makeJsonlPath();
+        $csv = $this->writeCsv([['Slug', 'Name', 'SKU', 'Price'], ['original', 'Original name', 'ORIGINAL', '1']]);
+
+        $action->streamCsvFileToJsonlFile($csv, $path, $this->stubProductType());
+
+        $products = $this->readProducts($path);
+        $this->assertSame('Original name', $products[0]['name']);
+        $this->assertSame('ORIGINAL', $products[0]['sku']);
+    }
+
+    public function testInlineMappingRejectsEmptyRequiredRowValues(): void
+    {
+        $import = new FilesystemImports();
+        $import->extra = ['inline_product_import' => [
+            'mapping' => ['handler' => 'Slug', 'product_name' => 'Name', 'variant_name' => 'Name', 'sku' => 'Plate'],
+            'configuration' => ['product_type_id' => 999],
+        ]];
+        $path = $this->makeJsonlPath();
+        $csv = $this->writeCsv([['Slug', 'Name', 'Plate'], ['vehicle-a', 'Vehicle A', '']]);
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('requires sku');
+
+        new ImportProductFromFilesystemAction($import)->streamCsvFileToJsonlFile($csv, $path, $this->stubProductType());
+    }
+
+    public function testTypeResolutionFailureCleansUpJsonl(): void
+    {
+        $action = $this->makeAction();
+        $csv = $this->writeCsv([['Slug', 'Name', 'SKU'], ['vehicle-a', 'Vehicle A', 'L520115']]);
+        $jsonl = $this->makeJsonlPath();
+
+        try {
+            $action->streamCsvFileToJsonlFile($csv, $jsonl);
+            $this->fail('Expected missing product type validation to fail');
+        } catch (ValidationException) {
+            $this->assertFileDoesNotExist($jsonl);
+        }
     }
 
     public function testStreamCsvGroupsContiguousVariantsIntoOneProduct(): void
@@ -85,6 +163,65 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $this->expectExceptionMessageMatches('/grouped by handler/i');
 
         $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+    }
+
+    public function testStreamCsvGroupsByProductNameWhenNoHandlerIsMapped(): void
+    {
+        $csvPath = $this->writeCsv([
+            ['Name', 'SKU', 'Price'],
+            ['Product A', 'A-1', '10.00'],
+            ['Product A', 'A-2', '12.00'],
+            ['Product B', 'B-1', '20.00'],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $this->makeAction($this->mappingWithoutHandler())
+            ->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertCount(2, $products);
+        $this->assertSame(['A-1', 'A-2'], array_column($products[0]['variants'], 'sku'));
+        $this->assertSame('product-a', $products[0]['slug']);
+        $this->assertSame(['B-1'], array_column($products[1]['variants'], 'sku'));
+    }
+
+    public function testStreamCsvFallsBackToProductNameWhenTheHandlerCellIsBlank(): void
+    {
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Name', 'SKU', 'Price'],
+            ['', 'Product A', 'A-1', '10.00'],
+            ['  ', 'Product A', 'A-2', '12.00'],
+            ['', 'Product B', 'B-1', '20.00'],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $this->makeAction([
+            'product_name' => 'Name',
+            'sku' => 'SKU',
+            'handler' => 'Slug',
+            'price' => 'Price',
+        ])->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertCount(2, $products, 'Blank handlers must not collapse every row into one product');
+        $this->assertSame(['Product A', 'Product B'], array_column($products, 'name'));
+    }
+
+    public function testStreamCsvThrowsOnOutOfOrderProductNameWhenNoHandlerIsMapped(): void
+    {
+        $csvPath = $this->writeCsv([
+            ['Name', 'SKU', 'Price'],
+            ['Product A', 'A-1', '10.00'],
+            ['Product B', 'B-1', '20.00'],
+            ['Product A', 'A-2', '12.00'],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/product name/i');
+
+        $this->makeAction($this->mappingWithoutHandler())
+            ->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
     }
 
     public function testStreamCsvCleansUpJsonlOnError(): void
@@ -518,6 +655,18 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
             'product_slug' => 'Slug',
             'product_tags' => 'Product Tags',
             'variant_tags' => 'Variant Tags',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mappingWithoutHandler(): array
+    {
+        return [
+            'product_name' => 'Name',
+            'sku' => 'SKU',
+            'price' => 'Price',
         ];
     }
 

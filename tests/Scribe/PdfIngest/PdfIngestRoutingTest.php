@@ -180,10 +180,10 @@ class PdfIngestRoutingTest extends TestCase
         $this->assertSame('Mercury Coffee', $ingest['vendor_name']);
     }
 
-    public function test_vendor_invoice_creates_draft_bill(): void
+    public function test_vendor_invoice_with_no_known_gl_creates_a_draft_bill_for_review(): void
     {
-        // PR 10 promoted vendor-invoice routing from "log only" to "draft Bill creation".
-        // The Bill lands in DRAFT for operator review (vendor resolution + receive happen there).
+        // A first-time vendor has no default account and no coded history, so the bill waits in DRAFT
+        // with the reason instead of being coded to a guess (InboxBillIntakeTest covers the coded path).
         $pdf = $this->createFilesystemRow();
         $classifier = new FakePdfClassifier()->queue(new PdfClassificationResult(
             document_type: PdfIngestDocumentTypeEnum::VENDOR_INVOICE,
@@ -213,7 +213,8 @@ class PdfIngestRoutingTest extends TestCase
             classifier: $classifier,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log->status);
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status);
+        $this->assertNotNull($log->rejected_reason);
         $this->assertSame(PdfIngestDocumentTypeEnum::VENDOR_INVOICE, $log->document_type);
         $this->assertSame('bill', $log->linked_entity_type);
         $this->assertNotNull($log->linked_entity_id);

@@ -8,8 +8,8 @@ use Baka\Support\Str;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
-use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -100,15 +100,14 @@ final readonly class GroupMentionService
     }
 
     /**
-     * Every bare form we might be mentioned as: the phone the agent connected with, and the lid if
-     * we have learned it.
+     * Every bare form we might be mentioned as: our number, and the lid if we have learned it.
      *
      * @return list<string>
      */
     public function ownIdentities(): array
     {
         $identities = [];
-        $phone = $this->agentPhone();
+        $phone = $this->ownNumber();
         $lid = $this->receiver->configuration[self::OWN_LID_KEY] ?? null;
 
         if (! is_string($lid) || $lid === '') {
@@ -129,8 +128,7 @@ final readonly class GroupMentionService
     /**
      * Learning the lid from a `fromMe` message alone never bootstraps: in `mention` mode the agent
      * won't speak until it detects a mention, and it can't detect one until it has spoken. So the
-     * first time we need it we ask WhatsApp directly — our own phone is on the agent, and
-     * `/api/lid-from-phone-number` maps it.
+     * first time we need it we ask WhatsApp directly: `/api/lid-from-phone-number` maps our number.
      */
     private function resolveOwnLid(?string $phone): ?string
     {
@@ -168,32 +166,31 @@ final readonly class GroupMentionService
         return 'wasender:own-lid-lookup:' . (int) $this->receiver->getId();
     }
 
-    private function agentPhone(): ?string
+    /**
+     * Our number as a JID carries it: the company's connection, else the number the group agent
+     * linked while the session is not a connection yet.
+     */
+    private function ownNumber(): ?string
     {
-        $agentId = GroupConfigEnum::GROUP_AGENT_ID->get($this->receiver)
-            ?? ($this->receiver->configuration['agent_id'] ?? null);
+        $number = WaSenderHandler::connectionFor($this->receiver->app, $this->receiver->company)?->account_key
+            ?? $this->numberTheGroupAgentLinked();
+
+        return Str::trimToNull(Str::digitsOnly((string) $number));
+    }
+
+    private function numberTheGroupAgentLinked(): ?string
+    {
+        $agentId = GroupConfigEnum::agentId($this->receiver);
 
         if ($agentId === null) {
             return null;
         }
 
         try {
-            $agent = Agent::getById((int) $agentId, $this->receiver->app);
+            return WaSenderHandler::connectedNumber(Agent::getById($agentId, $this->receiver->app));
         } catch (Throwable) {
             return null;
         }
-
-        $phone = $agent->get(ConnectionFieldEnum::PHONE_NUMBER->value);
-
-        // An all-digits number comes back from custom-field storage as an int, so an is_string()
-        // guard here silently left us with no identity at all and made every mention invisible.
-        if (! is_scalar($phone)) {
-            return null;
-        }
-
-        $digits = Str::digitsOnly((string) $phone);
-
-        return $digits !== '' ? $digits : null;
     }
 
     /**

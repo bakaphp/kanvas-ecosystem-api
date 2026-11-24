@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\OpenCode\Actions;
 use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Concerns\RunsCheckedSshCommands;
-use Kanvas\Connectors\OpenCode\Concerns\UsesGitCredential;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -30,7 +29,6 @@ class PrepareSessionWorktreeAction
 {
     use PreparesHostDirectory;
     use RunsCheckedSshCommands;
-    use UsesGitCredential;
 
     /**
      * Must stay in step with `PushSessionBranchAction::KANVAS_ARTIFACTS` and the `info/exclude` seed in
@@ -74,14 +72,9 @@ class PrepareSessionWorktreeAction
         return $this->session;
     }
 
-    /**
-     * Deliberately outside the worktree root, which is mounted into the container: the mirror holds
-     * every branch this company has ever run against the repository, and an agent working on one task
-     * has no business reading — or writing — the rest of them.
-     */
     private function mirrorPath(string $slug): string
     {
-        return $this->root . '/repos/' . $this->session->companies_id . '/' . $slug . '.git';
+        return EnsureRepositoryMirrorAction::pathFor($this->root, (int) $this->session->companies_id, $slug);
     }
 
     /**
@@ -124,53 +117,15 @@ class PrepareSessionWorktreeAction
         }
     }
 
-    /**
-     * Authenticated, because a private repository is the normal case.
-     *
-     * Without the token git gets an anonymous request and GitHub answers "Repository not found" for a
-     * private repo rather than "forbidden" — so the failure reads as a typo or a missing repository and
-     * sends everyone looking in the wrong place.
-     */
     private function ensureMirror(string $mirror, string $cloneUrl): void
     {
-        $credentialPath = '/tmp/kanvas-git-clone-' . $this->session->uuid;
-        $credential = $this->lendGitCredential(
+        new EnsureRepositoryMirrorAction(
             $this->client,
-            $this->gitToken($this->session->agent),
-            $credentialPath,
-            $cloneUrl
-        );
-
-        try {
-            $exists = $this->client->exec(
-                'test -d ' . escapeshellarg($mirror) . ' && echo EXISTS || echo MISSING',
-                30
-            );
-
-            if (str_contains($exists, 'EXISTS')) {
-                // Fetch rather than re-clone: the mirror is the expensive part and it is shared by
-                // every session this company runs against the repo.
-                $this->runChecked(
-                    $this->client,
-                    'git' . $credential . ' --git-dir=' . escapeshellarg($mirror) . ' fetch --prune origin',
-                    'fetch the repository mirror',
-                    600
-                );
-
-                return;
-            }
-
-            $this->runChecked($this->client, 'mkdir -p ' . escapeshellarg(dirname($mirror)), 'create the mirror directory');
-            $this->runChecked(
-                $this->client,
-                'git' . $credential . ' clone --mirror '
-                . escapeshellarg($cloneUrl) . ' ' . escapeshellarg($mirror),
-                'clone the repository',
-                900
-            );
-        } finally {
-            $this->forgetGitCredential($this->client, $credentialPath);
-        }
+            $this->session->agent,
+            $mirror,
+            $cloneUrl,
+            $this->session->uuid
+        )->execute();
     }
 
     /**

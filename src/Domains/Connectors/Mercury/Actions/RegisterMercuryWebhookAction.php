@@ -62,7 +62,7 @@ class RegisterMercuryWebhookAction
         }
 
         if ($service->registeredWebhookId() === null) {
-            $service->register($this->receiverUrl($receiver));
+            $service->register($receiver->getUrl());
         }
 
         return $receiver;
@@ -92,10 +92,5 @@ class RegisterMercuryWebhookAction
         }
 
         return $action;
-    }
-
-    private function receiverUrl(ReceiverWebhook $receiver): string
-    {
-        return rtrim((string) config('app.url'), '/') . '/receiver/' . $receiver->uuid;
     }
 }

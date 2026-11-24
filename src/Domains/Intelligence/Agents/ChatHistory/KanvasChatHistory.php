@@ -12,7 +12,7 @@ use Override;
 use const PHP_INT_MAX;
 
 /**
- * Two differences from the vendor history, both load-bearing.
+ * Loads a bounded conversation and archives only rows actually dropped.
  *
  * It trims on load, not only on add. Since Neuron 4.1 the chat node sends `getMessages()` plus the
  * inbound turn to the provider and adds to the history afterwards, so a trim that only runs in
@@ -25,6 +25,42 @@ use const PHP_INT_MAX;
  */
 class KanvasChatHistory extends ChatHistory
 {
+    /** @var list<string>|null row ids the store returned on load, before fold and cut */
+    private ?array $loadedIds = null;
+
+    /** @var list<string> Social rows already represented by this turn's pending prompt */
+    private array $pendingSocialIds = [];
+
+    /** @param list<int> $messageIds */
+    public function setPendingSocialMessages(array $messageIds): void
+    {
+        $this->pendingSocialIds = array_map(static fn (int $id): string => 'social:' . $id, $messageIds);
+    }
+
+    /** A resumed segment may have already consumed its prompt on the previous worker. */
+    public function restoreConsumedSocialMessages(): void
+    {
+        if ($this->pendingSocialIds === []) {
+            return;
+        }
+
+        if ($this->messages === null) {
+            $this->pendingSocialIds = [];
+
+            return;
+        }
+
+        $retained = array_fill_keys($this->window()['retained'], true);
+        $this->pendingSocialIds = [];
+
+        // Keep exactly the covered window plus the consumed prompt. Re-cutting here would drop
+        // rows the turn's summary already counted as visible; the prompt has its own token reserve.
+        $this->messages = KanvasHistoryTrimmer::fold(array_values(array_filter(
+            $this->store->loadActive($this->threadId),
+            static fn (Message $message): bool => isset($retained[KanvasMessageStore::bareId($message->getId())]),
+        )));
+    }
+
     /**
      * @return list<Message>
      */
@@ -33,11 +69,38 @@ class KanvasChatHistory extends ChatHistory
     {
         if ($this->messages === null) {
             $loaded = $this->store->loadActive($this->threadId);
+            $this->loadedIds = array_map(static fn (Message $m): string => KanvasMessageStore::bareId($m->getId()), $loaded);
+            // Neuron sends history plus the pending prompt before addMessage() runs. Exclude its
+            // Social rows before folding; they are still on screen, not dropped or archived.
+            $loaded = array_values(array_filter(
+                $loaded,
+                fn (Message $message): bool => ! in_array($message->getId(), $this->pendingSocialIds, true),
+            ));
             $this->messages = $this->trimmer->trim($loaded, $this->contextWindow);
             $this->archiveDropped($loaded, $this->messages);
         }
 
         return $this->messages;
+    }
+
+    /**
+     * What the load kept, by row id: every loaded row and every row still in the window, a folded-in row
+     * counted as kept. A fold past its cap drops a row from the middle, so "the oldest kept row" cannot
+     * stand in for this.
+     *
+     * @return array{loaded: list<string>, retained: list<string>}
+     */
+    public function window(): array
+    {
+        $retained = [
+            ...self::survivingIds($this->getMessages()),
+            ...array_map(KanvasMessageStore::bareId(...), $this->pendingSocialIds),
+        ];
+
+        return [
+            'loaded' => $this->loadedIds ?? [],
+            'retained' => array_values(array_intersect($this->loadedIds ?? [], $retained)),
+        ];
     }
 
     #[Override]

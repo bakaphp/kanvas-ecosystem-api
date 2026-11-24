@@ -104,7 +104,8 @@ class AddNervousSystemTaskTool extends Tool
 
         $parent = null;
 
-        if ($parent_task_id !== null) {
+        // OpenAI fills an optional integer it has no value for with 0, which is never a task id.
+        if ($parent_task_id !== null && $parent_task_id > 0) {
             $parent = $this->resolveTaskOrError(
                 $parent_task_id,
                 "Task {$parent_task_id} was not found on this company. Use a task_id from the plan context.",

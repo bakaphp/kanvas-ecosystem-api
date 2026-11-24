@@ -1,0 +1,54 @@
+name: ${WORKTREE:?Set WORKTREE to the worktree directory name}
+
+services:
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.${WORKTREE}.rule=Host(`${WORKTREE}.localhost`)"
+      - "traefik.http.routers.${WORKTREE}.entrypoints=web"
+      - "traefik.http.services.${WORKTREE}.loadbalancer.server.port=80"
+    volumes:
+      - ".:/var/www/html"
+      - "./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+    depends_on:
+      php:
+        condition: service_started
+    networks:
+      - default
+      - proxy
+
+  php:
+    image: kanvas-ecosystem-api-php
+    build:
+      context: .
+      dockerfile: development.Dockerfile
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - sh
+      - -c
+      - php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000 --task-workers=2 --workers=2
+    environment:
+      WWWUSER: "${WWWUSER:-1000}"
+      LARAVEL_SAIL: 1
+      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
+      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+    volumes:
+      - ".:/var/www/html"
+      - "./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini:ro"
+      - "./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini:ro"
+    networks:
+      - default
+      - shared_services
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+  shared_services:
+    external: true
+    name: kanvas-ecosystem-api_sail

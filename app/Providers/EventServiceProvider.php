@@ -20,7 +20,6 @@ use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
-use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueChannelKnowledgeIndexListener;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueKnowledgeIndexListener;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -45,6 +44,7 @@ use Kanvas\NervousSystem\Plan\Listeners\WakePlanAgentOnChannelCommentListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeProjectManagerOnPlanOutcomeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
+use Kanvas\Scribe\ElectronicInvoicing\Support\FiscalFileRetention;
 use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
@@ -54,6 +54,7 @@ use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
 use Kanvas\Souk\Shipping\Listeners\RequoteShippingListener;
+use Kanvas\Souk\Taxes\Listeners\RecalculateCartTaxListener;
 use Kanvas\Subscription\Subscriptions\Listeners\CompanySubscriptionWebhookListener;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Subscription\Subscriptions\Observers\AppsStripeCustomerObserver;
@@ -83,14 +84,17 @@ class EventServiceProvider extends ServiceProvider
         'LaravelCart.Added' => [
             CartListener::class,
             RequoteShippingListener::class,
+            RecalculateCartTaxListener::class,
         ],
         'LaravelCart.Updated' => [
             CartListener::class,
             RequoteShippingListener::class,
+            RecalculateCartTaxListener::class,
         ],
         'LaravelCart.Removed' => [
             CartListener::class,
             RequoteShippingListener::class,
+            RecalculateCartTaxListener::class,
         ],
         WebhookHandled::class => [
             CompanySubscriptionWebhookListener::class,
@@ -99,7 +103,6 @@ class EventServiceProvider extends ServiceProvider
             UpdatePeopleMessageTimestampsListener::class,
         ],
         ChannelMessageAttachedEvent::class => [
-            QueueChannelKnowledgeIndexListener::class,
             WakePlanAgentOnChannelCommentListener::class,
         ],
         KnowledgeIndexRequested::class => [
@@ -136,6 +139,7 @@ class EventServiceProvider extends ServiceProvider
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         #People::observe(PeopleObserver::class);
         AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);
+        FiscalFileRetention::guardFilesystemEvents();
     }
 
     /**

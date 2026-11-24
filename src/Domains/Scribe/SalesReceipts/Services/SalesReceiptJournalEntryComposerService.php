@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\SalesReceipts\Services;
 
+use Baka\Support\Money;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
+use Kanvas\Scribe\Ledger\Services\JournalEntryRoundingService;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 use Spatie\LaravelData\DataCollection;
 
@@ -46,8 +48,8 @@ class SalesReceiptJournalEntryComposerService
             AccountSubTypeEnum::SERVICE_REVENUE,
         );
 
-        $netRevenueNative = (float) $receipt->subtotal_native - (float) $receipt->discount_native;
-        $netRevenueBase = (float) $receipt->subtotal_base - (float) $receipt->discount_base;
+        $netRevenueNative = Money::stored(Money::of((float) $receipt->subtotal_native)->minus(Money::of((float) $receipt->discount_native)));
+        $netRevenueBase = Money::stored(Money::of((float) $receipt->subtotal_base)->minus(Money::of((float) $receipt->discount_base)));
         $totalNative = (float) $receipt->total_native;
         $totalBase = (float) $receipt->total_base;
         $taxNative = (float) $receipt->tax_native;
@@ -111,7 +113,7 @@ class SalesReceiptJournalEntryComposerService
             company: $company,
             postedAt: $receipt->receipt_date,
             sourceType: 'sales_receipt',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 1)),
             sourceId: $receipt->id,
             memo: "Sales Receipt {$receipt->receipt_number}",
             source: $receipt->source,

@@ -4,6 +4,11 @@ type Organization {
     company: Company! @belongsTo(relation: "company")
     user: User! @belongsTo(relation: "user")
     name: String!
+    "The organization's tax id for any country (RNC, NIT, RUC, RFC, EIN…); digits only when it is a plain number."
+    tax_id: String
+    tax_id_type: TaxIdType @method(name: "taxIdTypeCode")
+    "Human name of the id for its country: RNC, Cédula, NIT, RFC, EIN…"
+    tax_id_label: String @method(name: "taxIdLabel")
     email: String
     phone: String
     address: String
@@ -61,6 +66,10 @@ type OrganizationAddress {
 
 input OrganizationInput {
     name: String!
+    "Tax id for any country (RNC in the Dominican Republic). On update, omitting it keeps the stored one and null clears it."
+    tax_id: String
+    "Which id tax_id is. Omitted, it is inferred from the company's country and the id's shape; given, it must fit the id."
+    tax_id_type: TaxIdType
     email: String
     phone: String
     "Legacy free-text address. Use `addresses` for anything structured."
@@ -76,6 +85,17 @@ input OrganizationInput {
     organization_type_id: ID
 }
 
+enum TaxIdType {
+    DO_RNC @enum(value: "do_rnc")
+    DO_CEDULA @enum(value: "do_cedula")
+    SV_NIT @enum(value: "sv_nit")
+    SV_NRC @enum(value: "sv_nrc")
+    PA_RUC @enum(value: "pa_ruc")
+    MX_RFC @enum(value: "mx_rfc")
+    US_EIN @enum(value: "us_ein")
+    OTHER @enum(value: "other")
+}
+
 input OrganizationPeopleInput {
     organization_id: ID!
     peoples_id: [ID!]
@@ -87,7 +107,9 @@ type OrganizationDuplicateGroup {
     reason: String!
     sample_name: String!
     organizations: [Organization!]!
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@organizations")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@organizations"
+        )
 }
 
 input OrganizationMessageInput {
@@ -123,9 +145,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\PeopleOrganizationMutation@remove"
         )
 
-    addMessageToOrganizationChannel(
-        input: OrganizationMessageInput!
-    ): Message!
+    addMessageToOrganizationChannel(input: OrganizationMessageInput!): Message!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMessageMutation@addToNotesChannel"
         )
@@ -153,7 +173,10 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationAddressMutation@add"
         )
 
-    updateOrganizationAddress(id: ID!, input: AddressInput!): OrganizationAddress!
+    updateOrganizationAddress(
+        id: ID!
+        input: AddressInput!
+    ): OrganizationAddress!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationAddressMutation@update"
         )
@@ -196,9 +219,7 @@ extend type Query @guard {
             defaultCount: 25
         )
 
-    findOrganizationDuplicates(
-        max_groups: Int
-    ): [OrganizationDuplicateGroup!]!
+    findOrganizationDuplicates(max_groups: Int): [OrganizationDuplicateGroup!]!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@findDuplicates"
         )

@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Github\Client as GitHubClient;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
+use Kanvas\Connectors\OpenCode\Jobs\WarmRepositoryMirrorJob;
 use Kanvas\Connectors\OpenCode\Services\RepoAllowListService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -112,6 +113,9 @@ class AllowCodingRepoCommand extends Command
         $agent->set(AgentCustomFieldEnum::ALLOWED_REPOS->value, json_encode($entries));
 
         $this->info('Added "' . $slug . '" to ' . $agent->name . '.');
+
+        WarmRepositoryMirrorJob::dispatch($agent, $slug);
+        $this->line('  Warming its mirror on the coding queue, so the first job starts from a fetch.');
 
         return $this->show($agent);
     }

@@ -1,3 +1,13 @@
+"""
+What an engagement shares with its person. Add a member when a model joins
+EngagementReferenceMap (ScribeInvoice, ScribeQuote, ...); the resolver reads getGraphTypeName().
+"""
+union EngagementReference
+    @union(
+        resolveType: "App\\GraphQL\\ActionEngine\\Types\\EngagementReferenceTypeResolver"
+    ) =
+    | Lead
+
 type Engagement {
     id: ID!
     uuid: String!
@@ -7,6 +17,9 @@ type Engagement {
     message: Message @belongsTo(relation: "message")
     lead: Lead @belongsTo(relation: "lead")
     people: People @belongsTo(relation: "people")
+    "Reference alias (lead, scribe_invoice, ...); null on rows written before references existed."
+    entity_type: String
+    reference: EngagementReference @morphTo(relation: "reference")
     stage: ActionPipelineStage @belongsTo(relation: "stage")
     parent: Engagement @belongsTo(relation: "parent")
     children: [Engagement!] @hasMany(relation: "children")
@@ -81,7 +94,6 @@ extend type Mutation @guard {
         )
 }
 
-# Query definition
 extend type Query @guard {
     engagements(
         where: _
@@ -95,6 +107,8 @@ extend type Query @guard {
                     "message_id"
                     "leads_id"
                     "people_id"
+                    "entity_type"
+                    "entity_id"
                     "pipelines_stages_id"
                     "entity_uuid"
                     "slug"

@@ -13,6 +13,11 @@ use Throwable;
 
 class OrganizationObserver
 {
+    public function saving(Organization $organization): void
+    {
+        $organization->resolveTaxIdType();
+    }
+
     public function creating(Organization $organization): void
     {
         $this->cleanPhoneNumber($organization);

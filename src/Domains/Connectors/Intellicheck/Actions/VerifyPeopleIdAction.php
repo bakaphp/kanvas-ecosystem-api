@@ -23,7 +23,9 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\IdVerificationFilesModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadFileCountService;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -31,6 +33,8 @@ use Throwable;
 
 class VerifyPeopleIdAction
 {
+    protected const string REPORT_FILE_BASE = 'id-verification-report';
+
     public function __construct(
         protected People $people,
         protected Lead $lead
@@ -200,7 +204,8 @@ class VerifyPeopleIdAction
                 $this->people->user,
                 'id-verification-report',
                 $this->people,
-                $this->templateData($reportData, $isShowRoom)
+                $this->templateData($reportData, $isShowRoom),
+                fileName: $this->reserveReportFileName()
             );
 
             $engagement ??= $this->resolveEngagement($parentEngagement, $reuseExistingEngagement);
@@ -224,6 +229,22 @@ class VerifyPeopleIdAction
 
             return null;
         }
+    }
+
+    /** Reserved before rendering, as the client does. */
+    protected function reserveReportFileName(): string
+    {
+        return new LeadFileCountService($this->lead)->reserveName(self::REPORT_FILE_BASE, 'pdf');
+    }
+
+    /** Only a license side is numbered, from its own counter; the selfie keeps `face_image.jpg`. */
+    protected function reserveImageFileName(string $fieldName): string
+    {
+        if (! in_array($fieldName, IdVerificationFilesModeEnum::SIDES, true)) {
+            return $fieldName . '.jpg';
+        }
+
+        return new LeadFileCountService($this->lead)->reserveName(Str::slug($fieldName), 'jpg');
     }
 
     protected function templateData(array $reportData, bool $isShowRoom): array
@@ -392,7 +413,7 @@ class VerifyPeopleIdAction
                 continue;
             }
 
-            $file = $this->resolveFile($image, $fieldName . '.jpg');
+            $file = $this->resolveFile($image, $fieldName);
 
             if ($file === null) {
                 continue;
@@ -406,7 +427,7 @@ class VerifyPeopleIdAction
             $file->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
         }
 
-        new DriverLicenseCombinedPdfService($engagement->message)->attach(
+        new DriverLicenseCombinedPdfService($engagement->message, $this->lead)->attach(
             $isIdValid,
             $isExpired,
             (string) ($verificationResults['message'] ?? ''),
@@ -418,10 +439,10 @@ class VerifyPeopleIdAction
      * Tenant-scoped because the uuid comes from a caller: an unscoped lookup would attach another
      * company's file.
      */
-    protected function resolveFile(string $image, string $fileName): ?Filesystem
+    protected function resolveFile(string $image, string $fieldName): ?Filesystem
     {
         if (! Str::isUuid($image)) {
-            return $this->createFileFromBase64($image, $fileName);
+            return $this->createFileFromBase64($image, $this->reserveImageFileName($fieldName));
         }
 
         try {

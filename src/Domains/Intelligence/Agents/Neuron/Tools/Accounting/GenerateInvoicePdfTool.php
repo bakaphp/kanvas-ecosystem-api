@@ -5,15 +5,24 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GeneratesScribeDocumentPdfForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Delivery\Services\DocumentFilesService;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfPdfSourceEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
+use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
+use Throwable;
 
 /** Renders an invoice or credit note as a printable PDF and attaches it to the document. */
 #[AgentTool(name: 'Generate Invoice PDF', category: 'accounting')]
@@ -28,7 +37,8 @@ class GenerateInvoicePdfTool extends Tool
     protected ?string $description = 'Renders an invoice (or credit note) as a PDF — customer block, lines, totals, amount '
         . 'paid and balance due — and attaches it to the invoice in Kanvas. Use it when someone asks '
         . 'for the invoice as a document to send or review. This renders what Kanvas holds; it is not '
-        . 'the vendor PDF an invoice email arrived with.';
+        . 'the vendor PDF an invoice email arrived with. For an e-CF it returns the legal PDF with DGII\'s QR and '
+        . 'security code, which exists only once DGII accepted it, and never renders a plain copy.';
 
     /**
      * @return array<int, ToolProperty>
@@ -71,9 +81,86 @@ class GenerateInvoicePdfTool extends Tool
             return ['generated' => false, ...$invoice];
         }
 
+        $fiscal = EcfCompliance::current($invoice);
+        if ($fiscal !== null) {
+            return $this->ecfPdf($invoice, $fiscal);
+        }
+
         return [
             ...$this->generateDocumentPdf($invoice, $template_name),
             'invoice_number' => $invoice->invoice_number,
+        ];
+    }
+
+    /**
+     * The stored Kanvas copy is reused until the company's logo is attached after it was rendered; then it is
+     * rendered again, so a PDF made before the logo upload does not keep going out without one.
+     */
+    private function ourLegalPdf(Invoice $invoice, ?Users $user): ?Filesystem
+    {
+        $stored = $invoice->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD);
+        $logo = $invoice->company->getFileByName('photo');
+        $stale = $stored !== null && $logo !== null && $logo->created_at >= $stored->created_at;
+
+        if ($stored !== null && ! $stale) {
+            return $stored->filesystem;
+        }
+
+        return $user !== null
+            ? FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user)
+            : $stored?->filesystem;
+    }
+
+    /**
+     * An e-CF invoice's only valid PDF carries DGII's stamp and QR, which exist once DGII accepted it. A plain
+     * render looks like the invoice but is not a fiscal document, so it is never produced for one.
+     *
+     * @return array<string, mixed>
+     */
+    private function ecfPdf(Invoice $invoice, FiscalDocument $fiscal): array
+    {
+        if (! $fiscal->status->isAccepted()) {
+            return [
+                'generated' => false,
+                'reason' => 'ecf_not_accepted',
+                'ecf_status' => $fiscal->status->value,
+                'message' => "Invoice {$invoice->invoice_number} is an e-CF and DGII has not accepted it ({$fiscal->status->value}), "
+                    . 'so its PDF does not exist yet: the QR and security code come with the acceptance. Check ecf_status; '
+                    . 'do not offer a plain PDF in its place, it would not be a valid fiscal document.',
+            ];
+        }
+
+        $user = $this->contextUser();
+        $prefersOurs = EcfPdfSourceEnum::forCompany($invoice->company, $fiscal->provider) === EcfPdfSourceEnum::KANVAS;
+
+        try {
+            $file = $prefersOurs
+                ? $this->ourLegalPdf($invoice, $user)
+                : new DocumentFilesService()->ecfPdf($invoice)
+                    ?? ($user !== null ? FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user) : null);
+        } catch (Throwable $e) {
+            report($e);
+            $file = null;
+        }
+
+        if ($file === null) {
+            return [
+                'generated' => false,
+                'reason' => 'ecf_pdf_unavailable',
+                'message' => "DGII accepted invoice {$invoice->invoice_number} but its e-CF PDF is not available right now. Say so; do not offer a plain PDF instead.",
+            ];
+        }
+
+        return [
+            'generated' => true,
+            'filesystem_id' => $file->getId(),
+            'file_url' => $file->url,
+            'file_name' => $file->name,
+            'document_id' => $invoice->getId(),
+            'invoice_number' => $invoice->invoice_number,
+            'is_ecf' => true,
+            'message' => 'This is the legal e-CF PDF with DGII\'s QR and security code (' . ($prefersOurs ? 'Kanvas layout' : 'provider copy') . '). '
+                . 'Hand the person a link with get_file_link, never the raw id.',
         ];
     }
 

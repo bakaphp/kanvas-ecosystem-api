@@ -44,6 +44,7 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
         ?FilterExpression $recallScope = null,
         ?string $inContextThreadId = null,
         ?int $inContextSince = null,
+        private readonly array $retainedMessageIds = [],
     ) {
         $scope = [self::scopeFor($appId, $companyId, $recallScope)];
 
@@ -102,7 +103,29 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
             return [];
         }
 
-        return array_map(self::label(...), $documents);
+        return array_map(self::label(...), array_values(array_filter($documents, $this->notOnScreen(...))));
+    }
+
+    /**
+     * A lead's rollup carries Social ids, a memory entry the two Social messages of its exchange, so an
+     * entry is left out only when both are provably still in the window. One without both (written
+     * before the ids were stored, or whose reply was never stamped) stays: a duplicate costs tokens, a
+     * wrongly suppressed one can hide the only copy of a fact.
+     */
+    private function notOnScreen(Document $document): bool
+    {
+        if ($this->retainedMessageIds === []) {
+            return true;
+        }
+
+        $metadata = $document->getMetadata();
+        $inbound = (int) ($metadata['inbound_message_id'] ?? 0);
+        $reply = (int) ($metadata['reply_message_id'] ?? 0);
+
+        return $inbound <= 0
+            || $reply <= 0
+            || ! in_array($inbound, $this->retainedMessageIds, true)
+            || ! in_array($reply, $this->retainedMessageIds, true);
     }
 
     public static function label(Document $document): Document

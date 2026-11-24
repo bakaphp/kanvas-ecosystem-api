@@ -17,10 +17,10 @@ use Override;
 use Throwable;
 
 /**
- * Destroys the agent's coding container.
+ * Destroys the agent's coding runtime.
  *
  * Distinct from cancelling a job: cancelling stops one piece of work, this removes the runtime that
- * every job on this agent shares. It is for a container that has stopped answering, where cancelling
+ * every job on this agent shares. It is for a runtime that has stopped answering, where cancelling
  * would go nowhere because the thing being asked is the thing that is broken.
  *
  * Requires a human to have asked. The blast radius is every job currently running on this agent, and
@@ -35,12 +35,12 @@ class KillHarnessCodingRuntimeTool extends Tool implements RequiresSystemAgent
 
     protected string $name = 'kill_self_hosted_coding_runtime';
 
-    protected ?string $description = 'Destroy this agent\'s coding container — the shared runtime every one of its '
+    protected ?string $description = 'Destroy this agent\'s coding runtime — the shared process every one of its '
         . 'jobs runs inside. Use it only when the runtime itself is broken: jobs not responding, '
-        . 'checks timing out, the container wedged. It kills EVERY job currently running on this '
+        . 'checks timing out, the runtime wedged. It kills EVERY job currently running on this '
         . 'agent, so to stop one job use cancel_self_hosted_coding_job instead. Committed work, '
         . 'branches and workspaces are on the host and survive. The next task starts a fresh '
-        . 'container automatically. Only call this when a human has asked for it.';
+        . 'runtime automatically. Only call this when a human has asked for it.';
 
     public function __construct(
         private readonly Agent $agent,
@@ -97,7 +97,7 @@ class KillHarnessCodingRuntimeTool extends Tool implements RequiresSystemAgent
 
         return $this->ok(
             $result,
-            guidance: 'The container is gone and any jobs inside it are closed as failed. The next task '
+            guidance: 'The runtime is gone and any jobs inside it are closed as failed. The next task '
                 . 'dispatched starts a fresh one — say that, and say how many jobs were stopped.'
         );
     }

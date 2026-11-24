@@ -12,17 +12,14 @@ use Kanvas\Scribe\Ledger\Actions\OpenFiscalPeriodAction;
 use RuntimeException;
 
 /**
- * Opens a calendar-month fiscal period on demand when a posting date has none.
+ * Opens calendar-month fiscal periods on demand.
  *
- * Feeds (bank transactions, ERP imports) carry dates we don't control — they arrive whenever the external
- * system says they arrived, including months nobody opened. PostJournalEntryAction hard-throws with no
- * period, so a feed without this would break on its first out-of-range date.
- *
- * Deliberately does NOT auto-open for Kanvas-native documents: a user creating an invoice dated three years
- * out should hit the guard, not silently mint a period. Only ingest paths call this.
- *
- * Extracted from Acumatica's PullJournalEntriesAction::ensurePeriod so the bank feed and the ERP import
- * share one implementation.
+ * Two callers with two different reaches:
+ *   - Feeds (bank transactions, ERP imports) carry dates we don't control, so they open whatever month a
+ *     row lands in through ensureOpenPeriodFor().
+ *   - Every other posting goes through PostJournalEntryAction, which only opens inside the rolling window
+ *     (the current calendar year plus the next), so postings never stop on January 1st. A document dated
+ *     three years out still hits the "no fiscal period" guard rather than silently minting one.
  */
 class FiscalPeriodAutoOpenService
 {
@@ -66,5 +63,78 @@ class FiscalPeriodAutoOpenService
             // tenant's intended shape, so leave it to PostJournalEntryAction to reject explicitly.
             return false;
         }
+    }
+
+    /**
+     * The posting-path variant: opens the month only when it falls inside the rolling window.
+     */
+    public function ensureOpenPeriodWithinWindow(
+        AppInterface $app,
+        CompanyInterface $company,
+        Carbon $postedAt,
+        ?UserInterface $user = null,
+    ): bool {
+        if (! $this->isWithinRollingWindow($postedAt)) {
+            return false;
+        }
+
+        return $this->ensureOpenPeriodFor(
+            $app,
+            $company,
+            $postedAt,
+            $user
+        );
+    }
+
+    /**
+     * Opens every month of the rolling window that has no period yet.
+     *
+     * @return int how many months were opened
+     */
+    public function openRollingWindow(
+        AppInterface $app,
+        CompanyInterface $company,
+        ?UserInterface $user = null,
+        ?Carbon $today = null,
+    ): int {
+        [$cursor, $windowEnd] = $this->rollingWindow($today);
+        $opened = 0;
+
+        while ($cursor->lte($windowEnd)) {
+            $hadPeriod = $this->periodCloseService->findPeriodFor($app->getId(), $company->getId(), $cursor) !== null;
+
+            if (! $hadPeriod && $this->ensureOpenPeriodFor(
+                $app,
+                $company,
+                $cursor->copy(),
+                $user
+            )) {
+                $opened++;
+            }
+
+            $cursor->addMonthNoOverflow()->startOfMonth();
+        }
+
+        return $opened;
+    }
+
+    public function isWithinRollingWindow(Carbon $date, ?Carbon $today = null): bool
+    {
+        [$windowStart, $windowEnd] = $this->rollingWindow($today);
+
+        return $date->betweenIncluded($windowStart, $windowEnd);
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function rollingWindow(?Carbon $today): array
+    {
+        $today ??= Carbon::today();
+
+        return [
+            $today->copy()->startOfYear(),
+            $today->copy()->addYearNoOverflow()->endOfYear(),
+        ];
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
 
 /**
@@ -69,6 +70,8 @@ class SubmitBillForApprovalAction
                 'total_native' => (float) $bill->total_native,
                 'currency' => $bill->currency,
                 'vendor_organization_id' => $bill->vendor_organization_id,
+                // A bill-to mismatch the agent was told to book anyway: the approver is the person who decides it.
+                'addressee_mismatch' => ($bill->metadata ?? [])[BillAddresseeService::METADATA_KEY] ?? null,
             ],
         )->execute();
     }

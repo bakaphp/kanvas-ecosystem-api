@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
+use Throwable;
 
 /**
  * @deprecated Use HasApprovals::requestApproval() on the entity directly.
@@ -54,7 +55,7 @@ class RequestApprovalAction
 
     private function legacyQueueItem(): ApprovalQueueItem
     {
-        return ApprovalQueueItem::create([
+        $item = ApprovalQueueItem::create([
             'apps_id' => $this->entity->app->getId(),
             'companies_id' => $this->entity->company->getId(),
             'requested_by_users_id' => $this->requestedByUser?->getId(),
@@ -64,5 +65,28 @@ class RequestApprovalAction
             'payload' => $this->payload,
             'status' => ApprovalQueueStatusEnum::PENDING,
         ]);
+
+        $this->notifyLegacyApprovers();
+
+        return $item;
+    }
+
+    /**
+     * A generic request is notified by the approvals domain; a legacy row has nobody else to do it, so the
+     * document DMs its approvers itself. Best-effort: the queue row is already written.
+     */
+    private function notifyLegacyApprovers(): void
+    {
+        if (! method_exists($this->entity, 'notifyApproverEmailsOnSlack')) {
+            return;
+        }
+
+        try {
+            $this->entity->notifyApproverEmailsOnSlack(
+                new ResolveApproverEmailAction($this->targetType, (int) $this->entity->getKey())->execute()
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

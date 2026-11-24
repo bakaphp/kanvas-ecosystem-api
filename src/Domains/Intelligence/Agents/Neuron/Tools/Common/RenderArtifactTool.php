@@ -86,8 +86,8 @@ class RenderArtifactTool extends Tool
             return $this->invalidArgs('props is not a valid JSON object.');
         }
 
-        $decoded = $this->decodeJsonObjectParam($props);
         $service = new ArtifactBlockService();
+        [$decoded, $truncated] = $service->truncateLists($resolved, $this->decodeJsonObjectParam($props));
         $errors = $service->errors($resolved, $decoded);
 
         if ($errors !== []) {
@@ -95,8 +95,9 @@ class RenderArtifactTool extends Tool
         }
 
         return $this->ok(
-            ['block' => $service->render($resolved, $title, $decoded)],
+            ['block' => $service->render($resolved, $title, $decoded), ...($truncated !== [] ? ['truncated' => $truncated] : [])],
             'Paste the block into your reply exactly as returned, fences included, where it belongs in the answer.'
+            . ($truncated !== [] ? ' ' . implode('; ', $truncated) . '.' : '')
         );
     }
 

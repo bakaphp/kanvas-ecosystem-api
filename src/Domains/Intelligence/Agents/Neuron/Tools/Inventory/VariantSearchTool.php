@@ -5,18 +5,21 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\Concerns\RespondsWithNoInventoryMatches;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Services\VariantSearchService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
+use Throwable;
 
-#[AgentTool(name: 'Variant Search', category: 'inventory')]
+#[AgentTool(name: 'Variant Search', category: 'inventory', readOnly: true)]
 class VariantSearchTool extends Tool
 {
     // The tenant comes from the agent context, never from LLM-supplied ids, which are prompt-injectable.
     use HasKanvasContext;
+    use RespondsWithNoInventoryMatches;
 
     protected string $name = 'variant_search';
 
@@ -52,7 +55,14 @@ class VariantSearchTool extends Tool
             return ['message' => 'Please provide a keyword (name or SKU) to search for variants.'];
         }
 
-        $variants = $this->searchService->search($this->app, $this->company, $keyword);
+        try {
+            $variants = $this->searchService->search($this->app, $this->company, $keyword);
+        } catch (Throwable $e) {
+            // The engine's message names index fields and filters — log it, never speak it.
+            report($e);
+
+            return $this->searchUnavailableResponse('variant');
+        }
 
         if ($variants === []) {
             return ['message' => "No variants found matching '{$keyword}'."];

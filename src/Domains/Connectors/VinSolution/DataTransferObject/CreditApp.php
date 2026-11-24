@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 
+use Baka\Support\Str;
 use DateTime;
+use Illuminate\Support\Arr;
+use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Support\Phone;
 use Kanvas\Guild\Customers\Models\People;
@@ -27,6 +30,11 @@ class CreditApp extends Data
         $company = $message->company;
         $message = $message->getMessage();
         $formData = $message['data']['form'];
+
+        if (($message['verb'] ?? '') === ActionEnum::BUSINESS_CREDIT_APP->value) {
+            $formData = static::businessFormAsCreditApp($formData);
+        }
+
         $durationAtAddress = explode('.', $formData['housing']['time_at_address'] ?? '');
         $durationAtJob = explode('.', $formData['financial']['years_at_current_employment'] ?? '');
         $durationAtPreviousJob = explode('.', $formData['financial']['years_at_previous_employment'] ?? '');
@@ -57,7 +65,7 @@ class CreditApp extends Data
                     'City' => $formData['housing']['city']['name'] ?? ($formData['housing']['city'] ?? ''),
                     'State' => $formData['housing']['state']['code'] ?? '',
                     ///'County' => $formData['housing']['county'] ?? 'N/A',
-                    'PostalCode' => ! empty($formData['housing']['zip_code']) ? static::cleanZipCode((string) $formData['housing']['zip_code']) : '',
+                    'PostalCode' => ! empty($formData['housing']['zip_code']) ? Str::digitsOnly((string) $formData['housing']['zip_code']) : '',
                     'Duration' => isset($formData['housing']['time_at_address']) && ! empty($formData['housing']['time_at_address']) ? (string) $formData['housing']['time_at_address'] : '0',
                 ],
             ],
@@ -87,7 +95,7 @@ class CreditApp extends Data
                         'StreetAddress2' => $formData['financial']['current_employer_address_line2'] ?? '',
                         'City' => $formData['financial']['city'] ?? '',
                         'State' => $currentEmployerState?->code ?? $defaultState,
-                        'PostalCode' => ! empty($formData['financial']['zip_code']) ? static::cleanZipCode((string) $formData['financial']['zip_code']) : '',
+                        'PostalCode' => ! empty($formData['financial']['zip_code']) ? Str::digitsOnly((string) $formData['financial']['zip_code']) : '',
                     ],
                 ],
                 'PreviousEmploymentInformation' => [
@@ -100,7 +108,7 @@ class CreditApp extends Data
                         'StreetAddress2' => $formData['financial']['previous_employer_address_line2'] ?? '',
                         'City' => $formData['financial']['previous_city']['name'] ?? '',
                         'State' => $previousEmployerStateId > 0 ? ($previousEmployersState?->code ?? $defaultState) : '',
-                        'PostalCode' => ! empty($formData['financial']['previous_zip_code']) ? static::cleanZipCode((string) $formData['financial']['previous_zip_code']) : '',
+                        'PostalCode' => ! empty($formData['financial']['previous_zip_code']) ? Str::digitsOnly((string) $formData['financial']['previous_zip_code']) : '',
                     ],
                 ],
                 'BankInformation' => [
@@ -153,10 +161,25 @@ class CreditApp extends Data
         );
     }
 
-    protected static function cleanZipCode(string $zipCode): string
+    /**
+     * The business form flattens the officer under `cojoint`. Their previous_* keys are a home
+     * address; left in `financial` they would be read as a previous employer's.
+     */
+    protected static function businessFormAsCreditApp(array $formData): array
     {
-        //limit to only 5 digits to 9 digits
-        return preg_replace('/\D/', '', $zipCode);
+        $officer = $formData['cojoint'] ?? [];
+
+        return [
+            'personal' => $officer,
+            'housing' => $officer,
+            'financial' => [
+                ...Arr::except($officer, ['previous_state', 'previous_city', 'previous_zip_code']),
+                'current_employer_address_line1' => $officer['current_employment_address'] ?? '',
+                'city' => $officer['current_employment_city'] ?? '',
+                'state' => $officer['current_employment_state'] ?? null,
+                'zip_code' => $officer['current_employment_zip_code'] ?? '',
+            ],
+        ];
     }
 
     /**

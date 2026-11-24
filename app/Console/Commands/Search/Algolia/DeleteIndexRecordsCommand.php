@@ -37,11 +37,13 @@ class DeleteIndexRecordsCommand extends Command
 
         if (empty($indexName)) {
             $this->error('The index name param is required.');
+
             return;
         }
 
         if (empty($filter)) {
             $this->error('The filter param is required.');
+
             return;
         }
 
@@ -57,7 +59,7 @@ class DeleteIndexRecordsCommand extends Command
             );
             $this->info("Records deleted from index '{$indexName}' with filter '{$filter}'.");
         } catch (Exception $e) {
-            $this->error("Error: " . $e->getMessage());
+            $this->error('Error: ' . $e->getMessage());
         }
     }
 }

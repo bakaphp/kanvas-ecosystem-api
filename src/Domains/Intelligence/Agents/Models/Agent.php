@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -14,6 +15,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -28,9 +30,11 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SetMyEmailSignatureTool;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
@@ -39,6 +43,7 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
@@ -67,6 +72,9 @@ use Override;
  * @property string|null $user_context
  * @property string|null $tools_config
  * @property array|null $voice_config
+ * @property array|null $sms_config
+ * @property array|null $whatsapp_config
+ * @property array|null $reach_out_config
  * @property string|null $deployment_status
  * @property int|null $agent_model_id
  * @property int|null $agent_llm_config_id
@@ -132,6 +140,9 @@ class Agent extends BaseModel
         'user_context',
         'tools_config',
         'voice_config',
+        'sms_config',
+        'whatsapp_config',
+        'reach_out_config',
         'deployment_status',
         'agent_model_id',
         'agent_llm_config_id',
@@ -167,6 +178,9 @@ class Agent extends BaseModel
             'role' => Json::class,
             'identity' => Json::class,
             'voice_config' => Json::class,
+            'sms_config' => Json::class,
+            'whatsapp_config' => Json::class,
+            'reach_out_config' => Json::class,
             'is_active' => 'boolean',
             'is_sub_agent' => 'boolean',
             'last_state_changed_at' => 'datetime',
@@ -176,6 +190,17 @@ class Agent extends BaseModel
     public function type(): BelongsTo
     {
         return $this->belongsTo(AgentType::class, 'agent_type_id');
+    }
+
+    /**
+     * @param class-string $handler
+     */
+    public function scopeOfHandler(Builder $query, string $handler): Builder
+    {
+        return $query->whereHas(
+            'type',
+            fn (Builder $type): Builder => $type->where('handler', $handler)
+        );
     }
 
     public function model(): BelongsTo
@@ -355,6 +380,110 @@ class Agent extends BaseModel
             ->latestOfMany();
     }
 
+    public function phoneNumber(AgentPhoneChannelEnum $channel): ?string
+    {
+        return Str::trimToNull((string) ($this->{$channel->configColumn()}['phone_number'] ?? ''));
+    }
+
+    public function smsPhoneNumber(): ?string
+    {
+        return $this->phoneNumber(AgentPhoneChannelEnum::SMS);
+    }
+
+    public function whatsappPhoneNumber(): ?string
+    {
+        return Str::trimToNull((string) ($this->whatsapp_config['phone_number'] ?? ''));
+    }
+
+    /**
+     * Whether new leads get this agent's first message. The switch is the agent's own
+     * (`reach_out_config.new_leads`), never a company setting or a rule: a company where no agent
+     * has it on does not reach out.
+     */
+    public function reachesOutToNewLeads(): bool
+    {
+        return (bool) ($this->reach_out_config['new_leads'] ?? false);
+    }
+
+    /**
+     * @return list<string> the lead sources it is limited to; empty reaches every source
+     */
+    public function reachOutLeadSources(): array
+    {
+        return array_values((array) ($this->reach_out_config['lead_source_allowlist'] ?? []));
+    }
+
+    /**
+     * @param list<string>|null $leadSources null keeps the sources it already has
+     */
+    public function switchReachOut(bool $enabled = true, ?array $leadSources = null): void
+    {
+        $config = $this->reach_out_config ?? [];
+        $config['new_leads'] = $enabled;
+
+        if ($leadSources !== null) {
+            $config['lead_source_allowlist'] = array_values($leadSources);
+        }
+
+        $this->reach_out_config = $config;
+        $this->saveOrFail();
+    }
+
+    /**
+     * The agent that reaches out to the company's new leads: the oldest when several have it on.
+     */
+    public static function forNewLeads(AppInterface $app, CompanyInterface $company): ?self
+    {
+        return self::query()
+            ->servingCompany($app, $company)
+            ->whereNotNull('reach_out_config')
+            ->orderBy('id')
+            ->get()
+            ->first(fn (self $agent): bool => $agent->reachesOutToNewLeads());
+    }
+
+    /**
+     * The agents of the company an integration belongs to, oldest first: the order that decides
+     * who keeps a number or an address two of them were given. A row written before integrations
+     * were app-scoped has no app; the company bounds it.
+     */
+    public function scopeOfIntegration(Builder $query, IntegrationsCompany $integrationCompany): Builder
+    {
+        return $query
+            ->fromCompany((int) $integrationCompany->companies_id)
+            ->when(
+                $integrationCompany->apps_id !== null,
+                fn (Builder $agents) => $agents->fromApp((int) $integrationCompany->apps_id)
+            )
+            ->notDeleted()
+            ->orderBy('id');
+    }
+
+    /**
+     * The agent whose WhatsApp number this is, which is who answers what arrives on it.
+     */
+    public static function owningWhatsAppNumber(IntegrationsCompany $integrationCompany, string $number): ?self
+    {
+        return self::query()
+            ->ofIntegration($integrationCompany)
+            ->whereNotNull('whatsapp_config')
+            ->get()
+            ->first(fn (self $agent): bool => Str::toE164((string) $agent->whatsappPhoneNumber()) === $number);
+    }
+
+    /**
+     * The company's own active agents. An agent is never shared between companies (only an agent
+     * type is): a `companies_id = 0` row is the template onboarding clones, and works for nobody.
+     */
+    public function scopeServingCompany(Builder $query, AppInterface $app, CompanyInterface $company): Builder
+    {
+        return $query
+            ->fromApp($app->getId())
+            ->fromCompany($company->getId())
+            ->where('is_active', 1)
+            ->notDeleted();
+    }
+
     public function isContainerRuntime(): bool
     {
         if ($this->activeDeployment instanceof AgentDeployment) {
@@ -436,6 +565,17 @@ class Agent extends BaseModel
             && $handler !== ''
             && class_exists($handler)
             && is_subclass_of($handler, ConversesWithUser::class);
+    }
+
+    /**
+     * Sending email and signing it as the person the agent acts for are separate capabilities: an agent
+     * signs only once set_my_email_signature is granted to it, so granting plain sending never starts
+     * putting someone's name under mail they did not configure.
+     */
+    public function signsEmailsAsOwner(): bool
+    {
+        return $this->conversesWithUser()
+            && $this->selectedTools()->active()->where('handler', SetMyEmailSignatureTool::class)->exists();
     }
 
     /**

@@ -69,20 +69,37 @@ class PullPeopleAction
 
         $people = new SyncPeopleByThirdPartyCustomFieldAction($peopleData)->execute();
 
-        if (! empty($this->payload['AccountId'])) {
-            /** @var Organization|null $organization */
-            $organization = Organization::getByCustomFieldTransactionSafe(
-                CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value,
-                (string) $this->payload['AccountId'],
-                $this->company,
-            );
+        $organization = $this->accountOrganization();
 
-            // Link via the pivot directly instead of the People DTO's `organization` name field —
-            // that path funnels through CreateOrganizationAction, which always fires a workflow
-            // and would risk the same outbound-sync loop the runWorkflow:false above guards against.
-            $organization?->addPeople($people);
+        // Link via the pivot directly instead of the People DTO's `organization` name field —
+        // that path funnels through CreateOrganizationAction, which always fires a workflow
+        // and would risk the same outbound-sync loop the runWorkflow:false above guards against.
+        if ($organization !== null) {
+            $organization->addPeople($people);
+        } else {
+            Organization::linkPersonByEmailDomain($people);
         }
 
         return $people;
+    }
+
+    /**
+     * Null both when the Contact has no Account and when its Account hasn't been synced yet; either
+     * way the email domain is the only lead left.
+     */
+    private function accountOrganization(): ?Organization
+    {
+        if (empty($this->payload['AccountId'])) {
+            return null;
+        }
+
+        /** @var Organization|null $organization */
+        $organization = Organization::getByCustomFieldTransactionSafe(
+            CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value,
+            (string) $this->payload['AccountId'],
+            $this->company,
+        );
+
+        return $organization;
     }
 }

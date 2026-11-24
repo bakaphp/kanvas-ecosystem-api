@@ -4,15 +4,23 @@ namespace App\Console;
 
 use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
 use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
+use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
+use App\Console\Commands\Connectors\Brex\PullBrexCommand;
+use App\Console\Commands\Connectors\BrushCrazy\Schedules\BrushCrazySchedule;
+use App\Console\Commands\Connectors\Dhl\PollDhlTrackingCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
+use App\Console\Commands\Connectors\SalesAssist\Supervisor\DispatchSupervisorReviewsCommand;
+use App\Console\Commands\Connectors\SalesAssist\Supervisor\SendSupervisorDigestCommand;
+use App\Console\Commands\Connectors\WebPos\PullWebPosReceivedEcfsCommand;
 use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
 use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
+use App\Console\Commands\Ecosystem\KanvasAppKeyAlertPendingSourcesCommand;
 use App\Console\Commands\Ecosystem\PruneModelCacheTagsCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
@@ -29,10 +37,14 @@ use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
 use App\Console\Commands\Search\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
+use App\Console\Commands\Souk\AlertUnverifiedDeliveryOrdersCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
+use App\Console\Commands\Souk\CheckoutReconcileCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
+use App\Console\Commands\Workflow\PruneIntegrationHistoryCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Kanvas\Apps\Models\AppKeySource;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
@@ -66,7 +78,17 @@ class Kernel extends ConsoleKernel
         // never one statement.
         $schedule->command('model:prune', ['--model' => [StoredWorkflow::class]])->dailyAt('03:30')
             ->withoutOverlapping(1380)->onOneServer();
+        // Every workflow run that fails or is skipped leaves a history row; without this the table only
+        // grows. Time-boxed per run, so it finishes before the business day and never overlaps.
+        $schedule->command(PruneIntegrationHistoryCommand::class)->dailyAt('04:00')
+            ->withoutOverlapping(60)->onOneServer();
+        $schedule->command('model:prune', ['--model' => [AppKeySource::class]])->dailyAt('03:45')
+            ->withoutOverlapping(120)->onOneServer();
+        $schedule->command(KanvasAppKeyAlertPendingSourcesCommand::class)->everyTenMinutes()
+            ->withoutOverlapping(20)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
+        $schedule->command(AlertUnverifiedDeliveryOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
+        $schedule->command(PollDhlTrackingCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         // Hourly matches the descriptor cache's soft TTL, so a company's first turn of the day is warm
@@ -92,6 +114,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping(120);
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
+        $schedule->command(CheckoutReconcileCommand::class)->everyFiveMinutes()->withoutOverlapping(10)->onOneServer();
 
         // Event — roll the booking window forward daily so active schedule rules always
         // have slots up to their app's horizon, and refresh price snapshots on unsold ones.
@@ -115,6 +138,12 @@ class Kernel extends ConsoleKernel
         // 7-day lookback that comfortably outruns that window.
         $schedule->command(PullMercuryCommand::class, ['--with-ar'])->dailyAt('02:00')->withoutOverlapping()->onOneServer();
 
+        // Brex — no transaction webhook is wired, so this pull is the whole feed (cash + card), not a recovery sweep.
+        $schedule->command(PullBrexCommand::class)->dailyAt('02:30')->withoutOverlapping()->onOneServer();
+
+        // WebPOS — vendors' e-CFs into draft bills for the AP agent. Gated per company on scribe-ecf-provider=webpos.
+        $schedule->command(PullWebPosReceivedEcfsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+
         // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
         // rollups, plan + capability sweeps, the daily-learning loop.
         NervousSystemSchedule::register($schedule);
@@ -122,6 +151,10 @@ class Kernel extends ConsoleKernel
         // Lead follow-up v2 — hourly fan-out + daily summary. Timing map +
         // rationale live in LeadFollowUpSchedule.
         LeadFollowUpSchedule::register($schedule);
+
+        // Each job decides in the dealer's own time whether conversations are reviewed.
+        $schedule->command(DispatchSupervisorReviewsCommand::class)->hourly()->withoutOverlapping(10)->onOneServer()->runInBackground();
+        $schedule->command(SendSupervisorDigestCommand::class)->dailyAt('12:00')->withoutOverlapping(60)->onOneServer()->runInBackground();
 
         // Scribe — daily AR-aging fan-out (per (app, company) tuple with open AR).
         ScribeSchedule::register($schedule);
@@ -132,6 +165,12 @@ class Kernel extends ConsoleKernel
 
         // Analytics — weekly Engage usage leaderboard to each company's managers.
         AnalyticsSchedule::register($schedule);
+
+        // BrushCrazy — 15-minute incremental pull behind the mirror webhooks, per mirrored studio.
+        BrushCrazySchedule::register($schedule);
+
+        // Communication — the setup/cleanup sweep for messaging connections.
+        CommunicationSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

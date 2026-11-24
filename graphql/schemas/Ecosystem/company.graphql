@@ -276,6 +276,7 @@ extend type Query @guard {
         )
 
     companyUsers(
+        companies_id: ID
         search: String
         where: _ @whereConditions(columnsEnum: CompanyUserColumn)
         orderBy: _ @orderBy(columnsEnum: CompanyUserColumn)

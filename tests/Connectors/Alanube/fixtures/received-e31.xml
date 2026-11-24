@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic DGII e-CF (vendor RNC, e-NCF and amounts are not real). -->
+<ECF>
+  <Encabezado>
+    <Version>1.0</Version>
+    <IdDoc>
+      <TipoeCF>31</TipoeCF>
+      <eNCF>E310000009001</eNCF>
+      <FechaVencimientoSecuencia>31-12-2028</FechaVencimientoSecuencia>
+      <TipoIngresos>01</TipoIngresos>
+      <TipoPago>2</TipoPago>
+      <FechaLimitePago>15-07-2026</FechaLimitePago>
+    </IdDoc>
+    <Emisor>
+      <RNCEmisor>131000009</RNCEmisor>
+      <RazonSocialEmisor>Suplidora de Prueba SRL</RazonSocialEmisor>
+      <DireccionEmisor>Calle Falsa 123</DireccionEmisor>
+      <FechaEmision>15-06-2026</FechaEmision>
+    </Emisor>
+    <Comprador>
+      <RNCComprador>130000001</RNCComprador>
+      <RazonSocialComprador>Empresa de Prueba SRL</RazonSocialComprador>
+    </Comprador>
+    <Totales>
+      <MontoGravadoTotal>1000.00</MontoGravadoTotal>
+      <MontoGravadoI1>1000.00</MontoGravadoI1>
+      <ITBIS1>18</ITBIS1>
+      <TotalITBIS>180.00</TotalITBIS>
+      <TotalITBIS1>180.00</TotalITBIS1>
+      <MontoTotal>1180.00</MontoTotal>
+    </Totales>
+  </Encabezado>
+  <DetallesItems>
+    <Item>
+      <NumeroLinea>1</NumeroLinea>
+      <IndicadorFacturacion>1</IndicadorFacturacion>
+      <NombreItem>Resmas de papel</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>10</CantidadItem>
+      <PrecioUnitarioItem>100.00</PrecioUnitarioItem>
+      <MontoItem>1000.00</MontoItem>
+    </Item>
+  </DetallesItems>
+  <FechaHoraFirma>15-06-2026 10:00:00</FechaHoraFirma>
+</ECF>

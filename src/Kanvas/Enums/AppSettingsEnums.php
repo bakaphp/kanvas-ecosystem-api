@@ -28,6 +28,7 @@ enum AppSettingsEnums implements EnumsInterface
     case GLOBAL_APP_IMAGES;
     case ONE_SIGNAL_APP_ID;
     case ONE_SIGNAL_REST_API_KEY;
+    case PUSH_PROVIDER;
     case PASSWORD_STRENGTH;
     case DEFAULT_SIGNUP_ROLE;
     case INVITE_EMAIL_SUBJECT;
@@ -72,7 +73,9 @@ enum AppSettingsEnums implements EnumsInterface
     case SIGNUP_ABUSE_SENTRY_ENABLED;
     case AGENT_CHAT_ASYNC;
     case ADMIN_URL;
+    case CONSOLE_URL;
     case APP_KEY_ENFORCE_USER_MATCH;
+    case CAPABILITY_GAP_ALERT_EMAILS;
 
     #[Override]
     public function getValue(): mixed
@@ -97,6 +100,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::GLOBAL_APP_IMAGES => 'global_app_images',
             self::ONE_SIGNAL_APP_ID => 'one_signal_app_id',
             self::ONE_SIGNAL_REST_API_KEY => 'one_signal_rest_api_key',
+            self::PUSH_PROVIDER => 'push_provider',
             self::PASSWORD_STRENGTH => 'flag_password_strength',
             self::DEFAULT_SIGNUP_ROLE => 'default_signup_role',
             self::INVITE_EMAIL_SUBJECT => 'invite_email_subject',
@@ -141,7 +145,9 @@ enum AppSettingsEnums implements EnumsInterface
             self::SIGNUP_ABUSE_SENTRY_ENABLED => 'signup_abuse_sentry_enabled',
             self::AGENT_CHAT_ASYNC => 'agent_chat_async',
             self::ADMIN_URL => 'admin_url',
+            self::CONSOLE_URL => 'console_url',
             self::APP_KEY_ENFORCE_USER_MATCH => 'app_key_enforce_user_match',
+            self::CAPABILITY_GAP_ALERT_EMAILS => 'capability_gap_alert_emails',
         };
     }
 }

@@ -14,6 +14,7 @@ use Spatie\LaravelData\Data;
  *  @property string $verb
  *  @property string $template
  *  @property mixed $templates_plura
+ *  @property ?bool $is_public null → MessageType::isPublicByDefaultForVerb()
  */
 class MessageTypeInput extends Data
 {
@@ -24,6 +25,7 @@ class MessageTypeInput extends Data
         public string $verb = '',
         public ?string $template = null,
         public mixed $templates_plura = null,
+        public ?bool $is_public = null,
     ) {
     }
 }

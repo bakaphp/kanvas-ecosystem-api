@@ -1435,9 +1435,15 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'type' => 'int64',
                 ],
                 [
+                    // The flat tenant filter (agent inventory search, discovery). Optional only
+                    // so `kanvas:search:typesense-sync-schema` can add it to a collection born
+                    // before it was declared — Typesense refuses a required field on a non-empty
+                    // collection, and those collections answer "Could not find a filter field
+                    // named `companies_id`". Every document still sends it (toSearchableArray).
                     'name' => 'companies_id',
                     'type' => 'int64',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 // Discovery fields: the enrichment blurb is what semantic search
                 // matches on, and price/in_stock are the only scalars a budget or

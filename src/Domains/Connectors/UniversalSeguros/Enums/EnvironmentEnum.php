@@ -12,7 +12,7 @@ enum EnvironmentEnum: string
     public function apiBaseUrl(): string
     {
         return match ($this) {
-            self::QA => 'https://qa.universal.com.do/rest/serviceplattform',
+            self::QA => 'https://qa.universal.com.do/rest/serviceplattformia',
             self::PROD => 'https://api.universal.com.do/rest/serviceplattform',
         };
     }

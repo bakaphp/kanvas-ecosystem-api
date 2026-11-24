@@ -6,6 +6,8 @@ namespace Tests\GraphQL\Guild;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -131,6 +133,51 @@ class OrganizationTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testCreateAndUpdateOrganizationTaxId(): void
+    {
+        $fields = 'id tax_id tax_id_type tax_id_label';
+
+        $created = $this->graphQL('
+            mutation($input: OrganizationInput!) {
+                createOrganization(input: $input) { ' . $fields . ' }
+            }
+        ', ['input' => [
+            'name' => $this->uniqueOrganizationName(),
+            'tax_id' => '12-3456789',
+            'tax_id_type' => 'US_EIN',
+        ]])->assertJson(['data' => ['createOrganization' => [
+            'tax_id' => '123456789',
+            'tax_id_type' => 'US_EIN',
+            'tax_id_label' => 'EIN',
+        ]]])->json('data.createOrganization');
+
+        $update = fn (array $input) => $this->graphQL('
+            mutation($id: ID!, $input: OrganizationInput!) {
+                updateOrganization(id: $id, input: $input) { ' . $fields . ' }
+            }
+        ', ['id' => $created['id'], 'input' => ['name' => $this->uniqueOrganizationName(), ...$input]]);
+
+        $update(['tax_id' => '001-1234567-8', 'tax_id_type' => 'DO_CEDULA'])
+            ->assertJson(['data' => ['updateOrganization' => [
+                'tax_id' => '00112345678',
+                'tax_id_type' => 'DO_CEDULA',
+                'tax_id_label' => 'Cédula',
+            ]]]);
+
+        $update([])->assertJson(['data' => ['updateOrganization' => ['tax_id' => '00112345678']]]);
+
+        $this->assertStringContainsString(
+            'is not a valid RNC',
+            json_encode($update(['tax_id' => '00112345678', 'tax_id_type' => 'DO_RNC'])->json('errors'))
+        );
+
+        $update(['tax_id' => null])->assertJson(['data' => ['updateOrganization' => [
+            'tax_id' => null,
+            'tax_id_type' => null,
+            'tax_id_label' => null,
+        ]]]);
     }
 
     public function testDeleteOrganization()
@@ -271,6 +318,44 @@ class OrganizationTest extends TestCase
         ', ['search' => $uniqueName])
             ->assertSuccessful()
             ->assertJsonPath('data.organizations.data.0.name', $uniqueName);
+    }
+
+    public function testSearchWithAnAppKeyStaysInsideTheLocationsCompany(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $name = $this->uniqueOrganizationName('OrgLocationSearch');
+        $mine = $this->seedOrganizationIn($company, $name);
+        $this->seedOrganizationIn(Companies::factory()->create(), $name);
+
+        $response = $this->graphQL('
+            query($search: String) {
+                organizations(search: $search) {
+                    data { id company { id } }
+                }
+            }
+        ', ['search' => $name], [], [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => $company->defaultBranch()->first()->uuid,
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            [(string) $mine->getId()],
+            array_column($response->json('data.organizations.data'), 'id'),
+            json_encode($response->json())
+        );
+    }
+
+    private function seedOrganizationIn(Companies $company, string $name): Organization
+    {
+        return Organization::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => $name,
+            'address' => '',
+            'total_employees' => 0,
+        ]);
     }
 
     public function testCreateOrganizationNormalizesAndSavesPhone(): void

@@ -26,15 +26,7 @@ class CreateAgentMachineAction
                 'is_deleted' => 0,
             ]);
 
-            $machine->name = $this->data->name;
-            $machine->ssh_port = $this->data->ssh_port;
-            $machine->ssh_user = $this->data->ssh_user;
-            $machine->ssh_private_key = $this->data->ssh_private_key;
-            $machine->region = $this->data->region;
-            $machine->port_range_start = $this->data->port_range_start;
-            $machine->port_range_end = $this->data->port_range_end;
-            $machine->max_agents = $this->data->max_agents;
-            $machine->is_active = $this->data->is_active;
+            $this->data->applyTo($machine);
             $machine->saveOrFail();
 
             return $machine;

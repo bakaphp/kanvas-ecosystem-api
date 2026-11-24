@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intras\Mappers;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
+use Kanvas\Guild\Organizations\Models\Organization;
 use stdClass;
 
 class OrganizationMapper
@@ -31,6 +33,21 @@ class OrganizationMapper
     public const array EXTRA_CUSTOM_FIELD_MAP = [
         'tamano' => 'tamano',
         'telefono' => 'telefono',
+    ];
+
+    /**
+     * `companies` column → Organization custom field, for the push. `quotes_count` / `quotes_won`
+     * are SIPGO's own counters and stay out.
+     */
+    public const array COLUMN_FIELD_MAP = [
+        'rnc' => 'rnc',
+        'classification' => 'classification',
+        'classification_open' => 'clasificacion_abierta',
+        'potentiality' => 'potencialidad',
+        'is_prospect' => 'intras_is_prospect',
+        'is_supplier' => 'es_suplidor',
+        'total_employees' => 'total_employees',
+        'quotes_investment_range' => 'rango_inversion',
     ];
 
     /**
@@ -128,5 +145,55 @@ class OrganizationMapper
         }
 
         return $fields;
+    }
+
+    public static function companyId(Organization $organization): ?int
+    {
+        return SipgoEntityEnum::COMPANY->legacyIdOf($organization);
+    }
+
+    /**
+     * The values SIPGO should hold for this Organization. Booleans go out as `1`/`0` and numbers as
+     * strings so the change set compares like-for-like with what the row holds.
+     *
+     * @return array{row: array<string, string>, custom_fields: array<string, string>, catalog: array<string, array{table: string, name: string}>}
+     */
+    public static function toIntras(Organization $organization): array
+    {
+        $row = ['name' => Str::trimToNull((string) $organization->name)];
+
+        foreach (self::COLUMN_FIELD_MAP as $column => $kanvasName) {
+            $row[$column] = self::scalar($organization->get($kanvasName));
+        }
+
+        $customFields = [];
+
+        foreach (self::EXTRA_CUSTOM_FIELD_MAP as $legacyName => $kanvasName) {
+            $customFields[$legacyName] = self::scalar($organization->get($kanvasName));
+        }
+
+        $catalog = [];
+
+        foreach ([...self::LOOKUP_FIELD_MAP, 'linked_companies_id' => ['table' => 'companies', 'custom_field' => 'vinculacion']] as $column => $spec) {
+            $name = Str::trimToNull((string) $organization->get($spec['custom_field']));
+            if ($name !== null) {
+                $catalog[$column] = ['table' => $spec['table'], 'name' => $name];
+            }
+        }
+
+        return [
+            'row' => array_filter($row, fn ($value) => $value !== null),
+            'custom_fields' => array_filter($customFields, fn ($value) => $value !== null),
+            'catalog' => $catalog,
+        ];
+    }
+
+    private static function scalar(mixed $value): ?string
+    {
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        return Str::trimToNull((string) $value);
     }
 }

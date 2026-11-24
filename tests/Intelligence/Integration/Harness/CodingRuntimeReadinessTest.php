@@ -12,16 +12,17 @@ use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingRuntimeReadinessService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Mockery;
+use Tests\Intelligence\Integration\Harness\Fakes\FakeCodingSshClient;
 use Tests\TestCase;
 
 /**
  * What the agent is told is missing before it can run a coding job.
  *
- * Only the settings half is covered — `hostProblems()` opens an ssh connection to a real machine and
- * there is no seam for one. The settings half is where the prerequisites actually accumulate, and each
- * case below is a failure found the slow way on a fresh server: dispatch, wait, read the error off a
- * session row, fix one thing, repeat.
+ * The settings half is where the prerequisites actually accumulate, and each case below is a failure
+ * found the slow way on a fresh server: dispatch, wait, read the error off a session row, fix one
+ * thing, repeat.
  *
  * The app is a mock, not `app(Apps::class)`. An app setting is written to Redis before the database
  * and rolls back never, so configuring the real one here leaks into every later test in the run — it
@@ -179,6 +180,48 @@ class CodingRuntimeReadinessTest extends TestCase
         $checks = $this->checks(agentOverrides: [AgentCustomFieldEnum::MACHINE_ID->value => '78']);
 
         $this->assertNull($this->check($checks, AgentCustomFieldEnum::MACHINE_ID->value)->usingDefault);
+    }
+
+    public function testAHostWithoutDockerIsNamedWithTheUser(): void
+    {
+        $problems = $this->hostProblems([
+            'whoami' => 'kanvas',
+            'docker info' => 'NO',
+            'test -w' => 'WRITABLE',
+            'docker images -q' => 'abc',
+        ]);
+
+        $this->assertCount(1, $problems);
+        $this->assertStringContainsString('Docker is not usable by kanvas', $problems[0]);
+    }
+
+    public function testAMissingImageNamesTheBuildCommand(): void
+    {
+        $problems = $this->hostProblems([
+            'whoami' => 'kanvas',
+            'docker info' => 'OK',
+            'test -w' => 'WRITABLE',
+            'docker images -q' => '',
+        ]);
+
+        $this->assertCount(1, $problems);
+        $this->assertStringContainsString('kanvas:coding:build-image --app=', $problems[0]);
+    }
+
+    /**
+     * @param array<string, string> $responses
+     * @return list<string>
+     */
+    private function hostProblems(array $responses): array
+    {
+        $machine = new AgentMachine();
+        $machine->name = 'box';
+
+        return new CodingRuntimeReadinessService()->hostProblems(
+            $machine,
+            $this->settingsHolder(Apps::class, [ConfigurationEnum::IMAGE->value => 'kanvas/opencode:2.0.16']),
+            new FakeCodingSshClient($responses)
+        );
     }
 
     /**

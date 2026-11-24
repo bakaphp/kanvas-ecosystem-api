@@ -93,8 +93,11 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
             'plan_done',
         );
 
-        // The conversation gets the ANSWER; the board and the notification keep the short form.
-        $this->alsoPostToOriginConversation($plan, $body . $this->resultsDigest($plan), 'plan-done-alert');
+        // The conversation gets the ANSWER; the board and the notification keep the short form. Unless
+        // the agent that asked already answered there in its own words, which this would only repeat.
+        if (! $plan->answerIsComing()) {
+            $this->alsoPostToOriginConversation($plan, $body . $this->resultsDigest($plan), 'plan-done-alert');
+        }
 
         // The mention above can be dropped for an agent-classified user; this reaches the person
         // who asked regardless, and costs no model tokens.

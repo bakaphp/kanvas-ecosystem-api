@@ -9,7 +9,6 @@ use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -44,16 +43,7 @@ class RemoveCompanyAction
             StateEnums::YES->getValue(),
         )->delete();
 
-        $otherAssociation = UsersAssociatedApps::where('users_id', $this->user->getId())
-            ->where('apps_id', $this->app->getId())
-            ->whereNot('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-            ->get();
-
-        if ($otherAssociation->count()) {
-            $newPrimaryCompany = $otherAssociation->first();
-            $newCompany = Companies::getById($newPrimaryCompany->companies_id);
-            $this->user->set(Companies::cacheKey(), $newCompany->getId());
-        }
+        new ReassignDefaultCompanyAction($this->user, $this->app, $this->company)->execute();
 
         $stillHasAccessToThisCompany = UsersAssociatedApps::where('users_id', $this->user->getId())
             ->where('companies_id', $this->company->getId())

@@ -29,7 +29,6 @@ class InteractionMessageAction
             $text = 'reported this message';
         }
 
-
         $userMessage = (new CreateUserMessageAction(
             $this->message,
             $this->user,

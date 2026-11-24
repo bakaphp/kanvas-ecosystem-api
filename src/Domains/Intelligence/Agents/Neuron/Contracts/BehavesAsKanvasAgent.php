@@ -21,6 +21,9 @@ use NeuronAI\Chat\Messages\Message;
  */
 interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies, AgentTypeHandler
 {
+    /** Opens the block of a turn's own context (the time) that travels with the question, not the instructions. */
+    public const string TURN_CONTEXT_OPENING = '<turn-context>';
+
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void;
 
     public function setSession(?Session $session): void;
@@ -30,7 +33,18 @@ interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies,
     /** @param list<string> $media */
     public function setTurnMedia(array $media): void;
 
+    /**
+     * The Social message this turn answers: what its memory entry is matched by.
+     *
+     * @param list<int> $burstMessageIds Every Social message represented in a combined prompt
+     */
+    public function setInboundMessageId(?int $messageId, array $burstMessageIds = []): void;
+
     /** Flag the current turn's user message private (persisted is_public=0) so the UI hides it. */
+    public function setTurnId(?string $turnId): void;
+
+    public function currentTurnId(): ?string;
+
     public function setPrivateUserTurn(bool $private): void;
 
     /** Whether the reply lands on a surface that renders `kanvas-artifact` blocks (the admin userChat). */

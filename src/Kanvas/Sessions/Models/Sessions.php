@@ -344,7 +344,6 @@ class Sessions extends PersonalAccessToken
      * Terminates the specified session
      * It will delete the entry in the sessions table for this session,
      * remove the corresponding auto-login key and reset the cookies.
-     *
      */
     public function end(Users $user, Apps $app, ?string $sessionId = null): bool
     {

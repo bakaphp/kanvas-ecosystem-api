@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mcp\Actions;
 
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
@@ -32,11 +31,7 @@ class CreateMcpOAuthReceiverAction
 
     public function execute(): ReceiverWebhook
     {
-        $action = WorkflowAction::query()->where('model_name', OAuthCallbackJob::class)->first();
-
-        if (! $action instanceof WorkflowAction) {
-            throw new ValidationException('The OAuth callback workflow action is not registered — run kanvas:workflow-sync-actions.');
-        }
+        $action = OAuthCallbackJob::workflowAction();
 
         $existing = $this->existing($action);
 

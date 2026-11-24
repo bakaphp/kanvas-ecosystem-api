@@ -43,6 +43,7 @@ class MigrateAttributeTypesCommand extends Command
             if ($baseAttributes->isEmpty()) {
                 $this->info('No global attributes types found.');
                 DB::rollBack();
+
                 return;
             }
 
@@ -56,6 +57,7 @@ class MigrateAttributeTypesCommand extends Command
             if ($matchingAttributes->isEmpty()) {
                 $this->info('No matching attributes found.');
                 DB::rollBack();
+
                 return;
             }
 
@@ -67,6 +69,7 @@ class MigrateAttributeTypesCommand extends Command
             if ($affectedAttributes->isEmpty()) {
                 $this->info('Not attribute to update found.');
                 DB::rollBack();
+
                 return;
             }
 

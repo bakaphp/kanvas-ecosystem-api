@@ -24,10 +24,11 @@ class CreateBatchCampaignAction
     /**
      * @param  array<int, array<string, mixed>>  $eligibleRecipients  Resolver eligible rows (lead_id, people_id) —
      *     exactly one of the two is non-null per row (resolve()'s rows always carry a lead_id,
-     *     resolvePeople()'s always carry a people_id and a null lead_id).
+     *     resolvePeople()'s always carry a people_id and a null lead_id). A row may also carry its own
+     *     `attachment_urls` (list<string>) and `variables` (array<string, mixed>); see CampaignRecipient.
      * @param  array<string, mixed>  $criteria
-     * @param  list<string>  $attachmentUrls  Shared by every recipient in this campaign — the same
-     *     file(s) go to everyone, there's no per-recipient attachment.
+     * @param  list<string>  $attachmentUrls  Shared by every recipient in this campaign, sent ahead of
+     *     whatever the recipient row adds of its own.
      * @param  ?string  $templateName  A `templates` row name (see TemplatesRepository::getByName()) —
      *     null keeps the sender's own default rather than forcing one here.
      */
@@ -73,6 +74,8 @@ class CreateBatchCampaignAction
                     $campaign,
                     isset($row['lead_id']) ? (int) $row['lead_id'] : null,
                     ((int) ($row['people_id'] ?? 0)) ?: null,
+                    $row['attachment_urls'] ?? [],
+                    $row['variables'] ?? [],
                 )->saveOrFail();
             }
 

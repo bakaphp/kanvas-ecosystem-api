@@ -54,7 +54,7 @@ class ReadLeadActivityTool extends Tool
             return $refusal;
         }
 
-        $lead = $this->resolveLeadOrError($lead_id);
+        $lead = $this->resolveLeadInReadScopeOrError($lead_id);
         if (is_array($lead)) {
             return $lead;
         }

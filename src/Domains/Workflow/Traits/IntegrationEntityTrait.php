@@ -44,9 +44,10 @@ trait IntegrationEntityTrait
                 'name' => $integration->name,
                 'status' => $status ?? $history->status,
                 'created_at' => $history->created_at ?? null,
-                'updated_at' => $history->updated_at ?? null
+                'updated_at' => $history->updated_at ?? null,
             ];
         });
+
         return $integrationsEntities;
     }
 }

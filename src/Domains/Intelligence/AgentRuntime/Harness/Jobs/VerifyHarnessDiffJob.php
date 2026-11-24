@@ -40,15 +40,14 @@ class VerifyHarnessDiffJob implements ShouldQueue
         public readonly int $sessionId,
         public readonly int $attempt = 1,
     ) {
-        $this->onQueue('agent-runtime');
+        $this->onQueue('coding');
     }
 
     public function handle(): void
     {
         $this->overwriteAppService($this->app);
 
-        /** @var AgentTaskSession|null $session */
-        $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
+        $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
         if ($session === null || $session->harnessStatus() !== HarnessStatusEnum::VERIFYING_DIFF) {
             return;

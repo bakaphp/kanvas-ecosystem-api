@@ -14,6 +14,7 @@ use Kanvas\HumanResources\Employees\Actions\CreateEmployeeAction;
 use Kanvas\HumanResources\Employees\DataTransferObject\Employee as EmployeeData;
 use Kanvas\HumanResources\Positions\Actions\CreatePositionAction;
 use Kanvas\HumanResources\Positions\DataTransferObject\Position as PositionData;
+use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
@@ -145,6 +146,41 @@ class ProjectContextServiceTest extends TestCase
             $this->assertFalse(str_starts_with((string) $content, '[NS:'), 'scaffolding leaked into context');
             $this->assertLessThanOrEqual(1210, strlen((string) $content), 'message content not capped');
         }
+    }
+
+    /**
+     * The PM's own compaction note lands on the project channel. Fed back as "recent messages" it
+     * makes the next wake summarize the summary, and the bundle grows by one note per wake.
+     */
+    public function testContextExcludesTheAgentsOwnCompactionNotes(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $project = new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => 'Ctx', 'agent_id' => $agent->id]),
+        )->execute();
+
+        new PostProjectMessageAction(
+            project: $project,
+            verb: AgentMessageTypeEnum::AGENT_SUMMARY->value,
+            content: 'What the person asked for: the compaction note',
+            author: $user,
+            fromIa: true,
+        )->execute();
+        new PostProjectMessageAction(
+            project: $project,
+            verb: 'note',
+            content: 'a real message',
+            author: $user,
+        )->execute();
+
+        $contents = array_column(new ProjectContextService()->buildContextBundle($project)->recentMessages, 'content');
+
+        $this->assertContains('a real message', $contents);
+        $this->assertNotContains('What the person asked for: the compaction note', $contents);
     }
 
     public function testHumanMemberSurfacesHrCapabilityDescription(): void

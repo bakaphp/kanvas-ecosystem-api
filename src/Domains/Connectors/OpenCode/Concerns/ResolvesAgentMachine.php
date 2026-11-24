@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenCode\Concerns;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -20,6 +22,28 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  */
 trait ResolvesAgentMachine
 {
+    /**
+     * The agent's pinned machine, else any active machine of the company — fine with one, arbitrary
+     * with several, which is what `CODING_MACHINE_ID` exists to settle.
+     */
+    private function machineFor(?Agent $agent, AppInterface $app, CompanyInterface $company): ?AgentMachine
+    {
+        return $this->configuredMachine($agent) ?? $this->firstActiveMachine($app, $company);
+    }
+
+    private function firstActiveMachine(AppInterface $app, CompanyInterface $company): ?AgentMachine
+    {
+        /** @var AgentMachine|null $machine */
+        $machine = AgentMachine::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->where('is_active', 1)
+            ->first();
+
+        return $machine;
+    }
+
     private function configuredMachine(?Agent $agent): ?AgentMachine
     {
         $machineId = Str::trimToNull((string) $agent?->get(AgentCustomFieldEnum::MACHINE_ID->value));

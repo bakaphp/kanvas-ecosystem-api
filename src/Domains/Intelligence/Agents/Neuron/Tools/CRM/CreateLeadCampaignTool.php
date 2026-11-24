@@ -39,8 +39,10 @@ class CreateLeadCampaignTool extends Tool
 
     protected string $name = 'create_lead_campaign';
 
-    protected ?string $description = 'Send or schedule an email campaign to specific people by id — typically the '
-        . 'people_ids returned by import_people_list. The tool re-verifies eligibility, so opted-out / '
+    protected ?string $description = 'Send or schedule ONE identical email to specific people by id — typically the '
+        . 'people_ids returned by import_people_list. Everyone gets the same body and the same attachments; when each '
+        . 'person needs their own attachment or their own template values (a certificate, a personal greeting), use '
+        . 'create_people_campaign instead. The tool re-verifies eligibility, so opted-out / '
         . 'do-not-contact / undeliverable / duplicate people are excluded even if passed. Email only in v1. '
         . 'Provide schedule_at (a future date-time) to schedule instead of sending now. To use a different look '
         . 'than the default, first create_template (or list_templates to reuse one you already have) and pass '

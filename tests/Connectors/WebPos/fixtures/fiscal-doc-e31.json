@@ -1,0 +1,53 @@
+{
+    "fiscalDoc": {
+        "companyLicCod": "YPSPUFLH",
+        "branchCod": "0001",
+        "posCod": "001",
+        "docType": 31,
+        "docNumber": "E310000000004",
+        "docNumberDueDate": "2028-12-31",
+        "systemRef": "KREF000000000031",
+        "docDate": "2026-06-15",
+        "currency": "DOP",
+        "customerName": "Cliente Ejemplo SRL",
+        "customerRUC": "101000001",
+        "customerAddress": "Av. Ejemplo 1, Santo Domingo",
+        "email": "ap@cliente.test",
+        "fedo": {
+            "taxMode": "0",
+            "operMode": "01",
+            "paymentType": "2",
+            "totales": {
+                "subtotalExento": 450.0,
+                "subtotalGravado": 15000.0,
+                "totalItbis": 2700.0,
+                "subtotalNet": 15450.0,
+                "total": 18150.0
+            }
+        },
+        "items": [
+            {
+                "qty": 10.0,
+                "price": 1500.0,
+                "code": "SVC-1",
+                "desc": "Consultoria",
+                "itemClass": 1,
+                "tax": 1,
+                "subTotal": 15000.0,
+                "taxTotal": 2700.0
+            },
+            {
+                "qty": 2.0,
+                "price": 250.0,
+                "code": "BK-1",
+                "desc": "Libro",
+                "itemClass": 0,
+                "tax": 0,
+                "subTotal": 450.0,
+                "taxTotal": 0.0,
+                "damt": 50.0
+            }
+        ],
+        "payments": []
+    }
+}

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ChromeData\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Exception;
 use Kanvas\Connectors\ChromeData\Client;
 use Kanvas\Connectors\ChromeData\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ChromeData\Services\VehicleService;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 

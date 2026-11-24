@@ -55,6 +55,7 @@ class ScrapperRepository
             'asin' => $asin,
         ]);
         $results = \GuzzleHttp\Promise\Utils::settle($promises)->wait();
+
         return $results[0]['value'];
     }
 

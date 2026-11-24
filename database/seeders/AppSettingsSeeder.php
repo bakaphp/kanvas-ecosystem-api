@@ -134,7 +134,7 @@ class AppSettingsSeeder extends Seeder
                 'name' => 'default_feeds_comments',
                 'value' => '3',
                 'created_at' => date('Y-m-d H:m:s'),
-            ]
+            ],
         ]);
     }
 }

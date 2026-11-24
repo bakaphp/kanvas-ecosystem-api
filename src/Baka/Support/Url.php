@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Baka\Support;
 
 use Baka\Contracts\AppInterface;
-use Exception;
+use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client;
+use Kanvas\Connectors\ShortIo\Services\ShortIoConfigurationService;
 use Throwable;
 
 class Url
 {
     /**
-     * Returns a short version of an url using Bit.ly service.
+     * Shortens through the company's short.io integration, else the app's.
      */
-    public static function getShortUrl(string $url, AppInterface $app): string
+    public static function getShortUrl(string $url, AppInterface $app, ?CompanyInterface $company = null): string
     {
-        //return self::bitlink($url);
-        return self::shortLink($url, $app);
+        return self::shortLink($url, $app, $company);
     }
 
     public static function bitlink(string $url, AppInterface $app): string
@@ -59,37 +59,23 @@ class Url
         }
     }
 
-    public static function shortLink(string $url, AppInterface $app): string
+    /**
+     * A send never fails on shortening: any miss returns the long URL.
+     */
+    public static function shortLink(string $url, AppInterface $app, ?CompanyInterface $company = null): string
     {
-        $shortioAccessToken = $app->get('shortio-access-token');
+        if (trim($url) === '') {
+            return $url;
+        }
 
-        $client = new Client([
-            // You can set any number of default request options.
-            'timeout' => 2.0,
-        ]);
+        $client = ShortIoConfigurationService::client($app, $company);
+        if ($client === null) {
+            return $url;
+        }
 
         try {
-            // Send a POST request to the API
-            $response = $client->post('https://api.short.io/links', [
-                'headers' => [
-                    'Authorization' => $shortioAccessToken,
-                    'Accept' => 'application/json',
-                    'content-type' => 'application/json',
-                ],
-                'json' => [
-                    'originalURL' => $url,
-                    'domain' => $app->get('custom-short-url'),
-                ],
-            ]);
-
-            $response = json_decode((string)$response->getBody(), true);
-
-            if (isset($response['shortURL'])) {
-                return (string) $response['shortURL'];
-            } else {
-                throw new Exception('Error creating short link');
-            }
-        } catch (Throwable $e) {
+            return $client->createLink($url);
+        } catch (Throwable) {
             return $url;
         }
     }

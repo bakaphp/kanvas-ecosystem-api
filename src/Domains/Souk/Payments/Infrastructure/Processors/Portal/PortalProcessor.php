@@ -48,7 +48,7 @@ use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Jobs\RetryPaymentReversalJob;
 use Kanvas\Souk\Payments\Models\Payments;
-use Kanvas\Souk\Payments\Support\AutoSubmitForm;
+use Kanvas\Souk\Payments\Support\AutoSubmitChallengeForm;
 use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
@@ -609,7 +609,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             return '';
         }
 
-        return AutoSubmitForm::render($deviceDataCollectionUrl, ['JWT' => $accessToken]);
+        return AutoSubmitChallengeForm::render($deviceDataCollectionUrl, ['JWT' => $accessToken]);
     }
 
     private function buildChallengeForm(ConsumerAuthentication $consumerData, string $orderReference): string
@@ -618,7 +618,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         $accessToken = (string) $consumerData->accessToken;
 
         if ($stepUpUrl !== '' && $accessToken !== '') {
-            return AutoSubmitForm::render($stepUpUrl, ['JWT' => $accessToken, 'MD' => $orderReference]);
+            return AutoSubmitChallengeForm::render($stepUpUrl, ['JWT' => $accessToken, 'MD' => $orderReference]);
         }
 
         $acsUrl = (string) $consumerData->acsUrl;
@@ -627,7 +627,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             return '';
         }
 
-        return AutoSubmitForm::render(
+        return AutoSubmitChallengeForm::render(
             $acsUrl,
             [
                 'PaReq' => (string) $consumerData->pareq,

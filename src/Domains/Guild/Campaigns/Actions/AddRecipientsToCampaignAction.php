@@ -67,7 +67,13 @@ class AddRecipientsToCampaignAction
                     continue;
                 }
 
-                CampaignRecipient::pending($this->campaign, null, $peopleId)->saveOrFail();
+                CampaignRecipient::pending(
+                    $this->campaign,
+                    null,
+                    $peopleId,
+                    $row['attachment_urls'] ?? [],
+                    $row['variables'] ?? [],
+                )->saveOrFail();
 
                 $existingPeopleIds[] = $peopleId;
                 $added++;

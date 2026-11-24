@@ -24,7 +24,7 @@ class LaravelOrderReportToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'commerce', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'commerce', 'crm', 'social'];
 
     /**
      * Same fixture as the Neuron OrderReportToolsTest: two order types + three orders on one company,
@@ -238,5 +238,40 @@ class LaravelOrderReportToolsTest extends TestCase
 
         $this->assertSame([], $result['providers']);
         $this->assertSame(3, (int) $result['orders_without_provider']);
+    }
+
+    public function test_order_trend_filters_by_tag(): void
+    {
+        [$app, $company] = $this->seedOrders();
+
+        /** @var Order $completed */
+        $completed = Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'completed')
+            ->latest('id')
+            ->firstOrFail();
+        $completed->addTag('corporativo', $app, auth()->user(), $company);
+
+        $result = $this->invokeTool(
+            new OrderTrendTool()->withContext($app, $company),
+            ['tags' => ['corporativo']]
+        );
+
+        $this->assertSame(1, (int) $result['total_orders']);
+        $this->assertSame(120.0, (float) $result['total_gross_revenue']);
+    }
+
+    public function test_an_unknown_order_type_is_answered_as_invalid_args_not_thrown(): void
+    {
+        [$app, $company] = $this->seedOrders();
+
+        $result = $this->invokeTool(
+            new OrderTrendTool()->withContext($app, $company),
+            ['order_types' => ['paso_rapido_corporativo']]
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_args', $result['outcome']);
+        $this->assertStringContainsString('movipass', $result['error']);
     }
 }

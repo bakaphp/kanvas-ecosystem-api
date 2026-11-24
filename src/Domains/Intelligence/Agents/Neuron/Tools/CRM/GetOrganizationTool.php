@@ -25,8 +25,8 @@ class GetOrganizationTool extends Tool
 
     protected string $name = 'get_organization';
 
-    protected ?string $description = 'Returns the full profile of one customer organization: name, email, phone, type, addresses, '
-        . 'tags, how many people are linked to it, and its business custom fields. Identify it by '
+    protected ?string $description = 'Returns the full profile of one customer or vendor organization: name, tax id, email, phone, email domains, type, '
+        . 'addresses, tags, how many people are linked to it, and its business custom fields. Identify it by '
         . 'organization_id, or by organization_name when you do not have the id.';
 
     /**
@@ -46,7 +46,7 @@ class GetOrganizationTool extends Tool
      */
     public function __invoke(?int $organization_id = null, ?string $organization_name = null): array
     {
-        $result = $this->resolveOrganization($organization_id, $organization_name);
+        $result = $this->resolveOrganizationInReadScope($organization_id, $organization_name);
         if (is_array($result)) {
             return $result;
         }
@@ -57,8 +57,10 @@ class GetOrganizationTool extends Tool
         return [
             'organization_id' => $organization->getId(),
             'name' => $organization->name,
+            ...$organization->taxIdSummary(),
             'email' => $organization->email,
             'phone' => $organization->phone,
+            'email_domains' => $organization->emailDomains(),
             'address' => $organization->address,
             'organization_type' => $organization->organizationType?->name,
             'addresses' => $organization->addresses
@@ -67,6 +69,7 @@ class GetOrganizationTool extends Tool
             'tags' => $organization->tags->pluck('name')->all(),
             'people_count' => $organization->peoples()->count(),
             'custom_fields' => $this->relevantCustomFields($organization),
+            ...$this->tenantLabel($organization),
         ];
     }
 }

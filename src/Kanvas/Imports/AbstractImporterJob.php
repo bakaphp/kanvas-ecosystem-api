@@ -246,7 +246,7 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
                         'total_process_successfully' => $totalProcessSuccessfully,
                         'total_process_failed' => $totalProcessFailed,
                     ],
-                    'details' => $importedEntities
+                    'details' => $importedEntities,
                 ],
                 'exception' => $errors,
                 'status' => 'completed',

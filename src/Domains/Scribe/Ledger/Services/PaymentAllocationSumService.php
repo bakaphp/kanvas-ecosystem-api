@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Ledger\Services;
 
+use Baka\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 
@@ -37,8 +38,8 @@ class PaymentAllocationSumService
             ->get(['amount_native', 'amount_base']);
 
         return [
-            (float) $rows->sum('amount_native'),
-            (float) $rows->sum('amount_base'),
+            Money::stored(Money::sum(...$rows->map(fn ($row) => (float) $row->amount_native)->all())),
+            Money::stored(Money::sum(...$rows->map(fn ($row) => (float) $row->amount_base)->all())),
         ];
     }
 }

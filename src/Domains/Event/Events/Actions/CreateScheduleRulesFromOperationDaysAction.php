@@ -60,6 +60,7 @@ class CreateScheduleRulesFromOperationDaysAction
 
             if (! $active) {
                 $this->deleteRuleForDay($dayName);
+
                 continue;
             }
 
@@ -67,6 +68,7 @@ class CreateScheduleRulesFromOperationDaysAction
 
             if (empty($periods)) {
                 $this->deleteRuleForDay($dayName);
+
                 continue;
             }
 

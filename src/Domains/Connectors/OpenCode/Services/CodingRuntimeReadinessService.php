@@ -15,19 +15,17 @@ use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingSetupCheck;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Runtime\CodingRuntimeDriverFactory;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
 /**
- * Everything that has to be true before a coding job can run, asked in one place.
- *
- * Each of these was learned by dispatching a job and reading the failure off a session row: no image,
- * then an unwritable workspace, then a provider block that could not be declared. One prerequisite per
- * attempt, each error pointing somewhere other than the setting that caused it. That is a memory game,
- * and nobody wins it twice.
+ * Everything that has to be true before a coding job can run, asked in one place: found one at a time,
+ * each prerequisite costs a dispatch and an error that points somewhere other than the setting.
  *
  * Every problem names the setting and who sets it, because the two readers are an operator running
  * `kanvas:coding:setup` and an agent that has to tell a person what to fix — neither can act on
@@ -37,8 +35,6 @@ class CodingRuntimeReadinessService
 {
     use PreparesHostDirectory;
     use ResolvesAgentMachine;
-
-    private const DEFAULT_WORKSPACE_ROOT = '/srv/kanvas';
 
     /**
      * Every prerequisite for one agent, passing and failing, with who can fix each failure.
@@ -89,12 +85,17 @@ class CodingRuntimeReadinessService
      * What is wrong with the machine. Opens one SSH connection, so it is slower than the config half —
      * worth it, because dispatching onto an unprepared host is a failure a person reads minutes later.
      *
+     * The workspace check is the same on every runtime; what the runtime itself needs (docker and the
+     * image, or a pinned binary) is the driver's to say.
+     *
      * @return list<string>
      */
-    public function hostProblems(AgentMachine $machine, AppInterface $app): array
+    public function hostProblems(AgentMachine $machine, AppInterface $app, ?BaseSshClient $client = null): array
     {
+        $opened = $client === null;
+
         try {
-            $client = SshClient::fromMachine($machine);
+            $client ??= SshClient::fromMachine($machine);
         } catch (Throwable $e) {
             return ['Cannot reach ' . $machine->name . ' over ssh: ' . $e->getMessage()];
         }
@@ -102,37 +103,22 @@ class CodingRuntimeReadinessService
         $problems = [];
 
         try {
-            $owner = trim($client->exec('whoami', 30));
-
-            if (trim($client->exec('docker info >/dev/null 2>&1 && echo OK || echo NO', 60)) !== 'OK') {
-                $problems[] = 'Docker is not usable by ' . $owner . ' on ' . $machine->name
-                    . ' — install it, or add that user to the docker group.';
-            }
-
             try {
-                $this->prepareHostDirectory($client, $this->workspaceRoot($app), $machine->name);
+                $this->prepareHostDirectory($client, CodingWorkspaceService::rootFor($app), $machine->name);
             } catch (ValidationException $e) {
                 $problems[] = $e->getMessage();
             }
 
-            $image = $this->settingOf($app, ConfigurationEnum::IMAGE);
-
-            if ($image !== null && trim($client->exec('docker images -q ' . escapeshellarg($image), 60)) === '') {
-                $problems[] = $image . ' is not on ' . $machine->name . ' — run: php artisan '
-                    . 'kanvas:coding:build-image --app=' . $app->getId() . ' --machine=' . $machine->getId() . '.';
-            }
+            $problems = [...$problems, ...CodingRuntimeDriverFactory::forMachine($machine)->hostProblems($app, $client)];
         } catch (Throwable $e) {
             $problems[] = 'Could not check ' . $machine->name . ': ' . $e->getMessage();
         } finally {
-            $client->disconnect();
+            if ($opened) {
+                $client->disconnect();
+            }
         }
 
         return $problems;
-    }
-
-    public function workspaceRoot(AppInterface $app): string
-    {
-        return rtrim($this->settingOf($app, ConfigurationEnum::WORKSPACE_ROOT) ?? self::DEFAULT_WORKSPACE_ROOT, '/');
     }
 
     /**
@@ -143,12 +129,7 @@ class CodingRuntimeReadinessService
     public function machineFor(Agent $agent, array &$problems): ?AgentMachine
     {
         try {
-            $machine = $this->configuredMachine($agent) ?? AgentMachine::query()
-                ->fromApp($agent->app)
-                ->fromCompany($agent->company)
-                ->notDeleted()
-                ->where('is_active', 1)
-                ->first();
+            $machine = $this->configuredMachine($agent) ?? $this->firstActiveMachine($agent->app, $agent->company);
         } catch (ValidationException $e) {
             $problems[] = $e->getMessage();
 
@@ -218,7 +199,12 @@ class CodingRuntimeReadinessService
         }
 
         $checks[] = $this->modelCheck($app, $agent);
-        $checks[] = $this->keyCheck($app, $agent, $company);
+        $checks[] = $this->keyCheck(
+            $app,
+            $agent,
+            $company,
+            $ownProvider
+        );
         $checks = [
             ...$checks,
             ...($ownProvider
@@ -244,7 +230,7 @@ class CodingRuntimeReadinessService
 
         $root = ConfigurationEnum::WORKSPACE_ROOT;
         $checks[] = $this->settingOf($app, $root) === null
-            ? CodingSetupCheck::usingDefault($root->value, 'app', self::DEFAULT_WORKSPACE_ROOT)
+            ? CodingSetupCheck::usingDefault($root->value, 'app', CodingWorkspaceService::DEFAULT_ROOT)
             : CodingSetupCheck::pass($root->value, 'app');
 
         return $checks;
@@ -270,11 +256,15 @@ class CodingRuntimeReadinessService
             );
     }
 
-    private function keyCheck(AppInterface $app, ?Agent $agent, ?CompanyInterface $company): CodingSetupCheck
-    {
+    private function keyCheck(
+        AppInterface $app,
+        ?Agent $agent,
+        ?CompanyInterface $company,
+        bool $ownProvider
+    ): CodingSetupCheck {
         $key = ConfigurationEnum::PROVIDER_API_KEY->value;
 
-        if ($agent !== null && new CodingModelResolver($app, $agent)->hasOwnProvider()) {
+        if ($agent !== null && $ownProvider) {
             return $this->agentHasOwnKey($agent)
                 ? CodingSetupCheck::pass(AgentCustomFieldEnum::PROVIDER_API_KEY->value, 'agent')
                 : CodingSetupCheck::needsAdmin(

@@ -9,6 +9,29 @@ use Illuminate\Support\Arr as IlluminateArr;
 class Arr extends IlluminateArr
 {
     /**
+     * A list-valued setting as admins store it: a real array, a JSON array string, or a comma-separated
+     * string. Items are trimmed and blanks dropped.
+     *
+     * @return list<string>
+     */
+    public static function fromSettingList(mixed $value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : Str::commaList($value);
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $item): string => trim((string) $item), $value),
+            static fn (string $item): bool => $item !== ''
+        ));
+    }
+
+    /**
      * The key as the array spells it: an exact match, else the first key equal under strcasecmp.
      * External payloads (form builders, Zoho api_names) and the humans mapping them disagree on
      * casing, so a lookup by the caller's spelling misses rows that are there.

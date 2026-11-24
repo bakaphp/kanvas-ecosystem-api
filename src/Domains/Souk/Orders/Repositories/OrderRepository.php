@@ -19,6 +19,7 @@ class OrderRepository
     ): ?object {
         $status = $this->order->orderType?->statuses()
                     ->where('slug', $statusSlug)->first();
+
         return $status;
     }
 

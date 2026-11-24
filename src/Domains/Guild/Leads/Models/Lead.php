@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Contracts\EngageableInterface;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -20,13 +22,16 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -40,6 +45,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Concerns\HasManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -78,7 +84,7 @@ use Throwable;
  * @property string $title
  * @property string $firstname
  * @property string $lastname
- * @property string $email
+ * @property string|null $email
  * @property string $phone
  * @property string|null $description
  * @property string $is_duplicate
@@ -87,7 +93,7 @@ use Throwable;
  * @property bool $is_deleted
  * @property Carbon|null $closed_at
  */
-class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext
+class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext, EngageableInterface
 {
     use HasAdminLink;
     use UuidTrait;
@@ -100,8 +106,11 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use HasLightHouseCache;
     use HasEventResources;
     use HasFollowUpState;
+    use HasManualFollowUpPlan;
     use EmitsLedgerEventsForEntity;
     use TracksClosedAt;
+
+    public const string REACH_OUT_APPLIES_MODE = 'reach_out_applies_mode';
 
     protected $observables = [
         'softDeleting',
@@ -132,6 +141,34 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function getGraphTypeName(): string
     {
         return 'Lead';
+    }
+
+    #[Override]
+    public function getEngagementApp(): AppInterface
+    {
+        return $this->app;
+    }
+
+    #[Override]
+    public function getEngagementCompany(): CompanyInterface
+    {
+        return $this->company;
+    }
+
+    #[Override]
+    public function getEngagementChannelSlug(): string
+    {
+        return (string) $this->uuid;
+    }
+
+    /**
+     * Exactly what PlainData rendered for a Lead before Lead implemented the contract, so every
+     * existing lead template keeps reading the same keys.
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return array_merge($this->attributesToArray(), $this->getRelations());
     }
 
     #[Override]
@@ -311,6 +348,11 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->belongsTo(Organization::class, 'organization_id', 'id');
     }
 
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class, 'leads_id', 'id')->notDeleted();
+    }
+
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(Pipeline::class, 'pipeline_id', 'id');
@@ -336,75 +378,104 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 
+    /**
+     * Open means the named status (`leads_status_id`), which is what the UI and every CRM pull
+     * write. Never gate on the integer `status` column: nothing writes it, so it is the default
+     * on every row and reads as open for a closed lead.
+     */
     public function isOpen(): bool
     {
-        // `status` is both a column AND a relation (status()). On a partially
-        // hydrated model `$this->status` resolves to the LeadStatus relation
-        // object (TypeError on `< 2`), so read the column explicitly. A missing
-        // status means a freshly created lead → treat as open.
-        return (int) ($this->getAttributeValue('status') ?? 0) < 2;
+        return $this->hasOpenLeadStatus();
     }
 
-    /**
-     * Query-side counterpart to isOpen() — same `status < 2` rule, kept in
-     * one place so bulk queries (e.g. RecalculateActiveLeadsCountCommand)
-     * can't drift from the instance check.
-     */
-    public function scopeIsOpen(Builder $query): Builder
+    public function scopeIsOpen(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->where('status', '<', 2);
-    }
-
-    /**
-     * TODO: `leads_status` has no `category`/`is_closed` column, so there is
-     * no reliable way to know per-tenant which custom statuses mean "open".
-     * This hardcodes the known global seed ids as a stopgap — replace with a
-     * real category lookup once `leads_status` gets that column.
-     */
-    public const array OPEN_LEADS_STATUS_IDS = [1, 2];
-
-    public static function openLeadsStatusIds(?CompanyInterface $company = null): array
-    {
-        if ($company === null) {
-            return self::OPEN_LEADS_STATUS_IDS;
-        }
-
-        $extra = $company->get(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value);
-
-        if (! is_array($extra)) {
-            $extra = $extra === null || $extra === '' ? [] : explode(',', (string) $extra);
-        }
-
-        $extra = array_filter(array_map('intval', $extra), fn (int $id): bool => $id > 0);
-
-        return array_values(array_unique([...self::OPEN_LEADS_STATUS_IDS, ...$extra]));
+        return $this->scopeHasOpenLeadStatus($query, $company);
     }
 
     public function isOpenLeadStatusId(?int $statusId): bool
     {
-        return in_array($statusId, self::openLeadsStatusIds($this->company), true);
+        return LeadStatus::isOpenId($statusId, $this->company);
     }
 
     public function hasOpenLeadStatus(): bool
     {
-        return $this->isOpenLeadStatusId((int) $this->getAttributeValue('leads_status_id'));
+        return LeadStatus::isOpenFor(
+            $this,
+            'status',
+            'leads_status_id',
+            $this->company
+        );
     }
 
-    public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasOpenLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->whereIn('leads_status_id', self::openLeadsStatusIds($company));
+        return self::constrainOpenStatus(
+            $query,
+            'leads_status_id',
+            $company,
+            open: true
+        );
     }
 
-    public function scopeHasClosedLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasClosedLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->whereNotIn('leads_status_id', self::openLeadsStatusIds($company));
+        return self::constrainOpenStatus(
+            $query,
+            'leads_status_id',
+            $company,
+            open: false
+        );
+    }
+
+    /**
+     * "Open" is the status row's `is_open` plus, for now, a per-company setting, so across a scope the
+     * predicate is one group per company: a status open at one company may be closed at another.
+     */
+    public static function constrainOpenStatus(
+        Builder $query,
+        string $column,
+        CompanyInterface|CompanyScope|null $company,
+        bool $open
+    ): Builder {
+        if (! $company instanceof CompanyScope) {
+            return LeadStatus::constrainToState(
+                $query,
+                $column,
+                open: $open,
+                company: $company
+            );
+        }
+
+        $tenantColumn = $query->getModel()->getTable() . '.companies_id';
+        $companies = $company->companyIds === [(int) $company->ownCompany->getId()]
+            ? collect([$company->ownCompany])
+            : Companies::query()->whereIn('id', $company->companyIds)->get();
+
+        return $query->where(function (Builder $outer) use ($companies, $tenantColumn, $column, $open): void {
+            foreach ($companies as $member) {
+                $outer->orWhere(function (Builder $one) use ($member, $tenantColumn, $column, $open): void {
+                    $one->where($tenantColumn, $member->getId());
+
+                    LeadStatus::constrainToState(
+                        $one,
+                        $column,
+                        open: $open,
+                        company: $member
+                    );
+                });
+            }
+        });
     }
 
     /**
      * The "open" (default), "closed" or "all" switch every lead-listing tool exposes, in one place.
      */
-    public function scopeHavingLeadState(Builder $query, string $state, ?CompanyInterface $company = null): Builder
-    {
+    public function scopeHavingLeadState(
+        Builder $query,
+        string $state,
+        CompanyInterface|CompanyScope|null $company = null
+    ): Builder {
         return match ($state) {
             'closed' => $query->hasClosedLeadStatus($company),
             'all' => $query,
@@ -418,9 +489,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
      */
     public function statusName(): ?string
     {
-        $status = $this->relationLoaded('status') ? $this->getRelation('status') : $this->status()->first();
-
-        return $status?->name;
+        return LeadStatus::resolveFor($this, 'status', 'leads_status_id')?->name;
     }
 
     /**
@@ -581,12 +650,15 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function toSearchableArray(): array
     {
         $variantInterests = app(LeadVariantInterestProjectionService::class)->build($this);
+        $people = $this->people?->toSearchableArray();
         $lead = [
             'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
             'id' => (string) $this->id,
             'uuid' => (string) $this->uuid,
-            'email' => (string) $this->email ?? $this->people?->email,
-            'phone' => (string) $this->phone ?? $this->people?->getAllPhones()->first()?->phone,
+            'email' => Str::trimToNull($this->email) ?? (string) ($people['email'] ?? ''),
+            'phone' => Str::trimToNull($this->phone) ?? (string) ($people['phone'] ?? ''),
+            'emails' => array_values(array_unique(array_filter([Str::lowerTrim($this->email), ...($people['emails'] ?? [])]))),
+            'phones' => array_values(array_unique([...Str::phoneSearchTerms($this->phone), ...($people['phones'] ?? [])])),
             'title' => (string) $this->title,
             'firstname' => (string) $this->firstname,
             'lastname' => (string) $this->lastname,
@@ -609,7 +681,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
             'status' => $this->status,
             'created_at' => $this->created_at ? $this->created_at->timestamp : null,
             'updated_at' => $this->updated_at ? $this->updated_at->timestamp : null,
-            'people' => $this->people ? $this->people->toSearchableArray() : null,
+            'people' => $people,
             'variant_interests' => $variantInterests['items'],
             'variant_search_text' => $variantInterests['search_text'],
         ];
@@ -733,6 +805,16 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
                     'type' => 'string',
                 ],
                 [
+                    'name' => 'emails',
+                    'type' => 'string[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phones',
+                    'type' => 'string[]',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'description',
                     'type' => 'string',
                     'optional' => true,
@@ -832,7 +914,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
 
     public function searchQueryBy(): string
     {
-        return 'title,firstname,lastname,email,description';
+        return $this->queryByLiveFields('title,firstname,lastname,email,phones,emails,description');
     }
 
     protected function makeAllSearchableUsing(Builder $query): Builder
@@ -859,7 +941,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
             ]
         );
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $query = self::traitSearch(Str::phoneSearchQuery((string) $query), $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
         /*  if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
@@ -881,6 +963,24 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         }
 
         return $query;
+    }
+
+    /**
+     * LEAD_CONTEXT_INFO is the BDC pipeline's array context, but legacy voice captures left a
+     * plain string in it, which array_merge() and indexing readers can't take. A string comes
+     * back under `voice_context`.
+     *
+     * @return array<string, mixed>
+     */
+    public function getAiContextInfo(): array
+    {
+        $value = $this->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
+
+        return match (true) {
+            is_array($value) => $value,
+            is_string($value) && trim($value) !== '' => ['voice_context' => trim($value)],
+            default => [],
+        };
     }
 
     public function getCurrentPipelineStage(): ?PipelineStage
@@ -913,6 +1013,43 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
             $this->pipeline_stage_id = $nextStage->id;
             $this->saveOrFail();
         }
+    }
+
+    /**
+     * The subject every email of this lead threads under: the first outreach writes it, a cold
+     * inbound gives it, replies and follow-ups read it.
+     */
+    public function emailThreadSubject(): ?string
+    {
+        $subject = $this->get(ConfigurationEnum::EMAIL_THREAD_SUBJECT->value);
+
+        return is_string($subject) ? Str::trimToNull($subject) : null;
+    }
+
+    /**
+     * First touch wins: a later email never renames the thread.
+     */
+    public function anchorEmailThread(?string $subject): void
+    {
+        $subject = Str::trimToNull($subject);
+
+        if ($subject !== null && $this->emailThreadSubject() === null) {
+            $this->set(ConfigurationEnum::EMAIL_THREAD_SUBJECT->value, $subject);
+        }
+    }
+
+    /**
+     * The thread subject as a reply carries it, or null when the lead has no thread yet.
+     */
+    public function emailThreadReplySubject(): ?string
+    {
+        $subject = $this->emailThreadSubject();
+
+        if ($subject === null) {
+            return null;
+        }
+
+        return preg_match('/^\s*re:/i', $subject) === 1 ? $subject : 'Re: ' . $subject;
     }
 
     public function hasBeenContacted(): bool
@@ -969,6 +1106,31 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function canRunAiAgent(): bool
     {
         return ! $this->isAiMuted();
+    }
+
+    /**
+     * Something happened that can change how the AI works this lead (`TriggersEnum` says what): the
+     * `trigger-ai` workflow event, whose app default rule applies the lead's AI mode.
+     *
+     * `$reachOutAppliesMode` is for a lead that was also announced with the `created` event: when an
+     * agent reaches out to the company's new leads, that reach-out gives the lead its mode right before
+     * reading it, so the rule leaves it alone. An import that announces only the trigger keeps the default.
+     *
+     * Fired even on a lead whose writes were switched off: an import that says its lead is new still
+     * means it.
+     */
+    public function announceAiTrigger(int $triggerType, bool $reachOutAppliesMode = false): void
+    {
+        $this->withWorkflows(fn () => $this->fireWorkflow(
+            WorkflowEnum::TRIGGER_AI->value,
+            true,
+            [
+                'app' => $this->app,
+                'company' => $this->company,
+                'trigger_type' => $triggerType,
+                ...($reachOutAppliesMode ? [self::REACH_OUT_APPLIES_MODE => true] : []),
+            ]
+        ));
     }
 
     public function isServiceLead(): bool

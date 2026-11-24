@@ -22,6 +22,7 @@ enum ConfigurationEnum: string
     case HAS_FOLLOW_UP = 'lead_has_follow_up';
     case FOLLOW_UP_SOURCE_SYNCED_AT = 'guild_follow_up_source_synced_at';
     case AI_MODE_IS_MANUAL = 'lead_ai_mode_is_manual';
+    case AI_FOLLOW_UP_IS_MANUAL = 'ai_follow_up_manual';
     case CONVERTED_TO_DEAL_ID = 'converted_to_deal_id';
     case OPEN_LEADS_STATUS_IDS = 'guild_open_leads_status_ids';
     case DAILY_LEADS_DIGEST_ENABLED = 'guild_daily_leads_digest_enabled';
@@ -29,4 +30,12 @@ enum ConfigurationEnum: string
     case DAILY_LEADS_DIGEST_EXCLUDED_COMPANIES = 'guild_daily_leads_digest_excluded_companies';
     case DAILY_LEADS_DIGEST_EXCLUDED_EMAILS = 'guild_daily_leads_digest_excluded_emails';
     case DAILY_LEADS_DIGEST_RECIPIENTS = 'guild_daily_leads_digest_recipients';
+    case DAILY_LEADS_DIGEST_COMBINED = 'guild_daily_leads_digest_combined';
+    case DAILY_LEADS_DIGEST_SUMMARY_FIELDS = 'guild_daily_leads_digest_summary_fields';
+    case AGENT_EMAIL_CC_ALLOWED_DOMAINS = 'guild_agent_email_cc_allowed_domains';
+    case EMAIL_THREAD_SUBJECT = 'title_email_follow_up';
+
+    // App settings named when Twilio was the only carrier; the keys stay so saved values still apply.
+    case SMS_MEDIA_BATCH_SIZE = 'twilio-mms-batch-size';
+    case SMS_MEDIA_MAX_TOTAL = 'twilio-mms-max-total-media';
 }

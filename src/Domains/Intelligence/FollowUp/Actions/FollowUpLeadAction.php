@@ -8,24 +8,27 @@ use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Actions\Outreach\BootstrapChannelForLeadAction;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
@@ -56,7 +59,9 @@ use Throwable;
  * Brain of the v1 follow-up engine. Full pipeline + outcome semantics:
  * docs/intelligence/follow-up-v1-spec.md.
  *
- * `force: true` bypasses the silence gate only — for manual UI triggers.
+ * `force: true` bypasses scheduling gates — for manual UI triggers.
+ * `openSessionIfMissing: true` is for a caller that owns first contact, such as an external scheduler
+ * whose lead was never reached out to. Manual plans also open their first session when due.
  */
 final class FollowUpLeadAction
 {
@@ -67,19 +72,31 @@ final class FollowUpLeadAction
         protected readonly Agent $agent,
         protected readonly bool $force = false,
         protected readonly ?CrmLeadSourceSynchronizer $synchronizer = null,
+        protected readonly bool $openSessionIfMissing = false,
     ) {
     }
 
     public function execute(): FollowUpOutcome
     {
         $eligibility = new LeadFollowUpEligibilityService();
-        $config = FollowUpConfig::fromStage($this->lead->stage);
+        $repliedReason = $eligibility->concludeRepliedPlan($this->lead);
+        if ($repliedReason !== null) {
+            return $this->skip($repliedReason);
+        }
+
+        $config = $eligibility->configFor($this->lead);
         $skipReason = $eligibility->skipReason($this->lead, $config);
         if ($skipReason !== null) {
             return $this->skip($skipReason);
         }
 
+        $plan = $config->plan;
+
         if ($this->lead->getFollowUpStateCount() >= $config->maxRetries) {
+            if ($plan !== null) {
+                return $this->exhaustPlan();
+            }
+
             if ($config->exhaustedAction === ExhaustedActionEnum::ADVANCE && $this->advanceLeadStage()) {
                 // The stage observer resets the count and wait window. Do not exhaust the new stage.
                 return $this->skip('max_retries_stage_advanced');
@@ -91,6 +108,10 @@ final class FollowUpLeadAction
         // Handoff is terminal — operator must reset follow_up_state to bring
         // the lead back into the automated flow even if the handoff clears.
         if ($eligibility->isHandedOff($this->lead)) {
+            if ($plan !== null) {
+                new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_HANDED_OFF)->execute();
+            }
+
             return $this->exhaust('handed_off');
         }
 
@@ -99,39 +120,87 @@ final class FollowUpLeadAction
             return $this->skip($pausedReason);
         }
 
+        // The stage path meets a deactivated agent inside the kernel call; a plan never calls it, so the
+        // same refusal, with the same `agent_skipped:` reason, has to happen here.
+        if ($plan !== null && ! $this->agent->is_active) {
+            return $this->skip(sprintf('agent_skipped: Agent %d is deactivated', $this->agent->getId()));
+        }
+
         // Channel resolution lives on the Lead's contacts
         $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
         if ($candidates === []) {
             return $this->skip(FollowUpFailureReasonEnum::NO_REACHABLE_CHANNEL->value);
         }
 
+        // Before the session: a touch that is not due yet must not open a conversation, and it is a
+        // wait, not a `no_session` failure in the daily summary.
+        $waitReason = $this->force ? null : (
+            $eligibility->tooSoonReason($this->lead, $config)
+            ?? $eligibility->outsideWorkHoursReason($this->lead, $config)
+        );
+        if ($waitReason !== null) {
+            return $this->skip($waitReason);
+        }
+
         $session = $this->resolveSession();
+        if (! $session && ($this->openSessionIfMissing || $plan !== null)) {
+            [, $session] = new BootstrapChannelForLeadAction(
+                $this->lead,
+                $candidates[0]->channelType,
+                (string) $candidates[0]->contact->value,
+                $this->agent
+            )->execute();
+        }
+
         if (! $session) {
             return $this->skip(FollowUpFailureReasonEnum::NO_SESSION->value);
         }
 
-        $lastInboundAt = $eligibility->getLastInboundAt($this->lead);
         $targets = $this->selectTargets($candidates, $config);
-        // Primary target drives prompt + template + ledger summary. For
-        // FAN_OUT_ALL the same body is dispatched to every target below.
+
+        return $plan !== null
+            ? $this->sendPlanTouch(
+                $plan,
+                $config,
+                $session,
+                $targets,
+            )
+            : $this->sendStageTouch(
+                $config,
+                $session,
+                $targets,
+                $eligibility,
+            );
+    }
+
+    /**
+     * @param ResolvedChannel[] $targets
+     */
+    private function sendStageTouch(
+        FollowUpConfig $config,
+        Session $session,
+        array $targets,
+        LeadFollowUpEligibilityService $eligibility,
+    ): FollowUpOutcome {
+        // The primary target drives the prompt; fan-out sends the same body to every target.
         $primary = $targets[0];
         $channelType = $primary->channelType;
-        $channelConfig = $config->channelByType($channelType);
-
-        $silenceMin = $eligibility->silenceMinutes($this->lead);
-
-        if (! $this->force && $silenceMin < $config->timeBased->intervalMinutes) {
-            return $this->skip('too_soon');
-        }
-
         [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
             $channelType,
-            $channelConfig,
-            $lastInboundAt
+            $config->channelByType($channelType),
+            $eligibility->getLastInboundAt($this->lead)
         );
 
         if ($skipReason !== null) {
             return $this->skip($skipReason);
+        }
+
+        $missingLinks = implode(', ', $this->missingLinks($template));
+        if ($missingLinks !== '') {
+            return $this->skipWithNote(
+                FollowUpFailureReasonEnum::LINK_MISSING->value . ': ' . $missingLinks,
+                'Follow-up not sent: this step needs a link the lead does not have (' . $missingLinks . ').'
+            );
         }
 
         // Every free gate has passed; this is the last stop before money is spent (a CRM call,
@@ -141,12 +210,13 @@ final class FollowUpLeadAction
             return $sourceOutcome;
         }
 
+        $silenceMin = $eligibility->silenceMinutes($this->lead);
         $prompt = $this->buildAgentPrompt(
             $config,
             $channelType,
             $template?->name,
             $template !== null
-                ? $this->renderTemplateForStyleReference($template)
+                ? $this->renderTemplateWithMessage($template, '[agent message slot]')
                 : $this->renderDefaultStyleReference($channelType),
             $metaTemplate,
             $silenceMin
@@ -206,54 +276,98 @@ final class FollowUpLeadAction
             return $this->skip('agent: ' . ($result->reason ?? 'declined'));
         }
 
-        $sentBody = null;
-        $primaryMessage = null;
-        $channelsForBump = [];
+        $sent = null;
         if ($result->shouldRespond && $result->message !== null) {
             $resolvedBody = $this->resolveOutboundBody($template, $result->message);
-
-            foreach ($targets as $target) {
-                $body = $this->withSmsOptOutNotice($target, $resolvedBody);
-                $message = $this->persistMessage($session, $target, $body);
-                $this->dispatchOutbound(
-                    $target->channelType,
-                    $body,
-                    $target->contact,
-                    $message
-                );
-                $channelsForBump[] = $target->channelType;
-                // The outcome reports the primary target's body as it actually shipped.
-                $sentBody ??= $body;
-                $primaryMessage ??= $message;
+            if ($resolvedBody === null) {
+                return $this->skipWithNote(FollowUpFailureReasonEnum::TEMPLATE_RENDER_FAILED->value, 'Follow-up not sent: its template failed to render.');
             }
 
+            $sent = $this->dispatchToTargets($session, $targets, $resolvedBody);
             // One touch = one bump regardless of N channels dispatched.
-            $this->lead->bumpFollowUp($channelsForBump, $template?->name);
+            $this->lead->bumpFollowUp($sent['channels'], $template?->name);
         }
 
         $advanced = $result->advanceStage && $this->advanceLeadStage();
 
-        $this->emitSent(
-            $channelsForBump !== [] ? $channelsForBump : [$channelType],
-            $template?->name,
-            $metaTemplate,
-            $result->reason,
-            $advanced,
-            $primary,
-            $config->channelSelection,
+        return $this->completeTouch(
+            sent: $sent,
+            primary: $primary,
+            config: $config,
+            templateName: $template?->name,
+            metaTemplate: $metaTemplate,
+            reason: $result->reason,
+            advanced: $advanced,
         );
+    }
 
-        if ($primaryMessage !== null) {
-            $this->fireAfterFollowUpWorkflow(
-                $primaryMessage,
-                (string) $sentBody,
-                $channelsForBump,
-                $template?->name,
-                $advanced,
-            );
+    /**
+     * A fixed body bypasses templates and the agent. The last successful attempt ends the plan now.
+     *
+     * @param ResolvedChannel[] $targets
+     */
+    private function sendPlanTouch(
+        ManualFollowUpPlan $plan,
+        FollowUpConfig $config,
+        Session $session,
+        array $targets,
+    ): FollowUpOutcome {
+        $sourceOutcome = $this->syncLeadSource();
+        if ($sourceOutcome !== null) {
+            return $sourceOutcome;
         }
 
-        return FollowUpOutcome::sent($sentBody);
+        $sent = $this->dispatchToTargets($session, $targets, $plan->body);
+        if (! $sent['all_succeeded']) {
+            return FollowUpOutcome::error(FollowUpFailureReasonEnum::SEND_FAILED->value);
+        }
+
+        $this->lead->bumpFollowUp($sent['channels'], null);
+
+        $outcome = $this->completeTouch(
+            sent: $sent,
+            primary: $targets[0],
+            config: $config,
+            reason: 'plan',
+        );
+
+        if ($this->lead->getFollowUpStateCount() >= $plan->maxAttempts) {
+            new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_EXHAUSTED)->execute();
+        }
+
+        return $outcome;
+    }
+
+    /**
+     * Persists and sends one body to every target. The primary target's body is the one reported,
+     * as it actually shipped (the SMS opt-out clause may have been added).
+     *
+     * @param ResolvedChannel[] $targets
+     * @return array{body: string, message: Message, channels: string[], all_succeeded: bool}
+     */
+    private function dispatchToTargets(Session $session, array $targets, string $resolvedBody): array
+    {
+        $sentBody = null;
+        $primaryMessage = null;
+        $channels = [];
+        $allSucceeded = true;
+
+        foreach ($targets as $target) {
+            $body = $this->withSmsOptOutNotice($target, $resolvedBody);
+            $message = $this->persistMessage($session, $target, $body);
+            $succeeded = $this->dispatchOutbound(
+                $target->channelType,
+                $body,
+                $target->contact,
+                $message
+            );
+            $allSucceeded = $allSucceeded && $succeeded;
+            $channels[] = $target->channelType;
+            $sentBody ??= $body;
+            $primaryMessage ??= $message;
+        }
+
+        return ['body' => (string) $sentBody, 'message' => $primaryMessage, 'channels' => $channels, 'all_succeeded' => $allSucceeded];
     }
 
     /**
@@ -360,10 +474,7 @@ final class FollowUpLeadAction
         ?string $metaTemplate,
         int $silenceMin,
     ): string {
-        $override = $config->promptTemplate
-            ?? (is_string($this->company->get('follow_up_prompt_template'))
-                ? (string) $this->company->get('follow_up_prompt_template')
-                : null);
+        $override = $config->promptTemplate ?? $this->company->get('follow_up_prompt_template');
 
         $context = [
             'lead' => $this->lead,
@@ -493,66 +604,93 @@ final class FollowUpLeadAction
         }
     }
 
-    // Renders the template body with the lead/people/company context so the
-    // agent prompt sees actual text. Where the template has a `$agent_message`
-    // slot, we substitute a sentinel so the agent knows where its content lands.
-    private function renderTemplateForStyleReference(Templates $template): ?string
-    {
-        $body = (string) ($template->template ?? '');
-        if ($body === '') {
-            return null;
-        }
-
-        try {
-            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, [
-                'lead' => $this->lead,
-                'people' => $this->lead->people ?? null,
-                'company' => $this->company,
-                'agent_message' => '[agent message slot]',
-            ]);
-        } catch (Throwable $e) {
-            report($e);
-
-            return null;
-        }
-    }
-
-    // For templates with a `$agent_message` slot, render the template (agent
-    // message wrapped). For static templates without the slot, send the agent
-    // message directly — the template was a style guide only.
-    private function resolveOutboundBody(?Templates $template, string $agentMessage): string
+    // Link templates must render even without an agent_message slot so the URL survives unchanged.
+    // Other static templates only guide the agent's tone. Null means do not send.
+    private function resolveOutboundBody(?Templates $template, string $agentMessage): ?string
     {
         if ($template === null) {
             return $agentMessage;
         }
 
         $body = (string) ($template->template ?? '');
-        if (! str_contains($body, 'agent_message')) {
+        $usesLink = $this->templateUsesLink($template);
+        if (! str_contains($body, 'agent_message') && ! $usesLink) {
             return $agentMessage;
         }
 
-        return $this->renderTemplateWithMessage($template, $agentMessage);
+        $rendered = $this->renderTemplateWithMessage($template, $agentMessage);
+
+        return $rendered ?? ($usesLink ? null : $agentMessage);
     }
 
-    private function renderTemplateWithMessage(Templates $template, string $agentMessage): string
+    private function renderTemplateWithMessage(Templates $template, string $agentMessage): ?string
     {
         $body = (string) ($template->template ?? '');
         if ($body === '') {
-            return $agentMessage;
+            return null;
         }
 
         try {
-            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, [
-                'lead' => $this->lead,
-                'people' => $this->lead->people ?? null,
-                'company' => $this->company,
-                'agent_message' => $agentMessage,
-            ]);
+            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, $this->templateContext($agentMessage));
         } catch (Throwable $e) {
             report($e);
 
-            return $agentMessage;
+            return null;
         }
+    }
+
+    /**
+     * The links are the only custom field exposed: a template can print whatever reaches it, and lead
+     * custom fields hold personal data.
+     *
+     * @return array<string, mixed>
+     */
+    private function templateContext(string $agentMessage): array
+    {
+        return [
+            'lead' => $this->lead,
+            'people' => $this->lead->people ?? null,
+            'company' => $this->company,
+            'agent_message' => $agentMessage,
+            'follow_up_links' => $this->lead->getFollowUpLinks(),
+        ];
+    }
+
+    private function templateUsesLink(?Templates $template): bool
+    {
+        return str_contains((string) ($template?->template ?? ''), 'follow_up_links');
+    }
+
+    /**
+     * Twig renders a missing key as empty, so without this the message would go out ending on
+     * "here:". Only sees the dotted form, `follow_up_links.name`.
+     *
+     * @return string[]
+     */
+    private function missingLinks(?Templates $template): array
+    {
+        preg_match_all('/follow_up_links\.(\w+)/', (string) ($template?->template ?? ''), $matches);
+        if ($matches[1] === []) {
+            return [];
+        }
+
+        return array_values(array_diff(
+            array_unique($matches[1]),
+            array_keys($this->lead->getFollowUpLinks())
+        ));
+    }
+
+    /**
+     * Forced runs only: the touch will not be retried, so a person needs to see it was lost. The
+     * cron retries every hour and would write the same note each time.
+     */
+    private function skipWithNote(string $reason, string $note): FollowUpOutcome
+    {
+        if ($this->force) {
+            new RecordLeadNoteAction($this->lead)->execute(body: $note, tag: 'follow-up-not-sent', isPublic: false);
+        }
+
+        return $this->skip($reason);
     }
 
     private function persistMessage(Session $session, ResolvedChannel $target, string $body): Message
@@ -593,12 +731,10 @@ final class FollowUpLeadAction
         $message->addTag('followup');
 
         try {
-            new LeadChannelService()->attachMessageToLeadChannel(
+            new LeadChannelService()->recordOnLeadAndPerson(
                 $message,
                 $this->lead,
-                $this->app,
-                $this->company,
-                $this->company->getAiAgentUserOrFail(),
+                $this->company->getAiAgentUserOrFail()
             );
         } catch (Throwable $e) {
             report($e);
@@ -728,13 +864,13 @@ final class FollowUpLeadAction
         string $body,
         Contact $outboundContact,
         Message $message,
-    ): void {
+    ): bool {
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
 
         $providerResponse = null;
 
         try {
-            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
+            $providerResponse = app(SendMessageToLeadAction::class, ['lead' => $this->lead])->execute(
                 channel: $channelType,
                 message: $body,
                 from: $twilioFrom,
@@ -742,10 +878,9 @@ final class FollowUpLeadAction
                 to: (string) $outboundContact->value,
                 fromAgent: $this->agent,
             );
-            new StoreMessageSidAction($message)->execute($providerResponse);
+            new LinkDeliveryMessageAction($message)->execute($providerResponse);
         } catch (Throwable $e) {
-            // Outbound failure does NOT roll back the persisted message — the
-            // record of attempt is the audit truth; the queue layer retries.
+            // Keep the persisted attempt for auditing even when outbound delivery fails.
             report($e);
             $providerResponse ??= ['success' => false, 'error' => $e->getMessage()];
         }
@@ -758,21 +893,17 @@ final class FollowUpLeadAction
                 'reason' => FollowUpFailureReasonEnum::SEND_FAILED->value,
                 'error' => mb_substr((string) ($providerResponse['error'] ?? ''), 0, 500),
             ]);
+
+            return false;
         }
+
+        return true;
     }
 
-    // Reuse the original outreach subject (anchored on the lead by
-    // AgentReachOutOnChannelAction) so the follow-up threads under the same
-    // email as a reply. Falls back to the company name for leads with no
-    // anchored subject (legacy / non-email-originated).
+    // A lead with no email thread yet (legacy, or never emailed) starts one under the company name.
     private function resolveEmailTitle(): string
     {
-        $anchor = $this->lead->get('title_email_follow_up');
-        if (! is_string($anchor) || $anchor === '') {
-            return $this->company->name;
-        }
-
-        return str_starts_with(mb_strtolower($anchor), 're:') ? $anchor : 'Re: ' . $anchor;
+        return $this->lead->emailThreadReplySubject() ?? $this->company->name;
     }
 
     private function messageTypeVerbFor(string $channelType): string
@@ -802,6 +933,18 @@ final class FollowUpLeadAction
         return FollowUpOutcome::skipped($reason);
     }
 
+    /**
+     * A plan that ran out of attempts never advances the stage, and its state is reset by the end
+     * action so the stage config applies again; the ledger keeps the exhaustion itself.
+     */
+    private function exhaustPlan(): FollowUpOutcome
+    {
+        $outcome = $this->exhaust('plan_max_attempts');
+        new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_EXHAUSTED)->execute();
+
+        return $outcome;
+    }
+
     private function exhaust(string $reason): FollowUpOutcome
     {
         $this->lead->markFollowUpExhausted($reason);
@@ -814,29 +957,42 @@ final class FollowUpLeadAction
     }
 
     /**
-     * @param string[] $channels  one element for pick-one strategies, N for fan_out_all
+     * @param array{body: string, message: Message, channels: string[], all_succeeded: bool}|null $sent
      */
-    private function emitSent(
-        array $channels,
-        ?string $templateName,
-        ?string $metaTemplate,
-        ?string $reason,
-        bool $advanced,
+    private function completeTouch(
+        ?array $sent,
         ResolvedChannel $primary,
-        ChannelSelectionEnum $strategy,
-    ): void {
+        FollowUpConfig $config,
+        ?string $templateName = null,
+        ?string $metaTemplate = null,
+        ?string $reason = null,
+        bool $advanced = false,
+    ): FollowUpOutcome {
         $this->lead->emitLedgerEvent('lead.follow_up.sent', payload: [
             'stage_id' => $this->lead->pipeline_stage_id,
-            'channels' => $channels,
+            'channels' => $sent['channels'] ?? [$primary->channelType],
             'template' => $templateName,
             'meta_template' => $metaTemplate,
             'follow_up_count' => $this->lead->getFollowUpStateCount(),
             'by_agent_id' => $this->agent->getId(),
             'reason' => $reason,
             'advanced_stage' => $advanced,
-            'channel_selection_strategy' => $strategy->value,
+            'channel_selection_strategy' => $config->channelSelection->value,
             'channel_selection_reason' => $primary->reason,
             'contact_id' => $primary->contact->getKey(),
+            'source' => $config->plan !== null ? 'plan' : 'stage',
         ]);
+
+        if ($sent !== null) {
+            $this->fireAfterFollowUpWorkflow(
+                $sent['message'],
+                $sent['body'],
+                $sent['channels'],
+                $templateName,
+                $advanced,
+            );
+        }
+
+        return FollowUpOutcome::sent($sent['body'] ?? null);
     }
 }

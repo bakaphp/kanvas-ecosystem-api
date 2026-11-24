@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
@@ -41,7 +43,7 @@ class VoiceAgentSpecService
         $voice = $this->agent->voice_config ?? [];
         $tts = $voice['tts'] ?? [];
         $stt = $voice['stt'] ?? [];
-        $language = $voice['language'] ?? 'es';
+        $language = Str::trimToNull((string) ($voice['language'] ?? '')) ?? 'en';
 
         return [
             'agent_id' => $this->agent->uuid,
@@ -60,13 +62,10 @@ class VoiceAgentSpecService
                     'model' => $stt['model'] ?? null,
                     'language' => $stt['language'] ?? $language,
                 ],
-                'llm' => [
-                    'provider' => 'google',
-                    'model' => $this->resolvedModelName(),
-                ],
+                'llm' => $this->llm(),
                 'tts' => [
                     'provider' => $tts['provider'] ?? 'elevenlabs',
-                    'voice_id' => $tts['voice_id'] ?? ($voice['voice_id'] ?? null),
+                    'voice_id' => self::ownVoiceId($voice) ?? VoiceRuntimeConfig::defaultVoiceId(),
                     'model' => $tts['model'] ?? null,
                     'stability' => $this->floatOrNull($tts['stability'] ?? null),
                     'similarity' => $this->floatOrNull($tts['similarity'] ?? null),
@@ -79,6 +78,17 @@ class VoiceAgentSpecService
             'context_schema' => array_values($voice['context_schema'] ?? []),
             'tools' => $this->tools(),
         ];
+    }
+
+    /**
+     * The voice the agent itself picked (voice_config.tts.voice_id, or the older top-level
+     * voice_id), or null when it picked none.
+     *
+     * @param array<string, mixed> $voice
+     */
+    public static function ownVoiceId(array $voice): ?string
+    {
+        return Str::trimToNull((string) ($voice['tts']['voice_id'] ?? $voice['voice_id'] ?? ''));
     }
 
     /**
@@ -123,6 +133,7 @@ class VoiceAgentSpecService
                     'properties' => $properties === [] ? new stdClass() : $properties,
                     'required' => $handler->getRequiredProperties(),
                 ],
+                'read_only' => AgentTool::isReadOnly($handler),
             ];
         }
 
@@ -132,7 +143,7 @@ class VoiceAgentSpecService
     /**
      * The agent's persona prompt, then the legacy structured `role` for records that predate it.
      */
-    private function systemInstruction(): string
+    public function systemInstruction(): string
     {
         $persona = $this->agent->personaPrompt();
 
@@ -153,8 +164,29 @@ class VoiceAgentSpecService
     }
 
     /**
-     * Per-agent model override → app default → hardcoded default. Mirrors
-     * BaseKanvasAgent::resolvedModelName().
+     * The call's LLM: the agent's voice LLM config when one is set — provider, model and base URL,
+     * never its API key (the runtime holds its own provider keys) — otherwise Gemini as before.
+     * The chat config (agent_llm_config_id) deliberately doesn't apply to calls.
+     *
+     * @return array{provider: string, model: string, base_url: string|null}
+     */
+    private function llm(): array
+    {
+        $config = AgentProviderService::voiceConfig($this->agent);
+        if ($config === null || empty($config->model)) {
+            return ['provider' => 'google', 'model' => $this->resolvedModelName(), 'base_url' => null];
+        }
+
+        return [
+            'provider' => (string) $config->provider,
+            'model' => (string) $config->model,
+            'base_url' => $config->base_uri ?: null,
+        ];
+    }
+
+    /**
+     * Gemini model for agents without a voice LLM config: per-agent override → app default →
+     * hardcoded default.
      */
     private function resolvedModelName(): string
     {

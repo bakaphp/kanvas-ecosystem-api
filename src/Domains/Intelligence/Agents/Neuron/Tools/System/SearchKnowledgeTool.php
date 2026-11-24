@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\System;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
-use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
@@ -176,14 +175,13 @@ class SearchKnowledgeTool extends Tool
 
     private static function sourceOf(Document $document): string
     {
-        $metadata = $document->getMetadata();
-        $kind = (string) ($metadata['source_type'] ?? $document->getSourceType());
+        if (KnowledgeScope::isDocument((string) $document->getSourceType())) {
+            return 'company_document';
+        }
 
-        return match (true) {
-            $kind === IndexKnowledgeDocumentActivity::SOURCE_TYPE => 'company_document',
-            in_array($kind, KnowledgeScope::MEMORY_SOURCE_TYPES, true) => $kind,
-            default => 'record_history',
-        };
+        $kind = (string) ($document->getMetadata()['source_type'] ?? $document->getSourceType());
+
+        return in_array($kind, KnowledgeScope::MEMORY_SOURCE_TYPES, true) ? $kind : 'record_history';
     }
 
     /**

@@ -20,6 +20,8 @@ use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Ledger\Models\JournalEntryLine;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
+use Kanvas\Scribe\Ledger\Services\FiscalPeriodAutoOpenService;
+use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
 use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
@@ -29,7 +31,7 @@ use Tests\TestCase;
  * Verifies:
  *   - balanced JE writes header + lines in a single transaction
  *   - posting to a hard-closed period throws
- *   - posting to a date with no fiscal_period row throws
+ *   - posting to a date with no fiscal_period row opens it inside the rolling window and throws outside it
  *   - unbalanced JE throws before any DB write
  *
  * @see plan §3.5 sub-ledger → GL auto-posting
@@ -66,6 +68,13 @@ class PostJournalEntryActionTest extends TestCase
             'period_end' => '2026-06-30',
             'status' => FiscalPeriodStatusEnum::OPEN,
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_balanced_invoice_je_writes_header_and_lines(): void
@@ -157,11 +166,13 @@ class PostJournalEntryActionTest extends TestCase
         $action->execute();
     }
 
-    public function test_posting_to_date_with_no_period_throws(): void
+    public function test_posting_to_date_with_no_period_outside_the_rolling_window_throws(): void
     {
+        Carbon::setTestNow('2026-06-10');
+
         $action = new PostJournalEntryAction(
             data: $this->makeJeData(
-                postedAt: Carbon::parse('2027-01-15'),    // no period covers this
+                postedAt: Carbon::parse('2031-01-15'),    // no period, and past the current + next year
                 sourceType: 'manual',
                 lines: [
                     $this->line($this->arAccountId, debit: 100),
@@ -172,6 +183,68 @@ class PostJournalEntryActionTest extends TestCase
 
         $this->expectException(ClosedFiscalPeriodException::class);
         $action->execute();
+    }
+
+    public function test_posting_in_january_opens_the_month_instead_of_failing(): void
+    {
+        Carbon::setTestNow('2026-12-28');
+
+        $entry = new PostJournalEntryAction(
+            data: $this->makeJeData(
+                postedAt: Carbon::parse('2027-01-04'),
+                sourceType: 'manual',
+                lines: [
+                    $this->line($this->arAccountId, debit: 100),
+                    $this->line($this->revenueAccountId, credit: 100),
+                ],
+            ),
+        )->execute();
+
+        $period = FiscalPeriod::query()->find($entry->fiscal_period_id);
+        $this->assertSame('2027-01-01', $period->period_start->toDateString());
+        $this->assertSame('2027-01-31', $period->period_end->toDateString());
+        $this->assertSame(FiscalPeriodStatusEnum::OPEN, $period->status);
+    }
+
+    public function test_auto_open_never_reopens_a_closed_month(): void
+    {
+        Carbon::setTestNow('2026-06-20');
+        FiscalPeriod::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->whereDate('period_start', '2026-06-01')
+            ->update(['status' => FiscalPeriodStatusEnum::HARD_CLOSED->value]);
+
+        $this->expectException(ClosedFiscalPeriodException::class);
+
+        new PostJournalEntryAction(
+            data: $this->makeJeData(
+                postedAt: Carbon::parse('2026-06-15'),
+                sourceType: 'manual',
+                lines: [
+                    $this->line($this->arAccountId, debit: 100),
+                    $this->line($this->revenueAccountId, credit: 100),
+                ],
+            ),
+        )->execute();
+    }
+
+    public function test_the_rolling_window_opens_every_month_of_this_year_and_the_next(): void
+    {
+        new FiscalPeriodAutoOpenService()->openRollingWindow(
+            $this->kanvasApp,
+            $this->company,
+            today: Carbon::parse('2026-03-01'),
+        );
+
+        $periods = new PeriodCloseService();
+        for ($month = Carbon::parse('2026-01-15'); $month->lte(Carbon::parse('2027-12-15')); $month->addMonthNoOverflow()) {
+            $this->assertNotNull(
+                $periods->findPeriodFor($this->kanvasApp->getId(), $this->company->getId(), $month),
+                "No fiscal period covers {$month->toDateString()}."
+            );
+        }
+        $this->assertNull($periods->findPeriodFor($this->kanvasApp->getId(), $this->company->getId(), Carbon::parse('2028-01-15')));
     }
 
     /**

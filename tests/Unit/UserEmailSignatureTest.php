@@ -65,6 +65,54 @@ final class UserEmailSignatureTest extends TestCaseUnit
         }
     }
 
+    public function testAnApprovedHtmlDesignIsSentAsDesignedWithoutLookingUpThePhoto(): void
+    {
+        $user = Mockery::mock(Users::class);
+        $user->shouldReceive('get')->with('email_signature')->once()->andReturn([
+            'append' => true,
+            'text' => "Jane Doe\nSales",
+            'html' => '<table><tr><td style="color:#1A73E8"><b>Jane Doe</b></td></tr></table>',
+        ]);
+        $user->shouldNotReceive('getFileByName');
+
+        $signature = UserEmailSignature::fromUser($user);
+        $html = $signature->toHtml();
+
+        $this->assertSame("Jane Doe\nSales", $signature->text);
+        $this->assertStringContainsString(UserEmailSignature::MARKER, $html);
+        $this->assertStringContainsString('<b>Jane Doe</b>', $html);
+        $this->assertStringContainsString('color:#1A73E8', $html);
+    }
+
+    public function testStoredHtmlIsCleanedAgainAtRenderTime(): void
+    {
+        $html = new UserEmailSignature('Jane', html: '<p onclick="x()">Jane</p><script>alert(1)</script>')->toHtml();
+
+        $this->assertStringNotContainsString('<script', $html);
+        $this->assertStringNotContainsString('onclick', $html);
+        $this->assertStringContainsString('Jane', $html);
+    }
+
+    public function testEnsureInAppendsToAFragmentAndInsertsBeforeTheClosingBodyOfADocument(): void
+    {
+        $signature = UserEmailSignature::fromUser($this->user(['append' => true, 'text' => 'Owner']))->toHtml();
+
+        $this->assertSame('<p>Hi</p>' . $signature, UserEmailSignature::ensureIn('<p>Hi</p>', $signature));
+        $this->assertSame(
+            '<html><body><p>Hi</p>' . $signature . '</body></html>',
+            UserEmailSignature::ensureIn('<html><body><p>Hi</p></body></html>', $signature)
+        );
+    }
+
+    public function testEnsureInLeavesABodyThatAlreadyCarriesTheSignatureAlone(): void
+    {
+        $signature = UserEmailSignature::fromUser($this->user(['append' => true, 'text' => 'Owner']))->toHtml();
+        $body = '<p>Hi</p>' . $signature . '<footer>Unsubscribe</footer>';
+
+        $this->assertSame($body, UserEmailSignature::ensureIn($body, $signature));
+        $this->assertSame('<p>Hi</p>', UserEmailSignature::ensureIn('<p>Hi</p>', null));
+    }
+
     private function user(mixed $setting, ?string $url = null): Users
     {
         $user = Mockery::mock(Users::class);

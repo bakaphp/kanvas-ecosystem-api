@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\TaxCodes\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Models\BaseModel;
 
 /**
@@ -41,5 +42,18 @@ class TaxCode extends BaseModel
     {
         return $this->hasMany(TaxRate::class, 'tax_code_id', 'id')
             ->orderBy('sort_order');
+    }
+
+    public function activeRate(?Carbon $at = null): ?TaxRate
+    {
+        $at ??= Carbon::now();
+
+        return $this->rates()
+            ->reorder()
+            ->where('is_active', true)
+            ->where('effective_from', '<=', $at->toDateString())
+            ->orderByDesc('effective_from')
+            ->orderBy('sort_order')
+            ->first();
     }
 }

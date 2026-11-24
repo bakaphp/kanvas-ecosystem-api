@@ -41,7 +41,7 @@ class ReadGoogleSheetTool extends Tool
                 type: PropertyType::STRING,
                 description: 'The full Google Sheets URL the user shared (e.g. '
                     . '"https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit#gid=0"), or a bare '
-                    . 'spreadsheet id. Omit to use this app\'s default invoice-tracking sheet.',
+                    . 'spreadsheet id. Required — ask the user for the link when you do not have it.',
                 required: false,
             ),
             new ToolProperty(

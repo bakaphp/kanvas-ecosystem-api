@@ -6,17 +6,9 @@ namespace App\Console\Commands\Approvals;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
-use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Acumatica\Approvals\ApproveAndPushBillHandler;
-use Kanvas\Connectors\Acumatica\Approvals\IssueAndPushInvoiceHandler;
-use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\Expenses\Approvals\ApproveExpenseHandler;
-use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Invoices\Models\Invoice;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Scribe\Approvals\Actions\SeedScribeApprovalPoliciesAction;
 
 /**
  * Creates the two AP/AR policies that reproduce today's behaviour exactly: one step, the vendor's or
@@ -26,9 +18,8 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
  * connector work, and naming the handler here is what makes the ERP dependency explicit — a tenant on
  * a different ERP seeds the same policies with a different handler class and nothing else changes.
  *
- * `notify` is 'none' on purpose: the Scribe intake paths still send the Slack DM (with the invoice PDF
- * attached), and letting the generic layer also mail every approver would double-notify real people.
- * Flip it to 'all' only once the Slack notification moves into the approvals domain.
+ * `notify` is 'all': the approvals domain is the only notifier, and Bill/Invoice deliver it as a Slack DM
+ * from the AP/AR agent (PDF attached) when the approver is on Slack, email otherwise.
  *
  * Every policy carries a fallback resolver, and the expense one is why. Its step resolves approvers off
  * the document's vendor Organization, which a bill or an invoice always has — and an expense often does
@@ -57,68 +48,22 @@ class SeedScribeApprovalPoliciesCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
         $expires = $this->option('expires-after-hours');
-        $fallbackRole = trim((string) $this->option('fallback-role'));
 
-        [$fallbackResolver, $fallbackConfig] = $fallbackRole !== ''
-            ? ['role', ['role' => $fallbackRole]]
-            : ['company_owner', []];
+        $results = new SeedScribeApprovalPoliciesAction(
+            app: $app,
+            company: $company,
+            fallbackRole: (string) $this->option('fallback-role'),
+            expiresAfterHours: $expires !== null ? (int) $expires : null,
+        )->execute();
 
-        // Only the expense policy allows the authority override, and the asymmetry is the point. On a bill
-        // the approver list IS the control — "only these people sign" is worthless if an admin can wave one
-        // through. An expense is review, not authorization: the card charge already happened, so the
-        // signature decides when it posts and under which account, not whether the money leaves.
-        $definitions = [
-            [Bill::class, 'approve_bill', 'vendor', ApproveAndPushBillHandler::class, false],
-            [Invoice::class, 'approve_invoice', 'customer', IssueAndPushInvoiceHandler::class, false],
-            [Expense::class, 'approve_expense', 'vendor', ApproveExpenseHandler::class, true],
-        ];
-
-        foreach ($definitions as [$model, $approvalType, $relation, $handler, $allowAuthorityOverride]) {
-            $systemModule = SystemModulesRepository::getByModelName($model, $app);
-
-            $policy = ApprovalPolicy::firstOrCreate([
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
-                'system_modules_id' => $systemModule->getId(),
-                'approval_type' => $approvalType,
-            ], [
-                'steps' => [[
-                    'step' => 1,
-                    'resolver' => 'organization_approver',
-                    'config' => ['relation' => $relation],
-                    'required_approvals' => 1,
-                ]],
-                'handler' => $handler,
-                'fallback_resolver' => $fallbackResolver,
-                'fallback_config' => $fallbackConfig,
-                'allow_authority_override' => $allowAuthorityOverride,
-                'trigger' => ApprovalTriggerEnum::MANUAL,
-                'reject_policy' => 'any',
-                'notify' => 'none',
-                'expires_after_hours' => $expires !== null ? (int) $expires : null,
-            ]);
-
-            // firstOrCreate leaves an existing row untouched, and a null fallback_resolver is the tell
-            // that nobody has chosen one — so backfilling both settings there cannot overwrite a
-            // deliberate choice. This is also what rescues requests ALREADY sitting unassigned:
-            // ApproverSelfAssignService reads the override off the policy when someone tries to DECIDE,
-            // not when the request was written, so flipping it here reaches backwards.
-            $backfilled = false;
-            if (! $policy->wasRecentlyCreated && $policy->fallback_resolver === null) {
-                $policy->fallback_resolver = $fallbackResolver;
-                $policy->fallback_config = $fallbackConfig;
-                $policy->allow_authority_override = $allowAuthorityOverride;
-                $policy->saveOrFail();
-                $backfilled = true;
-            }
-
+        foreach ($results as $result) {
             $this->info(sprintf(
                 '%s policy %s (id %d) for company %d — fallback %s.',
-                $approvalType,
-                $policy->wasRecentlyCreated ? 'created' : 'already existed',
-                $policy->getId(),
+                $result['approval_type'],
+                $result['created'] ? 'created' : 'already existed',
+                $result['policy']->getId(),
                 $company->getId(),
-                $backfilled ? "backfilled to {$fallbackResolver}" : (string) $policy->fallback_resolver,
+                $result['fallback_changed'] ? "backfilled to {$result['policy']->fallback_resolver}" : (string) $result['policy']->fallback_resolver,
             ));
         }
 

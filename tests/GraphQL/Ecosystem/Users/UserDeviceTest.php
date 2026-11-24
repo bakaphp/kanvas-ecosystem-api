@@ -64,7 +64,6 @@ class UserDeviceTest extends TestCase
             }
         ', [
             'data' => $deviceData,
-
         ])->assertJson([
             'data' => [
                 'unLinkDevice' => true,

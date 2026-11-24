@@ -28,7 +28,7 @@ class UpdateToWarehouseAction
     {
         $search = [
             'products_variants_id' => $this->variantsWarehousesDto->variant->getId(),
-            'warehouses_id' => $this->variantsWarehousesDto->warehouse->getId()
+            'warehouses_id' => $this->variantsWarehousesDto->warehouse->getId(),
         ];
 
         $updateData = [

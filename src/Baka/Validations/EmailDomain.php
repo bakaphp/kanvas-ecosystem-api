@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Validations;
 
+use Baka\Enums\PublicEmailDomainEnum;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -81,6 +82,15 @@ class EmailDomain
      */
     public static function isBlockedDomain(string $email, array $extraBlocked = []): bool
     {
+        return self::isInDomains($email, array_merge(self::BLOCKED_DOMAINS, $extraBlocked));
+    }
+
+    /**
+     * Exact match on purpose: `acme.com` must not admit `acme.com.evil.io` or `evilacme.com`, and a
+     * subdomain counts only when it is listed itself. A listed `@acme.com` is read as `acme.com`.
+     */
+    public static function isInDomains(string $email, array $domains): bool
+    {
         if (! str_contains($email, '@')) {
             return false;
         }
@@ -91,12 +101,39 @@ class EmailDomain
             return false;
         }
 
-        $blocked = array_map(
-            static fn (string $d): string => Str::lower(trim($d)),
-            array_merge(self::BLOCKED_DOMAINS, $extraBlocked)
+        $listed = array_map(
+            static fn (string $d): string => ltrim(Str::lower(trim($d)), '@'),
+            $domains
         );
 
-        return in_array($domain, $blocked, true);
+        return in_array($domain, $listed, true);
+    }
+
+    /**
+     * Accepts an email, a URL or a bare domain, and returns the host a colleague's email would carry.
+     * Null for anything that can't identify one company: an empty value, a host with no dot, or a
+     * free-mail provider.
+     */
+    public static function companyDomain(?string $value): ?string
+    {
+        $value = Str::lower(trim((string) $value));
+
+        if (str_contains($value, '@')) {
+            $value = Str::afterLast($value, '@');
+        } elseif (str_contains($value, '/') || str_contains($value, ':')) {
+            $value = (string) parse_url(preg_match('#^[a-z][a-z0-9+.-]*://#', $value) ? $value : 'https://' . $value, PHP_URL_HOST);
+        }
+
+        $domain = trim($value, " .\t\n\r\0\x0B<>\"'");
+        if (str_starts_with($domain, 'www.')) {
+            $domain = substr($domain, 4);
+        }
+
+        if ($domain === '' || ! str_contains($domain, '.') || preg_match('/[^a-z0-9.-]/', $domain)) {
+            return null;
+        }
+
+        return PublicEmailDomainEnum::isPublic($domain) ? null : $domain;
     }
 
     /**

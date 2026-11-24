@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Odoo\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Odoo\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Odoo\Services\OdooApiClient;
 use Kanvas\Exceptions\ValidationException;

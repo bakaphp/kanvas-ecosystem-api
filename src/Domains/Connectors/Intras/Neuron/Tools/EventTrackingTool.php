@@ -99,6 +99,7 @@ class EventTrackingTool extends Tool
                 description: 'Máximo de eventos. Por defecto 25.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -111,8 +112,13 @@ class EventTrackingTool extends Tool
         ?int $weeks_ahead = null,
         ?bool $acumulado = null,
         ?bool $solo_en_riesgo = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('event tracking');
         }
@@ -141,7 +147,7 @@ class EventTrackingTool extends Tool
     {
         $rows = OpenEventsTrackingRepository::forCompany(
             $this->app,
-            $this->company,
+            $this->auditedReadScope(),
             ['weeks_ahead' => $weeksAhead]
         );
 
@@ -172,6 +178,7 @@ class EventTrackingTool extends Tool
                 'esperado_a_la_fecha' => $expected,
                 'avance_pct' => $expected > 0 ? round(($weighted / $expected) * 100, 1) : null,
                 'estado' => $color,
+                ...$this->tenantLabel($row->companies_id),
             ];
         }
 
@@ -179,6 +186,7 @@ class EventTrackingTool extends Tool
             'eventos' => array_slice($events, 0, $limit),
             'total' => count($events),
             'reglas' => $this->rules(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 

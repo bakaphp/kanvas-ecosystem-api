@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Souk;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Shipping\DataTransferObject\ShippingQuote;
 use Wearepixel\Cart\CartCondition;
 
 class OrderProviderShippingTest extends ShippingOrderBase
@@ -24,12 +25,33 @@ class OrderProviderShippingTest extends ShippingOrderBase
         $this->assertStringStartsWith($estimate, (string) $order->estimate_shipping_date);
         $this->assertSame('inposdom', $order->metadata['shipping']['provider']);
         $this->assertSame('ems', $order->metadata['shipping']['service']);
+        $this->assertSame(['provider', 'service', 'quoted_amount', 'currency', 'quoted_at'], array_keys($order->metadata['shipping']));
         $this->assertEquals($quote['amount'], $order->metadata['shipping']['quoted_amount']);
         $this->assertEquals($quote['amount'], (float) $order->shipping_price_net_amount);
         $this->assertEquals(
             (float) $order->total_gross_amount - (float) $order->tax_amount + $quote['amount'],
             $order->getTotalDueAmount()
         );
+    }
+
+    public function testAFreeShipmentIsOrderedAndPaidWithoutShippingCharge(): void
+    {
+        $this->stopShippingToTheUs();
+        $this->addToCart()->assertSuccessful();
+        $this->assertSame([ShippingQuote::FREE], array_keys($this->shippingQuotes()));
+        $this->applyShippingQuote(ShippingQuote::FREE, 'US', ShippingQuote::FREE)->assertSuccessful();
+
+        $order = $this->orderFromResponse($this->placeOrderFromCart());
+
+        $this->assertSame(ShippingQuote::FREE, $order->metadata['shipping']['provider']);
+        $this->assertEquals(0.0, (float) $order->shipping_price_net_amount);
+        $this->assertEquals((float) $order->total_gross_amount - (float) $order->tax_amount, $order->getTotalDueAmount());
+
+        $this->apps->set(ConfigurationEnum::ENFORCE_EXACT_PAYMENT_AMOUNT->value, true);
+        $data = $this->addCashPayment($order, $order->getTotalDueAmount())->json('data.addPaymentToOrder');
+        $this->apps->set(ConfigurationEnum::ENFORCE_EXACT_PAYMENT_AMOUNT->value, false);
+
+        $this->assertSame('success', $data['status']);
     }
 
     public function testStaleCartIsRepricedAtOrderCreation(): void

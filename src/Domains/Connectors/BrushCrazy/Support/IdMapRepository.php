@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\BrushCrazy\Support;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
+use RuntimeException;
 
 /**
  * Bulk [brushcrazy_id => kanvas_id] lookups over `apps_custom_fields`.
@@ -31,6 +32,16 @@ class IdMapRepository
     public function load(int $companyId, string $modelClass, CustomFieldEnum $field): array
     {
         return $this->forwardMap($this->query($companyId, $modelClass, $field));
+    }
+
+    /**
+     * A row seeded by SeedBrushCrazyLookupDataAction (types, statuses, the Unassigned theme).
+     * Missing means the seed has not run for this company, which no sync can recover from.
+     */
+    public function lookup(int $companyId, string $modelClass, string $key): int
+    {
+        return $this->load($companyId, $modelClass, CustomFieldEnum::BRUSHCRAZY_LOOKUP_KEY)[$key]
+            ?? throw new RuntimeException("BrushCrazy lookup '{$key}' is missing; run the lookup seeding first.");
     }
 
     /**

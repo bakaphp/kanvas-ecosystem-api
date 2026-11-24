@@ -1,0 +1,42 @@
+{
+    "idDoc": {
+        "encf": "E320000000010",
+        "sequenceDueDate": "2028-12-31",
+        "incomeType": 1,
+        "paymentType": 1
+    },
+    "sender": {
+        "rnc": "130000001",
+        "companyName": "Empresa de Prueba SRL",
+        "address": "Av. Winston Churchill 1",
+        "municipality": "010100",
+        "province": "010000",
+        "mail": "facturas@example.com",
+        "stampDate": "2026-06-15"
+    },
+    "totals": {
+        "totalTaxedAmount": 1000.0,
+        "i1AmountTaxed": 1000.0,
+        "itbisS1": 18,
+        "itbisTotal": 180.0,
+        "itbis1Total": 180.0,
+        "totalAmount": 1180.0
+    },
+    "itemDetails": [
+        {
+            "lineNumber": 1,
+            "itemCodeTable": [
+                {
+                    "codeType": "Interna",
+                    "itemCode": "CAM-L"
+                }
+            ],
+            "billingIndicator": 1,
+            "itemName": "Camisa negra talla L",
+            "goodServiceIndicator": 1,
+            "quantityItem": 1.0,
+            "unitPriceItem": 1000.0,
+            "itemAmount": 1000.0
+        }
+    ]
+}

@@ -6,25 +6,16 @@ namespace Kanvas\Connectors\RespondIO\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\RespondIO\BaseRespondIOAction;
-use Kanvas\Connectors\RespondIO\Traits\HasChannelProcessing;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
-use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Override;
 
 class ProcessCommentAction extends BaseRespondIOAction
 {
-    use HasChannelProcessing;
-
     #[Override]
     public function execute(): array
     {
-        /** @var array<string, mixed> $contact */
-        $contact = $this->payload['contact'] ?? [];
         /** @var string $text */
         $text = $this->payload['text'] ?? '';
         /** @var array<int, array<string, mixed>> $attachments */
@@ -34,40 +25,25 @@ class ProcessCommentAction extends BaseRespondIOAction
         /** @var string $eventId */
         $eventId = $this->payload['event_id'] ?? Str::uuid()->toString();
 
-        $identifier = $this->getContactIdentifier($contact);
+        $identifier = $this->contactIdentifier();
 
         if ($identifier === null) {
             return ['error' => 'Missing contact identifier'];
         }
 
-        $channel = $this->findChannelByIdentifier($this->app, $this->company, $identifier);
+        $channel = $this->resolveChannel();
 
-        if (! $channel) {
+        if ($channel === null) {
             return ['error' => 'No channel found for contact', 'identifier' => $identifier];
         }
 
-        $lead = $this->findLeadFromChannel($this->app, $this->company, $channel);
+        $lead = $this->resolveLead($channel);
 
-        if (! $lead) {
+        if ($lead === null) {
             return ['error' => 'No lead found for channel', 'channel_id' => $channel->getId()];
         }
 
-        $notesChannel = $lead->notes;
-
-        if (! $notesChannel) {
-            $notesChannel = new CreateChannelAction(
-                new ChannelDto(
-                    $this->app,
-                    $this->company,
-                    $this->user,
-                    (string) $lead->getKey(),
-                    get_class($lead),
-                    ChannelNameEnum::NOTES->value,
-                    'AI Notes Channel',
-                    Str::uuid()->toString()
-                )
-            )->execute();
-        }
+        $notesChannel = $this->notesChannelOf($lead);
 
         $noteContent = $text;
         if (! empty($mentionedEmails)) {
@@ -86,22 +62,11 @@ class ProcessCommentAction extends BaseRespondIOAction
             $noteContent .= "\n\nAttachments:\n" . implode("\n", $attachmentLinks);
         }
 
-        $messageSlug = 'respondio-comment-' . Str::slug($eventId);
-
-        $messageTypeModel = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $this->app->getId(),
-                0,
-                'respondio-comment',
-                'respondio-comment',
-            )
-        )->execute();
-
         $messageInput = new MessageInput(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            type: $messageTypeModel,
+            app: $this->receiver->app,
+            company: $this->receiver->company,
+            user: $this->receiver->user,
+            type: MessageTypeService::getOrCreate($this->receiver->app, 'respondio-comment'),
             message: [
                 'content' => $noteContent,
                 'raw_data' => $this->payload,
@@ -109,14 +74,13 @@ class ProcessCommentAction extends BaseRespondIOAction
                 'is_internal' => true,
             ],
             is_public: 0,
-            slug: $messageSlug,
+            slug: 'respondio-comment-' . Str::slug($eventId),
             tags: ['respondio', 'internal-note']
         );
 
         $message = new CreateMessageAction($messageInput)->execute();
         $message->addEntity($lead);
-        // Polymorphic People attach so People-keyed history loaders (Neuron's
-        // EntityRollupMessageStore) find this turn. Harmless for ADK.
+        // History is loaded by person as well as by lead (Neuron's EntityRollupMessageStore).
         if ($lead->people !== null) {
             $message->addEntity($lead->people);
         }

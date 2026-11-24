@@ -13,7 +13,6 @@ class CompaniesBranchPutData extends Data
 {
     /**
      * Construct function.
-     *
      */
     public function __construct(
         public string $name,

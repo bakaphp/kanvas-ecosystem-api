@@ -51,6 +51,8 @@ final class KnowledgeVectorStore implements VectorStoreInterface
             DocumentField::string('channel_names')->filterable(),
             DocumentField::integer('agent_id')->filterable(),
             DocumentField::integer('users_id')->filterable(),
+            DocumentField::integer('inbound_message_id')->filterable(),
+            DocumentField::integer('reply_message_id')->filterable(),
             DocumentField::integer('created_at')->filterable(),
         );
     }

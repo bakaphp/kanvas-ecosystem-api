@@ -51,6 +51,7 @@ class EntitlementsTool extends Tool
             new ToolProperty(name: 'estado', type: PropertyType::STRING, description: 'Estado del plan o del pase.', required: false),
             new ToolProperty(name: 'solo_disponibles', type: PropertyType::BOOLEAN, description: 'En planes: sólo con cupos disponibles. En cortesías: sólo vigentes.', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Máximo de filas. Por defecto 25.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -62,8 +63,13 @@ class EntitlementsTool extends Tool
         ?string $empresa = null,
         ?string $estado = null,
         ?bool $solo_disponibles = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('entitlements');
         }
@@ -112,7 +118,7 @@ class EntitlementsTool extends Tool
         $totals = $service->aggregate(
             $definition,
             $this->app,
-            $this->company,
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'COUNT', 'alias' => 'planes'],
@@ -138,7 +144,7 @@ class EntitlementsTool extends Tool
             'detalle' => $service->search(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->auditedReadScope(),
                 $filters,
                 select: ['empresa', 'plan', 'tier', 'cupos', 'usados', 'disponibles', 'estado', 'fecha_expiracion', 'consumido'],
                 limit: $limit
@@ -180,7 +186,7 @@ class EntitlementsTool extends Tool
         $totals = $service->aggregate(
             $definition,
             $this->app,
-            $this->company,
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'COUNT', 'alias' => 'pases'],
@@ -202,7 +208,7 @@ class EntitlementsTool extends Tool
             'por_estado' => $service->aggregate(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(
                     aggregates: [['function' => 'COUNT', 'alias' => 'pases']],
                     groupBy: ['estado'],
@@ -214,7 +220,7 @@ class EntitlementsTool extends Tool
             'detalle' => $service->search(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->auditedReadScope(),
                 $filters,
                 select: ['codigo', 'empresa', 'ejecutivo', 'evento', 'motivo', 'tipo', 'estado', 'vigente', 'fecha_emision', 'fecha_expiracion', 'fecha_uso'],
                 limit: $limit

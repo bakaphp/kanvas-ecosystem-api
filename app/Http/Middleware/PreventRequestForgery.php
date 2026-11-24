@@ -12,6 +12,6 @@ class PreventRequestForgery extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        '/graphql'
+        '/graphql',
     ];
 }

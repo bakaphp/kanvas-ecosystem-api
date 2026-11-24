@@ -44,6 +44,7 @@ class RetryHarnessSessionAction
             referenceSlugs: array_values((array) ($input['reference_slugs'] ?? [])),
             attachmentIds: array_map(intval(...), (array) ($input['attachment_ids'] ?? [])),
             retryOf: $this->failed,
+            expectsChanges: $this->failed->expectsChanges(),
         )->execute();
 
         /** @var AgentTaskSession $retry */

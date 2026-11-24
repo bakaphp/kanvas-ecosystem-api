@@ -28,6 +28,7 @@ class CompaniesBranchesFactory extends Factory
     {
         $user = Users::first();
         $company = Companies::first();
+
         return [
             'companies_id' => $company->id,
             'users_id' => $user->id,
@@ -37,7 +38,7 @@ class CompaniesBranchesFactory extends Factory
             'email' => $this->faker->email(),
             'phone' => $this->faker->phoneNumber(),
             'is_default' => 1,
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ];
     }
 }

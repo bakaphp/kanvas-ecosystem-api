@@ -34,7 +34,7 @@ class CustomerUpdateAgentService
         $agent = Agent::query()
             ->fromApp($app)
             ->where('companies_id', $organization->companies_id)
-            ->whereHas('type', fn ($query) => $query->where('handler', CustomerUpdateAgent::class))
+            ->ofHandler(CustomerUpdateAgent::class)
             ->notDeleted()
             ->first();
 

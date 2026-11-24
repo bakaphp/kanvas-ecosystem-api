@@ -1,11 +1,15 @@
 union ApprovableEntity
-    @union(resolveType: "App\\GraphQL\\Approvals\\Types\\ApprovableEntityTypeResolver")
-    = People
+    @union(
+        resolveType: "App\\GraphQL\\Approvals\\Types\\ApprovableEntityTypeResolver"
+    ) =
+    | People
     | Lead
     | Message
     | ScribeBill
     | ScribeInvoice
     | ScribeExpense
+    | NervousSystemTask
+    | Organization
 
 type ApprovalRequest {
     id: ID!

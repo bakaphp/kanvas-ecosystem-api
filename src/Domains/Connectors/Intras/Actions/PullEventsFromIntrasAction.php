@@ -30,12 +30,17 @@ class PullEventsFromIntrasAction
     /** @var array<string, array<int|string, int>> [modelClass => [intras_id => kanvas_id]] */
     protected array $idMaps = [];
 
+    /**
+     * @param list<int>|null $onlyVersionIds pull just these legacy versions, their parent events and
+     *                                        their dates (an on-demand refresh); null is the whole agency
+     */
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
         protected UserInterface $user,
         protected ?string $lastSyncAt = null,
-        protected ?int $agencyId = null
+        protected ?int $agencyId = null,
+        protected ?array $onlyVersionIds = null
     ) {
     }
 
@@ -81,6 +86,13 @@ class PullEventsFromIntrasAction
             });
         } else {
             $query->where('is_deleted', 0);
+        }
+
+        if ($this->onlyVersionIds !== null) {
+            $onlyVersionIds = $this->onlyVersionIds;
+            $query->whereIn('id', function (QueryBuilder $sub) use ($onlyVersionIds): void {
+                $sub->select('events_id')->from('events_versions')->whereIn('id', $onlyVersionIds);
+            });
         }
 
         if ($this->lastSyncAt !== null) {
@@ -160,6 +172,10 @@ class PullEventsFromIntrasAction
 
         if ($this->agencyId !== null) {
             $query->where('agencies_id', $this->agencyId);
+        }
+
+        if ($this->onlyVersionIds !== null) {
+            $query->whereIn('id', $this->onlyVersionIds);
         }
 
         if ($this->lastSyncAt !== null) {
@@ -247,6 +263,10 @@ class PullEventsFromIntrasAction
                 ->where('ev.agencies_id', $this->agencyId);
         }
 
+        if ($this->onlyVersionIds !== null) {
+            $query->whereIn('evd.events_versions_id', $this->onlyVersionIds);
+        }
+
         $query->orderBy('evd.id')->chunk(500, function ($rows) use (&$counts) {
             foreach ($rows as $row) {
                 $kanvasVersionId = $this->mapId(EventVersion::class, $row->events_versions_id);
@@ -282,7 +302,15 @@ class PullEventsFromIntrasAction
      */
     protected function backfillVersionDateRange(): void
     {
-        $versionIds = array_values($this->idMaps[EventVersion::class] ?? []);
+        $versionMap = $this->idMaps[EventVersion::class] ?? [];
+
+        // A scoped refresh touches only its own versions; the full map would re-derive the range of
+        // every version in the agency on each sync.
+        if ($this->onlyVersionIds !== null) {
+            $versionMap = array_intersect_key($versionMap, array_flip($this->onlyVersionIds));
+        }
+
+        $versionIds = array_values($versionMap);
 
         if ($versionIds === []) {
             return;

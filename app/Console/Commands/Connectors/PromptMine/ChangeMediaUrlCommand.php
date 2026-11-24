@@ -59,6 +59,7 @@ class ChangeMediaUrlCommand extends Command
             ->chunk(100, function ($messages) {
                 foreach ($messages as $message) {
                     DB::beginTransaction();
+
                     try {
                         echo('Updating Message ID ' . $message->getId() . PHP_EOL);
                         Log::info(sprintf('Updating Message ID %d:', $message->getId()));
@@ -67,6 +68,7 @@ class ChangeMediaUrlCommand extends Command
 
                         if ($messageData['type'] == 'text-format') {
                             echo('Message ID ' . $message->getId() . ' is a text-format message. Skipped' . PHP_EOL);
+
                             continue;
                         }
                         $this->toCdnUrl($message);
@@ -127,6 +129,7 @@ class ChangeMediaUrlCommand extends Command
         $filesystem = new FilesystemServices($app, $company);
         $fileSystemRecord = $filesystem->upload($uploadedFile, $user);
         echo(sprintf('Uploaded %s to S3', $fileSystemRecord->url . PHP_EOL));
+
         return $fileSystemRecord->url;
     }
 }

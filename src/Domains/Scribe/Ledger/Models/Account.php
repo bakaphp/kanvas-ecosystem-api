@@ -52,6 +52,17 @@ class Account extends BaseModel
         'account_sub_type' => AccountSubTypeEnum::class,
     ];
 
+    public static function activeByNumber(int $appsId, int $companiesId, string $accountNumber): ?self
+    {
+        return self::query()
+            ->where('apps_id', $appsId)
+            ->where('companies_id', $companiesId)
+            ->where('account_number', $accountNumber)
+            ->where('is_active', true)
+            ->notDeleted()
+            ->first();
+    }
+
     public function getParentKeyName(): string
     {
         return 'parent_account_id';

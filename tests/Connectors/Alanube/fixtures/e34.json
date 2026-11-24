@@ -1,0 +1,52 @@
+{
+    "idDoc": {
+        "encf": "E340000000002",
+        "creditNoteIndicator": 1,
+        "incomeType": 1,
+        "paymentType": 1
+    },
+    "sender": {
+        "rnc": "130000001",
+        "companyName": "Empresa de Prueba SRL",
+        "address": "Av. Winston Churchill 1",
+        "municipality": "010100",
+        "province": "010000",
+        "mail": "facturas@example.com",
+        "stampDate": "2026-06-15"
+    },
+    "buyer": {
+        "rnc": "101000001",
+        "companyName": "Cliente Corporativo SRL"
+    },
+    "totals": {
+        "totalTaxedAmount": 500.0,
+        "i1AmountTaxed": 500.0,
+        "itbisS1": 18,
+        "itbisTotal": 90.0,
+        "itbis1Total": 90.0,
+        "totalAmount": 590.0
+    },
+    "itemDetails": [
+        {
+            "lineNumber": 1,
+            "itemCodeTable": [
+                {
+                    "codeType": "Interna",
+                    "itemCode": "SRV-01"
+                }
+            ],
+            "billingIndicator": 1,
+            "itemName": "Consultoria de implementacion",
+            "goodServiceIndicator": 2,
+            "quantityItem": 0.5,
+            "unitPriceItem": 1000.0,
+            "itemAmount": 500.0
+        }
+    ],
+    "informationReference": {
+        "ncfModified": "E310000000004",
+        "ncfModifiedDate": "2026-05-01",
+        "modificationCode": 3,
+        "reasonForModification": "Horas facturadas de mas"
+    }
+}

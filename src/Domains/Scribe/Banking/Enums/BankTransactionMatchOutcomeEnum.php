@@ -28,6 +28,12 @@ enum BankTransactionMatchOutcomeEnum: string
     case ALREADY_BOOKED = 'already_booked';
 
     /**
+     * A person (UI, agent, payment-provider webhook) already recorded this payment against a bill or
+     * invoice. The bank row confirms it and adopts its JE; nothing is posted again.
+     */
+    case CONFIRMED_PAYMENT = 'confirmed_payment';
+
+    /**
      * Cash is booked; we just don't know what to call the other side. Parked in Suspense and queued for
      * someone to pick an account. NOT a draft document — the money already moved and that part is final.
      */

@@ -84,7 +84,7 @@ only, because each worker repeats the full domain setup in `createApplication()`
 
 ## Available Suites
 
-Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intelligence, Baka, Souk, Event, ActionEngine
+Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Communication, Workflow, Intelligence, Baka, Souk, Event, ActionEngine
 
 ## Hard Rules
 

@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Approvals\Actions;
 
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Kanvas\Approvals\Concerns\OffersNoticeToEntity;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
+use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
+use Kanvas\Approvals\Jobs\SendApprovalDigestJob;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Models\ApprovalRequestApprover;
 use Kanvas\Approvals\Notifications\ApprovalRequestedNotification;
 use Throwable;
 
 /**
- * Tells the current step's approvers there is something waiting on them.
+ * Tells the current step's approvers there is something waiting on them — the one notification path for
+ * every opener of a request. Each approver is offered to the entity first (a Slack DM from the owning
+ * agent, see DeliversApprovalNoticesInterface) and emailed only when that did not reach them.
  *
  * Entirely best-effort: a missing email template or an unreachable mail host must never roll back the
  * approval that triggered it. An un-notified approver is a visible pending request someone can chase;
@@ -23,6 +29,8 @@ use Throwable;
  */
 class NotifyApproversAction
 {
+    use OffersNoticeToEntity;
+
     public function __construct(
         protected readonly ApprovalRequest $request,
     ) {
@@ -30,9 +38,9 @@ class NotifyApproversAction
 
     public function execute(): int
     {
-        $mode = $this->request->policy?->notify ?? 'all';
+        $mode = ApprovalNotifyModeEnum::fromSetting($this->request->policy?->notify);
 
-        if ($mode === 'none') {
+        if ($mode === ApprovalNotifyModeEnum::NONE) {
             return 0;
         }
 
@@ -43,14 +51,21 @@ class NotifyApproversAction
             ->with('user')
             ->get();
 
-        if ($mode === 'first') {
+        if ($mode === ApprovalNotifyModeEnum::DIGEST) {
+            $this->scheduleDigests($recipients);
+
+            return 0;
+        }
+
+        if ($mode === ApprovalNotifyModeEnum::FIRST) {
             $recipients = $recipients->take(1);
         }
 
+        $entity = $this->request->resolveEntity();
         $sent = 0;
 
         foreach ($recipients as $recipient) {
-            if ($this->notify($recipient)) {
+            if ($this->notify($recipient, $entity)) {
                 $sent++;
             }
         }
@@ -58,7 +73,7 @@ class NotifyApproversAction
         return $sent;
     }
 
-    private function notify(ApprovalRequestApprover $recipient): bool
+    private function notify(ApprovalRequestApprover $recipient, ?Model $entity): bool
     {
         $user = $recipient->user;
 
@@ -67,16 +82,34 @@ class NotifyApproversAction
         }
 
         try {
-            $user->notify(new ApprovalRequestedNotification($this->request));
+            if (! $this->deliveredByEntity($this->request, $entity, $user)) {
+                $user->notify(new ApprovalRequestedNotification($this->request));
+            }
         } catch (Throwable) {
             return false;
         }
 
         // Stamped only on success, so a retry can pick up whoever was actually missed.
-        $recipient->notified_at = Carbon::now();
-        $recipient->notification_channel = 'mail';
-        $recipient->saveOrFail();
+        $recipient->markNotified();
 
         return true;
+    }
+
+    /**
+     * @param Collection<int, ApprovalRequestApprover> $recipients
+     */
+    private function scheduleDigests(Collection $recipients): void
+    {
+        foreach ($recipients as $recipient) {
+            if ($recipient->user === null) {
+                continue;
+            }
+
+            try {
+                SendApprovalDigestJob::schedule($this->request->app, $this->request->company, $recipient->user);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 }

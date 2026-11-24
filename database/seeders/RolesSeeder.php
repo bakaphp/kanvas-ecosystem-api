@@ -24,7 +24,7 @@ class RolesSeeder extends Seeder
                 'is_default' => 1,
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ],
             [
                 'name' => 'Users',
@@ -35,7 +35,7 @@ class RolesSeeder extends Seeder
                 'is_default' => 1,
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ],
             [
                 'name' => 'Agents',
@@ -46,7 +46,7 @@ class RolesSeeder extends Seeder
                 'is_default' => 1,
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ]
         );
     }

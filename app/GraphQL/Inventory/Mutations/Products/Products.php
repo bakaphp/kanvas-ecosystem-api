@@ -82,6 +82,8 @@ class Products
             $company
         );
 
+        $req['input']['name'] ??= $product->name;
+
         $productDto = ProductDto::from(
             request: $req['input'],
             company: $product->company,

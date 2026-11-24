@@ -7,7 +7,6 @@ namespace Tests\Intelligence\Agents\Outreach;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -34,6 +33,9 @@ class AgentReachOutActionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    // An agent left with reach-out switched on would answer for every later test on this company.
+    protected $connectionsToTransact = [null, 'intelligence'];
+
     public function testSkipsWhenStatusIsAlreadySent(): void
     {
         $lead = $this->makeLeadWithCellphone();
@@ -43,6 +45,7 @@ class AgentReachOutActionTest extends TestCase
 
         $this->assertSame(AgentReachOutConfigEnum::STATUS_SENT, $result['status']);
         $this->assertStringContainsString('Already reached out', (string) $result['message']);
+        $this->assertFalse(AgentReachOutAction::reachedTheLead($result), 'an earlier reach-out is not a new one');
     }
 
     public function testReturnsEarlyWhenStatusIsInProgress(): void
@@ -59,8 +62,10 @@ class AgentReachOutActionTest extends TestCase
     public function testSkipsWhenLeadIsNotOpen(): void
     {
         $lead = $this->makeLeadWithCellphone();
-        $lead->status = 2; // closed (won/lost) → isOpen() false
-        $lead->saveOrFail();
+        // The UI and CRM pulls close a lead through leads_status_id; the integer `status`
+        // column stays at its default. The guard must read the named status.
+        $lead->close();
+        $this->assertSame(0, (int) $lead->fresh()->getAttributeValue('status'));
 
         // agent_id 999 would throw if the guard didn't short-circuit first.
         $result = new AgentReachOutAction($lead, ['agent_id' => 999])->execute();
@@ -163,7 +168,7 @@ class AgentReachOutActionTest extends TestCase
         $lead->saveOrFail();
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('No agent configured for reach-out');
+        $this->expectExceptionMessage('No agent reaches out to new leads');
 
         // Reaching agent resolution proves the do-not-contact guard did NOT short-circuit.
         new AgentReachOutAction($lead, [])->execute();
@@ -174,19 +179,16 @@ class AgentReachOutActionTest extends TestCase
         $lead = $this->makeLeadWithCellphone();
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('No agent configured for reach-out');
+        $this->expectExceptionMessage('No agent reaches out to new leads');
 
         new AgentReachOutAction($lead, [])->execute();
     }
 
-    public function testFallsBackToCompanyConfigAgentWhenParamsAgentIdMissing(): void
+    public function testFallsBackToTheAgentWithReachOutSwitchedOnWhenParamsAgentIdMissing(): void
     {
         $lead = $this->makeLeadWithCellphone();
         $agent = $this->makeAgentWithStub();
-        $lead->company->set(
-            CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value,
-            $agent->getId(),
-        );
+        $agent->switchReachOut();
         $lead->company->set(
             IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value,
             auth()->user()->getId(),
@@ -195,10 +197,10 @@ class AgentReachOutActionTest extends TestCase
 
         $result = new AgentReachOutAction($lead, [])->execute();
 
-        // The agent resolved via company-config and the orchestrator made it to the channel walk.
+        // The agent resolved from its own switch and the orchestrator made it to the channel walk.
         // Outbound delivery may fail (no real Twilio creds in test) — the per-channel try/catch
         // records the error and STATUS becomes 'failed'. STATUS != 'in_progress' or initial null
-        // proves the company-config fallback fired.
+        // proves the fallback fired.
         $this->assertContains(
             (string) $lead->fresh()->get(AgentReachOutConfigEnum::STATUS->value),
             [AgentReachOutConfigEnum::STATUS_SENT, AgentReachOutConfigEnum::STATUS_FAILED],
@@ -297,9 +299,12 @@ class AgentReachOutActionTest extends TestCase
             auth()->user()->getId(),
         );
 
-        $result = new AgentReachOutAction($lead, ['agent_id' => $agent->getId()])->execute();
+        // The agent the caller holds is the one that speaks: no id to look up, no switch to read.
+        $result = new AgentReachOutAction($lead, agent: $agent)->execute();
 
         $this->assertSame(AgentReachOutConfigEnum::STATUS_SCHEDULED, $result['status']);
+        $this->assertSame($agent->getId(), $result['agent_id']);
+        $this->assertTrue(AgentReachOutAction::reachedTheLead($result));
         $this->assertSame(
             AgentReachOutConfigEnum::STATUS_SCHEDULED,
             (string) $lead->fresh()->get(AgentReachOutConfigEnum::STATUS->value),

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Capability;
 
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\NervousSystem\Capability\Services\CapabilityLookupService;
 use Kanvas\NervousSystem\Plan\Actions\RecordCapabilityGapAction;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -44,8 +47,16 @@ class ReportCapabilityGapTool extends Tool
         . 'and the report refused until you say why each one does not fit. Expect that — a capability '
         . 'is often reachable by combining tools rather than by one named for it.';
 
+    /**
+     * The three after the executor are the registry's dependency injection: the acting user, the
+     * session and the lead of the turn, when the host has them. They are what makes the alert email
+     * say who asked and from where, instead of only which agent filed it.
+     */
     public function __construct(
         private readonly ?Agent $executor = null,
+        private readonly ?Users $requestedBy = null,
+        private readonly ?Session $session = null,
+        private readonly ?Lead $lead = null,
     ) {
     }
 
@@ -151,6 +162,9 @@ class ReportCapabilityGapTool extends Tool
                 context: $context,
                 consideredTools: $related,
                 whyNotFit: $why_existing_tools_do_not_fit,
+                requestedBy: $this->requestedBy,
+                session: $this->session,
+                lead: $this->lead,
             )->execute();
         } catch (Throwable $e) {
             report($e);

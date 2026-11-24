@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
@@ -147,6 +149,142 @@ class Plan extends BaseModel implements HandlesAgentMention
     }
 
     /**
+     * Handed off from a person's chat to another agent and running now: what `PostStillWorkingUpdateJob`
+     * reports on. An agent working its own plan (a coding chat) answers in that chat itself. A step
+     * "running" for hours has stopped, and the stalled-task sweep owns that, not a cheerful update.
+     */
+    public function scopeWorkingForAConversation(Builder $query): Builder
+    {
+        return $query->whereNotNull('origin_session_id')
+            ->whereNotNull('created_by_agent_id')
+            ->whereColumn('agent_id', '!=', 'created_by_agent_id')
+            ->where('status', PlanStatusEnum::ACTIVE->value)
+            ->notDeleted()
+            ->whereHas('tasks', fn (Builder $tasks): Builder => $tasks->workingNow());
+    }
+
+    /** `Task::hasALiveRun()` for every task of the plan at once; a run's task lives in its own plan. */
+    public function hasALiveRun(): bool
+    {
+        $ids = $this->tasks()->pluck('id');
+        $runIds = Task::query()->whereIn('parent_task_id', $ids)->notDeleted()->pluck('id');
+
+        return AgentTaskSession::query()->whereIn('task_id', $ids->merge($runIds))->live()->exists();
+    }
+
+    /**
+     * The plan's own steps, not the questions they delegated: a sub-task's ending belongs to the task
+     * that asked it, so a question left blocked never keeps a finished plan from reporting.
+     */
+    public function everyTaskFinished(): bool
+    {
+        $steps = fn () => $this->tasks()->whereNull('parent_task_id');
+
+        return $steps()->exists()
+            && ! $steps()->whereNotIn('status', TaskStatusEnum::completedStatusValues())->exists();
+    }
+
+    /**
+     * A blocked or finished plan whose work was sent back to run again. Left blocked, it is invisible to
+     * the still-working updates and to the every-task-finished wake, so it would finish with nobody told;
+     * left done, the orchestrator reads it as finished and moves on.
+     */
+    public function resumeIfNothingBlocks(): void
+    {
+        $from = $this->status;
+
+        if (! in_array($from, [PlanStatusEnum::BLOCKED->value, PlanStatusEnum::DONE->value], true)
+            || $this->tasks()->where('status', TaskStatusEnum::BLOCKED->value)->exists()
+        ) {
+            return;
+        }
+
+        $this->status = PlanStatusEnum::ACTIVE->value;
+        $this->blocked_needs = null;
+        $this->completed_at = null;
+        $this->save();
+
+        $this->emitLedgerEvent('plan.resumed', payload: ['status_from' => $from]);
+        $this->broadcastChange(
+            changeType: PlanChangeTypeEnum::UPDATED,
+            previousStatus: $from,
+        );
+    }
+
+    /**
+     * A failed run the work has moved past: its own task was dropped, or the task that sent it closed.
+     * Left failed, it stays in the board's Blocked column for good though nothing waits on it any more.
+     * The failure itself stays readable on `error_message` and the session row.
+     */
+    public function retireFailedAttempt(): void
+    {
+        if ($this->status !== PlanStatusEnum::FAILED->value
+            || $this->tasks()->whereNotIn('status', TaskStatusEnum::completedStatusValues())->exists()
+        ) {
+            return;
+        }
+
+        $this->status = PlanStatusEnum::CANCELLED->value;
+        $this->save();
+
+        $this->emitLedgerEvent('plan.retired', payload: ['status_from' => PlanStatusEnum::FAILED->value]);
+        $this->broadcastChange(
+            changeType: PlanChangeTypeEnum::UPDATED,
+            previousStatus: PlanStatusEnum::FAILED->value,
+        );
+    }
+
+    /**
+     * The agent that asked for this plan was told its last task finished, so closing the plan afterwards
+     * is not news to it.
+     */
+    public function rememberFinishWasReported(): void
+    {
+        Cache::put($this->finishReportedKey(), true, now()->addHour());
+    }
+
+    public function finishWasReported(): bool
+    {
+        return Cache::has($this->finishReportedKey());
+    }
+
+    /** The wake that carried the report was abandoned, so closing the plan is news to that agent again. */
+    public function forgetFinishWasReported(): void
+    {
+        Cache::forget($this->finishReportedKey());
+    }
+
+    /**
+     * That agent answers the person in their conversation in its own words, so the done alert does not
+     * repeat it there. Set when its wake is sent, because the plan is often closed during that wake.
+     */
+    public function rememberAnswerIsComing(): void
+    {
+        Cache::put($this->answerComingKey(), true, now()->addHour());
+    }
+
+    public function answerIsComing(): bool
+    {
+        return Cache::has($this->answerComingKey());
+    }
+
+    /** The answer never reached the conversation, so the done alert has to say it after all. */
+    public function forgetAnswerIsComing(): void
+    {
+        Cache::forget($this->answerComingKey());
+    }
+
+    private function finishReportedKey(): string
+    {
+        return 'ns:plan:' . $this->getId() . ':finish-reported';
+    }
+
+    private function answerComingKey(): string
+    {
+        return 'ns:plan:' . $this->getId() . ':answer-coming';
+    }
+
+    /**
      * A Plan is a valid agent-conversation entity (a worker is woken with the Plan in scope), and the
      * chat/context path calls getName() on the entity the way it does for a Lead/People. Expose the
      * title so a Plan-scoped run doesn't fatal on the missing method.
@@ -218,6 +356,7 @@ class Plan extends BaseModel implements HandlesAgentMention
             WakeAgentForProjectJob::REASON_MENTION,
             new ProjectMentionTriggerService()->buildTrigger($mention, $focus),
             $threadRootId,
+            mentionMessageId: (int) $mention->getId(),
         );
     }
 
@@ -352,6 +491,24 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function originSession(): BelongsTo
     {
         return $this->belongsTo(Session::class, 'origin_session_id');
+    }
+
+    /**
+     * Where the plan was asked for, so its outcome is reported back into that conversation instead of
+     * only onto its own Activities channel, which nobody is subscribed to. `users_id` is the plan's
+     * OWNER, another agent on agent-created work, so the human who was talking comes from the session.
+     */
+    public function rememberOrigin(?Session $session): void
+    {
+        $this->origin_channel_id = $session?->channel_id;
+        $this->origin_session_id = $session?->getId();
+
+        $sessionUser = $session?->user;
+        $this->origin_users_id = is_array($sessionUser) && isset($sessionUser['id'])
+            ? (int) $sessionUser['id']
+            : null;
+
+        $this->saveQuietly();
     }
 
     /**

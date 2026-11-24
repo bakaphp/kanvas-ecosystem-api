@@ -6,8 +6,10 @@ namespace Tests\Workflow\Integration;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Zoho\Activities\ZohoPullDealActivity;
 use Kanvas\Connectors\Zoho\Handlers\ZohoHandler;
 use Kanvas\Connectors\Zoho\Workflows\ZohoPullLeadActivity;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -53,6 +55,31 @@ final class IntegrationDefaultRulesTest extends TestCase
         new RemoveIntegrationCompanyAction($integrationCompany, $app)->execute();
 
         $this->assertNull($this->zohoPullRule($app, $company->getId()), 'disconnecting must soft-delete the default rule');
+    }
+
+    public function testConnectingZohoCreatesTheDealPullRuleAndDisconnectingRemovesIt(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $this->catalogueZohoPull();
+        Action::factory()->create([
+            'name' => 'Zoho Pull Deal',
+            'model_name' => ZohoPullDealActivity::class,
+        ]);
+
+        $this->setIntegration($app, IntegrationsEnum::ZOHO, ZohoHandler::class, $company, $user);
+
+        $rule = $this->zohoDealRule($app, $company->getId(), 'Zoho pull deal', WorkflowEnum::PULL);
+        $this->assertNotNull($rule, 'connecting Zoho must create the deal pull rule for the company');
+        $this->assertSame(
+            ZohoPullDealActivity::class,
+            $rule->workflowActivities->first()->activity->actionClass()
+        );
+
+        new RemoveIntegrationCompanyAction($this->zohoIntegrationCompany($company->getId()), $app)->execute();
+
+        $this->assertNull($this->zohoDealRule($app, $company->getId(), 'Zoho pull deal', WorkflowEnum::PULL), 'disconnecting must soft-delete the deal pull rule');
     }
 
     public function testTheBackfillCommandRestoresTheRuleForAnAlreadyConnectedTenant(): void
@@ -111,6 +138,18 @@ final class IntegrationDefaultRulesTest extends TestCase
             ->where('name', 'Zoho pull lead')
             ->where('rules_types_id', RuleType::getByName(WorkflowEnum::PULL->value)->getId())
             ->where('systems_modules_id', SystemModulesRepository::getByModelName(Lead::class, $app)->getId())
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', 0)
+            ->first();
+    }
+
+    private function zohoDealRule(Apps $app, int $companyId, string $name, WorkflowEnum $trigger): ?Rule
+    {
+        return Rule::query()
+            ->where('name', $name)
+            ->where('rules_types_id', RuleType::getByName($trigger->value)->getId())
+            ->where('systems_modules_id', SystemModulesRepository::getByModelName(Deal::class, $app)->getId())
             ->where('apps_id', $app->getId())
             ->where('companies_id', $companyId)
             ->where('is_deleted', 0)

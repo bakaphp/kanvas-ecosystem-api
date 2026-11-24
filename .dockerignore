@@ -1,7 +1,11 @@
 # Files
+<<<<<<< Updated upstream
 .env
 .env.*
 !.env.example
+=======
+# .env
+>>>>>>> Stashed changes
 .gitignore
 .gitattributes
 docker-compose*.yml
@@ -22,6 +26,7 @@ node_modules/
 vendor/
 .github/
 .vscode/
+<<<<<<< Updated upstream
 .idea/
 .git
 .claude/
@@ -37,3 +42,6 @@ typesense-data/
 # logs and job scratch — this is what grew `COPY .` to 15 GB. The Dockerfiles recreate the skeleton.
 storage/
 bootstrap/cache/
+=======
+.git
+>>>>>>> Stashed changes

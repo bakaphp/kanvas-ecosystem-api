@@ -53,7 +53,7 @@ class CreateGlobalSystemModuleCommand extends Command
             'name' => $name,
             'apps_id' => 0,
             'slug' => Str::simpleSlug($name),
-            'use_import' => $useImport
+            'use_import' => $useImport,
         ]);
 
         info('System Module created successfully - ' . $systemModule->name . ' - ' . $systemModule->model_name);

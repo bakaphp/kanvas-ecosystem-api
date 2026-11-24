@@ -58,6 +58,7 @@ class EngagementLeadFilter
             ->fromApp($app)
             ->fromCompany($company)
             ->where('is_deleted', 0)
+            ->whereNotNull('leads_id')
             ->whereIn('slug', $slugs)
             ->with('stage')
             ->get();

@@ -1,0 +1,147 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Communication\Messages\Actions;
+
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Recipient;
+use Kanvas\Communication\Messages\DataTransferObject\TransportResult;
+use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
+use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Communication\Support\EligibilityResolver;
+use Kanvas\Communication\Support\TransportManager;
+use Throwable;
+
+/**
+ * The one place a provider is called for an outbound message. Everything that could have changed
+ * while the delivery sat in the queue — the connection, its switch, the recipient's consent — is
+ * read again here, because the answers from when it was queued are no longer answers.
+ */
+final class DispatchDeliveryAction
+{
+    /**
+     * @param bool $fileMessage false when the caller files the message and links the delivery to it
+     * @param bool $honorsConsent false only for the confirmation of a stop request
+     */
+    public function __construct(
+        private readonly Delivery $delivery,
+        private readonly bool $fileMessage = true,
+        private readonly bool $honorsConsent = true
+    ) {
+    }
+
+    public function execute(): Delivery
+    {
+        if (! $this->claim()) {
+            return $this->delivery;
+        }
+
+        $this->delivery->refresh();
+        $connection = $this->delivery->connection;
+        $staleReason = $connection === null
+            ? 'no_connection'
+            : $connection->refusalAt($this->delivery->activation_version);
+
+        if ($staleReason !== null) {
+            $this->delivery->finishWithoutSending(DeliveryStatusEnum::SKIPPED, $staleReason);
+
+            return $this->delivery;
+        }
+
+        $request = $this->delivery->request;
+        $recipient = Recipient::inConversation($request->people, (string) $this->delivery->to_address);
+
+        $refusal = $this->honorsConsent
+            ? new EligibilityResolver()->reasonNotToContact(
+                $recipient,
+                $this->delivery->channel,
+                (string) $this->delivery->to_address
+            )
+            : null;
+
+        if ($refusal !== null) {
+            $this->delivery->finishWithoutSending(DeliveryStatusEnum::SKIPPED, $refusal);
+
+            return $this->delivery;
+        }
+
+        $content = Content::fromArray($request->content);
+
+        try {
+            $result = new TransportManager()
+                ->for($connection->provider, $this->delivery->channel)
+                ->send($this->delivery, $content);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            $this->delivery->forceFill([
+                'status' => DeliveryStatusEnum::UNKNOWN,
+                'error_code' => 'outcome_lost',
+                'error' => $exception->getMessage(),
+            ])->saveOrFail();
+            new RecordDeliveryOnMessageAction($this->delivery)->execute();
+
+            return $this->delivery;
+        }
+
+        $result->status === DeliveryStatusEnum::ACCEPTED
+            ? $this->accept($result, $content)
+            : $this->fail($result, $recipient);
+
+        return $this->delivery;
+    }
+
+    /**
+     * Pending → sending as one conditional write, so two workers holding the same job cannot both
+     * reach the provider.
+     */
+    private function claim(): bool
+    {
+        return Delivery::query()
+            ->whereKey($this->delivery->getKey())
+            ->where('status', DeliveryStatusEnum::PENDING->value)
+            ->update([
+                'status' => DeliveryStatusEnum::SENDING->value,
+                'attempts' => $this->delivery->attempts + 1,
+            ]) === 1;
+    }
+
+    private function accept(TransportResult $result, Content $content): void
+    {
+        $this->delivery->forceFill([
+            'status' => DeliveryStatusEnum::ACCEPTED,
+            'external_id' => $result->externalId,
+            'warnings' => $result->warnings ?: null,
+            'accepted_at' => now(),
+            'last_event_at' => now(),
+        ])->saveOrFail();
+
+        if (! $this->fileMessage) {
+            return;
+        }
+
+        // The message is out. Failing to file it is a history problem to report, never a reason to
+        // tell the caller a sent message was not sent.
+        try {
+            new RecordSentMessageAction($this->delivery, $content)->execute();
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function fail(TransportResult $result, Recipient $recipient): void
+    {
+        $this->delivery->finishWithoutSending(DeliveryStatusEnum::FAILED, (string) $result->errorCode, $result->error);
+
+        if (! $result->recipientOptedOut) {
+            return;
+        }
+
+        $this->delivery->markRecipientOptedOut();
+
+        if ($this->delivery->channel->isAddressedByPhone()) {
+            $recipient->people?->setPhoneOptOut((string) $this->delivery->to_address);
+        }
+    }
+}

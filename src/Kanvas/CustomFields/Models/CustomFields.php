@@ -50,7 +50,6 @@ class CustomFields extends BaseModel
 
     /**
      * Custom field modules.
-     *
      */
     public function customFieldModule(): BelongsTo
     {
@@ -59,7 +58,6 @@ class CustomFields extends BaseModel
 
     /**
      * Belongs to.
-     *
      */
     public function fieldType(): BelongsTo
     {

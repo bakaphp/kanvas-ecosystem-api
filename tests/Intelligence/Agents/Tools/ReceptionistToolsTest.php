@@ -24,10 +24,13 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Notifications\ReceptionistMessageNotification;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
+use Tests\Intelligence\Tools\ReadsLeadNotes;
 use Tests\TestCase;
 
 class ReceptionistToolsTest extends TestCase
 {
+    use ReadsLeadNotes;
+
     private function makeLead(): Lead
     {
         $app = app(Apps::class);
@@ -258,6 +261,10 @@ class ReceptionistToolsTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertTrue($result['recorded']);
         $this->assertTrue($result['owner_notified']);
+
+        $note = $this->latestLeadNote($lead);
+        $this->assertNotNull($note);
+        $this->assertSame(1, $note->is_public, 'A taken message is for the team to read');
 
         Notification::assertSentTo($lead->owner, ReceptionistMessageNotification::class);
     }

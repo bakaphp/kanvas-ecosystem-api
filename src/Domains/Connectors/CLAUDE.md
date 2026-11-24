@@ -8,14 +8,19 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`Intellicheck/CLAUDE.md`](Intellicheck/CLAUDE.md) — ID verification: the inbound base64 + `private_data.result` contract, the selfie in `facial.data.photoFace`, why a "folder" is a root message and the report must thread as a child, the `generate-id-verification` vs deprecated `after-id-verification` split, and the two DB rows without which firing a verb does nothing silently.
 - [`WordPress/CLAUDE.md`](WordPress/CLAUDE.md) — publishing a Message as a wp/v2 post: the message body post structure + fallbacks, Application Password setup through the generic `integrationCompany` mutation, and why the scraper `Client` and the `RestClient` are unrelated.
 - [`UniversalSeguros/CLAUDE.md`](UniversalSeguros/CLAUDE.md) — auto-insurance SDK + its `Providers/UniversalSegurosProvider` implementation of the `Kanvas\Insurance` contracts. Per-product emit scopes, QA chassis blocker, problem+json error shape.
-- [`WaSender/CLAUDE.md`](WaSender/CLAUDE.md) — inbound WhatsApp: the three conversation shapes (lead DM / assistant DM / group) and how they route, the full `receiver_webhooks.configuration` key table, burst debouncing, which entity each workflow event carries (and why group traffic must never hit the DM event), and the lid-addressing + `slug`-vs-`uuid` foot-guns.
+- [`WaSender/CLAUDE.md`](WaSender/CLAUDE.md) — a Communication provider that still files its own conversations: what the domain owns vs the connector, the three conversation shapes (lead DM / assistant DM / group) and how they route, the full `receiver_webhooks.configuration` key table, burst debouncing, which entity each workflow event carries (and why group traffic must never hit the DM event), and the lid-addressing + `slug`-vs-`uuid` foot-guns.
 - [`TypeSafe/CLAUDE.md`](TypeSafe/CLAUDE.md) — TypeSafe Jev "System One": calibrated typed decisions (Noul/Choice/Score) standing in front of an LLM that stays as the fallback. The per-decision `OFF|SHADOW|LIVE` rollout switch, the jaggedness rules that decide what may and may not be asked (no math, no text, one judgement per question, adversarial inbound text), Noul-vs-Choice, and why the model id is pinned.
-- [`Twilio/CLAUDE.md`](Twilio/CLAUDE.md) — inbound SMS/MMS: the consent halt, the shared burst debounce and its
+- [`Mailgun/CLAUDE.md`](Mailgun/CLAUDE.md) — a Communication provider: which addresses are connections (and why the accounting inbox never is), an agent's own mailbox vs the company line an agent answers, mailbox provisioning on connections, the one send left outside a connection, and what each Mailgun event does.
+- [`RespondIO/CLAUDE.md`](RespondIO/CLAUDE.md) — a Communication provider: the workspace as one account and how it is keyed, why the webhook cannot be registered by API and how the old receiver is adopted, which events go through the shared pipeline, and the send order.
+- [`Twilio/CLAUDE.md`](Twilio/CLAUDE.md) — a Communication provider (implements the domain's contracts, named in `config/communication.php`). Inbound SMS/MMS: the consent halt, the shared burst debounce and its
   config table, why nothing in the webhook replies, and the support-mode delayed turn.
 - [`SalesAssist/CLAUDE.md`](SalesAssist/CLAUDE.md) — dealer CRM lead notes (VinSolution, Elead, Reynolds, DealerSocket, DriveCentric): the two
   note-writing activities and which messages each one handles, why a company sees no conversation notes (missing comment
   rule, or the Message → Lead row-order bug), how to wire the comment rule without double notes, and the lookup query.
+- [`Zoho/CLAUDE.md`](Zoho/CLAUDE.md) — client setup recipe for a Zoho-scheduled campaign sent by a Kanvas agent: the campaign/step/template key mapping, pipeline and stage config, the receiver, the Deluge function, cut-over order and every stop reason.
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
+- [`Salesforce/CLAUDE.md`](Salesforce/CLAUDE.md) — which half of the connector is generic (leads, people, organizations, deals) and which is GAGroup's custom property model hardcoded (`Project__c`/`Location__c`), what a second tenant with properties needs, and why a location is a variant of its project's product and never a product.
+- [`Dhl/CLAUDE.md`](Dhl/CLAUDE.md) — DHL Express (MyDHL) order fulfillment: status path and hooks, reserve-then-call booking, quote replay, hourly tracking poll, late proof of delivery.
 
 ## Known duplication — flagged, not yet resolved
 
@@ -153,6 +158,17 @@ If you genuinely need to cache something heavy, key on a credential fingerprint 
 
 New connectors put workflow activities in `src/Domains/Connectors/{ConnectorName}/Activities/`. The older nested `Workflows/Activities/` shape is deprecated.
 
+### The CRM lead sync lives in SalesAssist; a new CRM is a driver, not a new activity
+
+`SalesAssist/Activities/SyncCrmLeadActivity` (called through `runWorkflowFromEntity` with `activity_class`) owns the
+lead sync for every dealer CRM. The request's `identity.type` picks the strategy: a `SalesAssist/Enums/CrmTypeEnum`
+case whose `driver()` builds a `SalesAssist/Contracts/CrmLeadDriver`, which lives in the CRM's own connector
+(`Reynolds/Services/ReynoldsCrmDriver`, `Elead/Services/EleadCrmDriver`). To add a CRM, add the enum case and the driver.
+Do not copy the sync actions. A driver's `canCreate()` says whether the sync may create what it does not find (people,
+lead, a participant's people, catalog rows): Reynolds creates; eLead only links and updates, and answers `not_found`
+when nothing matches.
+`Reynolds/Activities/SyncCrmLeadActivity` is a deprecated alias for extension builds that still send the old name.
+
 ### `executeIntegration` requires `additionalParams`
 
 All calls to `$this->executeIntegration()` in workflow activities must include `additionalParams: $params`. Without it, the system cannot retry the activity with the correct parameters.
@@ -189,3 +205,14 @@ VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 
 ### Register workflow activities
 
 Add `#[WorkflowAction]` (from `Kanvas\Workflow\Attributes\WorkflowAction`) on the class. The `kanvas:workflow-sync-actions` command (runs on deploy) auto-discovers every class that carries the attribute via `WorkflowActionDiscoveryService` — no manual registration needed. If the basename collides with another activity in a different connector, pass `#[WorkflowAction(name: 'Human Name')]` to disambiguate. A coverage test (`tests/Workflow/Integration/WorkflowActionCoverageTest.php`) fails if any `KanvasActivity` / `ProcessWebhookJob` subclass is missing the attribute.
+
+## Intras (SIPGO) write-back
+
+Kanvas → SIPGO goes through the Approvals domain only: an edit to a linked People / Organization
+fires a request activity that freezes a from → to change set (`Support/SipgoChangeSet`), the company
+owner approves, and `WriteSipgoChangeSetAction` writes exactly that set. Catalog columns (nivel,
+sector, ...) are resolved by name through `Support/SipgoCatalog`, which refuses unknown or ambiguous
+names rather than guessing. Every `Pull*FromIntrasAction` calls `disableWorkflows()` on what it
+writes: an import is not an edit, and each `set()` would otherwise fire the sync rules. Wiring:
+`kanvas:intras-setup-sync-rules`. Spec and rollout: `docs/sipgo/sipgo-push-back-spec.md`.
+

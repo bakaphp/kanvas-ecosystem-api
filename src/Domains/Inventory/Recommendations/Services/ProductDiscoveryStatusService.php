@@ -368,7 +368,7 @@ class ProductDiscoveryStatusService
         /** @var Agent|null $agent */
         $agent = Agent::fromApp($this->app)
             ->notDeleted()
-            ->whereHas('type', fn ($q) => $q->where('handler', ProductEnrichmentAgent::class))
+            ->ofHandler(ProductEnrichmentAgent::class)
             ->first();
 
         if ($agent === null) {

@@ -150,6 +150,54 @@ class CodingRetryTest extends TestCase
         }
     }
 
+    /**
+     * A job dispatched to run, test or screenshot changes nothing on purpose; without the flag its
+     * empty diff reads as "answered in prose" and costs a retry.
+     */
+    public function test_a_run_only_job_with_no_changes_completes_without_a_retry(): void
+    {
+        [$parent, $child, $session] = $this->delegatedCodingJob(branch: null, attributes: ['expects_changes' => false]);
+
+        new FinalizeHarnessSessionAction($session, $this->completedTick(), diff: new HarnessDiff())->execute();
+
+        $this->assertSame(HarnessStatusEnum::COMPLETED->value, $session->refresh()->status);
+        $this->assertNull($session->error_message);
+        $this->assertSame(1, AgentTaskSession::query()->forTask($child->getId())->count());
+        $this->assertSame(TaskStatusEnum::DONE->value, $child->refresh()->status);
+        $this->assertSame('ran', $child->result['outcome'] ?? null);
+        Bus::assertNotDispatched(LaunchTaskSessionJob::class);
+    }
+
+    public function test_a_run_only_job_that_did_change_files_is_pushed_like_any_other(): void
+    {
+        [, $child, $session] = $this->delegatedCodingJob(branch: null, attributes: ['expects_changes' => false]);
+
+        new FinalizeHarnessSessionAction(
+            $session,
+            $this->completedTick(),
+            diff: new HarnessDiff([['file' => 'src/App.swift', 'additions' => 3, 'deletions' => 1]]),
+        )->execute();
+
+        $this->assertSame(HarnessStatusEnum::COMPLETED->value, $session->refresh()->status);
+        $this->assertSame(TaskStatusEnum::DONE->value, $child->refresh()->status);
+        $this->assertSame('review_only', $child->result['outcome'] ?? null);
+    }
+
+    public function test_the_retry_of_a_run_only_job_stays_run_only(): void
+    {
+        [, , $silent] = $this->delegatedCodingJob(branch: null, attributes: ['expects_changes' => false]);
+        $silent->status = HarnessStatusEnum::FAILED->value;
+        $silent->saveOrFail();
+
+        new FinalizeHarnessSessionAction(
+            $silent,
+            failureReason: 'The coding session became unreachable.',
+            silence: true
+        )->execute();
+
+        $this->assertFalse($this->retryOf($silent)->expectsChanges());
+    }
+
     private function retryOf(AgentTaskSession $failed): AgentTaskSession
     {
         /** @var AgentTaskSession|null $retry */

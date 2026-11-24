@@ -7,13 +7,13 @@ namespace Kanvas\Connectors\OpenCode\Services;
 /**
  * The immutable block that opens every coding prompt. It is guidance, not enforcement — a repository
  * the agent reads can contradict it — so nothing here is load-bearing on its own. The real boundaries
- * are that the container holds no git credential, cannot push, and runs an allow-listed shell.
+ * are that the runtime holds no git credential, cannot push, and runs an allow-listed shell.
  */
 class CodingPolicy
 {
     public const string BLOCK = <<<'POLICY'
-        You are a coding agent working inside an isolated container on a single checked-out repository
-        at /workspace. Rules of engagement, in force for the whole session:
+        You are a coding agent working on a single checked-out repository in your current working
+        directory. Rules of engagement, in force for the whole session:
 
         - Work only on files relevant to the task. No drive-by refactors, no reformatting untouched code.
         - Obey the repository's own AGENTS.md / CLAUDE.md / CONTRIBUTING.md where they exist.

@@ -17,12 +17,8 @@ use Throwable;
  * Runs the agent over one finished burst — a group room or an assistant 1:1 alike — and, when it
  * is allowed to speak, posts the answer back into that conversation.
  *
- * Differs from the lead-flow responder (AgentChannelResponderAction) in three ways:
- *  - no lead AI-mode guard: a per-customer switch must not mute an agent in a room, and an
- *    assistant conversation has no lead to read the switch from
- *  - the burst's media is handed to the kernel, so a photo posted with an article is actually seen
- *  - the reply goes to whatever JID the burst carries; `/api/send-message` accepts a group JID in
- *    `to` exactly like a phone number
+ * Group and assistant conversations do not use a lead's AI-mode switch. The reply goes to the
+ * burst's JID; `/api/send-message` accepts a group JID in `to` exactly like a phone number.
  */
 class AgentBurstResponderAction extends BaseAgentChannelReplyAction
 {
@@ -44,11 +40,8 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
             ];
         }
 
-        $burst = $this->channel->messages()
-            ->whereIn('messages.id', $params['burst_message_ids'] ?? [])
-            ->get();
-
-        $media = $this->burstMedia($burst);
+        $burst = $this->burst($params['burst_message_ids'] ?? []);
+        $media = self::mediaOf($burst);
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
@@ -62,6 +55,7 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
             persistConversation: false,
             // A withheld reply has no reader to apologise to, only a publisher to mislead.
             fallbackOnFailure: $shouldReply,
+            burstMessageIds: $params['burst_message_ids'] ?? [],
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
@@ -138,30 +132,5 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
             $this->message->app,
             $this->message->company
         )->sendTextMessage($to, $text);
-    }
-
-    /**
-     * Every attachment across the burst, not just the message that closed it — the article and its
-     * photo are one turn as far as the agent is concerned.
-     *
-     * @param Collection<int, Message> $burst
-     *
-     * @return array{images: list<string>, documents: list<string>}
-     */
-    private function burstMedia(Collection $burst): array
-    {
-        $images = [];
-        $documents = [];
-
-        foreach ($burst as $message) {
-            $urls = $message->attachmentUrls();
-            $images = [...$images, ...$urls['images']];
-            $documents = [...$documents, ...$urls['documents']];
-        }
-
-        return [
-            'images' => array_values(array_unique($images)),
-            'documents' => array_values(array_unique($documents)),
-        ];
     }
 }

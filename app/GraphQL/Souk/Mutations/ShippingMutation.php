@@ -11,6 +11,7 @@ use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Shipping\Actions\ApplyShippingQuoteToCartAction;
 use Kanvas\Souk\Shipping\Actions\ResolveShippingContextAction;
 use Kanvas\Souk\Shipping\DataTransferObject\ShippingDestination;
+use Kanvas\Souk\Taxes\Actions\EstimateCartTaxAction;
 
 class ShippingMutation
 {
@@ -32,6 +33,8 @@ class ShippingMutation
             service: $request['service'],
             destination: ShippingDestination::forInput($request['destination']),
         )->execute();
+
+        new EstimateCartTaxAction($cart, $context->app, auth()->user())->executeFailOpen();
 
         return new CartService($cart)->getCart();
     }

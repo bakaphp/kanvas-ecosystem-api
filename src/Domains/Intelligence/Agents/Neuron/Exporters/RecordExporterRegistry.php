@@ -25,6 +25,7 @@ class RecordExporterRegistry
         $this->exporters = $exporters ?? [
             new PeopleRecordExporter(),
             new PeopleMatchRecordExporter(),
+            new PeopleDuplicatesRecordExporter(),
             new OrganizationsRecordExporter(),
             new EventParticipantsRecordExporter(),
             new ProductsRecordExporter(),

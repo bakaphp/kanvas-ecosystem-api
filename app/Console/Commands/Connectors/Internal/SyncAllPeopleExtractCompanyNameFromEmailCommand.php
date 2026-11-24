@@ -33,7 +33,6 @@ class SyncAllPeopleExtractCompanyNameFromEmailCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

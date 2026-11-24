@@ -13,11 +13,16 @@ use Kanvas\Souk\Shipping\DataTransferObject\Parcel;
 use Kanvas\Souk\Shipping\DataTransferObject\ShipmentRequest;
 use Kanvas\Souk\Shipping\DataTransferObject\ShippingDestination;
 use Kanvas\Souk\Shipping\Enums\ConfigurationEnum;
+use Kanvas\Souk\Shipping\Restrictions\CheckShippingRestrictionsAction;
 use Spatie\LaravelData\DataCollection;
 use Wearepixel\Cart\Cart;
 
 class BuildShipmentRequestAction
 {
+    public const float MISSING_WEIGHT = 0.1;
+
+    private array $variants = [];
+
     public function __construct(
         protected Apps $app,
         protected Cart $cart,
@@ -37,11 +42,14 @@ class BuildShipmentRequestAction
 
         [$destination, $country] = $resolved;
 
+        new CheckShippingRestrictionsAction($this->variants, $destination)->assertAllowed();
+
         return new ShipmentRequest(
             destinationCountry: $country,
             parcels: new DataCollection(Parcel::class, [$this->buildParcel($weight)]),
             destinationCity: $destination->city,
             destinationPostalCode: $destination->postalCode,
+            variants: $this->variants,
         );
     }
 
@@ -59,13 +67,13 @@ class BuildShipmentRequestAction
         }
 
         $total = 0.0;
+        $this->variants = [];
 
         foreach ($items as $item) {
-            $weight = (float) $this->findVariant($item['id'])->weight;
-
-            if ($weight <= 0) {
-                return null;
-            }
+            $variant = $this->findVariant($item['id']);
+            $this->variants[] = $variant;
+            $weight = (float) $variant->weight;
+            $weight = $weight > 0 ? $weight : self::MISSING_WEIGHT;
 
             $total += $weight * (float) $item['quantity'];
         }
@@ -96,6 +104,7 @@ class BuildShipmentRequestAction
                 countryCode: $country->code,
                 city: Str::trimToNull($address->city),
                 postalCode: Str::trimToNull($address->zip),
+                state: Str::trimToNull($address->state),
             ),
             $country,
         ];

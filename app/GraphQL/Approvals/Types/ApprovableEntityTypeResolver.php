@@ -7,6 +7,8 @@ namespace App\GraphQL\Approvals\Types;
 use App\GraphQL\Types\MappedUnionTypeResolver;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -25,5 +27,7 @@ class ApprovableEntityTypeResolver extends MappedUnionTypeResolver
         Bill::class => 'ScribeBill',
         Invoice::class => 'ScribeInvoice',
         Expense::class => 'ScribeExpense',
+        Task::class => 'NervousSystemTask',
+        Organization::class => 'Organization',
     ];
 }

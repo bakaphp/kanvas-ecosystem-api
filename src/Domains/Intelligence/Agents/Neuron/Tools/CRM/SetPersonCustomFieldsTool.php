@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
+use Kanvas\Intelligence\Tools\Traits\AnnouncesAgentEdits;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,6 +22,7 @@ use Override;
 #[AgentTool(name: 'Set Person Custom Fields', category: 'crm')]
 class SetPersonCustomFieldsTool extends Tool
 {
+    use AnnouncesAgentEdits;
     use DecodesJsonObjectParam;
     use HasKanvasContext;
     use ResolvesPersonForTool;
@@ -79,6 +81,10 @@ class SetPersonCustomFieldsTool extends Tool
             }
             $person->set($key, $value);
             $written[$key] = $value;
+        }
+
+        if ($written !== []) {
+            $this->announceAgentEdit($person);
         }
 
         return [

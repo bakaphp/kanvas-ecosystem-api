@@ -10,6 +10,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
 /**
@@ -39,6 +40,12 @@ trait PostsSessionActivity
 
     protected function postQuestion(AgentTaskSession $session, HarnessQuestion $question): void
     {
+        if ($this->somebodyIsInTheChat($session)) {
+            $this->postToChat($session, '❓ ' . $question->describe() . "\n\nReply here with your answer.");
+
+            return;
+        }
+
         $this->postBlockingAsk(
             $session,
             "❓ The coding agent needs a decision:\n\n" . $question->describe()
@@ -50,6 +57,16 @@ trait PostsSessionActivity
 
     protected function postPermissionRequest(AgentTaskSession $session, HarnessPermissionRequest $permission): void
     {
+        if ($this->somebodyIsInTheChat($session)) {
+            $this->postToChat(
+                $session,
+                "🔐 It wants to run:\n\n`" . $permission->describe() . "`\n\n"
+                . 'Reply **yes** (this once), **always**, or **no**.'
+            );
+
+            return;
+        }
+
         $this->postBlockingAsk(
             $session,
             "🔐 The coding agent is asking permission to run:\n\n`" . $permission->describe() . '`'
@@ -57,6 +74,30 @@ trait PostsSessionActivity
             'coding_permission',
             'Coding job waiting on a permission',
         );
+    }
+
+    /** A task run is a chat nobody types into: an ask left there is never answered. */
+    private function somebodyIsInTheChat(AgentTaskSession $session): bool
+    {
+        return $session->isChat() && ! $session->isTaskRun();
+    }
+
+    /**
+     * A finished job, said everywhere `AnnouncesPlanOutcome` reaches. The board message comes back so
+     * the caller can attach to it; the other two deliveries have nothing to attach to.
+     */
+    protected function announceCodingResult(Plan $plan, string $title, string $body): ?Message
+    {
+        $message = $this->postToPlanBoard(
+            $plan,
+            $body,
+            'coding_job_result',
+            'coding-job-alert',
+        );
+        $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
+        $this->notifyTheAsker($plan, $title, $body);
+
+        return $message;
     }
 
     /**
@@ -91,6 +132,81 @@ trait PostsSessionActivity
 
         $this->postToPlan($session, ($this->mentionFor($plan) ?? '') . $body, $verb);
         $this->notifyTheAsker($plan, $title, $body);
+        $this->alsoAskWhereTheWorkWasRequested($session, $body, $verb);
+    }
+
+    /**
+     * A delegated run (a factory step) works on a plan of its own that nobody reads, and its asker is
+     * the orchestrator's bot user, which `notifyTheAsker` skips. The person who wanted the work is in the
+     * conversation behind the step the run serves, so the ask goes there too, or the run waits unseen.
+     */
+    private function alsoAskWhereTheWorkWasRequested(AgentTaskSession $session, string $body, string $verb): void
+    {
+        try {
+            $requested = $session->task?->parent?->plan;
+
+            if ($requested === null) {
+                return;
+            }
+
+            $who = $session->agent?->name;
+
+            $this->alsoPostToOriginConversation(
+                plan: $requested,
+                body: ($who !== null ? '**' . $who . '** · ' : '') . $body,
+                verb: $verb,
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * Into the conversation a coding chat answers to, as the agent, through the plan's origin — the
+     * same transcript + broadcast + connector path a finished job's report takes.
+     */
+    protected function postToChat(AgentTaskSession $session, string $content): void
+    {
+        try {
+            /** @var Plan|null $plan */
+            $plan = $session->plan;
+
+            if ($plan === null) {
+                return;
+            }
+
+            $this->bindChatOrigin($session, $plan);
+            $this->alsoPostToOriginConversation(
+                plan: $plan,
+                body: $content,
+                verb: 'coding_chat',
+                mention: false,
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * A conversation's channel is created when the kernel persists its first turn — after the turn ran.
+     * A chat opened by that first message therefore records its plan with no origin channel, and every
+     * delivery would be dropped. By the time anything is posted the channel exists, so it is bound here.
+     */
+    private function bindChatOrigin(AgentTaskSession $session, Plan $plan): void
+    {
+        if ($plan->origin_channel_id !== null) {
+            return;
+        }
+
+        $channelId = $session->chatSession?->channel_id;
+
+        if ($channelId === null) {
+            return;
+        }
+
+        $plan->origin_channel_id = $channelId;
+        $plan->saveQuietly();
+        $plan->unsetRelation('originChannel');
     }
 
     protected function postToPlan(AgentTaskSession $session, string $content, string $verb): void

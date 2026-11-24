@@ -1,0 +1,19 @@
+{
+    "key": "bank_statement_bhd_csv",
+    "version": 1,
+    "name": "Bank statement — Banco BHD (CSV)",
+    "description": "UNVERIFIED placeholder layout for the BHD en línea statement export: separate debit and credit columns with a running balance. Replace with a real export header and bump version.",
+    "system_module": "Kanvas\\Scribe\\Banking\\Models\\BankTransaction",
+    "required_columns": ["Fecha", "Débito", "Crédito", "Balance"],
+    "file_header": ["Fecha", "Referencia", "Descripción", "Débito", "Crédito", "Balance"],
+    "mapping": {
+        "date": "Fecha",
+        "reference": "Referencia",
+        "description": "Descripción",
+        "debit": "Débito",
+        "credit": "Crédito",
+        "running_balance": "Balance",
+        "date_format": "_d/m/Y",
+        "decimal_separator": "_."
+    }
+}

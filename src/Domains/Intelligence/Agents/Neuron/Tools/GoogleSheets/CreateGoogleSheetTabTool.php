@@ -20,8 +20,7 @@ use Throwable;
  *
  * The name reads like a broader capability than it has, so the description carries the negative fact
  * explicitly: this creates a TAB, never a spreadsheet. Without it the closest-named tool for "create
- * a new Google Sheet" is this one, and — because every other sheets tool falls back to the app's
- * default invoice tracker — the plausible outcome was a surprise tab on a live AP document.
+ * a new Google Sheet" is this one.
  */
 #[AgentTool(name: 'Create Google Sheet Tab', category: 'productivity')]
 class CreateGoogleSheetTabTool extends Tool
@@ -34,8 +33,7 @@ class CreateGoogleSheetTabTool extends Tool
 
     protected ?string $description = 'Adds a new tab (worksheet) to an EXISTING Google Sheets document — e.g. a "Q3 Invoices" '
         . 'tab alongside the ones already there. This does NOT create a new spreadsheet: use '
-        . 'create_google_spreadsheet for that. Requires the sheet link — unlike the other sheets tools it '
-        . 'will not fall back to a default document. Does not touch or remove any existing tab. Works on '
+        . 'create_google_spreadsheet for that. Requires the sheet link. Does not touch or remove any existing tab. Works on '
         . 'any sheet the Google account this agent is connected to can open; where the app uses a shared '
         . 'service account instead, the sheet must be shared with that account as an Editor.';
 
@@ -53,7 +51,7 @@ class CreateGoogleSheetTabTool extends Tool
                 name: 'sheet_url_or_id',
                 type: PropertyType::STRING,
                 description: 'The full Google Sheets URL of the EXISTING document to add a tab to, or a bare '
-                    . 'spreadsheet id. You must supply this — this tool does not fall back to a default document.',
+                    . 'spreadsheet id. You must supply this.',
                 required: false,
             ),
             new ToolProperty(
@@ -70,7 +68,7 @@ class CreateGoogleSheetTabTool extends Tool
      */
     public function __invoke(string $title, ?string $sheet_url_or_id = null): array
     {
-        $spreadsheetId = $this->resolveSpreadsheetId($sheet_url_or_id, allowDefault: false);
+        $spreadsheetId = $this->resolveSpreadsheetId($sheet_url_or_id);
 
         if (is_array($spreadsheetId)) {
             return ['success' => false, ...$spreadsheetId];

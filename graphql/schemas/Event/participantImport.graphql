@@ -1,0 +1,27 @@
+input EventParticipantImportRowInput {
+    email: String!
+    firstname: String
+    lastname: String
+}
+
+input ImportEventParticipantsInput {
+    event_version_id: ID!
+    rows: [EventParticipantImportRowInput!]!
+    email_template: String
+    code_length: Int = 8
+    reissue: Boolean = false
+}
+
+type ImportEventParticipantsResponse {
+    queued: Int!
+    message: String!
+}
+
+extend type Mutation @guardByAdmin {
+    importEventParticipants(
+        input: ImportEventParticipantsInput!
+    ): ImportEventParticipantsResponse!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\ParticipantImportMutation@import"
+        )
+}

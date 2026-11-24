@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Deals\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Guild\Concerns\PersistsCustomFieldsAndFiles;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdateDealAction
 {
+    use PersistsCustomFieldsAndFiles;
+
     public function __construct(
         protected readonly Deal $deal,
         protected readonly DealData $data,
@@ -53,6 +56,8 @@ class UpdateDealAction
             }
 
             $this->deal->saveOrFail();
+
+            $this->persistCustomFieldsAndFiles($this->deal, $this->data->custom_fields, $this->data->files);
 
             if ($this->runWorkflow) {
                 $this->deal->fireWorkflow(

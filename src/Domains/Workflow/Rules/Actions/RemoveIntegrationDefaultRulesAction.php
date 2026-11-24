@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules\Actions;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;

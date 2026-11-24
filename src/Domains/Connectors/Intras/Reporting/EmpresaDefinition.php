@@ -10,6 +10,7 @@ use Kanvas\Analytics\Reporting\Contracts\RefreshableReportInterface;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\Enums\ReportGrainEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Intras\Support\CustomFieldsBatch;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Override;
 
@@ -126,7 +127,7 @@ class EmpresaDefinition implements RefreshableReportInterface
             $organizations = $chunk->all();
             $organizationIds = array_map(fn (Organization $o) => (int) $o->getId(), $organizations);
 
-            $customFields = $this->customFieldsFor($organizationIds);
+            $customFields = CustomFieldsBatch::forEntities(Organization::class, $organizationIds);
             $addresses = $this->addressesFor($organizationIds);
             $rollups = $this->rollupsFor($app, $company, $organizationIds);
 
@@ -153,33 +154,6 @@ class EmpresaDefinition implements RefreshableReportInterface
         return [
             Organization::class => fn (Organization $organization): array => [(int) $organization->getId()],
         ];
-    }
-
-    /**
-     * Not company-scoped: `apps_custom_fields.companies_id` records the writer's company context,
-     * not the entity's owner. Entity ids are globally unique and already scoped by the caller.
-     *
-     * @param array<int, int> $organizationIds
-     *
-     * @return array<int, array<string, string>>
-     */
-    protected function customFieldsFor(array $organizationIds): array
-    {
-        $rows = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('model_name', Organization::class)
-            ->whereIn('entity_id', $organizationIds)
-            ->where('is_deleted', 0)
-            ->select('entity_id', 'name', 'value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->entity_id][(string) $row->name] = (string) $row->value;
-        }
-
-        return $map;
     }
 
     /**

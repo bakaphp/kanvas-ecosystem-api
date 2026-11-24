@@ -22,6 +22,7 @@ trait ResolvesInvoiceForTool
             ->where('id', $invoiceId)
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
+            ->notDeleted()
             ->first();
 
         if ($invoice === null) {

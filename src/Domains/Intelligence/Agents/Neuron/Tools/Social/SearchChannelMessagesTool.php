@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Social;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -199,7 +200,7 @@ class SearchChannelMessagesTool extends Tool
 
     private function whereContains(Builder $query, string $words): Builder
     {
-        return $this->contentLike($query, '%' . $this->escapeLike(mb_strtolower($words)) . '%');
+        return $this->contentLike($query, '%' . Str::escapeLike(mb_strtolower($words)) . '%');
     }
 
     /**
@@ -219,7 +220,7 @@ class SearchChannelMessagesTool extends Tool
      */
     private function whereAuthor(Builder $query, Channel $channel, string $author): Builder
     {
-        $escaped = $this->escapeLike(mb_strtolower($author));
+        $escaped = Str::escapeLike(mb_strtolower($author));
         $needle = '%' . $escaped . '%';
 
         $writerIds = $channel->messages()
@@ -244,11 +245,6 @@ class SearchChannelMessagesTool extends Tool
                 ->whereIn('messages.users_id', $userIds)
                 ->orWhere(fn (Builder $prefix): Builder => $this->contentLike($prefix, $escaped . '%:%'))
         );
-    }
-
-    private function escapeLike(string $value): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     private function label(Channel $channel): string

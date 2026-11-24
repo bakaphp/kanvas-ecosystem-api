@@ -1188,6 +1188,7 @@ class OrderWalletTest extends TestCase
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
         $app->set(WalletConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value, true);
+
         try {
             $productData = new Product(
                 app: $app,

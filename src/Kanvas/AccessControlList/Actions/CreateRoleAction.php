@@ -55,6 +55,7 @@ class CreateRoleAction
             'title' => $this->title ?? $this->name,
             'scope' => RolesEnums::getScope($this->app),
         ]);
+
         return $role;
     }
 }

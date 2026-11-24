@@ -28,8 +28,6 @@ use RuntimeException;
  */
 class ReclassifySuspenseAction
 {
-    private const string RECLASS_METADATA_KEY = 'suspense_reclassified_journal_entry_id';
-
     public function __construct(
         public readonly BankTransaction $bankTransaction,
         public readonly Account $targetAccount,
@@ -39,11 +37,15 @@ class ReclassifySuspenseAction
     ) {
     }
 
+    /**
+     * The "already reclassified?" check reads the row under lockForUpdate in the transaction that writes
+     * it, so two callers holding the same transaction cannot both post a reclassification.
+     */
     public function execute(): JournalEntry
     {
         $this->assertReclassifiable();
 
-        $alreadyReclassified = $this->existingReclassification();
+        $alreadyReclassified = $this->existingReclassification($this->bankTransaction);
         if ($alreadyReclassified !== null) {
             return $alreadyReclassified;
         }
@@ -56,25 +58,34 @@ class ReclassifySuspenseAction
         );
 
         return DB::connection('accounting')->transaction(function (): JournalEntry {
+            /** @var BankTransaction $locked */
+            $locked = BankTransaction::query()->whereKey($this->bankTransaction->getKey())->lockForUpdate()->firstOrFail();
+
+            $existing = $this->existingReclassification($locked);
+            if ($existing !== null) {
+                $this->bankTransaction->setRawAttributes($locked->getAttributes(), true);
+
+                return $existing;
+            }
+
             $entry = new PostJournalEntryAction(
                 data: $this->composer->composeSuspenseReclassification(
-                    $this->bankTransaction,
+                    $locked,
                     $this->targetAccount,
                 ),
                 postedByUser: $this->user,
             )->execute();
 
-            $metadata = $this->bankTransaction->metadata ?? [];
-            $metadata[self::RECLASS_METADATA_KEY] = $entry->id;
-            $metadata['suspense_reclassified_to_account_id'] = $this->targetAccount->id;
-            $this->bankTransaction->metadata = $metadata;
-            $this->bankTransaction->save();
+            $locked->suspense_reclassified_journal_entry_id = $entry->id;
+            $locked->suspense_reclassified_to_account_id = $this->targetAccount->id;
+            $locked->save();
+            $this->bankTransaction->setRawAttributes($locked->getAttributes(), true);
 
-            $this->bankTransaction->emitLedgerEvent('accounting.bank_transaction.suspense_reclassified', payload: [
+            $locked->emitLedgerEvent('accounting.bank_transaction.suspense_reclassified', payload: [
                 'journal_entry_id' => $entry->id,
-                'reclassifies_journal_entry_id' => $this->bankTransaction->journal_entry_id,
+                'reclassifies_journal_entry_id' => $locked->journal_entry_id,
                 'target_account_id' => $this->targetAccount->id,
-                'amount_native' => $this->bankTransaction->amount_native,
+                'amount_native' => $locked->amount_native,
             ]);
 
             return $entry;
@@ -99,17 +110,15 @@ class ReclassifySuspenseAction
         }
     }
 
-    private function existingReclassification(): ?JournalEntry
+    private function existingReclassification(BankTransaction $transaction): ?JournalEntry
     {
-        $entryId = $this->bankTransaction->metadata[self::RECLASS_METADATA_KEY] ?? null;
-
-        if ($entryId === null) {
+        if ($transaction->suspense_reclassified_journal_entry_id === null) {
             return null;
         }
 
         return JournalEntry::query()
-            ->where('apps_id', $this->bankTransaction->apps_id)
-            ->where('id', (int) $entryId)
+            ->where('apps_id', $transaction->apps_id)
+            ->where('id', $transaction->suspense_reclassified_journal_entry_id)
             ->first();
     }
 }

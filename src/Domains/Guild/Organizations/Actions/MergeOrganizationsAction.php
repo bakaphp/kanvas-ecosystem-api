@@ -35,6 +35,7 @@ use Throwable;
  *     - deals.organization_id  (if present in this app)
  *     - peoples_employment_history.organizations_id
  *     - organizations_peoples  (merge, dedup on (organization_id, peoples_id))
+ *   The `email_domains` custom field is unioned onto the target, not adopted, since both may carry one.
  *   Custom fields (`apps_custom_fields`, `ecosystem` DB): adopted onto the target when the target
  *   doesn't already have that field name (e.g. salesforce_account_id) — a name both rows already
  *   carry is a real conflict, left untouched for a later merge phase.
@@ -137,6 +138,10 @@ class MergeOrganizationsAction
             // organizations_peoples — dedup on collision: if (target, peoples_id) already exists,
             // delete the source row outright rather than violating the unique constraint.
             $organizationsPeoplesRebound = $this->rebindOrganizationPeoples($sourceId, $targetId);
+
+            // The source stops matching once soft-deleted, so its domains would otherwise stop
+            // resolving people to either organization.
+            $this->target->addEmailDomains($this->source->emailDomains());
 
             // ── Soft-delete source + stamp the audit pointer ──
             $this->source->is_deleted = true;

@@ -160,7 +160,6 @@ class RecombeeUserRecommendationService
             );
         }
 
-
         return $recommendation;
     }
 

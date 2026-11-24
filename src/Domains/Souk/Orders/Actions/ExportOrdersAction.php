@@ -36,9 +36,9 @@ class ExportOrdersAction
         $filename = ($this->filename ?? 'orders_export') . "_{$timestamp}";
 
         $metaData = [
-            "title" => $this->metadata['custom_title'] ?? 'REPORTE DE ÓRDENES',
-            "subtitle" => $this->metadata['subtitle'] ?? '',
-            "headerImages" => $this->metadata['headerImages'] ?? []
+            'title' => $this->metadata['custom_title'] ?? 'REPORTE DE ÓRDENES',
+            'subtitle' => $this->metadata['subtitle'] ?? '',
+            'headerImages' => $this->metadata['headerImages'] ?? [],
         ];
 
         if ($format === 'EXCEL') {
@@ -51,10 +51,9 @@ class ExportOrdersAction
             'status' => 'error',
             'download_url' => null,
             'file_name' => null,
-            'message' => 'Invalid export format specified'
+            'message' => 'Invalid export format specified',
         ];
     }
-
 
     private function toExcel($orders, string $filename, array $metaData = []): array
     {
@@ -110,7 +109,7 @@ class ExportOrdersAction
             'download_url' => $isSavedInFileSystem ? $uploadedFileEntry->url : Storage::disk('public')->url($tempFilePath),
             'file_name' => "{$filename}.xlsx",
             'file_path' => $uploadedFileEntry->url ?? $tempFilePath,
-            'message' => 'Excel export completed successfully'
+            'message' => 'Excel export completed successfully',
         ];
     }
 
@@ -135,9 +134,9 @@ class ExportOrdersAction
             'orders-pdf',
             $filename,
             [
-                "orders" => $data['orders'],
-                "headers" => $data['headers'],
-                "logos" => $data['header_info']['logos'] ?? []
+                'orders' => $data['orders'],
+                'headers' => $data['headers'],
+                'logos' => $data['header_info']['logos'] ?? [],
             ]
         );
 
@@ -149,8 +148,6 @@ class ExportOrdersAction
             'message' => 'PDF generation started. You will receive an email with the download link when ready.',
         ];
     }
-
-
 
     private function prepareOrderData($orders, array $metaData = []): array
     {
@@ -168,7 +165,7 @@ class ExportOrdersAction
             'subtitle' => $metaData['subtitle'] ?? '',
             'export_date' => Carbon::now()->format('d/m/Y H:i:s'),
             'date_range' => $this->getDateRange($orders),
-            'status_filter' => $this->getStatusFilter($ordersForMetadata)
+            'status_filter' => $this->getStatusFilter($ordersForMetadata),
         ];
 
         // Store header info for use in views
@@ -194,7 +191,7 @@ class ExportOrdersAction
                 'Reference',
                 'Order Type',
                 'Created At',
-                'Updated At'
+                'Updated At',
             ];
             $data['field_paths'] = [
                 'id',
@@ -210,7 +207,7 @@ class ExportOrdersAction
                 'reference',
                 'orderType.name',
                 'created_at',
-                'updated_at'
+                'updated_at',
             ];
         }
 
@@ -281,6 +278,7 @@ class ExportOrdersAction
             if ($column === $targetDateField && $operator === 'BETWEEN' && is_array($conditions['value']) && count($conditions['value']) >= 2) {
                 $startDate = Carbon::parse($conditions['value'][0]);
                 $endDate = Carbon::parse($conditions['value'][1]);
+
                 return "Desde: {$startDate->format('d/m/Y')} - Hasta: {$endDate->format('d/m/Y')}";
             }
         }
@@ -295,6 +293,7 @@ class ExportOrdersAction
                     if ($column === $targetDateField && $operator === 'BETWEEN' && is_array($andCondition['value']) && count($andCondition['value']) >= 2) {
                         $startDate = Carbon::parse($andCondition['value'][0]);
                         $endDate = Carbon::parse($andCondition['value'][1]);
+
                         return "Desde: {$startDate->format('d/m/Y')} - Hasta: {$endDate->format('d/m/Y')}";
                     }
                 }

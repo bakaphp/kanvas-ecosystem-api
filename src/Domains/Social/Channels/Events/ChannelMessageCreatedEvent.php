@@ -65,19 +65,40 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
      */
     public static function pusherChannelsFor(ModelsChannel $channel): array
     {
-        $appPrefix = 'app-' . $channel->apps_id;
+        return self::pusherChannelNames(
+            $channel->apps_id,
+            $channel->id,
+            $channel->slug,
+            $channel->entity_namespace,
+            $channel->entity_id,
+        );
+    }
+
+    /**
+     * The scalar form of {@see pusherChannelsFor()}, for events that cannot carry the model.
+     *
+     * @return list<Channel>
+     */
+    public static function pusherChannelNames(
+        int $appsId,
+        int $channelId,
+        string $channelSlug,
+        ?string $entityNamespace,
+        int|string|null $entityId
+    ): array {
+        $appPrefix = 'app-' . $appsId;
 
         $channels = [
-            new Channel(Str::sanitizeChannelName($appPrefix . '-new-message-channel-' . $channel->slug . '-' . $channel->id)),
-            new Channel(Str::sanitizeChannelName($appPrefix . $channel->slug)),
+            new Channel(Str::sanitizeChannelName($appPrefix . '-new-message-channel-' . $channelSlug . '-' . $channelId)),
+            new Channel(Str::sanitizeChannelName($appPrefix . $channelSlug)),
         ];
 
-        if (! empty($channel->entity_namespace)) {
-            $entityNamespace = SystemModules::convertLegacySystemModules($channel->entity_namespace);
-            $channelSlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
+        if (! empty($entityNamespace)) {
+            $entityNamespace = SystemModules::convertLegacySystemModules($entityNamespace);
+            $entitySlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
             array_unshift(
                 $channels,
-                new Channel('new-message-channel-' . $channelSlug . '-' . ($channel->entity_id ?? $channel->id)),
+                new Channel('new-message-channel-' . $entitySlug . '-' . ($entityId ?? $channelId)),
             );
         }
 

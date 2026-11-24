@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesBankingRecordsForTool;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /** Appends an internal note to an AP bill in the Kanvas ledger. */
@@ -18,6 +19,9 @@ use Override;
 class AddBillNoteTool extends Tool
 {
     use HasKanvasContext;
+    use ReportsToolOutcome;
+    use ResolvesBankingRecordsForTool;
+    use TrackByInputs;
 
     protected string $name = 'add_bill_note';
 
@@ -50,24 +54,13 @@ class AddBillNoteTool extends Tool
      */
     public function __invoke(int $bill_id, string $note): array
     {
-        $bill = Bill::query()
-            ->where('id', $bill_id)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->first();
+        $bill = $this->resolveBillOrError($bill_id);
 
-        if ($bill === null) {
-            return [
-                'note_added' => false,
-                'reason' => 'bill_not_found',
-                'message' => "No bill with id {$bill_id} for this app/company.",
-            ];
+        if (is_array($bill)) {
+            return ['note_added' => false, ...$bill];
         }
 
-        $stamped = '[' . Carbon::now()->toDateTimeString() . '] ' . $note;
-        $bill->internal_notes = $bill->internal_notes !== null && $bill->internal_notes !== ''
-            ? $bill->internal_notes . "\n" . $stamped
-            : $stamped;
+        $stamped = $bill->appendInternalNote($note);
         $bill->saveOrFail();
 
         return [

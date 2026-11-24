@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
+use Kanvas\Souk\Shipping\DataTransferObject\ShippingQuote;
 use Wearepixel\Cart\CartCondition;
 
 class ShippingQuoteTest extends ShippingOrderBase
@@ -87,7 +88,7 @@ class ShippingQuoteTest extends ShippingOrderBase
         $this->assertEquals($heavyQuote, (float) ltrim($heavyValue, '+'));
     }
 
-    public function testConditionIsRemovedWhenTheSelectionIsNoLongerQuotable(): void
+    public function testASelectionNoLongerQuotableFallsBackToFreeShipping(): void
     {
         $this->addToCart()->assertSuccessful();
         $this->applyShippingQuote()->assertSuccessful();
@@ -95,7 +96,9 @@ class ShippingQuoteTest extends ShippingOrderBase
         $this->setVariantWeight(999.99);
         $this->updateCartQuantity(2)->assertSuccessful();
 
-        $this->assertNull($this->cartShipping());
+        $shipping = $this->cartShipping();
+        $this->assertSame(ShippingQuote::FREE, $shipping['attributes']['provider']);
+        $this->assertSame('US', $shipping['attributes']['destination']['country']);
     }
 
     public function testConditionIsRemovedWhenTheLastItemIsRemoved(): void

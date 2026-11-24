@@ -31,6 +31,7 @@ class UniversalAssistanceService
         }
 
         $leadService = new LeadService($this->app, $this->order);
+
         try {
             $response = $leadService->createLead($travelData, $contactPerson);
             // Store the response in order metadata
@@ -39,6 +40,7 @@ class UniversalAssistanceService
                 'travel_quote_timestamp' => now()->toISOString(),
             ]);
             $this->order->saveOrFail();
+
             return $response;
         } catch (\Exception $e) {
             // Store the error in order metadata
@@ -50,6 +52,7 @@ class UniversalAssistanceService
                 ],
             ]);
             $this->order->saveOrFail();
+
             throw $e;
         }
     }
@@ -315,6 +318,7 @@ class UniversalAssistanceService
         ];
 
         $code = strtoupper($code);
+
         return $destinationMap[$code] ?? 'Europa'; // Default a Europa si no se encuentra
     }
 

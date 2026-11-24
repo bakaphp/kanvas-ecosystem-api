@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Mercury\Actions\RegisterMercuryWebhookAction;
 use Kanvas\Connectors\Mercury\DataTransferObject\Mercury as MercuryDto;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
@@ -76,6 +76,8 @@ class MercuryHandler extends BaseIntegration
             ConfigurationEnum::SYNC_CURSOR->value,
             ConfigurationEnum::WEBHOOK_ID->value,
             ConfigurationEnum::WEBHOOK_SECRET->value,
+            ConfigurationEnum::AR_DEPOSIT_ACCOUNT_ID->value,
+            ConfigurationEnum::AR_CARD_ENABLED->value,
         ];
     }
 }

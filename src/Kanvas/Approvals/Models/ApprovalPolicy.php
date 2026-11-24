@@ -6,12 +6,16 @@ namespace Kanvas\Approvals\Models;
 
 use Baka\Casts\Json;
 use Baka\Concerns\HasHandlerClass;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Approvals\Contracts\ApprovalHandlerInterface;
 use Kanvas\Approvals\DataTransferObject\ApprovalStep;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
+use Kanvas\Approvals\Observers\ApprovalPolicyObserver;
 use Kanvas\Models\BaseModel;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\Users;
 use Override;
 
 /**
@@ -33,9 +37,35 @@ use Override;
  * @property bool $allow_authority_override
  * @property bool $is_deleted
  */
+#[ObservedBy([ApprovalPolicyObserver::class])]
 class ApprovalPolicy extends BaseModel
 {
+    use EmitsLedgerEventsForEntity;
     use HasHandlerClass;
+
+    private const array AUDITED = [
+        'system_modules_id',
+        'approval_type',
+        'steps',
+        'handler',
+        'trigger',
+        'trigger_condition',
+        'trigger_event',
+        'reject_policy',
+        'fallback_resolver',
+        'fallback_config',
+        'notify',
+        'expires_after_hours',
+        'allow_authority_override',
+    ];
+
+    /**
+     * Who is making the current write, for the `approvals.policy_changed` audit. A declared property, not
+     * an attribute, so it is never persisted; the table has no "changed by" column and a policy write by
+     * a seed command legitimately has nobody to name.
+     */
+    public ?Users $changedBy = null;
+
     protected $table = 'approval_policies';
     protected $guarded = [];
 
@@ -89,6 +119,36 @@ class ApprovalPolicy extends BaseModel
         $handlerClass = $this->handlerClass();
 
         return $handlerClass === null ? null : app($handlerClass);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function auditedAttributes(bool $original = false): array
+    {
+        $values = [];
+
+        foreach (self::AUDITED as $key) {
+            $value = $original ? $this->getOriginal($key) : $this->getAttribute($key);
+            $values[$key] = $value instanceof ApprovalTriggerEnum ? $value->value : $value;
+        }
+
+        return $values;
+    }
+
+    protected function sourceDomainForLedger(): string
+    {
+        return 'Approvals';
+    }
+
+    protected function resolveDefaultActorType(): string
+    {
+        return $this->changedBy !== null ? 'User' : 'System';
+    }
+
+    protected function resolveDefaultActorId(): ?int
+    {
+        return $this->changedBy?->getId();
     }
 
     public function stepAt(int $step): ?ApprovalStep

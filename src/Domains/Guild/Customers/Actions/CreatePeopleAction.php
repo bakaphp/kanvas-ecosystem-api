@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Actions;
 use Baka\Contracts\CompanyInterface;
 use Baka\Validations\Date;
 use Kanvas\Companies\Enums\Defaults;
+use Kanvas\Guild\Customers\Classification\Jobs\ClassifyPeopleJob;
 use Kanvas\Guild\Customers\Concerns\ManagesPeopleContacts;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -132,6 +133,8 @@ class CreatePeopleAction
         }
 
         $people->refresh();
+
+        ClassifyPeopleJob::dispatchIfEnabled($people);
 
         return $people;
     }

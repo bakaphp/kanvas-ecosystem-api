@@ -2,7 +2,7 @@
 
 Lets Kanvas agents (Apex, Arc) search a connected Gmail mailbox, read one email's details,
 download an attachment (e.g. an invoice PDF) into Kanvas, and extract structured data (vendor,
-total, dates) from that PDF so it can be tracked in a sheet and pushed to Acumatica.
+total, dates) from that PDF so the agent can file it as a Kanvas bill or invoice.
 
 ## Tools
 

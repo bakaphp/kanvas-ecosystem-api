@@ -27,7 +27,7 @@ class CreateProductGraphql
 
     public function execute(): array
     {
-        Log::debug("ShopifySaveAction started");
+        Log::debug('ShopifySaveAction started');
 
         try {
             $graphQL = <<<QUERY
@@ -67,9 +67,9 @@ class CreateProductGraphql
             }
 
             $variables = [
-                "product" => [
-                    "title" => $this->products->name,
-                    "descriptionHtml" => $this->products->description,
+                'product' => [
+                    'title' => $this->products->name,
+                    'descriptionHtml' => $this->products->description,
                     'handle' => $this->products->slug,
                 ],
             ];
@@ -92,8 +92,10 @@ class CreateProductGraphql
             ))->execute();
         } catch (\Throwable $e) {
             Log::error('ShopifySaveAction failed', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
+
         return $response['data']['productCreate']['product'] ?? ['error' => 'Unknown error'];
     }
 }

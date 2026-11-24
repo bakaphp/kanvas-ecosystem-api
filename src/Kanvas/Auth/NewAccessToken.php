@@ -13,7 +13,6 @@ class NewAccessToken
 {
     /**
      * Constructor.
-     *
      */
     public function __construct(
         protected Sessions $sessionToken

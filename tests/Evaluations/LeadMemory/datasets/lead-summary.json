@@ -1,0 +1,55 @@
+[
+  {
+    "name": "correction: staff changes the lot",
+    "category": "corrections",
+    "title": "Synthetic - 2022 Tacoma",
+    "messages": [
+      {"id": 1, "date": "2026-10-01 09:00", "speaker": "Customer", "text": "Hi, I saw the white 2022 Tacoma online, is it still there?"},
+      {"id": 2, "date": "2026-10-01 09:02", "speaker": "Staff note (internal)", "text": "Send him to the Shepard Select lot, the Tacoma is there."},
+      {"id": 3, "date": "2026-10-01 09:03", "speaker": "Agent", "text": "Yes it is available at our Shepard Select lot."},
+      {"id": 4, "date": "2026-10-01 11:40", "speaker": "Staff note (internal)", "text": "Correction: the Tacoma moved to the CDJR lot this morning, send customers there."},
+      {"id": 5, "date": "2026-10-01 12:10", "speaker": "Customer", "text": "Great, which address do I go to?"}
+    ],
+    "expect_open": ["cdjr"]
+  },
+  {
+    "name": "cancelled appointment",
+    "category": "cancelled_appointments",
+    "title": "Synthetic - Civic test drive",
+    "messages": [
+      {"id": 11, "date": "2026-10-02 10:00", "speaker": "Customer", "text": "Can I test drive the blue Civic on Saturday at 10am?"},
+      {"id": 12, "date": "2026-10-02 10:01", "speaker": "Agent", "text": "Booked: Saturday at 10am for the blue Civic test drive."},
+      {"id": 13, "date": "2026-10-03 08:15", "speaker": "Customer", "text": "Something came up, please cancel Saturday, I will write again next week."},
+      {"id": 14, "date": "2026-10-03 08:16", "speaker": "Agent", "text": "No problem, I cancelled Saturday's test drive."},
+      {"id": 15, "date": "2026-10-03 08:17", "speaker": "Customer", "text": "Thanks"}
+    ],
+    "expect_open": []
+  },
+  {
+    "name": "old promise survives a long conversation",
+    "category": "old_promises",
+    "title": "Synthetic - F-150 purchase",
+    "messages": [
+      {"id": 21, "date": "2026-09-01 14:00", "speaker": "Customer", "text": "If I buy the F-150 this month do I get anything extra?"},
+      {"id": 22, "date": "2026-09-01 14:05", "speaker": "Salesperson Ana", "text": "Yes, I promise you a free oil change and a full tank with the purchase."},
+      {"id": 23, "date": "2026-09-05 09:00", "speaker": "Customer", "text": "What colors do you have?"},
+      {"id": 24, "date": "2026-09-05 09:01", "speaker": "Agent", "text": "Black, silver and red."},
+      {"id": 25, "date": "2026-09-08 16:30", "speaker": "Customer", "text": "Is financing available for 60 months?"},
+      {"id": 26, "date": "2026-09-08 16:31", "speaker": "Agent", "text": "Yes, 60 months is available subject to credit approval."},
+      {"id": 27, "date": "2026-09-12 11:00", "speaker": "Customer", "text": "I will take the red one, when can I pick it up?"},
+      {"id": 28, "date": "2026-09-12 11:02", "speaker": "Agent", "text": "Paperwork is ready Monday, I will confirm the pickup time tomorrow."}
+    ],
+    "expect_open": ["oil change", "pickup"]
+  },
+  {
+    "name": "no invented facts",
+    "category": "document_lookup",
+    "title": "Synthetic - general questions",
+    "messages": [
+      {"id": 31, "date": "2026-10-10 13:00", "speaker": "Customer", "text": "Where are you located and are you open Sundays?"},
+      {"id": 32, "date": "2026-10-10 13:01", "speaker": "Agent", "text": "We are at 165 New County Rd, Thomaston. We are closed on Sundays."},
+      {"id": 33, "date": "2026-10-10 13:05", "speaker": "Customer", "text": "Ok, I am just looking for now."}
+    ],
+    "expect_open": []
+  }
+]

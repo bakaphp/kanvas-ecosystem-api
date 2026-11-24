@@ -6,6 +6,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\System;
 
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
+use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -139,15 +141,7 @@ class SendEmailToUserTool extends Tool implements RequiresSystemAgent
         }
 
         try {
-            $smtp = new SmtpRuntimeConfiguration($this->agent->app, $this->agent->company);
-            $fromMail = $smtp->getFromEmail();
-
-            Mail::send(
-                new KanvasMailable($smtp->loadSmtpSettings(), MarkdownEmailRenderer::toEmailHtml($body))
-                    ->from($fromMail['address'], $fromMail['name'])
-                    ->to($recipient->email)
-                    ->subject($subject),
-            );
+            $from = $this->send($recipient, $subject, $body);
         } catch (Throwable $e) {
             report($e);
 
@@ -160,6 +154,7 @@ class SendEmailToUserTool extends Tool implements RequiresSystemAgent
         return [
             'status' => 'success',
             'to' => $recipient->email,
+            'from' => $from,
             'subject' => $subject,
             'message' => "Email sent to {$recipient->email}.",
             ...$this->recordAsk(
@@ -173,6 +168,39 @@ class SendEmailToUserTool extends Tool implements RequiresSystemAgent
                 $channelId,
             ),
         ];
+    }
+
+    /**
+     * An agent with a mailbox of its own sends from it, so the teammate sees the agent's name and
+     * address and a reply lands in the agent's inbox. The company SMTP sender is one identity shared
+     * by every agent of the company, which is why it is only the fallback for an agent without one.
+     */
+    private function send(Users $recipient, string $subject, string $body): string
+    {
+        $mailbox = new AgentMailboxService()->addressFor($this->agent);
+
+        if ($mailbox !== null) {
+            new SendAsAgentMailboxAction(
+                agent: $this->agent,
+                to: $recipient->email,
+                subject: $subject,
+                markdownBody: $body,
+            )->execute();
+
+            return $mailbox;
+        }
+
+        $smtp = new SmtpRuntimeConfiguration($this->agent->app, $this->agent->company);
+        $fromMail = $smtp->getFromEmail();
+
+        Mail::send(
+            new KanvasMailable($smtp->loadSmtpSettings(), MarkdownEmailRenderer::toEmailHtml($body))
+                ->from($fromMail['address'], $fromMail['name'])
+                ->to($recipient->email)
+                ->subject($subject),
+        );
+
+        return (string) $fromMail['address'];
     }
 
     /**

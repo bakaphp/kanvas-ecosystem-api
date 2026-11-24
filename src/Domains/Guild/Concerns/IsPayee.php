@@ -6,6 +6,8 @@ namespace Kanvas\Guild\Concerns;
 
 trait IsPayee
 {
+    use HasBillingParty;
+
     public function getPayeeId(): int
     {
         return (int) $this->id;
@@ -13,32 +15,22 @@ trait IsPayee
 
     public function getPayeeDisplayName(): string
     {
-        return (string) ($this->name ?? '');
+        return $this->partyDisplayName();
     }
 
     public function getPayeeLegalName(): ?string
     {
-        return (string) ($this->name ?? null) ?: null;
+        return $this->partyLegalName();
     }
 
     public function getPayeeTaxId(): ?string
     {
-        return $this->get('tax_id')
-            ?? $this->get('rnc')
-            ?? $this->get('ein');
+        return $this->partyTaxId();
     }
 
     public function getPayeeEmail(): ?string
     {
-        if (! method_exists($this, 'peoples')) {
-            return null;
-        }
-        $primary = $this->peoples()->first();
-        if ($primary !== null && method_exists($primary, 'getEmails')) {
-            return $primary->getEmails()->first()?->value;
-        }
-
-        return null;
+        return $this->partyEmail();
     }
 
     /**
@@ -46,26 +38,11 @@ trait IsPayee
      */
     public function getPayeeAddressArray(): ?array
     {
-        // Vendor address = the Org's billing address. Same chain as IsBillable: walk to
-        // People::getBillingAddressArray() (typed `peoples_address` row), fall back to the
-        // Organization's free-text column.
-        if (method_exists($this, 'peoples')) {
-            $primary = $this->peoples()->first();
-            $address = $primary?->getBillingAddressArray();
-            if ($address !== null) {
-                return $address;
-            }
-        }
-
-        $line = trim((string) ($this->address ?? ''));
-
-        return $line === '' ? null : ['address' => $line];
+        return $this->partyAddressArray();
     }
 
     public function getDefaultPayableCurrency(): string
     {
-        $stored = $this->get('default_currency');
-
-        return is_string($stored) && $stored !== '' ? $stored : 'USD';
+        return $this->partyDefaultCurrency();
     }
 }

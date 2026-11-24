@@ -6,13 +6,22 @@ namespace App\GraphQL\Intelligence\Config;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Support\AgentReadAccessCompanies;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 class AgentConfigManagement
 {
     public function setAgentSetting(mixed $root, array $request): bool
     {
-        $this->agentFromInput($request['input']['entity_uuid'])
-            ->set($request['input']['key'], $request['input']['value']);
+        $agent = $this->agentFromInput($request['input']['entity_uuid']);
+        $key = $request['input']['key'];
+        $value = $request['input']['value'];
+
+        if ($key === ConfigurationEnum::AGENT_READ_ACCESS_COMPANIES->value) {
+            $value = AgentReadAccessCompanies::assertGrantable($agent, auth()->user(), $value);
+        }
+
+        $agent->set($key, $value);
 
         return true;
     }

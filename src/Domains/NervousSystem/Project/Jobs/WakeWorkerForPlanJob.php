@@ -172,10 +172,7 @@ class WakeWorkerForPlanJob implements ShouldQueue
         // agent reuses the predecessor's session and inherits its "I'm blocked, I lack the tools"
         // thread, so the new agent just re-asserts the block. Per-agent sessions start each assignee
         // fresh (root cause of the NS-6909 re-block loop).
-        return $this->firstOrCreateWakeSession(
-            $this->plan,
-            extraKey: ['agents_id' => $this->plan->agent_id],
-        );
+        return Session::firstOrCreateForEntity($this->plan, extraKey: ['agents_id' => $this->plan->agent_id]);
     }
 
     protected function buildMessage(): string

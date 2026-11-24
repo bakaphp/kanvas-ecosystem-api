@@ -6,12 +6,15 @@ namespace Kanvas\Scribe\Quotes\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\BillingSchedules\Models\BillingSchedule;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
+use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;
+use Kanvas\Scribe\Quotes\Models\QuoteLine;
 use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 use Spatie\LaravelData\DataCollection;
 
@@ -42,27 +45,32 @@ class ConvertQuoteToInvoiceAction
     {
         $this->stateMachine->assertTransition($this->quote, QuoteStatusEnum::CONVERTED);
 
+        if (BillingSchedule::query()->where('source_quote_id', $this->quote->getId())->notDeleted()->exists()) {
+            throw new InvalidQuoteTransitionException(
+                "Quote {$this->quote->getId()} is billed by its SOW payment schedule; converting it whole "
+                . 'would invoice the customer twice.'
+            );
+        }
+
         return DB::connection('accounting')->transaction(function (): Invoice {
             $quote = $this->quote;
 
-            $invoiceLineData = $quote->lines->map(function ($line) {
-                return new InvoiceLineData(
-                    description: (string) $line->description,
-                    quantity: (float) $line->quantity,
-                    unit_price_native: (float) $line->unit_price_native,
-                    item_id: $line->item_id,
-                    sku: $line->sku,
-                    sort_order: $line->sort_order,
-                    discount_rate: $line->discount_rate,
-                    discount_amount_native: (float) $line->discount_amount_native,
-                    tax_rate: $line->tax_rate,
-                    tax_amount_native: (float) $line->tax_amount_native,
-                    tax_metadata: $line->tax_metadata,
-                    class_id: $line->class_id,
-                    department_id: $line->department_id,
-                    metadata: $line->metadata,
-                );
-            })->all();
+            $invoiceLineData = $quote->lines->map(fn (QuoteLine $line): InvoiceLineData => new InvoiceLineData(
+                description: (string) $line->description,
+                quantity: (float) $line->quantity,
+                unit_price_native: (float) $line->unit_price_native,
+                item_id: $line->item_id,
+                sku: $line->sku,
+                sort_order: $line->sort_order,
+                discount_rate: $line->discount_rate,
+                discount_amount_native: (float) $line->discount_amount_native,
+                tax_rate: $line->tax_rate,
+                tax_amount_native: (float) $line->tax_amount_native,
+                tax_metadata: $line->tax_metadata,
+                class_id: $line->class_id,
+                department_id: $line->department_id,
+                metadata: $line->metadata,
+            ))->all();
 
             $invoiceData = new InvoiceData(
                 app: $quote->app,

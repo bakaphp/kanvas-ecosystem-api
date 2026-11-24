@@ -1,0 +1,19 @@
+{
+    "key": "bank_statement_banreservas_csv",
+    "version": 1,
+    "name": "Bank statement — Banreservas (CSV)",
+    "description": "UNVERIFIED placeholder layout for the Banreservas en Línea movements export: withdrawal and deposit columns with an available balance. Replace with a real export header and bump version.",
+    "system_module": "Kanvas\\Scribe\\Banking\\Models\\BankTransaction",
+    "required_columns": ["Fecha Transacción", "Retiro", "Depósito", "Balance Disponible"],
+    "file_header": ["Fecha Transacción", "Documento", "Concepto", "Retiro", "Depósito", "Balance Disponible"],
+    "mapping": {
+        "date": "Fecha Transacción",
+        "reference": "Documento",
+        "description": "Concepto",
+        "debit": "Retiro",
+        "credit": "Depósito",
+        "running_balance": "Balance Disponible",
+        "date_format": "_d/m/Y",
+        "decimal_separator": "_."
+    }
+}

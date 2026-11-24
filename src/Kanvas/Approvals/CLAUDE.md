@@ -120,6 +120,40 @@ skipped and needs no bypass code.
 - **Commands iterating apps must `overwriteAppService($app)` per iteration** — `RoleApproverResolver`
   reads Bouncer-scoped roles.
 
+## Notifying approvers — the policy's `notify`
+
+`NotifyApproversAction` notifies the live step's approvers when a request opens or a step advances. It
+is the only notifier, whoever opened the request (an agent tool, the accounting inbox, GraphQL, an
+import). Each approver is offered to the entity first: an entity implementing
+`DeliversApprovalNoticesInterface` may reach them directly (Bill and Invoice send a Slack DM from the
+AP/AR notifier agent with the source PDF attached) and returns true when it did; otherwise they get the
+email. The entity decides the channel, so this domain never imports Slack or an agent.
+`ApprovalNotifyModeEnum`: `all` (default), `first`, `none`, `digest`. `digest` stays email-only.
+
+`digest` exists for bulk sources — a 15-row people import opened 15 requests and sent 15 emails. Instead
+of mailing, it calls `SendApprovalDigestJob::schedule()`, which debounces per (app, company, approver)
+with a `Cache::add` key and a job delayed `WINDOW_MINUTES` (5). The job sends ONE
+`ApprovalDigestNotification` listing every still-pending, un-notified request of a digest policy at the
+approver's live step, or the regular `ApprovalRequestedNotification` when there is only one.
+
+- The key is released when the job **starts**, not when it ends, so a request opened while a digest is
+  being built opens the next window instead of being dropped.
+- Requests stay individual: digest groups the email, never the decision.
+
+### The email body is a named template, with a built-in fallback
+
+Both emails render `approval-requested` / `approval-digest` (`ApprovalEmailTemplateEnum`) through
+`RendersApprovalEmail`. Lookup is by name, **company first, then app**, so a company that saves its own
+template under that name (an admin in the UI, or an agent with `create_template`) replaces the app's
+copy with no other wiring. An app that never ran `kanvas:email-template-sync` still gets readable
+built-in HTML, never an empty body.
+
+Template variables, all plain values: `heading`, `count`, `approvals` (list), `approval` (the first),
+`company_name`, `review_url`. Each approval: `id`, `name`, `type`, `action`, `approval_type`,
+`requested_at` (`ApprovalRequest::emailSummary()`). `review_url` is the app setting
+`approvals_review_url` (`ApprovalConfigurationEnum::REVIEW_URL`); the repo templates show the review
+button only when it is set.
+
 ## Every decision goes to the ledger
 
 `ApprovalWorkflowService::fire()` is the single announcement point: it writes a NervousSystem ledger
@@ -132,7 +166,7 @@ else was asked, not who declined — and a non-Scribe approvable entity emits no
 payload carries the full approver trail for exactly that reason.
 
 Event types: `approvals.approval_requested`, `.approval_unassigned`, `.approval_step_completed`,
-`.approved`, `.rejected`, `.approval_expired`, `.approval_cancelled`.
+`.approved`, `.rejected`, `.approval_expired`, `.approval_cancelled`, `.policy_changed`.
 
 - Cancellation is recorded but fires **no** workflow — nobody decided anything, so there is no rule to
   run, but a withdrawn request still has to be auditable.
@@ -144,12 +178,40 @@ Event types: `approvals.approval_requested`, `.approval_unassigned`, `.approval_
   stays reserved for the ledger's own failures so a dashboard filtering on it does not fill up with
   people declining bills.
 
+## Policy changes are restricted and audited
+
+A policy decides who signs before money moves or an e-CF reaches the tax authority, and the row keeps
+no history, so:
+
+- **Every write emits `approvals.policy_changed`** (`ApprovalPolicyObserver`, on `created`/`updated`;
+  Kanvas soft-delete fires `updated`. Not `saved` + `wasRecentlyCreated`, which stays true on the instance): `change` (`created`/`updated`/`deleted`), `before`/`after` (changed columns
+  only on an update), actor. The observer covers every writer — mutations, seed commands, setup
+  services — so a write can't skip the audit.
+- **The actor is passed, not sniffed:** `SaveApprovalPolicyAction` / `DeleteApprovalPolicyAction` set
+  `ApprovalPolicy::$changedBy` (a declared property, never persisted) for the duration of the write. A
+  seed command writes as `System`.
+- **Only the company's owner or an admin** (`CompanyAuthorityService`, membership before role — the same
+  check the authority override uses) may create, edit or delete a policy through those actions. The
+  GraphQL mutations go through them; no agent tool writes policies.
+
+## Expiry — the entity decides what it means
+
+`ExpireApprovalRequestsAction` closes the request, runs the policy handler's withdrawal hook, then:
+
+- calls `approvalExpired()` on an entity implementing `ReactsToApprovalExpiryInterface`. A Bill goes
+  back from PENDING_APPROVAL to DRAFT (through `RejectBillAction`, no rejector); a Bill or Invoice gets
+  an internal note naming the expired request. The generic action never branches on entity type.
+- notifies the requester and the approvers asked at that step (`NotifyApprovalExpiredAction`): the
+  entity's direct channel first, else `ApprovalExpiredNotification` (`approval-expired` template).
+
+A hook or notification that throws is reported and never resurrects the request.
+
 ## Agent surface
 
 | Tool | Does |
 |---|---|
 | `check_approval_status` | Read-only. Is this approved, and if not who are we waiting on, at which step, and what did everyone else say. Reads the generic domain, falls back to the legacy queue, so it answers the same either side of a tenant's cutover. |
-| `approve_pending_item` | Decides. Generic first, legacy fallback. |
+| `approve_pending_item` | Decides. Generic first, legacy fallback. Batch form: `approval_request_ids` (max 50), each through its own approver check and `ApproveAction`, one result per id. |
 
 They are deliberately separate, and wired differently on the accounting agents: `approve_pending_item`
 is gated on `requestingHuman()` because approving must authorize against the real person, never the
@@ -168,8 +230,9 @@ Mailgun inbound job), `scribe.bill.received`, and the whole `approvals.*` sequen
 downstream push outcome in `payload.result`.
 
 Still unemitted, so a timeline shows gaps: bill *creation* (only `received`/`voided` emit), the agent's
-extraction step and its confidence, and the Google Sheets write. Each is one `emitLedgerEvent()` call
-at a point that already exists.
+extraction step and its confidence. Each is one `emitLedgerEvent()` call at a point that already
+exists. The accounting inbox adds `scribe.document.ingested` per PDF (outcome: bill_created,
+needs_review, duplicate, rejected, failed), anchored to the same Filesystem row as the arrival.
 
 ## Where a handler lives
 
@@ -272,7 +335,7 @@ would sit `pending` forever, since only `ResolveApprovalAction` knows how to clo
 | `SubmitBillForApprovalAction`, `SubmitExpenseForApprovalAction`, `CreateArInvoiceTool` | **Either/or, not both.** A tenant with a policy writes only `approval_requests`; one without still writes the legacy queue row exactly as before. |
 | `ApprovePendingItemTool` | Generic first, legacy fallback. Same result shape either way, so the AP/AR agent guidance is unchanged. |
 | Handlers | `Connectors\Acumatica\Approvals\{ApproveAndPushBill,IssueAndPushInvoice}Handler`, `Scribe\Expenses\Approvals\ApproveExpenseHandler`. |
-| Slack DM | **Still Scribe's `NotifyApproverAction`**, fired from the intake paths. Seeded policies therefore use `notify: 'none'` so the generic mail layer does not double-notify real people. |
+| Slack DM | Through this domain: Bill/Invoice implement `DeliversApprovalNoticesInterface` (Scribe's `NotifyApproverAction` underneath; invoices use `ar-slack-notifier-agent-id`). Legacy-queue tenants get the same DM from Scribe's `RequestApprovalAction`. The agent tools no longer notify. Seeded policies use `notify: 'all'`; `2026_11_07_100000_notify_scribe_approval_policies` moved the old seeded `'none'` rows over. |
 
 ### Rolling a tenant over
 
@@ -292,8 +355,6 @@ two answers to the same question.
 
 - The legacy writers still exist for unmigrated tenants. Deleting them, plus `ResolveApprovalAction`
   and `ResolveApproverEmailAction`, is the final cutover once every tenant has a policy.
-- Slack notification has not moved into this domain, so generic notifications are mail-only and carry
-  no invoice PDF. That move is what lets `notify` go back to `'all'`.
-- An expired request does not walk its entity back to draft — the request closes, the bill stays
-  `PENDING_APPROVAL`. Needs a decision on what expiry should mean per entity.
+- Expense has no direct channel or expiry hook yet: its approvers get email, and an expired expense
+  request leaves the expense where it was.
 - Nothing stops the entity being edited between submission and sign-off (see the plan's §B.11).

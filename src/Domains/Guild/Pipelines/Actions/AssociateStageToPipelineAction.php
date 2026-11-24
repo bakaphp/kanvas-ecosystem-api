@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Pipelines\Actions;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Pipelines\DataTransferObject\PipelineStage as PipelineStageData;
 use Kanvas\Guild\Pipelines\Models\Pipeline as ModelsPipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 
@@ -19,76 +22,103 @@ class AssociateStageToPipelineAction
 
     public function execute(): void
     {
-        $existingStages = $this->pipeline->stages()->orderBy('id')->get();
-        $existingStagesById = $existingStages->keyBy('id');
-        $existingStagesByName = $existingStages->keyBy('name');
-        $usedExistingIds = [];
+        $existingStages = $this->pipeline->stages()->get();
+        $matches = $this->matchExistingStages($existingStages);
         $keepStageIds = [];
 
-        // Only use position fallback when no stage sends stages_id (frontend behavior)
-        $anyHasExplicitId = collect($this->stages)->contains(
-            fn ($s) => ! empty($s['stages_id'])
-        );
+        foreach ($this->stages as $index => $stage) {
+            $weight = ! empty($stage['weight']) ? (int) $stage['weight'] : $index;
+            $stageData = PipelineStageData::viaRequest($this->pipeline, $stage, $weight);
+
+            $keepStageIds[] = new UpsertPipelineStageAction($stageData, $matches[$index])->execute()->id;
+        }
+
+        $stagesToRemove = $existingStages->reject(fn ($s) => in_array($s->id, $keepStageIds, true));
+
+        if ($stagesToRemove->isEmpty()) {
+            return;
+        }
+
+        $stageIds = $stagesToRemove->pluck('id')->all();
+
+        if ($this->hasActiveRecords(Lead::class, $stageIds) || $this->hasActiveRecords(Deal::class, $stageIds)) {
+            throw new ValidationException(
+                'Cannot remove pipeline stages that have active leads or deals. Move them to another stage first.'
+            );
+        }
+
+        foreach ($stagesToRemove as $stage) {
+            $stage->softDelete();
+        }
+    }
+
+    /**
+     * Pair each input entry with an existing stage: explicit `stages_id` first, then exact name.
+     *
+     * When the client sends no `stages_id` at all, a second pass pairs the still-unmatched entries
+     * with the still-unmatched stages in order. Doing it after the name pass (instead of per-entry
+     * positional fallback) is what keeps a renamed stage on its own id when it was also reordered in
+     * the same save; otherwise its leads silently end up labelled with a different stage's name.
+     *
+     * @param Collection<int, PipelineStage> $existingStages
+     * @return array<int, PipelineStage|null>
+     */
+    private function matchExistingStages(Collection $existingStages): array
+    {
+        $byId = $existingStages->keyBy('id');
+        $byName = $existingStages->keyBy('name');
+        $usedIds = [];
+        $matches = [];
 
         foreach ($this->stages as $index => $stage) {
             $stageId = ! empty($stage['stages_id']) ? (int) $stage['stages_id'] : null;
-            $attributes = [
-                'name' => $stage['name'],
-                'rotting_days' => $stage['rotting_days'],
-                'weight' => ! empty($stage['weight']) ? $stage['weight'] : $index,
-                'has_rotting_days' => 0,
-                'config' => $stage['config'] ?? null,
-                'pipelines_id' => $this->pipeline->id,
-            ];
+            $candidate = $stageId !== null && $byId->has($stageId)
+                ? $byId->get($stageId)
+                : $byName->get($stage['name']);
 
-            // Find existing stage: by explicit ID, then by name
-            $existingStage = null;
-            if ($stageId !== null && $existingStagesById->has($stageId)) {
-                $existingStage = $existingStagesById->get($stageId);
-            } elseif ($existingStagesByName->has($stage['name'])) {
-                $candidate = $existingStagesByName->get($stage['name']);
-                if (! in_array($candidate->id, $usedExistingIds)) {
-                    $existingStage = $candidate;
-                }
+            if ($candidate !== null && in_array($candidate->id, $usedIds, true)) {
+                $candidate = null;
             }
 
-            // Position fallback only when frontend sends no stages_id at all
-            if ($existingStage === null && ! $anyHasExplicitId && isset($existingStages[$index])) {
-                $candidate = $existingStages[$index];
-                if (! in_array($candidate->id, $usedExistingIds)) {
-                    $existingStage = $candidate;
-                }
+            if ($candidate !== null) {
+                $usedIds[] = $candidate->id;
             }
 
-            if ($existingStage !== null) {
-                $usedExistingIds[] = $existingStage->id;
-                $existingStage->update($attributes);
-                $keepStageIds[] = $existingStage->id;
-            } else {
-                $newStage = PipelineStage::create($attributes);
-                $keepStageIds[] = $newStage->id;
-            }
+            $matches[$index] = $candidate;
         }
 
-        // Remove stages that are no longer in the input
-        $stageIdsToRemove = ! empty($keepStageIds)
-            ? $this->pipeline->stages()->whereNotIn('id', $keepStageIds)->pluck('id')
-            : $this->pipeline->stages()->pluck('id');
+        $anyHasExplicitId = collect($this->stages)->contains(fn ($s) => ! empty($s['stages_id']));
 
-        if ($stageIdsToRemove->isNotEmpty()) {
-            $leadsInRemovedStages = Lead::whereIn('pipeline_stage_id', $stageIdsToRemove)
-                ->where('apps_id', $this->pipeline->apps_id)
-                ->where('companies_id', $this->pipeline->companies_id)
-                ->where('is_deleted', 0)
-                ->exists();
+        if ($anyHasExplicitId) {
+            return $matches;
+        }
 
-            if ($leadsInRemovedStages) {
-                throw new ValidationException(
-                    'Cannot remove pipeline stages that have active leads. Move leads to another stage first.'
-                );
+        $unmatchedExisting = $existingStages
+            ->reject(fn ($s) => in_array($s->id, $usedIds, true))
+            ->values();
+        $cursor = 0;
+
+        foreach ($matches as $index => $match) {
+            if ($match !== null || ! isset($unmatchedExisting[$cursor])) {
+                continue;
             }
 
-            PipelineStage::whereIn('id', $stageIdsToRemove)->delete();
+            $matches[$index] = $unmatchedExisting[$cursor++];
         }
+
+        return $matches;
+    }
+
+    /**
+     * @param class-string<Lead|Deal> $model
+     * @param int[] $stageIds
+     */
+    private function hasActiveRecords(string $model, array $stageIds): bool
+    {
+        return $model::whereIn('pipeline_stage_id', $stageIds)
+            ->where('apps_id', $this->pipeline->apps_id)
+            ->where('companies_id', $this->pipeline->companies_id)
+            ->where('is_deleted', 0)
+            ->exists();
     }
 }

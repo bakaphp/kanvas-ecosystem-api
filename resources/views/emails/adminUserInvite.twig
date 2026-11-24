@@ -11,14 +11,17 @@
 
 <tr>
     <td>
-        <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
+        <table style="margin: 24px 0 0" cellspacing="0" cellpadding="0">
             <tr>
-                <td>
-                    <a href="{{ app.frontend_url }}/invite/{{ entity.invite_hash }}" target="_blank" style="display: inline-block;">
-                        <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/create-account.png" alt="Join Now">
+                <td style="border-radius: 6px; background-color: #3573b6;">
+                    <a href="{{ app.frontend_url }}/invite/{{ entity.invite_hash }}" target="_blank" style="display: inline-block; padding: 12px 24px; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 6px;">
+                        Create Account
                     </a>
                 </td>
             </tr>
         </table>
+        <p style="margin: 16px 0 0; color: #9b9b9b; font-size: 12px; word-break: break-all;">
+            {{ app.frontend_url }}/invite/{{ entity.invite_hash }}
+        </p>
     </td>
 </tr>

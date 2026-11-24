@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Actions;
 
+use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -15,12 +16,15 @@ use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Scribe\PaymentRuns\Actions\SyncPaymentRunsForBillAction;
 use Kanvas\Scribe\Payments\Actions\CreateScribePaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentRecordedViaEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use RuntimeException;
+use Throwable;
 
 /**
  * Records an OUTBOUND payment against a RECEIVED Bill. Creates a Scribe.Payment if one isn't
@@ -51,6 +55,13 @@ class AllocateBillPaymentAction
          * entry to clear the payable; SettleBillFromSuspenseAction is the only thing that should do this.
          */
         public readonly bool $postCashJournalEntry = true,
+        /**
+         * Lands on the (apps_id, idempotency_key) unique index, so a second write of the same payment
+         * fails at the database instead of paying the bill twice. RecordBillPaymentAction sets it.
+         */
+        public readonly ?string $idempotencyKey = null,
+        /** Set on a payment reported from outside the bank (UI, agent, provider webhook): the bank still has to confirm it. */
+        public readonly ?PaymentRecordedViaEnum $recordedVia = null,
         protected readonly BillJournalEntryComposerService $composer = new BillJournalEntryComposerService(),
     ) {
     }
@@ -97,6 +108,11 @@ class AllocateBillPaymentAction
                 metadata: $this->metadata,
             )->execute();
 
+            if ($this->payment === null && $this->recordedVia !== null) {
+                $payment->recorded_via = $this->recordedVia;
+                $payment->saveOrFail();
+            }
+
             $allocation = new BillPaymentAllocation();
             $allocation->apps_id = (int) $bill->apps_id;
             $allocation->companies_id = (int) $bill->companies_id;
@@ -105,7 +121,7 @@ class AllocateBillPaymentAction
             $allocation->source_type = AllocationSourceTypeEnum::PAYMENT->value;
             $allocation->status = AllocationStatusEnum::ACTIVE;
             $allocation->amount_native = $this->amountNative;
-            $allocation->amount_base = $this->amountNative * $fxRate;
+            $allocation->amount_base = Money::toBase($this->amountNative, $fxRate);
             $allocation->currency = $bill->currency;
             $allocation->fx_rate_to_base = $fxRate;
             $allocation->fx_rate_at = $bill->fx_rate_at ?? Carbon::now();
@@ -113,6 +129,7 @@ class AllocateBillPaymentAction
             $allocation->allocated_by_users_id = $this->user?->getId();
             $allocation->source = $this->source;
             $allocation->metadata = $this->metadata;
+            $allocation->idempotency_key = $this->idempotencyKey;
             $allocation->save();
 
             if ($this->postCashJournalEntry) {
@@ -142,6 +159,13 @@ class AllocateBillPaymentAction
                 'entity' => 'payment',
             ]
         );
+
+        // A payment run only mirrors the payment; failing to update it must never undo one.
+        try {
+            new SyncPaymentRunsForBillAction($this->bill->fresh() ?? $this->bill)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $allocation;
     }

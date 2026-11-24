@@ -6,6 +6,7 @@ namespace Kanvas\Notifications\Traits;
 
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Notifications\Enums\PushProviderEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 
 trait NotificationChannelResolutionTrait
@@ -40,10 +41,21 @@ trait NotificationChannelResolutionTrait
      */
     private function getNotificationChannels(): array
     {
-        return array_map(
+        $channels = array_map(
             fn ($via): string => NotificationChannelEnum::getNotificationChannelBySlug($via),
             $this->channels()
         );
+
+        if (array_filter($channels, PushProviderEnum::isPushChannel(...)) === []) {
+            return $channels;
+        }
+
+        $pushChannel = PushProviderEnum::fromApp($this->app)->channel();
+
+        return array_values(array_unique(array_map(
+            fn (string $channel): string => PushProviderEnum::isPushChannel($channel) ? $pushChannel : $channel,
+            $channels
+        )));
     }
 
     /**
@@ -52,7 +64,7 @@ trait NotificationChannelResolutionTrait
      */
     private function shouldFilterChannelsByUserSettings(object $notifiable): bool
     {
-        return ! empty($this->getNotificationChannels())
+        return $this->channels() !== []
             && $this->type instanceof NotificationTypes
             && $notifiable instanceof UserInterface;
     }
@@ -64,13 +76,33 @@ trait NotificationChannelResolutionTrait
     private function filterEnabledChannels(array $channels, UserInterface $notifiable): array
     {
         $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
-            return $notifiable->isNotificationSettingEnable(
-                $this->type,
-                $this->app,
-                NotificationChannelEnum::getChannelIdByClassReference($channel)
-            );
+            foreach ($this->settingChannelIds($channel) as $channelId) {
+                if ($notifiable->isNotificationSettingEnable($this->type, $this->app, $channelId)) {
+                    return true;
+                }
+            }
+
+            return false;
         });
 
         return array_values($enabledChannels);
+    }
+
+    /**
+     * A user's push preference is stored under the PUSH or the EXPO id depending on the client that
+     * saved it, so either one enables the app's single push provider.
+     *
+     * @return array<int, int>
+     */
+    private function settingChannelIds(string $channel): array
+    {
+        if (PushProviderEnum::isPushChannel($channel)) {
+            return [
+                NotificationChannelEnum::PUSH->value,
+                NotificationChannelEnum::EXPO->value,
+            ];
+        }
+
+        return [NotificationChannelEnum::getChannelIdByClassReference($channel)];
     }
 }

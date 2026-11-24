@@ -55,7 +55,7 @@ class BuildEventDataAction
             'users_id' => $user->getId(),
         ]);
 
-        $eventCategory =  EventCategory::firstOrCreate([
+        $eventCategory = EventCategory::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
             'event_type_id' => $eventType?->id,
@@ -96,13 +96,14 @@ class BuildEventDataAction
             'resources_type' => $resource->getMorphClass(),
             'participants' => $input['participants'],
             'resources' => $input['resources'] ?? [],
+            'order_items' => $input['order_items'] ?? [],
             'time_slot_id' => $input['time_slot_id'] ?? null,
             'dates' => [
                 [
                     'date' => $startAt->toDateString(),
                     'start_time' => $startAt->format('H:i'),
                     'end_time' => $endAt->format('H:i'),
-                ]
+                ],
             ],
             'theme_id' => (string) $theme?->id,
             'theme_area_id' => (string) $themeArea?->id,

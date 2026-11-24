@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Company;
 
+use Kanvas\Companies\Onboarding\Services\OnboardingPromptBlockService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\Concerns\AppliesAccountingReadiness;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportTableTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsByTraitsTool;
@@ -17,10 +19,15 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetSalesSummaryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListStaleLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetProjectAnalyticsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAssignedWorkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlansTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\RememberKnowledgeTool;
+use Kanvas\Scribe\Setup\Services\AccountingAgentLocatorService;
 use Override;
 
 #[AgentTypeDefinition(
@@ -40,10 +47,18 @@ use Override;
 )]
 class CompanyBrainAgent extends SystemUserAgent
 {
+    use AppliesAccountingReadiness;
+
     #[Override]
     public function instructions(): string
     {
-        return $this->operatingDoctrine() . "\n\n" . parent::instructions();
+        $instructions = $this->operatingDoctrine() . "\n\n" . parent::instructions();
+
+        $onboarding = $this->app !== null && $this->company !== null
+            ? OnboardingPromptBlockService::for($this->app, $this->company)
+            : '';
+
+        return $onboarding === '' ? $instructions : $instructions . "\n\n" . $onboarding;
     }
 
     /**
@@ -56,9 +71,11 @@ class CompanyBrainAgent extends SystemUserAgent
      *
      * It deliberately does NOT hardcode customer-facing sends (send_lead_email/send_lead_sms to a prospect),
      * bulk (send_batch_message), or irreversible mutations — those belong to the specialist agents;
-     * the brain recommends and hands off. Nor does it hardcode module-gated domains (accounting,
-     * inventory): those depend on what the tenant actually runs, so they come in per-tenant through
-     * the registered-tool selection that mergeRegisteredTools() already layers on top (via parent).
+     * the brain recommends and hands off. The one way it changes the company is staffing: it can hire
+     * an agent or widen one's grants, both gated on an admin in the conversation, so a recommendation
+     * can become a teammate. Nor does it hardcode module-gated domains (accounting, inventory): those
+     * depend on what the tenant actually runs, so they come in per-tenant through the registered-tool
+     * selection that mergeRegisteredTools() already layers on top (via parent).
      *
      * @return list<object>
      */
@@ -93,6 +110,26 @@ class CompanyBrainAgent extends SystemUserAgent
             new GetProjectAnalyticsTool()->withContext($app, $company, $user),
             new ExportTableTool()->withContext($app, $company, $user),
         ];
+
+        // Staffing, the way the project manager does it: see the team and the catalog, then hire or
+        // widen an agent only on an identified admin's say-so. The gate is the requesting HUMAN, never
+        // the brain's own user: a cron turn with nobody at the keyboard must not be able to hire.
+        $requestingHuman = $this->requestingHuman();
+        $readBundle[] = new ListAgentTypesTool()->withContext($app, $company, $user);
+        foreach ([new ListAgentsTool($agent), new HireAgentTool($agent), new GrantAgentToolsTool($agent)] as $staffing) {
+            $readBundle[] = $staffing
+                ->withContext($app, $company, $user)
+                ->forRequestingUser($requestingHuman);
+        }
+
+        // Accounting is module-gated like every other domain, but finishing its setup is the brain's job
+        // (it runs onboarding), so the setup tools come with the AP/AR agents rather than a catalog grant
+        // a company created from the agent type would never get.
+        if (new AccountingAgentLocatorService()->all($app, $company) !== []) {
+            array_push($readBundle, ...$this->withoutUnavailableAccountingTools(
+                $this->accountingSetupTools(runSetup: true, reminderCadence: true),
+            ));
+        }
 
         $seen = [];
         foreach ($tools as $existing) {
@@ -133,6 +170,9 @@ For any question, customer, or decision, work up this ladder and push toward the
 3. **Find the signal** — surface what matters: the at-risk account, the deal stuck in a stage, the project slipping past its deadline, the aging invoice, the falling engagement, the anomaly nobody flagged.
 4. **Recommend** — say specifically what to do and who should do it, tied to the metric it moves.
 5. **Automate** — only once the picture and the recommendation are trustworthy, propose making it repeatable.
+6. **Staff** — when the company lacks a capability no current agent has, say which agent type would cover it
+   (list_agent_types) and offer to hire it; hire only after the person agrees, and never to do a job an existing
+   agent already does (list_agents first).
 
 ## How you operate
 

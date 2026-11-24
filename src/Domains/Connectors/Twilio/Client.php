@@ -31,42 +31,30 @@ final class Client
         return new TwilioClient($sid, $token);
     }
 
-    /**
-     * Company creds if the company has its own (per-dealer BYOK), otherwise the
-     * app-level creds (a shared Twilio account). Lets a company without its own
-     * Twilio still use the app's — e.g. voice-agent number listing / inbound
-     * webhook wiring on a single shared account.
-     */
     public static function getInstanceByCompanyOrApp(Companies $company, AppInterface $app): TwilioClient
     {
-        try {
-            return self::getInstanceByCompany($company);
-        } catch (ValidationException) {
-            return self::getInstance($app);
-        }
+        [$sid, $token] = self::getKeysFromCompanyOrApp($company, $app);
+
+        return new TwilioClient($sid, $token);
     }
 
     /**
-     * App-level creds first (a single shared Twilio account), falling back to the
-     * company's own only if the app has none. The inverse of
-     * getInstanceByCompanyOrApp: use this where the app account is authoritative
-     * and stray per-company creds must NOT shadow it — the voice-agent number
-     * picker and inbound-webhook wiring run on one shared account, so a leftover
-     * company BYOK cred silently pointing at a different account was listing the
-     * wrong numbers. Trades away per-company BYOK for those paths on purpose.
+     * The account a company's texts go through: its own when it has one, so a dealer with its own
+     * account keeps sending from it, the app's otherwise. Sending, the number's webhook and the
+     * signature on what Twilio posts back all have to name the same account.
+     *
+     * @throws ValidationException when neither has credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
-    public static function getInstanceByAppOrCompany(AppInterface $app, Companies $company): TwilioClient
+    public static function getKeysFromCompanyOrApp(Companies $company, AppInterface $app): array
     {
         try {
-            return self::getInstance($app);
+            return self::getKeysFromCompany($company);
         } catch (ValidationException) {
-            return self::getInstanceByCompany($company);
+            return self::getKeysFromApp($app);
         }
     }
 
-    /**
-     * Validate Twilio credentials.
-     */
     public static function validateCredentials(string $sid, string $token): bool
     {
         try {
@@ -79,11 +67,16 @@ final class Client
         }
     }
 
+    public static function ownsPhoneNumber(string $sid, string $token, string $phoneNumber): bool
+    {
+        $client = new TwilioClient($sid, $token);
+
+        return $client->incomingPhoneNumbers->read(['phoneNumber' => $phoneNumber], 1) !== [];
+    }
+
     /**
-     * Get Twilio API credentials from app configuration.
-     *
-     * @throws ValidationException If credentials are not properly set
-     * @return array{0: string, 1: string} Array containing [Account SID, Auth Token]
+     * @throws ValidationException when the app has no credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
     public static function getKeysFromApp(AppInterface $app): array
     {
@@ -106,10 +99,8 @@ final class Client
     }
 
     /**
-     * Get Twilio API credentials from company configuration.
-     *
-     * @throws ValidationException If credentials are not properly set
-     * @return array{0: string, 1: string} Array containing [Account SID, Auth Token]
+     * @throws ValidationException when the company has no credentials
+     * @return array{0: string, 1: string} [Account SID, Auth Token]
      */
     public static function getKeysFromCompany(Companies $company): array
     {

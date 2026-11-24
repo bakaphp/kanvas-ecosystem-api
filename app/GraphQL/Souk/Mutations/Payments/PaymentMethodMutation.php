@@ -52,14 +52,14 @@ class PaymentMethodMutation
                     instrument_identifier_id: $result->raw['instrumentIdentifierId'] ?? null,
                     processor: $input['processor'],
                     metadata: array_merge($result->raw, [
-                        'country'   => $input['country'] ?? null,
-                        'city'      => $input['city'] ?? null,
-                        'address'   => $input['address'] ?? null,
-                        'phone'     => $input['phone'] ?? null,
-                        'zip_code'  => $input['zip_code'] ?? null,
-                        'state'     => $input['state'] ?? null,
+                        'country' => $input['country'] ?? null,
+                        'city' => $input['city'] ?? null,
+                        'address' => $input['address'] ?? null,
+                        'phone' => $input['phone'] ?? null,
+                        'zip_code' => $input['zip_code'] ?? null,
+                        'state' => $input['state'] ?? null,
                         'firstname' => $input['firstname'] ?? null,
-                        'lastname'  => $input['lastname'] ?? null,
+                        'lastname' => $input['lastname'] ?? null,
                     ]),
                 );
             } else {
@@ -75,14 +75,14 @@ class PaymentMethodMutation
                     zip_code: $input['zip_code'],
                     processor: $input['processor'] ?? null,
                     metadata: $request['metadata'] ?? [
-                        'country'   => $input['country'],
-                        'city'      => $input['city'],
-                        'address'   => $input['address'],
-                        'phone'     => $input['phone'],
-                        'zip_code'  => $input['zip_code'],
-                        'state'     => $input['state'],
+                        'country' => $input['country'],
+                        'city' => $input['city'],
+                        'address' => $input['address'],
+                        'phone' => $input['phone'],
+                        'zip_code' => $input['zip_code'],
+                        'state' => $input['state'],
                         'firstname' => $input['firstname'] ?? null,
-                        'lastname'  => $input['lastname'] ?? null,
+                        'lastname' => $input['lastname'] ?? null,
                     ],
                 );
             }

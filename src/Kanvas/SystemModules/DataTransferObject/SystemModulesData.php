@@ -51,7 +51,6 @@ class SystemModulesData extends Data
      * Create new instance of DTO from array of data.
      *
      * @param array $data Settings data array
-     *
      */
     public static function fromArray(array $data): self
     {

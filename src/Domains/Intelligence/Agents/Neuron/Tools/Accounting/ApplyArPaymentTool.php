@@ -20,15 +20,25 @@ class ApplyArPaymentTool extends AbstractApplyPaymentTool
     protected string $name = 'apply_ar_payment';
 
     protected ?string $description = 'Applies a cash receipt to an existing AR invoice (partial or full) in Kanvas. '
-        . 'Only call when the user '
-        . 'explicitly asks to record a real customer payment against an invoice — never on a whim.';
+        . 'Only call when the user explicitly asks to record a real customer payment against an invoice — never on a '
+        . 'whim. Pass the method the person named (wire, ach, check, cash, card); a wire recorded as a check is wrong '
+        . 'in the bank reconciliation.';
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $invoice_id, float $amount, string $reference): array
-    {
-        return $this->applyPayment($invoice_id, $amount, $reference);
+    public function __invoke(
+        int $invoice_id,
+        float $amount,
+        string $reference,
+        ?string $method = null
+    ): array {
+        return $this->applyPayment(
+            $invoice_id,
+            $amount,
+            $reference,
+            $method
+        );
     }
 
     #[Override]
@@ -44,17 +54,22 @@ class ApplyArPaymentTool extends AbstractApplyPaymentTool
             ->where('id', $id)
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
+            ->notDeleted()
             ->first();
     }
 
     #[Override]
-    protected function allocatePayment(BaseModel $document, float $amount, string $reference): Payment
-    {
+    protected function allocatePayment(
+        BaseModel $document,
+        float $amount,
+        string $reference,
+        PaymentMethodEnum $method
+    ): Payment {
         /** @var Invoice $document */
         return new AllocateInvoicePaymentAction(
             invoice: $document,
             amountNative: $amount,
-            method: PaymentMethodEnum::CHECK,
+            method: $method,
             cashAccountSubType: AccountSubTypeEnum::CASH_CHECKING,
             reference: $reference,
             user: $this->user,

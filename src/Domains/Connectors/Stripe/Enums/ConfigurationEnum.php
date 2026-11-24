@@ -17,5 +17,6 @@ enum ConfigurationEnum: string
     case STRIPE_WEBHOOK_SECRET = 'stripe_webhook_secret';
     case STRIPE_WEBHOOK_ENDPOINT_ID = 'stripe_webhook_endpoint_id';
     case STRIPE_SHARED_APP_ACCOUNT = 'stripe_shared_app_account';
+    case STRIPE_SESSION_REQUIRE_DESTINATION = 'STRIPE_SESSION_REQUIRE_DESTINATION';
     case PAYMENT_LINK_RECEIVER_ID = 'stripe_payment_link_receiver_id';
 }

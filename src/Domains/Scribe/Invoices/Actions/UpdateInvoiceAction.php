@@ -7,9 +7,8 @@ namespace Kanvas\Scribe\Invoices\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Invoices\Actions\Concerns\PersistsInvoiceLines;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceTaxLine as InvoiceTaxLineData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -24,7 +23,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  * (issued invoices have posted JEs and frozen billable snapshots). For post-issue changes the legal paths
  * are:
  *   - AmendInvoiceAction (post-issue mutation w/ diff event)
- *   - IssueCreditNoteAction (negative-shaped credit note bound to the parent invoice)
+ *   - IssueCreditNoteAction (credit note bound to the parent invoice)
  *   - VoidInvoiceAction + re-create (clean slate)
  *
  * Lines + tax lines are replaced wholesale (delete + re-insert). Draft invoices don't have JE history
@@ -32,6 +31,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  */
 class UpdateInvoiceAction
 {
+    use PersistsInvoiceLines;
+
     public function __construct(
         public readonly Invoice $invoice,
         public readonly InvoiceData $data,
@@ -41,6 +42,18 @@ class UpdateInvoiceAction
 
     public function execute(): Invoice
     {
+        // An issued e-CF cannot be edited by law; the change goes out as credit/debit notes and the invoice
+        // itself comes back exactly as it was, with the notes under credit_notes / debit_notes.
+        if (CorrectIssuedInvoiceAction::isLiveEcf($this->invoice)) {
+            new CorrectIssuedInvoiceAction(
+                invoice: $this->invoice,
+                data: $this->data,
+                user: $this->user,
+            )->execute();
+
+            return $this->invoice->refresh();
+        }
+
         if ($this->invoice->document_status !== InvoiceDocumentStatusEnum::DRAFT) {
             throw new InvalidInvoiceTransitionException(
                 "Invoice {$this->invoice->id} cannot be updated — status is "
@@ -51,8 +64,7 @@ class UpdateInvoiceAction
 
         $invoice = DB::connection('accounting')->transaction(function (): Invoice {
             $invoice = $this->invoice;
-            [$totals, $baseTotals] = $this->computeTotals();
-            $fxRate = (float) $this->data->fx_rate_to_base;
+            [$totals, $baseTotals] = $this->data->totals();
 
             $invoice->document_type = $this->data->document_type;
             $invoice->invoice_number = $this->data->invoice_number;
@@ -98,52 +110,11 @@ class UpdateInvoiceAction
 
             $invoice->save();
 
-            // Lines + tax lines — replace wholesale
             InvoiceLine::query()->where('invoice_id', $invoice->id)->delete();
             InvoiceTaxLine::query()->where('invoice_id', $invoice->id)->delete();
 
-            $sortOrder = 0;
-            foreach ($this->data->lines as $lineData) {
-                /** @var InvoiceLineData $lineData */
-                $line = new InvoiceLine();
-                $line->invoice_id = $invoice->id;
-                $line->sort_order = $lineData->sort_order ?? $sortOrder++;
-                $line->item_id = $lineData->item_id;
-                $line->sku = $lineData->sku;
-                $line->description = $lineData->description;
-                $line->quantity = $lineData->quantity;
-                $line->unit_price_native = $lineData->unit_price_native;
-                $line->unit_price_base = $lineData->unit_price_native * $fxRate;
-                $line->discount_amount_native = $lineData->discount_amount_native;
-                $line->discount_amount_base = $lineData->discount_amount_native * $fxRate;
-                $line->discount_rate = $lineData->discount_rate;
-                $line->tax_rate = $lineData->tax_rate;
-                $line->tax_amount_native = $lineData->tax_amount_native;
-                $line->tax_amount_base = $lineData->tax_amount_native * $fxRate;
-                $line->line_total_native = $lineData->lineTotalNative();
-                $line->line_total_base = $lineData->lineTotalNative() * $fxRate;
-                $line->tax_metadata = $lineData->tax_metadata;
-                $line->class_id = $lineData->class_id;
-                $line->department_id = $lineData->department_id;
-                $line->metadata = $lineData->metadata;
-                $line->save();
-            }
-
-            if ($this->data->taxLines !== null) {
-                foreach ($this->data->taxLines as $taxLineData) {
-                    /** @var InvoiceTaxLineData $taxLineData */
-                    $taxLine = new InvoiceTaxLine();
-                    $taxLine->invoice_id = $invoice->id;
-                    $taxLine->tax_code_id = $taxLineData->tax_code_id;
-                    $taxLine->name = $taxLineData->name;
-                    $taxLine->tax_rate = $taxLineData->tax_rate;
-                    $taxLine->jurisdiction = $taxLineData->jurisdiction;
-                    $taxLine->tax_amount_native = $taxLineData->tax_amount_native;
-                    $taxLine->tax_amount_base = $taxLineData->tax_amount_native * $fxRate;
-                    $taxLine->metadata = $taxLineData->metadata;
-                    $taxLine->save();
-                }
-            }
+            $this->persistLines($invoice, $this->data);
+            $this->persistTaxLines($invoice, $this->data);
 
             $invoice->load(['lines', 'taxLines']);
 
@@ -159,36 +130,5 @@ class UpdateInvoiceAction
         );
 
         return $invoice;
-    }
-
-    /**
-     * @return array{0: array{subtotal: float, tax: float, discount: float, total: float}, 1: array{subtotal: float, tax: float, discount: float, total: float}}
-     */
-    private function computeTotals(): array
-    {
-        $fxRate = (float) $this->data->fx_rate_to_base;
-
-        $subtotal = 0.0;
-        $tax = 0.0;
-        $discount = 0.0;
-
-        foreach ($this->data->lines as $line) {
-            /** @var InvoiceLineData $line */
-            $subtotal += $line->lineSubtotalNative();
-            $tax += $line->tax_amount_native;
-            $discount += $line->discount_amount_native;
-        }
-
-        $total = $subtotal - $discount + $tax;
-
-        $native = compact('subtotal', 'tax', 'discount', 'total');
-        $base = [
-            'subtotal' => $subtotal * $fxRate,
-            'tax' => $tax * $fxRate,
-            'discount' => $discount * $fxRate,
-            'total' => $total * $fxRate,
-        ];
-
-        return [$native, $base];
     }
 }

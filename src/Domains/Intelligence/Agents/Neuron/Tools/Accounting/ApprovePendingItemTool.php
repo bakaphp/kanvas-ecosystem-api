@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Actions\ApproveAction;
 use Kanvas\Approvals\Enums\ApprovalOutcomeEnum;
@@ -11,15 +12,17 @@ use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\Concerns\FindsApprovalRequestForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\VerifiesApprovalAuthority;
 use Kanvas\Scribe\Approvals\Actions\ResolveApprovalAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
-use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -37,7 +40,9 @@ use Throwable;
 #[AgentTool(name: 'Approve Pending Item', category: 'accounting')]
 class ApprovePendingItemTool extends Tool
 {
+    use FindsApprovalRequestForTool;
     use HasKanvasContext;
+    use TrackByInputs;
     use VerifiesApprovalAuthority;
 
     protected string $name = 'approve_pending_item';
@@ -48,7 +53,12 @@ class ApprovePendingItemTool extends Tool
         . 'status-transition workflows. It works for any approval type in the queue, not just invoices. '
         . 'Only the approver configured on that '
         . 'specific record\'s vendor/customer may call this — call it only when that specific person '
-        . 'explicitly asks to approve something, never on your own initiative or on behalf of anyone else.';
+        . 'explicitly asks to approve something, never on your own initiative or on behalf of anyone else. '
+        . 'To approve several at once ("approve all of today\'s 12"), pass approval_request_ids instead of '
+        . 'target_type/target_id: each request is still checked against its own approvers, and the result '
+        . 'reports every one separately.';
+
+    private const int MAX_BATCH = 50;
 
     /**
      * @return array<int, ToolProperty>
@@ -60,15 +70,28 @@ class ApprovePendingItemTool extends Tool
             new ToolProperty(
                 name: 'target_type',
                 type: PropertyType::STRING,
-                description: 'The kind of record pending approval, e.g. "bill" or "invoice".',
-                required: true,
+                description: 'The kind of record pending approval, e.g. "bill" or "invoice". Required with '
+                    . 'target_id when approving one record.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'target_id',
                 type: PropertyType::INTEGER,
                 description: 'The Kanvas id of that record — the bill_id from create_ap_bill, or the invoice_id '
                     . 'from create_ar_invoice.',
-                required: true,
+                required: false,
+            ),
+            new ArrayProperty(
+                name: 'approval_request_ids',
+                description: 'Batch form: the approval request ids to approve, e.g. from a digest or '
+                    . 'check_approval_status. Use instead of target_type/target_id. At most '
+                    . self::MAX_BATCH . ' per call.',
+                required: false,
+                items: new ToolProperty(
+                    name: 'approval_request_id',
+                    type: PropertyType::INTEGER,
+                    description: 'One approval request id.',
+                ),
             ),
         ];
     }
@@ -76,14 +99,29 @@ class ApprovePendingItemTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $target_type, int $target_id): array
-    {
+    public function __invoke(
+        ?string $target_type = null,
+        ?int $target_id = null,
+        ?array $approval_request_ids = null
+    ): array {
+        if ($approval_request_ids !== null && $approval_request_ids !== []) {
+            return $this->approveBatch($approval_request_ids);
+        }
+
+        if ($target_type === null || trim($target_type) === '' || $target_id === null) {
+            return [
+                'approved' => false,
+                'reason' => 'invalid_arguments',
+                'message' => 'Pass target_type and target_id for one record, or approval_request_ids for several.',
+            ];
+        }
+
         // Normalised once at the boundary, like check_approval_status: the generic lookup composes an
         // approval_type and the legacy one matches target_type raw, so an LLM sending " bill " would
         // otherwise resolve on one path and miss on the other.
         $type = trim($target_type);
 
-        $request = $this->genericRequest($type, $target_id);
+        $request = $this->latestApprovalRequest($type, $target_id, ApprovalStatusEnum::PENDING);
 
         return $request !== null
             ? $this->approveGeneric($request, $type)
@@ -91,23 +129,71 @@ class ApprovePendingItemTool extends Tool
     }
 
     /**
-     * Matched on approval_type rather than a target_type -> model-class map, so adding a new
-     * approvable type stays a policy row and never touches this tool.
+     * Each id goes through the same path as a single approval — its own approver check and its own
+     * ApproveAction — so batching groups the reply, never the authorization.
+     *
+     * @param array<int, mixed> $ids
+     *
+     * @return array<string, mixed>
      */
-    private function genericRequest(string $target_type, int $target_id): ?ApprovalRequest
+    private function approveBatch(array $ids): array
     {
-        /** @var ApprovalRequest|null $request */
-        $request = ApprovalRequest::query()
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+
+        if (count($ids) > self::MAX_BATCH) {
+            return [
+                'approved' => false,
+                'reason' => 'batch_too_large',
+                'message' => 'At most ' . self::MAX_BATCH . ' requests per call; split the list.',
+            ];
+        }
+
+        $requests = ApprovalRequest::query()
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
-            ->where('approval_type', ApprovalRequest::approvalTypeFor($target_type))
-            ->where('entity_id', $target_id)
-            ->where('status', ApprovalStatusEnum::PENDING->value)
+            ->whereIn('id', $ids)
             ->where('is_deleted', false)
-            ->latest('id')
-            ->first();
+            ->get()
+            ->keyBy('id');
 
-        return $request;
+        $results = [];
+
+        foreach ($ids as $id) {
+            /** @var ApprovalRequest|null $request */
+            $request = $requests->get($id);
+
+            $outcome = match (true) {
+                $request === null => [
+                    'approved' => false,
+                    'reason' => 'not_found',
+                    'message' => "No approval request {$id} in this company.",
+                ],
+                $request->status !== ApprovalStatusEnum::PENDING => [
+                    'approved' => false,
+                    'reason' => 'already_resolved',
+                    'message' => "Approval request {$id} is already {$request->status->value}.",
+                ],
+                default => $this->approveGeneric($request, Str::after((string) $request->approval_type, 'approve_')),
+            };
+
+            $results[] = [
+                'approval_request_id' => $id,
+                'approval_type' => $request?->approval_type,
+                'target_id' => $request?->entity_id,
+                ...$outcome,
+            ];
+        }
+
+        $approved = count(array_filter($results, static fn (array $r): bool => ($r['approved'] ?? false) === true));
+
+        return [
+            'batch' => true,
+            'approved_count' => $approved,
+            'not_approved_count' => count($results) - $approved,
+            'results' => $results,
+            'next' => 'Report each request separately: say which were approved and, for the rest, the reason '
+                . 'given in its own result. Never summarize a partial batch as "all approved".',
+        ];
     }
 
     /**
@@ -152,14 +238,14 @@ class ApprovePendingItemTool extends Tool
                 'recorded' => true,
                 'reason' => 'awaiting_quorum',
                 'message' => "Your approval is recorded. This step needs {$result->needed} approvals and "
-                    . "has {$result->have}. Do not update the tracking sheet yet.",
+                    . "has {$result->have}.",
             ],
             ApprovalOutcomeEnum::ADVANCED => [
                 'approved' => false,
                 'recorded' => true,
                 'reason' => 'awaiting_next_step',
                 'message' => 'Your approval is recorded and this step is cleared. It now needs step '
-                    . "{$result->step} to sign off. Do not update the tracking sheet yet.",
+                    . "{$result->step} to sign off.",
             ],
             default => [
                 'approved' => false,
@@ -174,14 +260,7 @@ class ApprovePendingItemTool extends Tool
      */
     private function approveLegacy(string $target_type, int $target_id): array
     {
-        $item = ApprovalQueueItem::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('target_type', $target_type)
-            ->where('target_id', $target_id)
-            ->where('status', ApprovalQueueStatusEnum::PENDING->value)
-            ->latest('id')
-            ->first();
+        $item = $this->latestLegacyApprovalItem($target_type, $target_id, ApprovalQueueStatusEnum::PENDING);
 
         if ($item === null) {
             return [
@@ -254,7 +333,7 @@ class ApprovePendingItemTool extends Tool
 
         if ($error !== null) {
             return 'The approval was recorded but carrying it out failed: ' . $error
-                . '. It needs manual attention. Do NOT mark the sheet Approved.';
+                . '. It needs manual attention. Do not report it as approved.';
         }
 
         return 'Approved in Kanvas. Any external synchronization is handled by configured workflows.';

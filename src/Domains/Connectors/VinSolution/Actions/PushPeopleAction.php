@@ -15,6 +15,7 @@ use Kanvas\Connectors\VinSolution\Services\ContactService;
 use Kanvas\Connectors\VinSolution\Support\Address;
 use Kanvas\Connectors\VinSolution\Support\Phone;
 use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
+use Kanvas\Guild\Customers\Models\Address as PeopleAddress;
 use Kanvas\Guild\Customers\Models\Contact as CustomerContact;
 use Kanvas\Guild\Customers\Models\People;
 
@@ -61,7 +62,7 @@ class PushPeopleAction
             // Prepare contact data
             $contactEmail = $this->prepareEmails($this->people, ! $exist);
             $contactPhone = $this->preparePhones($this->people, ! $exist);
-            $contactAddress = $this->prepareAddresses($this->people, ! $exist);
+            $contactAddress = $this->prepareAddresses($this->people);
 
             // Determine opt-out preferences
             $hasEmailOptOut = $this->people->getEmails()->contains(fn ($email) => $email->is_opt_out === 1);
@@ -249,24 +250,36 @@ class PushPeopleAction
     }
 
     /**
-     * Prepare addresses for contact.
+     * Every address leaves here as AddressId 0 ("new"). On an update, alignAddressIds() swaps in
+     * the id VinSolutions already holds for that address type; a made-up id (1, 2, ...) points at a
+     * record the contact does not have and VinSolutions drops the address without an error.
      */
-    protected function prepareAddresses(People $people, bool $isNew): array
+    protected function prepareAddresses(People $people): array
     {
-        $contactAddress = [];
+        return $people->address()
+            ->latest('created_at')
+            ->get()
+            ->map(fn (PeopleAddress $address): array => new Address(0, $address)->transform())
+            ->all();
+    }
 
-        $addresses = $people->address()->latest('created_at')->get();
-
-        if ($addresses->count() > 0) {
-            $i = 1;
-            foreach ($addresses as $address) {
-                $toAddress = new Address($isNew ? 0 : $i, $address);
-                $contactAddress[] = $toAddress->transform();
-                $i++;
+    protected function alignAddressIds(array $addresses, array $existing): array
+    {
+        $existingIdsByType = [];
+        foreach ($existing as $vinAddress) {
+            $type = $vinAddress['AddressType'] ?? null;
+            if ($type !== null && ! isset($existingIdsByType[$type]) && ! empty($vinAddress['AddressId'])) {
+                $existingIdsByType[$type] = (int) $vinAddress['AddressId'];
             }
         }
 
-        return $contactAddress;
+        foreach ($addresses as &$address) {
+            $address['AddressId'] = $existingIdsByType[$address['AddressType']] ?? 0;
+            unset($existingIdsByType[$address['AddressType']]);
+        }
+        unset($address);
+
+        return $addresses;
     }
 
     protected function processDriversLicense(People $people): ?array
@@ -327,16 +340,13 @@ class PushPeopleAction
         $contact->information['DoNotEmail'] = $hasEmailOptOut;
         $contact->information['DoNotCall'] = $hasPhoneOptOut;
 
-        // Check if customer already has address in Vin
-        $customHasAddressInVin = ! empty($contact->addresses) && ! empty($contact->addresses[0]['StreetAddress']);
-        if (! $customHasAddressInVin) {
-            $contact->addresses = $address;
+        if (! empty($address)) {
+            $contact->addresses = $this->alignAddressIds($address, $contact->addresses);
+        }
 
-            // Process driver's license only if we're updating the address
-            $licenseData = $this->processDriversLicense($people);
-            if ($licenseData) {
-                $contact->licenseData = $licenseData;
-            }
+        $licenseData = $this->processDriversLicense($people);
+        if ($licenseData) {
+            $contact->licenseData = $licenseData;
         }
 
         // Process credit app info

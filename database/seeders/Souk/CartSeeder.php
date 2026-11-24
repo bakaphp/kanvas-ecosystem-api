@@ -32,8 +32,8 @@ class CartSeeder extends Seeder
             'metadata' => [
                 'source' => 'web',
                 'utm_campaign' => 'summer_sale',
-                'items_count' => 3
-            ]
+                'items_count' => 3,
+            ],
         ]);
 
         Cart::create([
@@ -48,8 +48,8 @@ class CartSeeder extends Seeder
             'status' => 'abandoned',
             'metadata' => [
                 'source' => 'mobile',
-                'abandoned_at' => now()->subHours(2)->toISOString()
-            ]
+                'abandoned_at' => now()->subHours(2)->toISOString(),
+            ],
         ]);
 
         Cart::create([
@@ -64,8 +64,8 @@ class CartSeeder extends Seeder
             'status' => 'pending',
             'metadata' => [
                 'source' => 'checkout',
-                'items_count' => 5
-            ]
+                'items_count' => 5,
+            ],
         ]);
 
         if (app()->environment(['local', 'development', 'testing'])) {

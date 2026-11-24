@@ -12,7 +12,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\VectorStores\TypesenseKnowledgeStore;
-use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
@@ -21,11 +20,11 @@ use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
 use Override;
 
 /**
- * Native Neuron retrieval over the shared knowledge store. Retrieves the agent's
- * own uploaded docs plus, for a customer-facing agent, the lead in scope — each
- * scoped to its entity so knowledge never leaks between prospects. Explicitly
- * internal agents can instead retrieve across their app/company boundary.
- * No-ops when the app hasn't enabled knowledge.
+ * Native Neuron retrieval over the shared knowledge store. An agent's knowledge base is its own
+ * uploaded documents plus the company's; another agent's files are never in it. The record in scope
+ * (its cards: the lead, its company, organization and vehicles of interest) is passed only for a
+ * customer-facing agent: an internal agent on a lead reads it through the lead tools. No-ops when the
+ * app hasn't enabled knowledge.
  */
 class KnowledgeRetrieval implements RetrievalInterface
 {
@@ -34,7 +33,6 @@ class KnowledgeRetrieval implements RetrievalInterface
         private readonly ?Companies $company,
         private readonly ?Model $agent = null,
         private readonly ?Model $entity = null,
-        private readonly bool $organizationWide = false,
     ) {
     }
 
@@ -54,80 +52,107 @@ class KnowledgeRetrieval implements RetrievalInterface
             return [];
         }
 
-        $store = KnowledgeComponents::store($this->app);
+        // A picture with no caption arrives as an empty turn with media; the embedder refuses a blank
+        // string and there is nothing to search for anyway (KANVAS-ECOSYSTEM-6KC).
+        $question = (string) $query->getContent();
+        if (trim($question) === '') {
+            return [];
+        }
+
+        return $this->retrieveFrom(
+            KnowledgeComponents::store($this->app),
+            KnowledgeComponents::embedder($this->app)->embed($question),
+            $question,
+        );
+    }
+
+    /**
+     * Documents and record rows are searched apart, each in its own scope: searched together, a
+     * company's lead rows repeat the words of the question and filled every slot, so the lot guide
+     * (0.747) never made the top eight on "Shepard Select lot address" (Polly, agent 1292, 2026-11-05).
+     *
+     * @param array<int, float> $embedding
+     * @return list<Document>
+     */
+    public function retrieveFrom(TypesenseKnowledgeStore $store, array $embedding, string $question): array
+    {
         $topK = KnowledgeComponents::resultLimit($this->app);
         $minScore = KnowledgeComponents::minScore($this->app);
-        $question = (string) $query->getContent();
-        $embedding = KnowledgeComponents::embedder($this->app)->embed($question);
 
-        if ($this->organizationWide) {
-            $hits = $store->search(
-                $embedding,
-                KnowledgeScope::forOrganization($this->app->getId(), $this->company->getId()),
-                $topK,
-                $minScore,
-            );
-
-            return self::rank(
-                [],
-                $hits,
-                $topK,
-                $question,
-            );
-        }
-
-        // The agent's own docs, then the record in scope (a Lead). A global row like
-        // a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so it's skipped.
-        $byScope = [];
-        foreach ([$this->agent, $this->entity] as $scopeEntity) {
-            $byScope[] = $scopeEntity === null ? [] : $this->searchScoped(
+        $documentHits = [
+            ...$this->searchDocuments(
                 $store,
                 $embedding,
-                $scopeEntity,
+                $this->scopeOf($this->agent),
                 $topK,
                 $minScore,
-            );
-        }
+            ),
+            ...$this->searchDocuments(
+                $store,
+                $embedding,
+                KnowledgeScope::forTenant($this->app->getId(), $this->company->getId()),
+                $topK,
+                $minScore,
+            ),
+        ];
+
+        $entityScope = $this->scopeOf($this->entity);
+        $entityHits = $entityScope === null ? [] : $store->search(
+            $embedding,
+            $entityScope,
+            $topK,
+            $minScore,
+        );
 
         return self::rank(
-            $byScope[0],
-            $byScope[1],
+            $documentHits,
+            $entityHits,
             $topK,
             $question,
         );
+    }
+
+    /** A global row like a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so it has no scope. */
+    private function scopeOf(?Model $model): ?KnowledgeScope
+    {
+        if ($model === null) {
+            return null;
+        }
+
+        try {
+            return KnowledgeScope::forModel($model);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     /**
      * @param array<int, float> $embedding
      * @return array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}>
      */
-    private function searchScoped(
+    private function searchDocuments(
         TypesenseKnowledgeStore $store,
         array $embedding,
-        Model $scopeEntity,
+        ?KnowledgeScope $scope,
         int $topK,
         ?float $minScore,
     ): array {
-        try {
-            $scope = KnowledgeScope::forModel($scopeEntity);
-        } catch (InvalidArgumentException) {
+        if ($scope === null) {
             return [];
         }
 
-        return $store->search(
+        return $store->searchByFilter(
             $embedding,
-            $scope,
+            $scope->documentFilter(),
             $topK,
             $minScore,
         );
     }
 
     /**
-     * The agent's documents fill the slots first; the record's own rows take what is left. A record's
-     * messages repeat the words of the question being asked, and are already the agent's history
-     * through the rollup store, so ranked by score alone they crowd the documents out. A hit that is
-     * the question itself is dropped: the inbound message is indexed before retrieval runs and would
-     * otherwise be the best match for itself.
+     * The agent's documents fill the slots first; the record's own rows take what is left. Ranked by
+     * score alone, record rows that repeat the words of the question crowded the documents out. A hit
+     * that is the question itself is dropped.
      *
      * @param array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}> $documentHits
      * @param array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}> $entityHits
@@ -175,7 +200,7 @@ class KnowledgeRetrieval implements RetrievalInterface
     private static function labelled(array $hit): Document
     {
         $createdAt = (int) ($hit['metadata']['created_at'] ?? 0);
-        $label = $hit['sourceType'] === IndexKnowledgeDocumentActivity::SOURCE_TYPE
+        $label = KnowledgeScope::isDocument($hit['sourceType'])
             ? 'Company document'
             : 'Record history' . ($createdAt > 0 ? ', ' . date('Y-m-d', $createdAt) : '');
 

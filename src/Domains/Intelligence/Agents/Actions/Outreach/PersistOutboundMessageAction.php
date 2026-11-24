@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
+use Baka\Support\Str;
+use Kanvas\Communication\Messages\Actions\FindOrCreateConversationChannelAction;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -20,14 +24,19 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * Persist a message already delivered (by an agent tool or a campaign) on the matching protocol channel.
  *
  * Delivery happens first. This action records that exact outbound on the SMS/email channel of the
  * Lead or, for a person with no lead, of the People record, so the activity timeline and future agent
- * turns see one continuous protocol history. It does not create a Session or fire the CREATED delivery
- * workflow: the provider has already accepted the message and must never be called twice.
+ * turns see one continuous protocol history. It creates no Session.
+ *
+ * Message CREATED fires last, once the entity links and the delivery SID are on the row, so a Message
+ * rule (a CRM note push, a stakeholder notice) sees a tool send the way it sees a reach-out or a channel
+ * reply. Nothing on that event delivers: the activities that send to a customer are typed on Channel, so
+ * the provider is never called twice.
  */
 class PersistOutboundMessageAction
 {
@@ -52,7 +61,17 @@ class PersistOutboundMessageAction
     public function execute(array $providerResponse): array
     {
         $people = $this->entity instanceof Lead ? $this->entity->people : $this->entity;
-        $channel = $this->resolveProtocolChannel();
+        // A send that names its conversation is filed there, where the customer's answer arrives and
+        // whoever owns it (the person, for a lead too). Found by slug alone: a lead-owned twin of
+        // the person's conversation would split one thread in two.
+        $conversationSlug = Str::trimToNull($providerResponse['channel_slug'] ?? null);
+        $channel = $conversationSlug !== null
+            ? new FindOrCreateConversationChannelAction(
+                $this->entity->app,
+                $this->entity->company,
+                $conversationSlug
+            )->forOutbound($this->recipient, $this->user, $people?->getId())
+            : $this->resolveProtocolChannel();
         $messageType = MessageTypeService::getOrCreate(
             $this->entity->app,
             match ($this->channelType) {
@@ -80,6 +99,7 @@ class PersistOutboundMessageAction
             is_public: 1,
             people: $people,
         ));
+        // Not here: the create transaction would fire CREATED before the lead and the SID are on the row.
         $createMessage->runWorkflow = false;
         $message = $createMessage->execute();
 
@@ -89,14 +109,21 @@ class PersistOutboundMessageAction
         }
 
         $channel->addMessage($message);
-        $message->addEntity($this->entity);
-        if ($this->entity instanceof Lead && $people !== null) {
-            $message->addEntity($people);
+
+        // Also links the message to the lead and the person, each once.
+        if ($this->entity instanceof Lead) {
+            new LeadChannelService()->recordOnLeadAndPerson($message, $this->entity, $this->user);
+        } else {
+            new PeopleChannelService()->recordOnPerson($message, $this->entity, $this->user);
         }
 
-        if ($this->channelType === ChannelCategoryEnum::SMS->value) {
-            new StoreMessageSidAction($message)->execute($providerResponse);
-        }
+        new LinkDeliveryMessageAction($message)->execute($providerResponse);
+
+        $message->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            ['app' => $this->entity->app],
+        );
 
         return ['message' => $message, 'channel' => $channel];
     }

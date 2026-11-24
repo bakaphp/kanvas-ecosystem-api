@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Recommendations\Enrichment\Services;
 
+use Illuminate\Support\Number;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
 /**
@@ -83,6 +84,6 @@ class EnrichmentUsageService
 
     private function formatCost(float $amount): string
     {
-        return '$' . number_format($amount, 6);
+        return Number::currency($amount, 'USD', precision: 6);
     }
 }

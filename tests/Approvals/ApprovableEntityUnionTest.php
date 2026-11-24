@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Approvals;
 
+use App\GraphQL\Approvals\Types\ApprovableEntityTypeResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Nuwave\Lighthouse\Schema\SchemaBuilder;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use ReflectionClassConstant;
 use Tests\TestCase;
 
 /**
@@ -85,5 +90,36 @@ final class ApprovableEntityUnionTest extends TestCase
                     ],
                 ],
             ]);
+    }
+
+    /**
+     * One coding_push approval on a plan Task broke the whole approvalRequests list: the union had no
+     * member for it and the resolver fell back to the class basename "Task", which is no type at all.
+     */
+    public function testEveryModelThatCanRequestApprovalIsAMemberOfTheUnion(): void
+    {
+        $map = new ReflectionClassConstant(ApprovableEntityTypeResolver::class, 'MODEL_TO_TYPE_NAME')->getValue();
+        $union = app(SchemaBuilder::class)->schema()->getType('ApprovableEntity');
+        $members = array_map(fn ($type): string => $type->name, $union->getTypes());
+
+        $approvable = [];
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(base_path('src'))) as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $source = (string) file_get_contents($file->getPathname());
+            if (! str_contains($source, 'use HasApprovals;') || ! preg_match('/^namespace (.+);/m', $source, $ns) || ! preg_match('/^class (\w+)/m', $source, $class)) {
+                continue;
+            }
+
+            $approvable[] = $ns[1] . '\\' . $class[1];
+        }
+
+        $this->assertNotEmpty($approvable);
+        foreach ($approvable as $model) {
+            $this->assertArrayHasKey($model, $map, "{$model} can request approval but ApprovableEntityTypeResolver has no type for it.");
+            $this->assertContains($map[$model], $members, "{$map[$model]} is not a member of the ApprovableEntity union.");
+        }
     }
 }

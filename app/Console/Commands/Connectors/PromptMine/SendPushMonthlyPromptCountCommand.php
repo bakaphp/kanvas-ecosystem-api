@@ -32,7 +32,6 @@ class SendPushMonthlyPromptCountCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -52,6 +51,7 @@ class SendPushMonthlyPromptCountCommand extends Command
                     $monthtlyCount = MessagesRepository::getcurrentMonthCreationCount($app, $usersAssocApp->user, $messageType);
                     if ($monthtlyCount === 0) {
                         $this->info("User {$usersAssocApp->user->getId()} has no messages this month.");
+
                         continue;
                     }
                     $this->info("User {$usersAssocApp->user->getId()} has $monthtlyCount messages this month.");

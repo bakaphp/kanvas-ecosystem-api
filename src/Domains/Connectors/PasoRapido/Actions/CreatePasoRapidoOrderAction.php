@@ -2,6 +2,7 @@
 
 namespace Kanvas\Connectors\PasoRapido\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
@@ -9,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EchoPayCustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
 use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
+use Kanvas\Connectors\PasoRapido\Jobs\StorePasoRapidoInvoicePdfJob;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -110,12 +112,14 @@ class CreatePasoRapidoOrderAction
                 ];
                 $this->order->saveQuietly();
 
+                $this->dispatchInvoicePdfStorage($invoice->pdf);
+
                 return [
                     'status' => 'success',
                     'message' => 'Payment confirmed',
                     'data' => [
                         'order' => $this->order->getId(),
-                        'tag' => $tag
+                        'tag' => $tag,
                     ],
                 ];
             }
@@ -151,6 +155,19 @@ class CreatePasoRapidoOrderAction
                     'trace' => $e->getTraceAsString(),
                 ],
             ];
+        }
+    }
+
+    private function dispatchInvoicePdfStorage(string $pdf): void
+    {
+        if (Str::trimToNull($pdf) === null) {
+            return;
+        }
+
+        try {
+            StorePasoRapidoInvoicePdfJob::dispatch($this->order);
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 }

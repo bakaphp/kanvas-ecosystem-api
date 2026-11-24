@@ -29,8 +29,7 @@ class MessageService
     }
 
     /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param string $text The text content of the message
+     * `$to` is a number in E.164 digits or a group JID, here and in every sender below.
      */
     public function sendTextMessage(string $to, string $text): array
     {
@@ -40,85 +39,39 @@ class MessageService
         ]);
     }
 
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param string $imageUrl URL of the image to send
-     * @param string|null $caption Optional caption text for the image
-     */
     public function sendImageMessage(string $to, string $imageUrl, ?string $caption = null): array
     {
-        $data = [
-            'to' => $to,
-            'imageUrl' => $imageUrl,
-        ];
-
-        if ($caption !== null) {
-            $data['text'] = $caption;
-        }
-
-        return $this->client->post('/api/send-message', $data);
+        return $this->sendMedia(
+            $to,
+            'imageUrl',
+            $imageUrl,
+            $caption
+        );
     }
 
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param string $videoUrl URL of the video to send
-     * @param string|null $caption Optional caption text for the video
-     */
     public function sendVideoMessage(string $to, string $videoUrl, ?string $caption = null): array
     {
-        $data = [
-            'to' => $to,
-            'videoUrl' => $videoUrl,
-        ];
-
-        if ($caption !== null) {
-            $data['text'] = $caption;
-        }
-
-        return $this->client->post('/api/send-message', $data);
+        return $this->sendMedia(
+            $to,
+            'videoUrl',
+            $videoUrl,
+            $caption
+        );
     }
 
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param string $documentUrl URL of the document to send
-     * @param string|null $caption Optional caption text for the document
-     */
     public function sendDocumentMessage(string $to, string $documentUrl, ?string $caption = null): array
     {
-        $data = [
-            'to' => $to,
-            'documentUrl' => $documentUrl,
-        ];
-
-        if ($caption !== null) {
-            $data['text'] = $caption;
-        }
-
-        return $this->client->post('/api/send-message', $data);
+        return $this->sendMedia(
+            $to,
+            'documentUrl',
+            $documentUrl,
+            $caption
+        );
     }
 
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param string $audioUrl URL of the audio file to send
-     */
     public function sendAudioMessage(string $to, string $audioUrl): array
     {
-        return $this->client->post('/api/send-message', [
-            'to' => $to,
-            'audioUrl' => $audioUrl,
-        ]);
-    }
-
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param string $stickerUrl URL of the sticker (.webp) to send
-     */
-    public function sendStickerMessage(string $to, string $stickerUrl): array
-    {
-        return $this->client->post('/api/send-message', [
-            'to' => $to,
-            'stickerUrl' => $stickerUrl,
-        ]);
+        return $this->sendMedia($to, 'audioUrl', $audioUrl);
     }
 
     public function decryptMediaFile(array $payload): array
@@ -131,93 +84,19 @@ class MessageService
         );
     }
 
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param string $name Contact name
-     * @param string $phone Contact phone number
-     * @param string|null $message Optional message text to accompany the contact
-     */
-    public function sendContactCard(string $to, string $name, string $phone, ?string $message = null): array
-    {
-        $data = [
-            'to' => $to,
-            'contact' => [
-                'name' => $name,
-                'phone' => $phone,
-            ],
-        ];
-
-        if ($message !== null) {
-            $data['text'] = $message;
-        }
-
-        return $this->client->post('/api/send-message', $data);
-    }
-
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param float $latitude Latitude of the location
-     * @param float $longitude Longitude of the location
-     * @param string|null $name Optional name of the location
-     * @param string|null $address Optional address of the location
-     * @param string|null $message Optional message text to accompany the location
-     */
-    public function sendLocation(
+    private function sendMedia(
         string $to,
-        float $latitude,
-        float $longitude,
-        ?string $name = null,
-        ?string $address = null,
-        ?string $message = null
+        string $urlKey,
+        string $url,
+        ?string $caption = null
     ): array {
-        $locationData = [
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-        ];
-
-        if ($name !== null) {
-            $locationData['name'] = $name;
-        }
-
-        if ($address !== null) {
-            $locationData['address'] = $address;
-        }
-
-        $data = [
-            'to' => $to,
-            'location' => $locationData,
-        ];
-
-        if ($message !== null) {
-            $data['text'] = $message;
-        }
-
-        return $this->client->post('/api/send-message', $data);
-    }
-
-    /**
-     * @param string $to Recipient phone number in E.164 format or Group JID
-     * @param array $messageData any mix of the content keys the other senders set individually
-     */
-    public function sendCustomMessage(string $to, array $messageData): array
-    {
-        $data = array_merge(['to' => $to], $messageData);
-
-        return $this->client->post('/api/send-message', $data);
-    }
-
-    /**
-     * Check if a phone number is available on WhatsApp.
-     * Note: This method might not be available in the API, but would be useful.
-     *
-     * @param string $phoneNumber Phone number to check in E.164 format
-     */
-    public function checkPhoneNumber(string $phoneNumber): array
-    {
-        // This endpoint might not be documented but is common in WhatsApp APIs
-        // Adjust the endpoint as needed based on actual API documentation
-        return $this->client->post('/api/check-phone', [
-            'phone' => $phoneNumber,
-        ]);
+        return $this->client->post('/api/send-message', array_filter(
+            [
+                'to' => $to,
+                $urlKey => $url,
+                'text' => $caption,
+            ],
+            static fn (?string $value): bool => $value !== null
+        ));
     }
 }

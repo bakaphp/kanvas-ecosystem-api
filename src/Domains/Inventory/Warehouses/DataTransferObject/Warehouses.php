@@ -31,7 +31,6 @@ class Warehouses extends Data
 
     /**
      * fromArray.
-     *
      */
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {

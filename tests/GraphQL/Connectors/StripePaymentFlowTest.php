@@ -316,6 +316,73 @@ class StripePaymentFlowTest extends TestCase
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
     }
 
+    public function testRefundWithReasonExposesRefundFieldsOnPayment(): void
+    {
+        $order = $this->buildOrder();
+        $paymentMethod = $this->createStripePaymentMethod();
+        $payment = $this->createPaymentInState(
+            $order,
+            $paymentMethod,
+            PaymentStatusEnum::PAID->value,
+            'pi_flow_reason',
+            ['stripe_charge_id' => 'ch_flow_reason'],
+        );
+
+        $this->fakeStripe->getRefunds()->queueResponse('create', Refund::constructFrom([
+            'id' => 're_flow_reason',
+            'object' => 'refund',
+            'status' => 'succeeded',
+        ]));
+
+        $response = $this->graphQL('
+            mutation {
+                refundPayment(
+                    paymentId: "' . $payment->id . '"
+                    amount: 25.00
+                    reason: OUT_OF_STOCK
+                    note: "No stock left"
+                    idempotency_key: "flow-reason-1"
+                ) {
+                    status
+                    payment {
+                        processor
+                        captured_amount
+                        refunded_amount
+                        refundable_amount
+                        refunds {
+                            amount
+                            reason
+                            note
+                            status
+                            user {
+                                id
+                            }
+                        }
+                        payment_logs {
+                            event_type
+                        }
+                    }
+                }
+            }
+        ', [], [], [
+            'X-Kanvas-Location' => $this->currentCompany->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $response->assertJsonMissingPath('errors');
+        $this->assertSame('success', $response->json('data.refundPayment.status'));
+
+        $result = $response->json('data.refundPayment.payment');
+        $this->assertEquals(25.00, $result['refunded_amount']);
+        $this->assertEquals((float) $payment->amount - 25.00, $result['refundable_amount']);
+        $this->assertCount(1, $result['refunds']);
+        $this->assertSame('out_of_stock', $result['refunds'][0]['reason']);
+        $this->assertSame('No stock left', $result['refunds'][0]['note']);
+        $this->assertSame('completed', $result['refunds'][0]['status']);
+        $this->assertSame((string) static::$cachedUser->getId(), (string) $result['refunds'][0]['user']['id']);
+        $this->assertContains('refund_initiated', array_column($result['payment_logs'], 'event_type'));
+    }
+
     private function processPayment(Payments $payment): TestResponse
     {
         return $this->graphQL('

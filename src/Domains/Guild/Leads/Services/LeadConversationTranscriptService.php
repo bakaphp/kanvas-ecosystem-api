@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Services;
 
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
@@ -20,7 +21,7 @@ class LeadConversationTranscriptService
     /**
      * @return list<string>
      */
-    public static function lines(Lead $lead): array
+    public static function lines(Lead|People $lead): array
     {
         $user = $lead->company->getAiAgentUser() ?? $lead->user;
 

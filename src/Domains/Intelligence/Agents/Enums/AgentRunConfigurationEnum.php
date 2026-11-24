@@ -40,4 +40,26 @@ enum AgentRunConfigurationEnum: string
      * leaves the model's default. An LLM config that carries its own `thinkingConfig` wins.
      */
     case GEMINI_THINKING = 'agent_gemini_thinking';
+
+    /**
+     * The rolling lead summary: a lead's older history is kept as a coverage-tracked summary with open
+     * commitments, caught up before the reply whenever the window drops a row it does not cover. On by
+     * default; `0` turns it off for an app.
+     */
+    case LEAD_SUMMARY = 'agent_lead_summary_enabled';
+
+    /**
+     * The facts this business tracks in a lead summary beyond the generic sections: a JSON list of keys
+     * or of `{key, description}` objects, named after lead custom fields (`vehicle_of_interest`,
+     * `trade_in`) so the lead record's value is shown to the summary model as known data. App setting,
+     * or a COMPANY setting of the same name that wins over it.
+     */
+    case LEAD_SUMMARY_KEYS = 'agent_lead_summary_keys';
+
+    /**
+     * A chat whose agent handed work to another agent hears "still working" after three silent minutes
+     * (`PostStillWorkingUpdateJob`). Off by default: the update is posted into every such chat of the
+     * app, lands in the agent's transcript and is pushed to Slack or WhatsApp when the chat lives there.
+     */
+    case STILL_WORKING_UPDATES = 'agent_still_working_updates_enabled';
 }

@@ -145,26 +145,40 @@ final class CompanyLocationAccessTest extends TestCase
         $this->assertNotContains((string) $someoneElses->getId(), $ids);
     }
 
-    public function testABranchOfACompanyOutsideTheAppIsRefused(): void
+    public function testABranchOfACompanyOutsideTheAppIsIgnored(): void
     {
         $branch = $this->branchOf($this->createUser());
         UserCompanyApps::where('companies_id', $branch->companies_id)
             ->where('apps_id', app(Apps::class)->getId())
             ->update(['is_deleted' => StateEnums::YES->getValue()]);
+        $user = $this->createUser();
+        $this->actingAs($user, 'api');
 
-        $response = $this->graphQL(
+        $this->graphQL(
             /** @lang GraphQL */
             '{ me { id } }',
             [],
             [],
             [AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => $branch->uuid]
-        );
+        )->assertOk()->assertJsonPath('data.me.id', (string) $user->getId());
 
-        $response->assertStatus(500);
-        $this->assertSame(
-            ['message' => 'No Company Branch configured with this key: ' . $branch->uuid],
-            $response->json()
-        );
+        $this->assertNull(LocationContext::branch());
+    }
+
+    public function testAnUnknownBranchIsIgnored(): void
+    {
+        $user = $this->createUser();
+        $this->actingAs($user, 'api');
+
+        $this->graphQL(
+            /** @lang GraphQL */
+            '{ me { id } }',
+            [],
+            [],
+            [AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => fake()->uuid()]
+        )->assertOk()->assertJsonPath('data.me.id', (string) $user->getId());
+
+        $this->assertNull(LocationContext::branch());
     }
 
     public function testAnAdminCannotJoinAnotherCompanysBranch(): void

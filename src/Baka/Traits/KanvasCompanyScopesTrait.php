@@ -10,19 +10,31 @@ use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 
 trait KanvasCompanyScopesTrait
 {
     /**
-     * scopeCompany.
+     * A CompanyScope is checked before the AppKey branch on purpose: a bound app key must never widen
+     * an explicit allowlist.
      */
     public function scopeFromCompany(Builder $query, mixed $company = null): Builder
     {
-        $company = $company instanceof Companies ? $company : LocationContext::companyToScope($this);
-
         $table = $this instanceof Model ? $this->getTable() . '.' : '';
+
+        if ($company instanceof CompanyScope) {
+            return CompanyScope::applyToQuery($query, $table . 'companies_id', $company);
+        }
+
+        // An id names one company and nothing else: it is never widened by an app key, and never
+        // swapped for the logged-in user's company (there is none in a queue worker).
+        if (is_int($company) || (is_string($company) && ctype_digit($company))) {
+            return $query->where($table . 'companies_id', (int) $company);
+        }
+
+        $company = $company instanceof Companies ? $company : LocationContext::companyToScope($this);
 
         if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
             return $query->where($table . 'companies_id', '>', 0);
@@ -45,6 +57,17 @@ trait KanvasCompanyScopesTrait
     public function scopeFromCompanyOrGlobal(Builder $query, mixed $company = null): Builder
     {
         $table = $this instanceof Model ? $this->getTable() . '.' : '';
+
+        if ($company instanceof CompanyScope) {
+            $allowGlobal = (bool) $company->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
+            return CompanyScope::applyToQuery(
+                $query,
+                $table . 'companies_id',
+                $company,
+                extraCompanyIds: $allowGlobal ? [0] : []
+            );
+        }
 
         if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
             return $query->where($table . 'companies_id', '>=', 0);

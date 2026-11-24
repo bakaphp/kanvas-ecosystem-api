@@ -8,9 +8,13 @@ use App\Console\Commands\NervousSystem\Agents\Coding\Concerns\SelectsAppMachines
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Kanvas\Connectors\OpenCode\Actions\PrewarmCodingImageAction;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Enums\MachineCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingImageService;
+use Kanvas\Connectors\OpenCode\Services\CodingRuntimeVersionService;
 use Kanvas\Connectors\OpenCode\SshClient;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
@@ -22,8 +26,7 @@ use Throwable;
  * This ships the build context over the connection Kanvas already holds and builds in place.
  *
  * **It does not make the image reproducible.** `apk add` resolves whatever is current at build time, so
- * two machines built a week apart carry different PHP and git builds under one tag — which has already
- * happened here. The digest is recorded per machine so that drift is at least visible; making it
+ * two machines built a week apart carry different PHP and git builds under one tag. The digest is recorded per machine so that drift is at least visible; making it
  * impossible needs a registry, and this command is what buys time until there is one.
  */
 class BuildCodingImageCommand extends Command
@@ -31,13 +34,10 @@ class BuildCodingImageCommand extends Command
     use KanvasJobsTrait;
     use SelectsAppMachines;
 
-    /** Where the recorded digest lives, so `kanvas:coding:sessions` and a human can compare machines. */
-    public const string DIGEST_FIELD = 'CODING_IMAGE_DIGEST';
-
     protected $signature = 'kanvas:coding:build-image
         {--machine= : Agent machine id; omit with --all}
-        {--app= : App whose configured image tag to build}
-        {--image= : Image tag to build, overriding the app setting}
+        {--app= : App whose machines to build on and image setting to update}
+        {--image= : Image tag to build, overriding the pinned Dockerfile tag}
         {--all : Build on every active machine of the app}
         {--no-cache : Build without Docker layer cache}';
 
@@ -55,11 +55,16 @@ class BuildCodingImageCommand extends Command
 
         $this->overwriteAppService($app);
 
-        // Falls back to the tag the Dockerfile builds, so a fresh app needs no --image and cannot be
-        // pointed at a version this connector does not speak.
-        $image = Str::trimToNull((string) $this->option('image'))
-            ?? Str::trimToNull((string) $app->get(ConfigurationEnum::IMAGE->value))
-            ?? CodingImageService::pinnedTag();
+        // Default to this checkout's Dockerfile tag so an older app setting cannot mislabel the build.
+        $image = CodingImageService::resolveTag($this->option('image'));
+        $configured = Str::trimToNull((string) $app->get(ConfigurationEnum::IMAGE->value));
+
+        if ($configured !== null && $configured !== $image) {
+            $this->warn(
+                'App ' . $app->getId() . ' is on ' . $configured . '; this build moves it to ' . $image
+                . '. Containers still on the old tag roll over on their next task, or now with kanvas:coding:upgrade-image.'
+            );
+        }
 
         $machines = $this->machines($app);
 
@@ -85,9 +90,8 @@ class BuildCodingImageCommand extends Command
 
         $this->reportDrift($machines, $image);
 
-        // The whole point of the build. Without this an operator builds the image successfully and
-        // dispatch still dies on "No opencode image configured", because the tag was only ever an
-        // argument — and the obvious next move, running the command again, reports no tag at all.
+        // Without this the tag stays an argument: the build succeeds and dispatch still dies on
+        // "No opencode image configured".
         if ($failed === 0 && CodingImageService::configure($app, $image)) {
             $this->info('Set ' . ConfigurationEnum::IMAGE->value . ' = ' . $image . ' on app ' . $app->getId() . '.');
         }
@@ -101,6 +105,11 @@ class BuildCodingImageCommand extends Command
     private function buildOn(AgentMachine $machine, string $image, array $context): bool
     {
         $this->line('<info>' . $machine->name . '</info> (' . $machine->host . ')');
+
+        if ($machine->runtimeMode() === MachineRuntimeEnum::HOST) {
+            return $this->installOn($machine, $image);
+        }
+
         $directory = '/tmp/kanvas-opencode-build-' . $machine->getId();
 
         try {
@@ -118,10 +127,12 @@ class BuildCodingImageCommand extends Command
                 $client->writeFile($directory . '/' . $name, $contents);
             }
 
+            // A plain variable, not `${PIPESTATUS[0]}`: that is bash-only and empty under the zsh a Mac
+            // gives an SSH session.
             $result = $client->exec(
                 'cd ' . escapeshellarg($directory)
                 . ' && docker build ' . ($this->option('no-cache') ? '--no-cache ' : '')
-                . '-t ' . escapeshellarg($image) . ' . 2>&1 | tail -5; echo "EXIT:${PIPESTATUS[0]}"',
+                . '-t ' . escapeshellarg($image) . ' . > build.log 2>&1; rc=$?; tail -5 build.log; echo "EXIT:$rc"',
                 1800
             );
 
@@ -136,7 +147,7 @@ class BuildCodingImageCommand extends Command
                 60
             ));
 
-            $machine->set(self::DIGEST_FIELD, $digest);
+            $machine->set(MachineCustomFieldEnum::IMAGE_DIGEST->value, $digest);
             $this->info('  built ' . $image . ' → ' . mb_substr($digest, 0, 19));
 
             return true;
@@ -157,6 +168,31 @@ class BuildCodingImageCommand extends Command
     }
 
     /**
+     * A host has no image to build: the driver installs the pinned opencode release from GitHub and
+     * verifies it against the published checksum. The version is the Dockerfile's, always — a
+     * `--image` naming another version is a container concern and is said so, not honoured.
+     */
+    private function installOn(AgentMachine $machine, string $image): bool
+    {
+        $pinned = CodingRuntimeVersionService::upstreamVersion();
+
+        if (CodingRuntimeVersionService::versionOf($image) !== $pinned) {
+            $this->warn('  a host machine always installs the Dockerfile version (' . $pinned . '), not ' . $image);
+        }
+
+        try {
+            $binary = new PrewarmCodingImageAction($machine)->execute();
+            $this->info('  installed ' . $binary . ' → ' . mb_substr((string) $machine->get(MachineCustomFieldEnum::IMAGE_DIGEST->value), 0, 19));
+
+            return true;
+        } catch (Throwable $e) {
+            $this->error('  ' . $e->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
      * Two machines under one tag carrying different images is the whole reason a registry exists. It
      * cannot be prevented here, so it is at least said out loud.
      *
@@ -167,7 +203,7 @@ class BuildCodingImageCommand extends Command
         $digests = [];
 
         foreach ($machines as $machine) {
-            $digest = Str::trimToNull((string) $machine->get(self::DIGEST_FIELD));
+            $digest = Str::trimToNull((string) $machine->get(MachineCustomFieldEnum::IMAGE_DIGEST->value));
 
             if ($digest !== null) {
                 $digests[$digest][] = $machine->name;

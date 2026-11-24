@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Salesforce\Actions;
 
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
 use Kanvas\Guild\Customers\Models\People;
 
 /**
@@ -32,8 +32,8 @@ class PushPropertyInterestAction
             return null;
         }
 
-        $this->assertValidSalesforceId($this->locationSalesforceId);
-        $this->assertValidSalesforceId((string) $contactId);
+        SalesforceApiClient::assertValidId($this->locationSalesforceId);
+        SalesforceApiClient::assertValidId((string) $contactId);
 
         $client = Client::getInstance($this->people->app, $this->people->company);
 
@@ -51,17 +51,5 @@ class PushPropertyInterestAction
             'Contact__c' => $contactId,
             'Location_Contact_Type__c' => 'Interested Party',
         ]);
-    }
-
-    /**
-     * Both interpolated values are Salesforce ids we wrote ourselves (one from PullPropertyAction's
-     * import, the other from PushPeopleAction's own upsert) — never user input — but a cheap shape
-     * check before interpolating into SOQL costs nothing and rules out injection outright.
-     */
-    private function assertValidSalesforceId(string $id): void
-    {
-        if (! preg_match('/^[a-zA-Z0-9]{15,18}$/', $id)) {
-            throw new ValidationException("Invalid Salesforce id: {$id}");
-        }
     }
 }

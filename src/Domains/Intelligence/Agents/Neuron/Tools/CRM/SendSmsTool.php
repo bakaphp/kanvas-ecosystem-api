@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Closure;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
@@ -150,6 +150,7 @@ class SendSmsTool extends Tool
             channel: LeadCommunicationChannelEnum::SMS->value,
             message: $message,
             to: $to,
+            fromAgent: $this->contextAgent(),
         );
     }
 }

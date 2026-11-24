@@ -64,6 +64,22 @@ final class OrganizationVendorMatcherServiceTest extends TestCase
         $this->assertSame('Vendor Matcher Test Corp', $result->organization->name);
     }
 
+    /** The winner is scored off two columns; a caller reading apps_id/companies_id off a partial model got null. */
+    public function test_the_matched_organization_is_handed_back_whole(): void
+    {
+        $seeded = $this->seedOrganization('Whole Model Vendor Corp');
+
+        $result = OrganizationVendorMatcherService::match(
+            app(Apps::class),
+            $this->currentCompany(),
+            'Whole Model Vendor Corp',
+        );
+
+        $this->assertTrue($result->isMatched());
+        $this->assertSame((int) $seeded->apps_id, (int) $result->organization->apps_id);
+        $this->assertSame((int) $seeded->companies_id, (int) $result->organization->companies_id);
+    }
+
     public function test_returns_no_match_for_an_unrelated_name(): void
     {
         $this->seedOrganization('Vendor Matcher Test Corp');

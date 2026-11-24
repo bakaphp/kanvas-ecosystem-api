@@ -1,45 +1,123 @@
 # WaSender Connector (WhatsApp)
 
-Inbound WhatsApp for Kanvas. One webhook job routes **three conversation shapes** to three sibling
-actions; everything else here is about telling them apart and configuring them.
+A Communication provider: `WaSenderHandler` implements `Communication\Contracts\CommunicationProvider`
+and is named in `config/communication.php`, with `WhatsAppTransport`, `WaSenderInbound` and
+`WaSenderProvisioner` behind it. The Communication domain never imports this connector.
+
+## What the domain owns and what stays here
+
+| The domain | This connector |
+|---|---|
+| The door: every session posts to the company's **communication receiver** (`ProcessCommunicationWebhookJob`), which has `WaSenderInbound::authenticate()` check the signature before anything is stored | Filing: every event is handled by `ProcessWaSenderEventAction` through `HandlesProviderEvents`, so the shared one-to-one pipeline (`ReceiveMessageAction`) is never given a WaSender message |
+| The connection: the company's one WaSender number, owned by an agent (`accounts()`) | The three conversation shapes below, groups, lids, albums, the newsroom flow |
+| The answer to a **lead**: `RespondToInboundMessageActivity` (an app default rule), as the agent that owns the number, through `Communication::reply()` | The answer to an **assistant chat** or a **group**: the burst handler, inline |
+| Outbound to a person: `Communication::for(...)->send(..., channels: ['whatsapp'])` → `WhatsAppTransport`, on the delivery ledger | The reply into a group (a group is not a person, so it is not a ledger delivery) |
+
+Why the shared pipeline is not used: it files a person and a lead from a phone number. A group has
+many speakers and no lead, an assistant chat opens no lead, a counterpart can be a lid with no phone
+at all, and a lead chat takes its lead type, pipeline, receiver, album chaining and the
+`dale`/`process` trigger from the receiver's configuration. Pushing those through
+`ReceiveMessageAction` would mean redesigning it; `WaSenderInbound::messages()` returns nothing on
+purpose.
+
+**One number per company.** A company's `wasender_api_key` is its session's own key, so a company
+has one session and one connection. `WaSenderHandler::connectionFor($app, $company)` finds it.
+
+## Setup and cutover
+
+- **Linking a number** (`ConnectWhatsAppSessionAction`, the `whatsappConnect` mutation): the session
+  is created pointing at the communication receiver, its `webhook_secret` is kept on that receiver,
+  and `Communication\...\EnsureProviderIntegrationAction` gives the company the integration row Communication sets the
+  connection up from (`phone_number`, `agent_id`, `session_id` on the row's `config`). No rule is made.
+- **Who owns the number** (`accounts()`): the agent whose `whatsapp_config.phone_number` is the
+  number, else the agent that linked the session (`whatsapp_phone_number` custom field,
+  `WaSenderHandler::connectedNumber()`), else the `agent_id` on the integration row.
+- **A session belongs to a company** when its connection runs on it or one of its agents linked it
+  (`WaSenderHandler::ownsSession()`). Sessions are read with the app's account token, so the
+  `whatsappConnectionStatus` query answers only for those.
+- **A receiver from before** is moved in place by migration
+  `2026_11_14_100000_move_wasender_receivers_to_the_communication_webhook`: same row, same URL, same
+  secret, same configuration, so nothing changes at WaSender. `kanvas:wasender:adopt-communication
+  {app_id}` then gives companies that linked by QR their integration row
+  (`WaSenderHandler::selectionFromReceiver()`, which `communication:setup` also reads through
+  `legacySelection()`), and `communication:setup` makes the connection. `RetireLegacyWhatsAppInboundAction` retires the old responder rule and hands
+  the number to the agent that rule (or the receiver) named.
+- **Until the number is a connection** groups and assistant chats keep working (they need none), a
+  lead's message is filed, and **no lead is answered**: the responder activity is gone.
+- `registerInbound()` only touches a session it has an id for and an account token
+  (`wasender_personal_access_token` on the app) to manage; a session wired by hand in WaSender's
+  dashboard is left exactly as it is.
 
 ## The three shapes
 
-`ProcessWaSenderWebhookJob::handleMessageUpsert` is a router. In order:
+`ProcessWaSenderEventAction::handleMessageUpsert` is a router. In order:
 
 1. `InboundMessage::fromWebhookMessage()` — unroutable payload → silent skip (an expected condition,
    never `report()`).
 2. Newsletter (`@newsletter`) → skip. Broadcast-only, nobody to answer.
-3. `isFirstDelivery()` — 10-minute cache dedupe on the WhatsApp message id. WaSender documents **no**
+3. Our own send echoed back (`fromMe`) that matches a ledger delivery (`WaSenderInbound::deliveryOf()`,
+   on WaSender's `msgId` or WhatsApp's `key.id`) → skip. The ledger filed it when it left. The same
+   check keeps `message.sent` from filing it.
+4. `isFirstDelivery()` — 10-minute cache dedupe on the WhatsApp message id. WaSender documents **no**
    delivery or ordering semantics, and with the reply running inline a redelivery is a second answer.
-4. **Group** (`@g.us`) → `CreateGroupMessageAction` — gated by `allowed_group_jids`.
-5. **Assistant 1:1** → `CreateDirectAgentMessageAction`, when `CreateDirectAgentMessageAction::appliesTo()`
+   The key is spent before the message is filed, so it is released when filing throws: the retry is
+   the message's only second chance.
+5. **Group** (`@g.us`) → `CreateGroupMessageAction` — gated by `allowed_group_jids`.
+6. **Assistant 1:1** → `CreateDirectAgentMessageAction`, when `CreateDirectAgentMessageAction::appliesTo()`
    says so.
-6. **Everything else** → `CreateLeadMessageAction` — the historical lead flow.
+7. **Everything else** → `CreateLeadMessageAction` — the lead flow.
+
+The group and assistant actions are one filing body (`BaseInboundMessageAction::execute()`); each
+only says who the speaker is, what it adds to the stored payload, and its burst windows.
+
+Status-style events (`messages.update`, `messages.reaction`, `message-receipt.update`) arrive as one
+object or as a list; `entries()` reads both.
 
 | Shape | Entity | Creates a Lead? | Who replies |
 |---|---|---|---|
-| Lead DM (default) | `Lead` | yes | a **workflow rule** on `after-adding-message-to-channel` |
-| Assistant DM | `Channel` | no | the burst job, **inline** |
-| Group | `Channel` | no | the burst job, **inline** |
+| Lead DM (default) | `Lead` | yes | the agent that owns the number (`RespondToInboundMessageActivity`) |
+| Assistant DM | `Channel` | no | the burst job, **inline**, as the number's owner |
+| Group | `Channel` | no | the burst job, **inline**, as `group_agent_id`, else the receiver's `agent_id` (`GroupConfigEnum::agentId()`) |
 
-**A lead DM does not answer by itself.** It files the message, opens a Lead, and fires
-`after-adding-message-to-channel` expecting a rule with an agent-responder activity to speak. A fresh
-receiver with no such rule files messages and stays silent — that is configuration, not a bug. Assistant
-and group conversations reply from the burst flush (`FlushMessageBurstJob` → `WaSenderBurstHandler`)
-and need no rule at all.
+**A lead DM is answered by the number's owner, with no rule of the company's own.**
+`CreateLeadMessageAction` stamps the message with the connection (`message.communication`) and fires
+`after-adding-message-to-channel`; the app default rule's `RespondToInboundMessageActivity` answers when
+an agent owns the connection. A number nobody owns, or not yet a connection, files the message and
+stays silent (a skipped run). A rule a tenant wrote on the event hears it too. Assistant and group
+conversations reply from the burst flush instead (`FlushMessageBurstJob` → `WaSenderBurstHandler`).
+
+**The lead path has no burst.** Every text is its own turn. The only grouping is the album
+heuristic: two images in the same chat within `time_threshold_in_seconds` (default 8) chain under
+one parent (`chainConsecutiveImages()`), and only the album head (`parent_id` null) fires the turn —
+the photos chained under it ride along as files, and a turn per photo would answer a three-photo
+album three times.
+
+**A lead DM with a photo fires the turn too.** The caption is filed as the message's content
+(`MessageTypeEnum::extractText()`), which is what the responder reads; the files reach the kernel as
+native image/document blocks, and a photo with no caption is prompted as "the customer sent an
+attachment". Media is fetched after consent is settled, through the same guarded download the group
+and assistant paths use (`Actions\Concerns\DownloadsMessageMedia`): a file WaSender will not hand
+over tags the message `media-not-downloaded` and the turn carries on without it. Unlike the burst
+paths there is no `media_types` gate here — every image, video, audio and document is fetched.
+
+**`dale` / `process` only fires from a text.** The trigger word resolves the newest image album of
+the chat, fires `during-workflow` on it, and hands the agent the "we just processed files" prompt
+in place of the trigger word.
 
 ## Receiver configuration
 
-Everything lives in `receiver_webhooks.configuration` (JSON). There is deliberately **no GraphQL
+Everything lives in the `configuration` (JSON) of the company's **communication receiver** for
+WaSender (`WaSenderHandler::receiverFor()`), beside the `communication.provider` key the webhook job
+reads — never replace the whole array, merge into it. There is deliberately **no GraphQL
 surface** — a `whatsappConfigureGroups` mutation existed and was reverted; use
-`ConfigureWhatsAppGroupsAction` or edit the JSON.
+`ConfigureWhatsAppGroupsAction` or edit the JSON. That action and `ListWhatsAppGroupsAction` find
+the receiver through the agent's company (`receiverFor()`), never through an id kept on the agent.
 
 | Key | Default | Notes |
 |---|---|---|
-| `agent_id` | — | set by `ConnectWhatsAppSessionAction`. The DM/assistant agent, and the group fallback. |
+| `agent_id` | — | set by `ConnectWhatsAppSessionAction`. The fallback for an assistant chat while the number has no connection owner, and the group fallback. |
 | `session_id` | — | set at connect. |
-| `webhook_secret` | — | **required if WaSender sends `x-webhook-signature`** (it does). Empty ⇒ every delivery 401s. |
+| `webhook_secret` | — | what `x-webhook-signature` is compared with. A receiver that holds one refuses a call without it; one that holds none only takes unsigned calls. |
 | `allowed_group_jids` | `[]` | Opt-in. **Empty means no group is ingested at all.** |
 | `group_agent_id` | `agent_id` | |
 | `group_reply_mode` | `mention` | `never` / `mention` / `always` |
@@ -54,8 +132,10 @@ surface** — a `whatsappConfigureGroups` mutation existed and was reverted; use
 | `own_group_lid` | learned | written by the connector; don't hand-set |
 | `lead_type`, `receiver_id`, `pipeline_id`, `time_threshold_in_seconds` | — | lead path only |
 
-**Credentials are not here.** `wasender_api_key` / `wasender_base_url` resolve company → app
-(`ConfigurationEnum`). Inbound works without them; only the outbound reply fails.
+**Credentials are not here.** `wasender_api_key` resolves company → app and `wasender_base_url` is the app's
+(`ConfigurationEnum`). Inbound works without them; only the outbound reply fails. A base URL
+submitted on the integration form is checked with `SafeUrl` before it is probed
+(`Client::validateCredentials()`).
 
 ### Reply mode gates speaking, never processing
 
@@ -127,9 +207,8 @@ Both group/agent rule types are seeded by migrations under `database/migrations/
 `RuleType::getByName()`, catches `ModelNotFoundException` and returns null — the event is a **silent
 no-op** and no rule can ever attach.
 
-The group/agent events exist separately because `AgentChannelResponderActivity` reads
-`$params['message']->entity()` as a `Lead` with no guard — a group message hands it a `Channel` and it
-fatals. Never point group traffic at the DM event.
+The group/agent events exist separately because a rule written for the DM event reads the message's
+entity as a `Lead`, and a group message carries a `Channel`. Never point group traffic at the DM event.
 
 ### Publishing a burst to WordPress
 
@@ -187,9 +266,11 @@ Still open: there is **no outbound rate limit** at the send chokepoint, so nothi
 prevents a caller from looping. One known fan-out exists —
 `app/Console/Commands/Intelligence/Messaging/SendDelayMessageCommand` iterates companies → messages →
 `SendMessageToLeadAction`, which reaches WhatsApp when the lead's channel is WhatsApp, with no
-throttle between sends. Audit that before pointing it at a WaSender number. Outbound-initiated paths
-(`SendMessageToLeadAction`, follow-up engagements) should also use the separate
-`wasender_base_url_outbound` session so the number that answers is never the number that initiates.
+throttle between sends. Audit that before pointing it at a WaSender number. `WhatsAppTransport` uses
+the separate `wasender_base_url_outbound` session for a message that starts a conversation (no chat
+with that number exists yet), so the number that answers is never the number that initiates; a
+reply, or a message to someone who already wrote in, leaves from the number they know. It also
+spaces the parts of one send 30 seconds apart.
 
 For sustained volume the durable answer is the official WhatsApp Business Cloud API, not tuning this.
 
@@ -213,14 +294,15 @@ insert-intention lock (`tests/CLAUDE.md` documents the same trap for `CreateProd
 **A lid is not a phone number.** Filing `900000000000001` as a cellphone poisons every phone lookup in
 the company. A speaker WhatsApp never disclosed a number for gets **no contact row**.
 
-**Mention detection needs our own lid.** `contextInfo.mentionedJid` carries `@lid` values while the
-agent only ever stored a phone number. `GroupMentionService` learns the lid from a `fromMe` message or
+**Mention detection needs our own lid.** `contextInfo.mentionedJid` carries `@lid` values while all
+we know of ourselves is a phone number: the connection's `account_key`, else the number the group
+agent linked while the session is not a connection yet. `GroupMentionService` learns the lid from a `fromMe` message or
 resolves it via `/api/lid-from-phone-number`, caching it on the receiver as `own_group_lid`; a failed
 lookup backs off for an hour. In `mention` mode the agent cannot see a mention until that resolves —
 use `always` for a first smoke test rather than concluding detection is broken.
 
 **A provider refusal is not a fault.** `Client` turns any 4xx into `WaSenderRefusedException`, and
-`recordMediaFailure()` skips the Sentry report for it — media over WaSender's **25MB decrypt limit**
+`DownloadsMessageMedia::recordMediaFailure()` skips the Sentry report for it — media over WaSender's **25MB decrypt limit**
 (a 39MB clip 400s every time, KANVAS-ECOSYSTEM-68N), an expired media key, an unsupported type. None
 of it changes on a retry. The message is tagged `media-not-downloaded` with the reason in a
 `media_download_error` custom field, and the burst carries on — for a video the poster already
@@ -243,9 +325,11 @@ To find groups already sending you traffic, scan `receiver_webhook_calls.raw_pay
 ## Debugging a silent conversation
 
 1. Receiver run `success` but no reply → check the output shape. `mode: "assistant"` means the
-   assistant path; a payload with only `{text,type,uuid,chat_jid,...}` is the **lead** path, which needs
-   a responder rule.
-2. Reply message exists with `from_ia: true` but nothing arrived on WhatsApp → outbound failed; check
+   assistant path; a payload with only `{text,type,uuid,chat_jid,...}` is the **lead** path, which is
+   answered only when the number is a connection an agent owns: check `communication:setup`'s report
+   and that the filed message carries `communication.connection_id`.
+2. Reply message exists with `from_ia: true` but nothing arrived on WhatsApp → outbound failed; a
+   lead reply has a failed delivery on the ledger with WaSender's reason, otherwise check
    `wasender_api_key` at company/app.
 3. No second message at all after ~15s → the burst job never ran; check the `default` queue worker.
 4. Group message skipped with `group not allow-listed` → `allowed_group_jids` is empty or the JID is

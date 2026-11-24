@@ -24,13 +24,23 @@ class UpdateOrganizationAction
      */
     public function execute(): Organization
     {
-        $this->organization->update([
+        $attributes = [
             'name' => $this->organizationData->name,
             'email' => $this->organizationData->email,
             'phone' => $this->organizationData->phone,
             'address' => $this->organizationData->address,
             'organization_type_id' => $this->organizationData->organizationType?->getId(),
-        ]);
+        ];
+
+        if ($this->organizationData->taxId !== null) {
+            $attributes['tax_id'] = $this->organizationData->taxId;
+        }
+
+        if ($this->organizationData->taxIdType !== null) {
+            $attributes['tax_id_type'] = $this->organizationData->taxIdType;
+        }
+
+        $this->organization->update($attributes);
 
         $this->organization->fireWorkflow(
             WorkflowEnum::UPDATED->value,

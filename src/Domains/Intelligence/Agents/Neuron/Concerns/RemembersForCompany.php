@@ -204,7 +204,7 @@ trait RemembersForCompany
     {
         $entity = $this->resolveEntityForTurn();
 
-        return ConversationMemoryNode::metadata(
+        $metadata = ConversationMemoryNode::metadata(
             appId: $this->requireApp()->getId(),
             companyId: (int) $this->company?->getId(),
             agentId: $this->requireAgent()->getId(),
@@ -212,5 +212,13 @@ trait RemembersForCompany
             entityType: $entity === null ? null : $entity::class,
             entityId: $entity === null ? null : (int) $entity->getKey(),
         );
+
+        // The connector stamps the reply's id once its row exists; with both, recall can tell whether
+        // this exchange is still in the window (CompanyMemoryRetrieval).
+        if ($this->inboundMessageId !== null) {
+            $metadata['inbound_message_id'] = $this->inboundMessageId;
+        }
+
+        return $metadata;
     }
 }

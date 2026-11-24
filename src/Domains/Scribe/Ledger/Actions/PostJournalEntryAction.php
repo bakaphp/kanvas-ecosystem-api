@@ -13,6 +13,7 @@ use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLine
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Ledger\Models\JournalEntryLine;
+use Kanvas\Scribe\Ledger\Services\FiscalPeriodAutoOpenService;
 use Kanvas\Scribe\Ledger\Services\JournalEntryValidatorService;
 use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
 
@@ -24,6 +25,8 @@ use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
  * of this Action are not allowed.
  *
  * Flow:
+ *   0. FiscalPeriodAutoOpenService opens the posting month when it has no period and falls inside the
+ *      rolling window (current year + next), so no posting path fails on January 1st.
  *   1. PeriodCloseService.assertCanPostAt → throws ClosedFiscalPeriodException if the period rejects.
  *   2. JournalEntryValidatorService.validate → throws InvalidJournalEntryLineException / UnbalancedJournalEntryException
  *      on shape or balance violations.
@@ -46,6 +49,7 @@ class PostJournalEntryAction
         protected readonly JournalEntryValidatorService $validator = new JournalEntryValidatorService(),
         protected readonly PeriodCloseService $periodCloseService = new PeriodCloseService(),
         protected readonly DocumentNumberAllocatorService $numberAllocator = new DocumentNumberAllocatorService(),
+        protected readonly FiscalPeriodAutoOpenService $periodAutoOpen = new FiscalPeriodAutoOpenService(),
     ) {
     }
 
@@ -53,6 +57,13 @@ class PostJournalEntryAction
     {
         $appsId = $this->data->app->getId();
         $companiesId = $this->data->company->getId();
+
+        $this->periodAutoOpen->ensureOpenPeriodWithinWindow(
+            $this->data->app,
+            $this->data->company,
+            $this->data->postedAt,
+            $this->postedByUser,
+        );
 
         $period = $this->periodCloseService->assertCanPostAt(
             $appsId,

@@ -4,23 +4,26 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
+use Kanvas\Communication\Connections\Actions\EnsureProviderIntegrationAction;
+use Kanvas\Communication\Connections\Actions\RefreshAgentConnectionsAction;
+use Kanvas\Communication\Support\ProviderRollout;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
-use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
+use Kanvas\Connectors\Mailgun\Handlers\MailgunHandler;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
-use Kanvas\Connectors\Mailgun\Services\MailgunReceiverService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**
- * Gives one agent its own `{slug}@{company mailgun domain}` address: a receiver it owns, a Mailgun
- * route forwarding that address into it, and the address recorded on the agent and on the agent's
- * user as `contact_email`.
+ * Gives one agent its own `{slug}@{company mailgun domain}` address: the address and who may write
+ * to it are recorded on the agent, the address on the agent's user as `contact_email`, and the
+ * company's connections are reconciled so the mailbox gets its connection and its route.
  *
- * Idempotent — re-running repoints the existing route at the receiver instead of stacking a second
- * one, which is what makes it safe to expose to an agent as a tool it can call whenever it likes.
+ * Idempotent — the mailbox is an account of the company's Mailgun integration, and reconciling it
+ * again finds the same connection and the same route, which is what makes it safe to expose to an
+ * agent as a tool it can call whenever it likes.
  */
 class ProvisionAgentMailboxAction
 {
@@ -31,11 +34,19 @@ class ProvisionAgentMailboxAction
     }
 
     /**
-     * @return array{address: string, access: string, route_id: string, receiver_url: string, contact_email_set: bool}
+     * @return array{address: string, access: string, route_id: string, receiver_url: string, connected: bool, contact_email_set: bool}
      */
     public function execute(): array
     {
-        $app = $this->agent->app;
+        // A customer line is the company's own address, which an agent answers; on an address
+        // named after the agent it would open leads and send in the company's name from a mailbox.
+        if (! $this->access->isPersonal()) {
+            throw new ValidationException(
+                'An agent mailbox is restricted or open. A customer line is the company\'s address, '
+                . 'which is not provisioned on an agent.'
+            );
+        }
+
         $mailboxService = new AgentMailboxService();
 
         $address = $mailboxService->proposedAddressFor($this->agent);
@@ -43,49 +54,37 @@ class ProvisionAgentMailboxAction
 
         $this->assertWebhookSigningKeyIsConfigured();
 
-        $client = new Client($app);
         // Cheap on a correct setup, and the only thing standing between a typo'd domain and a
         // mailbox that accepts nothing forever.
-        $client->getDomain($domain);
+        new Client($this->agent->app)->getDomain($domain);
 
-        $receiver = new MailgunReceiverService()->forAgent($this->agent);
-        $forwardUrl = $receiver->getUrl();
-        $description = 'Kanvas agent mailbox — ' . $this->agent->name . ' (agent ' . (int) $this->agent->getId() . ')';
+        // A company on an app-wide Mailgun never integrated it; the mailbox is what gives it the
+        // integration its connection hangs off.
+        $integration = new EnsureProviderIntegrationAction(
+            $this->agent->app,
+            $this->agent->company,
+            $this->agent->user,
+            MailgunHandler::class
+        )->execute();
 
-        $routeId = (string) ($this->agent->get(CustomFieldEnum::ROUTE_ID->value) ?? '');
-        $existingRoute = $routeId !== '' ? null : $client->findRouteByRecipient($address);
-
-        if ($routeId !== '') {
-            $route = $client->updateRoute($routeId, $address, $forwardUrl, $description);
-        } elseif ($existingRoute !== null) {
-            // A route left behind by an earlier provision (or created by hand in the dashboard) —
-            // adopt it, or Mailgun ends up with two routes racing for the same recipient.
-            $route = $client->updateRoute((string) $existingRoute['id'], $address, $forwardUrl, $description);
-        } else {
-            $route = $client->createRoute($address, $forwardUrl, $description);
+        if ($integration === null || new ProviderRollout()->providerFor($integration, $this->agent->app) === null) {
+            throw new ValidationException(
+                'This company cannot be given a Mailgun integration, so the mailbox would never receive or '
+                . 'send. Finish the Mailgun integration setup first.'
+            );
         }
-
-        $routeId = (string) ($route['id'] ?? $routeId);
-
-        $receiver->configuration = [
-            ...$receiver->configuration,
-            ReceiverConfigurationEnum::AGENT_ID->value => $this->agent->getId(),
-            ReceiverConfigurationEnum::MAILBOX_ADDRESS->value => $address,
-            ReceiverConfigurationEnum::CAPTURE_FILES->value => true,
-        ];
-        $receiver->is_active = true;
-        $receiver->saveOrFail();
 
         $this->agent->set(CustomFieldEnum::MAILBOX_ADDRESS->value, $address);
         $this->agent->set(CustomFieldEnum::MAILBOX_ACCESS->value, $this->access->value);
-        $this->agent->set(CustomFieldEnum::ROUTE_ID->value, $routeId);
+        $contactEmailSet = $this->setUserContactEmail($address, $domain);
+
+        // The mailbox is an account of the company's Mailgun integration: reconciling it is what
+        // makes the connection and points the address's route at the communication receiver.
+        new RefreshAgentConnectionsAction($this->agent)->execute();
 
         return [
-            'address' => $address,
-            'access' => $this->access->value,
-            'route_id' => $routeId,
-            'receiver_url' => $forwardUrl,
-            'contact_email_set' => $this->setUserContactEmail($address, $domain),
+            ...$mailboxService->statusFor($this->agent->refresh()),
+            'contact_email_set' => $contactEmailSet,
         ];
     }
 
@@ -96,9 +95,7 @@ class ProvisionAgentMailboxAction
      */
     private function assertWebhookSigningKeyIsConfigured(): void
     {
-        $key = ConfigurationEnum::WEBHOOK_SIGNING_KEY->value;
-
-        if ((string) $this->agent->app->get($key) !== '' || (string) $this->agent->company->get($key) !== '') {
+        if (ConfigurationEnum::signingKeyFor($this->agent->app, $this->agent->company) !== '') {
             return;
         }
 

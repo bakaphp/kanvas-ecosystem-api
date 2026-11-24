@@ -8,6 +8,7 @@ use Baka\Search\Contracts\NameSearchInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Override;
 use Typesense\Client as TypesenseClient;
 
@@ -30,7 +31,7 @@ class TypesenseNameSearch implements NameSearchInterface
     public function idsFor(
         Model $model,
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         string $queryBy,
         array $terms,
         int $perTerm,
@@ -44,7 +45,7 @@ class TypesenseNameSearch implements NameSearchInterface
         $model->setRelation('app', $app);
 
         $collection = $model->searchableAs();
-        $filter = sprintf('apps_id:=%d && companies_id:=%d', $app->getId(), $company->getId());
+        $filter = sprintf('apps_id:=%d && companies_id:=[%s]', $app->getId(), implode(',', CompanyScope::companyIdsOf($company)));
 
         $ids = [];
 

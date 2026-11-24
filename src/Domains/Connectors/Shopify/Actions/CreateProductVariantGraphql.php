@@ -71,13 +71,13 @@ class CreateProductVariantGraphql
                     QUERY;
                 }
                 $variables = [
-                    "variants" => [
+                    'variants' => [
                         'price' => $price,
                         'optionValues' => [
                             [
                                 'name' => $variant->name,
                                 'optionName' => 'Title',
-                            ]
+                            ],
                         ],
                         'inventoryItem' => [
                             'tracked' => true,
@@ -85,21 +85,21 @@ class CreateProductVariantGraphql
                             'measurement' => [
                                 'weight' => [
                                     'unit' => 'GRAMS',
-                                    'value' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value)
-                                ]
-                            ]
+                                    'value' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value),
+                                ],
+                            ],
                         ],
                         'inventoryQuantities' => [
                             [
                                 'locationId' => $this->getShopifyLocationId($client),
                                 'availableQuantity' => $variant->getQuantity($this->warehouse),
-                            ]
-                        ]
+                            ],
+                        ],
                     ],
                     'productId' => "gid://shopify/Product/{$productVariantId}",
                 ];
                 if ($variantShopifyId) {
-                    $variables['variants']['id'] = "gid://shopify/ProductVariant/" . $variantShopifyId;
+                    $variables['variants']['id'] = 'gid://shopify/ProductVariant/' . $variantShopifyId;
                     unset($variables['variants']['optionValues']);
                     unset($variables['variants']['inventoryQuantities']);
                 }
@@ -111,8 +111,10 @@ class CreateProductVariantGraphql
             }
         } catch (\Throwable $e) {
             Log::error('CreateProductVariantGraphql failed', ['error' => $e->getMessage()]);
+
             return ['error' => $e->getMessage()];
         }
+
         return $variantsResponses;
     }
 
@@ -131,6 +133,7 @@ class CreateProductVariantGraphql
         }
         QUERY;
         $response = $client->GraphQL->post($query);
+
         return $response['data']['locations']['edges'][0]['node']['id'];
     }
 }

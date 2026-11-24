@@ -58,6 +58,21 @@ final class ActivityRunRecordingTest extends TestCase
         $this->assertSame($before, StoredWorkflow::count(), 'a rule that does not match must cost no workflows row');
     }
 
+    public function testASkippedRunIsRecordedAsSkippedNotFailed(): void
+    {
+        $app = app(Apps::class);
+        $lead = $this->createLead();
+        $rule = $this->createSyncPullRule($app, PlainRecordingActivity::class, 'Test Plain Recording');
+
+        new ProcessWorkflowEventAction($app, $lead)->execute(WorkflowEnum::PULL->value, ['skip' => true]);
+
+        $row = $this->historyFor($rule);
+
+        $this->assertNotNull($row, 'a skip says why nothing happened, so it is kept');
+        $this->assertSame(StatusEnum::SKIPPED->value, $row->status->slug);
+        $this->assertSame('nothing to do', $row->response['message'] ?? null);
+    }
+
     public function testAThrowingActivityIsAlwaysRecordedAsFailed(): void
     {
         $app = app(Apps::class);

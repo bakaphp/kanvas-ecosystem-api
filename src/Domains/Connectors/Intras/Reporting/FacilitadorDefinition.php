@@ -10,6 +10,7 @@ use Kanvas\Analytics\Reporting\Contracts\RefreshableReportInterface;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\Enums\ReportGrainEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Intras\Support\CustomFieldsBatch;
 use Kanvas\Event\Facilitators\Models\Facilitator;
 use Kanvas\Guild\Customers\Models\People;
 use Override;
@@ -123,8 +124,8 @@ class FacilitadorDefinition implements RefreshableReportInterface
             $facilitatorIds = array_map(fn ($r) => (int) $r->id, $rows);
             $peopleIds = array_map(fn ($r) => (int) $r->people_id, $rows);
 
-            $facilitatorFields = $this->customFieldsFor(Facilitator::class, $facilitatorIds);
-            $peopleFields = $this->customFieldsFor(People::class, $peopleIds);
+            $facilitatorFields = CustomFieldsBatch::forEntities(Facilitator::class, $facilitatorIds);
+            $peopleFields = CustomFieldsBatch::forEntities(People::class, $peopleIds);
             $contacts = $this->contactsFor($peopleIds);
             $tags = $this->tagsFor($peopleIds);
             $rollups = $this->rollupsFor($facilitatorIds);
@@ -159,36 +160,6 @@ class FacilitadorDefinition implements RefreshableReportInterface
                 ->map(fn ($id) => (int) $id)
                 ->all(),
         ];
-    }
-
-    /**
-     * Not company-scoped — apps_custom_fields.companies_id records the writer's context.
-     *
-     * @param array<int, int> $entityIds
-     *
-     * @return array<int, array<string, string>>
-     */
-    protected function customFieldsFor(string $modelName, array $entityIds): array
-    {
-        if ($entityIds === []) {
-            return [];
-        }
-
-        $rows = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('model_name', $modelName)
-            ->whereIn('entity_id', $entityIds)
-            ->where('is_deleted', 0)
-            ->select('entity_id', 'name', 'value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->entity_id][(string) $row->name] = (string) $row->value;
-        }
-
-        return $map;
     }
 
     /**

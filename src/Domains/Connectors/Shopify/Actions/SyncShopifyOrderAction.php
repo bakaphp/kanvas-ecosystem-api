@@ -117,6 +117,11 @@ class SyncShopifyOrderAction
         $order = (new CreateOrderAction($order))->disableWorkflow()->execute();
         $order->setShopifyId($this->region, $this->orderData['id']);
 
+        if ($order->tax_amount > 0) {
+            $order->tax_source = 'imported';
+            $order->saveOrFail();
+        }
+
         $order->fireWorkflow(
             WorkflowEnum::PULL->value,
             true,

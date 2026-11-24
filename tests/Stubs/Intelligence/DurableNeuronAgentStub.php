@@ -57,6 +57,7 @@ class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
             #[Override]
             public function chat(Message ...$messages): ProviderResponse
             {
+                FakeNeuronProvider::$lastMessages = $messages;
                 $last = end($messages);
 
                 if (! $last instanceof ToolResultMessage) {

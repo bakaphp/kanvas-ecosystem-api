@@ -26,11 +26,15 @@ use Kanvas\Event\Facilitators\Models\Facilitator;
  */
 class PullEventVersionFacilitatorsFromIntrasAction
 {
+    /**
+     * @param list<int>|null $onlyVersionIds links of just these legacy versions (on-demand refresh)
+     */
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
         protected UserInterface $user,
-        protected ?int $agencyId = null
+        protected ?int $agencyId = null,
+        protected ?array $onlyVersionIds = null
     ) {
     }
 
@@ -58,6 +62,10 @@ class PullEventVersionFacilitatorsFromIntrasAction
                     ->from('events_versions as ev')
                     ->where('ev.agencies_id', $agencyId);
             });
+        }
+
+        if ($this->onlyVersionIds !== null) {
+            $query->whereIn('evf.events_versions_id', $this->onlyVersionIds);
         }
 
         $count = 0;

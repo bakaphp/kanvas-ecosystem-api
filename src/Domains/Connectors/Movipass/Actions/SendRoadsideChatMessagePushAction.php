@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
+use Kanvas\Connectors\Movipass\Services\TechniciansOneSignalService;
 use Kanvas\Enums\SourceEnum;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Services\OneSignalService;
@@ -98,10 +99,8 @@ class SendRoadsideChatMessagePushAction
             (int) $this->message->getKey(),
         );
 
-        $oneSignalConfigured = $this->isOneSignalConfigured($order);
-
         foreach ($recipients as $recipient) {
-            $this->deliveries[] = $this->describeDelivery($recipient, $notification, $oneSignalConfigured);
+            $this->deliveries[] = $this->describeDelivery($recipient, $notification);
             $recipient->notify($notification);
         }
 
@@ -122,11 +121,10 @@ class SendRoadsideChatMessagePushAction
         return $this->deliveries;
     }
 
-    private function describeDelivery(
-        Users $recipient,
-        RoadsideChatMessageNotification $notification,
-        bool $oneSignalConfigured
-    ): array {
+    private function describeDelivery(Users $recipient, RoadsideChatMessageNotification $notification): array
+    {
+        $oneSignalService = $this->resolveOneSignalService($recipient, $notification);
+
         return [
             'users_id' => (int) $recipient->getId(),
             'channels' => array_map(
@@ -136,22 +134,22 @@ class SendRoadsideChatMessagePushAction
             'expo_tokens' => count($recipient->routeNotificationForExpo()),
             'onesignal_devices' => $this->countLinkedDevices($recipient, SourceEnum::IOS)
                 + $this->countLinkedDevices($recipient, SourceEnum::ANDROID),
-            'onesignal_configured' => $oneSignalConfigured,
+            'onesignal_configured' => $oneSignalService !== null,
+            'onesignal_app' => $oneSignalService instanceof TechniciansOneSignalService ? 'technicians' : 'users',
         ];
     }
 
     /**
-     * Same check the OneSignal channel runs before sending (it skips the push when this throws),
-     * against the order's app, which is the one the notification sends for.
+     * Same resolution the channel runs before sending (it skips the push when this throws).
      */
-    private function isOneSignalConfigured(Order $order): bool
-    {
+    private function resolveOneSignalService(
+        Users $recipient,
+        RoadsideChatMessageNotification $notification
+    ): ?OneSignalService {
         try {
-            new OneSignalService($order->app);
-
-            return true;
+            return $notification->oneSignalServiceFor($recipient);
         } catch (Throwable) {
-            return false;
+            return null;
         }
     }
 

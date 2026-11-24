@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
@@ -45,6 +46,7 @@ class AgentChatKernel
      *                                only to the in-process backends (Neuron, Laravel); the runtime
      *                                backend keeps them URL-in-prompt (it rejects non-image uploads).
      * @param list<Filesystem> $attachments Freshly uploaded files to attach to the persisted user Message.
+     * @param list<int> $burstMessageIds Social messages represented in the combined inbound prompt.
      */
     public function __construct(
         protected readonly Agent $agent,
@@ -64,6 +66,7 @@ class AgentChatKernel
         protected readonly ?string $adkBaseUrl = null,
         protected readonly bool $fallbackOnFailure = true,
         protected readonly bool $rendersArtifacts = false,
+        protected readonly array $burstMessageIds = [],
     ) {
     }
 
@@ -90,6 +93,16 @@ class AgentChatKernel
         if (! $this->agent->is_active) {
             throw new AgentReplySkippedException(
                 sprintf('Agent %d is deactivated', $this->agent->getId())
+            );
+        }
+
+        // A turn with no text and nothing attached has nothing to answer, and Gemini refuses it outright:
+        // a user content whose only part is empty text is ignored, so the request ends on the previous
+        // model turn and comes back 400 "Requests ending with a model turn are not supported"
+        // (KANVAS-ECOSYSTEM-6QC, a connector delivering an empty body).
+        if (trim($this->message) === '' && $this->nativeMedia() === [] && $this->attachments === []) {
+            throw new AgentReplySkippedException(
+                sprintf('Empty inbound message for agent %d: nothing to answer', $this->agent->getId())
             );
         }
 
@@ -187,6 +200,17 @@ class AgentChatKernel
 
     protected function runHandler(): string
     {
+        // Ahead of every backend: the agent's chat is then a terminal for the opencode factory, and no
+        // model of the agent's own reads the message.
+        if (CodingChatSettingEnum::isEnabledFor($this->agent)) {
+            return new RunCodingChatAction(
+                agent: $this->agent,
+                session: $this->session,
+                message: $this->message,
+                user: $this->user,
+            )->execute();
+        }
+
         if ($this->agent->isContainerRuntime()) {
             return new RunRuntimeChatAction(
                 agent: $this->agent,
@@ -260,6 +284,7 @@ class AgentChatKernel
             $handler->setThreadId($this->threadId($entity));
             $handler->setSession($this->session);
             $handler->setCurrentLead($this->currentLead);
+            $handler->setInboundMessageId($this->sourceMessage?->getId(), $this->burstMessageIds);
             // Plumb the turn's attachment URLs so the conversation history can persist a reference
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());

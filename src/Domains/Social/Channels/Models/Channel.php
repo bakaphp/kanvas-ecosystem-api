@@ -138,6 +138,8 @@ class Channel extends BaseModel
                 'user' => $user,
                 'app' => $message->app,
                 'company' => $message->company,
+                // A plain value for rule conditions: a rule that answers a person starts no run for any other message.
+                'from_human' => $message->isFromHuman(),
             ]
         );
 
@@ -190,6 +192,15 @@ class Channel extends BaseModel
     public function isAiAssistChannel(): bool
     {
         return $this->name == ChannelNameEnum::AI_ASSIST->value;
+    }
+
+    /**
+     * Staff talking among themselves or to the agent about the record. Never a customer delivery, so
+     * readers label it and writers keep it off the lead and people conversation channels.
+     */
+    public function isInternalChannel(): bool
+    {
+        return $this->isNoteChannel() || $this->isAiAssistChannel();
     }
 
     public function isDefaultChannel(): bool

@@ -29,6 +29,7 @@ input ApprovalPolicyInput {
     reject_policy: String
     fallback_resolver: String
     fallback_config: Mixed
+    "all (default), first, none, or digest: one email per approver for everything opened within 5 minutes."
     notify: String
     expires_after_hours: Int
     allow_authority_override: Boolean

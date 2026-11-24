@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
@@ -13,6 +14,7 @@ use Kanvas\Intelligence\Agents\Contracts\RequiresMcpConnection;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasConversationHuman;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasTurnContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -383,6 +385,7 @@ trait MergesRegisteredTools
             $company = $this->firstCandidateOfType($candidates, Companies::class);
             $user = $this->firstCandidateOfType($candidates, Users::class);
             $actingAgent = $this->firstCandidateOfType($candidates, Agent::class);
+            $scope = $this->firstCandidateOfType($candidates, CompanyScope::class);
 
             if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
                 $tool->withContext(
@@ -390,6 +393,7 @@ trait MergesRegisteredTools
                     $company,
                     $user,
                     $actingAgent instanceof Agent ? $actingAgent : null,
+                    $scope instanceof CompanyScope ? $scope : null,
                 );
             }
         }
@@ -419,6 +423,13 @@ trait MergesRegisteredTools
             if ($human instanceof Users) {
                 $tool->forConversationHuman($human);
             }
+        }
+
+        if (in_array(HasTurnContext::class, $uses, true)) {
+            $tool->withTurn(
+                method_exists($this, 'getThreadId') ? $this->getThreadId() : null,
+                method_exists($this, 'currentTurnId') ? $this->currentTurnId() : null,
+            );
         }
 
         // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users

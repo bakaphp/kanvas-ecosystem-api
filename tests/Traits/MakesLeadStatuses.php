@@ -7,8 +7,8 @@ namespace Tests\Traits;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 
 /**
- * CI seeds no `leads_status` rows, so a test that needs a closed status creates the global one it
- * expects; `Lead::OPEN_LEADS_STATUS_IDS` names ids 1 and 2 as open, anything else counts as closed.
+ * CI seeds only Active (1) and Inactive (2), both `is_open`, so a test that needs a closed status
+ * creates the global one it expects; a status row is closed unless it sets `is_open`.
  */
 trait MakesLeadStatuses
 {

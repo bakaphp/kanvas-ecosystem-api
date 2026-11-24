@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\PdfIngest;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -27,7 +28,7 @@ use Tests\Scribe\ScribeTestCase;
  *
  *   Path 3 — vendor invoice arrives with a bill_number that already exists for this tenant
  *            → ProposeBillFromPdfAction returns the existing Bill rather than creating a duplicate.
- *              The orchestrator marks the log as ENTITY_CREATED pointing at the pre-existing bill.
+ *              The orchestrator marks the log as IGNORED_DUPLICATE pointing at the pre-existing bill.
  *
  * Path 1 (message-id idempotency) is covered by PdfIngestRoutingTest.
  */
@@ -192,7 +193,8 @@ class PdfIngestDedupTest extends ScribeTestCase
             hasher: $hasher,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log1->status);
+        // A first-time vendor has no GL to code from, so the bill waits for review (still created + linked).
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log1->status);
         $firstBillId = $log1->linked_entity_id;
         $this->assertNotNull($firstBillId);
 
@@ -224,7 +226,7 @@ class PdfIngestDedupTest extends ScribeTestCase
             hasher: $hasher,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log2->status);
+        $this->assertSame(PdfIngestStatusEnum::IGNORED_DUPLICATE, $log2->status);
         $this->assertSame('bill', $log2->linked_entity_type);
         $this->assertSame(
             (int) $firstBillId,
@@ -239,6 +241,56 @@ class PdfIngestDedupTest extends ScribeTestCase
             ->where('bill_number', 'INV-2026-555')
             ->count();
         $this->assertSame(1, $billCount, 'Bill-number dedup should prevent a second Bill row.');
+    }
+
+    public function test_path3_same_bill_number_with_other_punctuation_is_ignored_as_a_duplicate(): void
+    {
+        $hasher = new FakePdfContentHasher();
+        $arrive = fn (string $billNumber, string $messageId): PdfIngestLog => $this->arriveVendorInvoice(
+            'AWS',
+            $billNumber,
+            $messageId,
+            'invoice@amazonaws.com',
+            $hasher,
+        );
+
+        $first = $arrive('INV-2026-777', 'aws-original');
+        $second = $arrive('inv 2026/777', 'aws-resent');
+
+        $this->assertSame(PdfIngestStatusEnum::IGNORED_DUPLICATE, $second->status);
+        $this->assertSame((int) $first->linked_entity_id, (int) $second->linked_entity_id);
+        $this->assertSame(1, Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('bill_number', 'like', '%2026%777%')
+            ->count());
+    }
+
+    public function test_path3_the_same_bill_number_from_another_vendor_is_its_own_bill(): void
+    {
+        $hasher = new FakePdfContentHasher();
+        // Each vendor writes from its own address; the vendor lookup matches on the email before the name.
+        $arrive = fn (string $vendor, string $messageId): PdfIngestLog => $this->arriveVendorInvoice(
+            $vendor,
+            '1001',
+            $messageId,
+            Str::slug($vendor) . '@vendor.test',
+            $hasher,
+        );
+
+        $acme = $arrive('Acme Supplies PerVendor', 'acme-1001');
+        $beta = $arrive('Beta Tools PerVendor', 'beta-1001');
+        $acmeAgain = $arrive('Acme Supplies PerVendor', 'acme-1001-resent');
+
+        $this->assertNotSame(PdfIngestStatusEnum::IGNORED_DUPLICATE, $beta->status);
+        $this->assertNotSame((int) $acme->linked_entity_id, (int) $beta->linked_entity_id);
+        $this->assertNotSame(
+            (int) Bill::getById((int) $acme->linked_entity_id)->vendor_organization_id,
+            (int) Bill::getById((int) $beta->linked_entity_id)->vendor_organization_id,
+        );
+
+        $this->assertSame(PdfIngestStatusEnum::IGNORED_DUPLICATE, $acmeAgain->status);
+        $this->assertSame((int) $acme->linked_entity_id, (int) $acmeAgain->linked_entity_id);
     }
 
     public function test_path3_voided_bills_do_not_block_a_new_one_with_same_number(): void
@@ -298,7 +350,7 @@ class PdfIngestDedupTest extends ScribeTestCase
             hasher: $hasher,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log->status);
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status);
         $this->assertSame('bill', $log->linked_entity_type);
         $this->assertNotSame((int) $bill->id, (int) $log->linked_entity_id);
     }
@@ -347,7 +399,7 @@ class PdfIngestDedupTest extends ScribeTestCase
             )->execute();
 
             $this->assertSame(
-                PdfIngestStatusEnum::ENTITY_CREATED,
+                PdfIngestStatusEnum::NEEDS_REVIEW,
                 $log->status,
                 "Attachment #{$i} sharing the email's Message-Id must still create its own entity.",
             );
@@ -392,5 +444,37 @@ class PdfIngestDedupTest extends ScribeTestCase
         $row = PdfIngestLog::query()->where('message_id', 'hash-stamp-test')->first();
         $this->assertNotNull($row->content_sha256);
         $this->assertSame(hash('sha256', $pdf->uuid), $row->content_sha256);
+    }
+
+    private function arriveVendorInvoice(
+        string $vendor,
+        string $billNumber,
+        string $messageId,
+        string $fromEmail,
+        FakePdfContentHasher $hasher,
+    ): PdfIngestLog {
+        return new ProcessAccountingPdfAction(
+            input: new PdfIngestInput(
+                app: $this->kanvasApp,
+                company: $this->company,
+                pdf: $this->createFilesystemRow(),
+                messageId: $messageId,
+                fromEmail: $fromEmail,
+            ),
+            user: static::$cachedUser,
+            classifier: new FakePdfClassifier()->queue(new PdfClassificationResult(
+                document_type: PdfIngestDocumentTypeEnum::VENDOR_INVOICE,
+                confidence: 0.93,
+                extracted: [
+                    'vendor_name' => $vendor,
+                    'bill_number' => $billNumber,
+                    'currency' => 'USD',
+                    'subtotal' => 300.0,
+                    'tax' => 0.0,
+                    'total' => 300.0,
+                ],
+            )),
+            hasher: $hasher,
+        )->execute();
     }
 }

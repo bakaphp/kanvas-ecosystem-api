@@ -18,6 +18,8 @@ enum CodingOutcomeEnum: string
     case PUSH_FAILED = 'push_failed';
     /** Finished with changes but no branch of its own to push — the diff is reviewed on the workspace. */
     case REVIEW_ONLY = 'review_only';
+    /** A run-only job finished and, as intended, changed nothing. */
+    case RAN = 'ran';
     /** Finished; a human has been asked before the push. Not final. */
     case AWAITING_PUSH = 'awaiting_push';
     case PUSH_REJECTED = 'push_rejected';
@@ -39,7 +41,7 @@ enum CodingOutcomeEnum: string
     {
         return match ($this) {
             self::AWAITING_PUSH => TaskStatusEnum::WAITING,
-            self::PUSHED, self::REVIEW_ONLY => TaskStatusEnum::DONE,
+            self::PUSHED, self::REVIEW_ONLY, self::RAN => TaskStatusEnum::DONE,
             self::CANCELLED, self::PUSH_CANCELLED => TaskStatusEnum::SKIPPED,
             self::PUSH_FAILED, self::PUSH_REJECTED, self::PUSH_EXPIRED, self::FAILED => TaskStatusEnum::BLOCKED,
         };
@@ -58,6 +60,7 @@ enum CodingOutcomeEnum: string
     {
         return match ($this) {
             self::PUSHED, self::REVIEW_ONLY => '✅ Coding job finished',
+            self::RAN => '✅ Job finished — nothing to push',
             self::AWAITING_PUSH => '✅ Coding job finished — awaiting push approval',
             self::PUSH_FAILED => '⚠️ Coding job finished but the push failed',
             self::PUSH_REJECTED => '🛑 Push rejected',

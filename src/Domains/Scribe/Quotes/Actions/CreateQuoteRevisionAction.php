@@ -77,6 +77,10 @@ class CreateQuoteRevisionAction
                 user: $this->user,
             )->execute();
 
+            // The revision starts from the SOW it replaces; a new SOW written for it chains onto this one.
+            $newQuote->sow_message_id = $this->originalQuote->sow_message_id;
+            $newQuote->save();
+
             // Move the original to SUPERSEDED so the "live" version is unambiguous.
             $this->stateMachine->assertTransition($this->originalQuote, QuoteStatusEnum::SUPERSEDED);
             $this->originalQuote->status = QuoteStatusEnum::SUPERSEDED;

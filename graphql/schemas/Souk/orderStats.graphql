@@ -213,6 +213,24 @@ input ExportOrderPaymentsInput {
     includeSummary: Boolean # Show the breakdown-by-period + metrics summary block (default true); false exports only the order detail table
 }
 
+enum PaymentChannelFilter {
+    ALL
+    DIGITAL
+    PHYSICAL
+}
+
+input ExportPaymentsFinancialReportInput {
+    startDate: String!
+    endDate: String!
+    timezone: String
+    paidStates: [String!]
+    orderTypeNames: [String!]
+    variantId: Int
+    paymentChannel: PaymentChannelFilter
+    user_email: String
+    provider_company_id: [ID!]
+}
+
 type OrderCommissionStats {
     total_revenue: Float!
     total_commission: Money!
@@ -248,5 +266,12 @@ extend type Query @guard {
     ): OrderExportResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@exportPayments"
+        )
+    exportPaymentsFinancialReport(
+        input: ExportPaymentsFinancialReportInput!
+        metadata: ExportMetadataInput
+    ): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@exportFinancialReport"
         )
 }

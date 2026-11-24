@@ -38,6 +38,7 @@ class ListPeopleTool extends Tool
             new ToolProperty(name: 'tag', type: PropertyType::STRING, description: 'Tag name (partial match) the person must carry.', required: false),
             new ToolProperty(name: 'people_type', type: PropertyType::STRING, description: 'Person type name, e.g. "Participant", "Facilitator" (partial match).', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Max people to return. Defaults to 50, max 200.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -49,7 +50,12 @@ class ListPeopleTool extends Tool
         ?string $tag = null,
         ?string $people_type = null,
         ?int $limit = null,
+        ?int $tenant_company_id = null,
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $organization = $organization !== null ? trim($organization) : null;
         $tag = $tag !== null ? trim($tag) : null;
         $people_type = $people_type !== null ? trim($people_type) : null;
@@ -64,7 +70,7 @@ class ListPeopleTool extends Tool
 
         $people = People::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->when($organization !== null && $organization !== '', fn ($q): mixed => $q->whereHas(
                 'organizations',
@@ -86,7 +92,7 @@ class ListPeopleTool extends Tool
             ])
             ->orderByDesc('id')
             ->limit($limit)
-            ->get(['id', 'firstname', 'lastname', 'name', 'people_types_id']);
+            ->get(['id', 'firstname', 'lastname', 'name', 'people_types_id', 'companies_id']);
 
         return [
             'count' => $people->count(),
@@ -100,6 +106,7 @@ class ListPeopleTool extends Tool
                 // "{role} - {location} #{variant_id}" tags, and the model needs to read all of
                 // them to tell which relationship answers the question asked.
                 'tags' => $person->tags->pluck('name')->all(),
+                ...$this->tenantLabel($person),
             ])->all(),
         ];
     }

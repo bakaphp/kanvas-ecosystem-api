@@ -88,10 +88,7 @@ class OrderPaymentStatsTool extends Tool
         $type = $order_type !== null ? OrderTypeEnum::tryFrom(strtolower(trim($order_type))) : null;
 
         if ($order_type !== null && $type === null) {
-            return [
-                'status' => 'error',
-                'message' => 'order_type must be one of: ' . implode(', ', array_column(OrderTypeEnum::cases(), 'value')) . '.',
-            ];
+            return $this->unknownOrderType();
         }
 
         $providerScope = $this->providerCompanyScope($provider_company_id);

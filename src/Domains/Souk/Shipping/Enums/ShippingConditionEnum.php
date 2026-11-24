@@ -18,4 +18,5 @@ enum ShippingConditionEnum: string
     case QUOTED_AMOUNT = 'quoted_amount';
     case CURRENCY = 'currency';
     case QUOTED_AT = 'quoted_at';
+    case BOOKING_META = 'booking_meta';
 }

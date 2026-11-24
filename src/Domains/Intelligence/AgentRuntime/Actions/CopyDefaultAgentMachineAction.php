@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentMachineAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\AgentMachine as AgentMachineData;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -34,6 +35,11 @@ class CopyDefaultAgentMachineAction
             'port_range_end' => $this->source->port_range_end,
             'max_agents' => $this->source->max_agents,
             'is_active' => $this->source->is_active,
+            // `runtime` is left to the column default: a copy is one company's shared container box,
+            // never the agent-owned host.
+            'network_mode' => MachineNetworkModeEnum::tryFrom((string) $this->source->network_mode),
+            'docker_network' => $this->source->docker_network,
+            'private_host' => $this->source->private_host,
         ]))->execute();
     }
 }

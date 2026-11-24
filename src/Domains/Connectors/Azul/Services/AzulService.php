@@ -24,8 +24,8 @@ class AzulService
         protected CompanyInterface $company,
         protected array $config = []
     ) {
-        $this->client  = new Client($app, $company, $config);
-        $this->store   = (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value)   ?? $config['store']   ?? '');
+        $this->client = new Client($app, $company, $config);
+        $this->store = (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? $config['store'] ?? '');
         $this->channel = (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? $config['channel'] ?? '');
     }
 
@@ -35,11 +35,11 @@ class AzulService
         ?string $cvc = null
     ): AzulPaymentResponse {
         $payload = [
-            'Channel'    => $this->channel,
-            'Store'      => $this->store,
+            'Channel' => $this->channel,
+            'Store' => $this->store,
             'CardNumber' => $cardNumber,
             'Expiration' => $expiration,
-            'TrxType'    => TransactionTypeEnum::CREATE->value,
+            'TrxType' => TransactionTypeEnum::CREATE->value,
         ];
 
         if ($cvc !== null) {
@@ -47,7 +47,7 @@ class AzulService
         }
 
         $response = $this->client->post($payload, $this->client->getDataVaultUrl());
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -64,14 +64,14 @@ class AzulService
     public function deleteDataVault(string $dataVaultToken): AzulPaymentResponse
     {
         $payload = [
-            'Channel'        => $this->channel,
-            'Store'          => $this->store,
+            'Channel' => $this->channel,
+            'Store' => $this->store,
             'DataVaultToken' => $dataVaultToken,
-            'TrxType'        => TransactionTypeEnum::DELETE->value,
+            'TrxType' => TransactionTypeEnum::DELETE->value,
         ];
 
         $response = $this->client->post($payload, $this->client->getDataVaultUrl());
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -87,9 +87,9 @@ class AzulService
 
     public function sale(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::SALE->value];
+        $payload = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::SALE->value];
         $response = $this->client->post($payload);
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -105,9 +105,9 @@ class AzulService
 
     public function hold(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::HOLD->value];
+        $payload = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::HOLD->value];
         $response = $this->client->post($payload);
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -129,15 +129,15 @@ class AzulService
     public function capture(AzulPaymentRequest $request): AzulPaymentResponse
     {
         $payload = [
-            'Channel'     => $request->channel,
-            'Store'       => $request->store,
-            'TrxType'     => TransactionTypeEnum::POST->value,
+            'Channel' => $request->channel,
+            'Store' => $request->store,
+            'TrxType' => TransactionTypeEnum::POST->value,
             'AzulOrderId' => $request->azulOrderId,
-            'Amount'      => $request->amount,
-            'Itbis'       => $request->itbis,
+            'Amount' => $request->amount,
+            'Itbis' => $request->itbis,
         ];
         $response = $this->client->post($payload, $this->client->getPostUrl());
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -157,12 +157,12 @@ class AzulService
     public function void(AzulPaymentRequest $request): AzulPaymentResponse
     {
         $payload = [
-            'Channel'     => $request->channel,
-            'Store'       => $request->store,
+            'Channel' => $request->channel,
+            'Store' => $request->store,
             'AzulOrderId' => $request->azulOrderId,
         ];
         $response = $this->client->post($payload, $this->client->getVoidUrl());
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -179,13 +179,13 @@ class AzulService
     public function verifyPayment(string $customOrderId): AzulPaymentResponse
     {
         $payload = [
-            'Channel'       => $this->channel,
-            'Store'         => $this->store,
+            'Channel' => $this->channel,
+            'Store' => $this->store,
             'CustomOrderId' => $customOrderId,
         ];
 
         $response = $this->client->post($payload, $this->client->getVerifyUrl());
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -210,16 +210,16 @@ class AzulService
         ?string $cRes = null
     ): AzulPaymentResponse {
         $payload = [
-            'Channel'                  => $this->channel,
-            'Store'                    => $this->store,
-            'AzulOrderId'              => $azulOrderId,
+            'Channel' => $this->channel,
+            'Store' => $this->store,
+            'AzulOrderId' => $azulOrderId,
             'MethodNotificationStatus' => $methodNotificationStatus,
             ...($cRes ? ['CRes' => $cRes] : []),
         ];
 
-        $finalizeUrl =  $cRes ? $this->client->getThreeDSChallengeUrl() : $this->client->getThreeDSMethodUrl();
+        $finalizeUrl = $cRes ? $this->client->getThreeDSChallengeUrl() : $this->client->getThreeDSMethodUrl();
         $response = $this->client->post($payload, $finalizeUrl);
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(
@@ -241,9 +241,9 @@ class AzulService
      */
     public function sale3DS(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::SALE->value];
+        $payload = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::SALE->value];
         $response = $this->client->post($payload);
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved() && ! $result->is3DSMethod() && ! $result->is3DSChallenge()) {
             throw new AzulException(
@@ -263,9 +263,9 @@ class AzulService
      */
     public function hold3DS(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::HOLD->value];
+        $payload = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::HOLD->value];
         $response = $this->client->post($payload);
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved() && ! $result->is3DSMethod() && ! $result->is3DSChallenge()) {
             throw new AzulException(
@@ -281,9 +281,9 @@ class AzulService
 
     public function refund(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::REFUND->value];
+        $payload = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::REFUND->value];
         $response = $this->client->post($payload);
-        $result   = AzulPaymentResponse::fromAzulResponse($response);
+        $result = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
             throw new AzulException(

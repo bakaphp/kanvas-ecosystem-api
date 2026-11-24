@@ -37,12 +37,18 @@ class PullRegistrationsFromIntrasAction
     /** @var array<int, true>|null kanvas event_version_participant ids already tied to a SIPGO row */
     protected ?array $claimedRegistrationIds = null;
 
+    /**
+     * @param list<int>|null $onlyVersionIds     registrations of just these legacy versions (on-demand refresh)
+     * @param list<int>|null $onlyParticipantIds registrations of just these legacy participants
+     */
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
         protected UserInterface $user,
         protected ?string $lastSyncAt = null,
-        protected ?int $agencyId = null
+        protected ?int $agencyId = null,
+        protected ?array $onlyVersionIds = null,
+        protected ?array $onlyParticipantIds = null
     ) {
     }
 
@@ -64,6 +70,14 @@ class PullRegistrationsFromIntrasAction
 
         if ($this->lastSyncAt !== null) {
             $query->where('evp.updated_at', '>=', $this->lastSyncAt);
+        }
+
+        if ($this->onlyVersionIds !== null) {
+            $query->whereIn('evp.events_versions_id', $this->onlyVersionIds);
+        }
+
+        if ($this->onlyParticipantIds !== null) {
+            $query->whereIn('evp.participants_id', $this->onlyParticipantIds);
         }
 
         // Preload Intras-ID → Kanvas-ID maps once. Replaces ~3 whereHas subqueries

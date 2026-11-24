@@ -42,6 +42,7 @@ class NetSuiteSyncCustomerCommand extends Command
 
         if (! $savedSearchId) {
             $this->error('Please provide a saved search ID using --saved-search-id option');
+
             return;
         }
 
@@ -67,27 +68,28 @@ class NetSuiteSyncCustomerCommand extends Command
                 $user
             );
 
-            $this->info("Fetching all customers from NetSuite (this may take a moment for large datasets)...");
+            $this->info('Fetching all customers from NetSuite (this may take a moment for large datasets)...');
             $results = $syncAction->execute($savedSearchId, $entityIdFilter);
 
             if (isset($results['error'])) {
                 $this->error("Error: {$results['error']}");
+
                 return;
             }
 
             // Display results
             $this->newLine();
-            $this->info("=== Sync Results ===");
+            $this->info('=== Sync Results ===');
 
             if ($entityIdFilter) {
                 $this->info("Customers in CSV file: {$totalInCsv}");
-                $this->info("Found in NetSuite: " . ($totalInCsv - $results['not_found_in_netsuite']));
+                $this->info('Found in NetSuite: ' . ($totalInCsv - $results['not_found_in_netsuite']));
                 $this->warn("Not in NetSuite: {$results['not_found_in_netsuite']}");
             } else {
                 $this->info("Total customers from NetSuite: {$results['savedSearchTotal']}");
             }
 
-            $this->info("Found in Kanvas: " . ($results['totalToProcess'] - $results['not_found_in_netsuite'] - $results['not_found_in_kanvas']));
+            $this->info('Found in Kanvas: ' . ($results['totalToProcess'] - $results['not_found_in_netsuite'] - $results['not_found_in_kanvas']));
             $this->warn("Not in Kanvas: {$results['not_found_in_kanvas']}");
             $this->info("Successfully updated: {$results['processed']}");
 
@@ -100,12 +102,12 @@ class NetSuiteSyncCustomerCommand extends Command
             // Display successfully updated customers
             if (! empty($results['processedList'])) {
                 $processed = $results['processedList'];
-                $this->info("Successfully updated customers (" . count($processed) . "):");
+                $this->info('Successfully updated customers (' . count($processed) . '):');
                 foreach (array_slice($processed, 0, 10) as $customer) {
                     $this->line("  - NetSuite ID: {$customer['netsuiteId']}, Kanvas ID: {$customer['kanvasId']}, Name: {$customer['name']}");
                 }
                 if (count($processed) > 10) {
-                    $this->line("  ... and " . (count($processed) - 10) . " more");
+                    $this->line('  ... and ' . (count($processed) - 10) . ' more');
                 }
                 $this->newLine();
             }
@@ -113,44 +115,44 @@ class NetSuiteSyncCustomerCommand extends Command
             // Display details of issues
             if (! empty($results['not_found_in_netsuite_list'])) {
                 $notInNetSuite = $results['not_found_in_netsuite_list'];
-                $this->warn("Customers not found in NetSuite (" . count($notInNetSuite) . "):");
+                $this->warn('Customers not found in NetSuite (' . count($notInNetSuite) . '):');
                 foreach (array_slice($notInNetSuite, 0, 10) as $entityId) {
                     $this->line("  - {$entityId}");
                 }
                 if (count($notInNetSuite) > 10) {
-                    $this->line("  ... and " . (count($notInNetSuite) - 10) . " more");
+                    $this->line('  ... and ' . (count($notInNetSuite) - 10) . ' more');
                 }
                 $this->newLine();
             }
 
             if (! empty($results['not_found_in_kanvas_list'])) {
                 $notInKanvas = $results['not_found_in_kanvas_list'];
-                $this->warn("Customers not found in Kanvas (" . count($notInKanvas) . "):");
+                $this->warn('Customers not found in Kanvas (' . count($notInKanvas) . '):');
                 foreach (array_slice($notInKanvas, 0, 10) as $entityId) {
                     $this->line("  - {$entityId}");
                 }
                 if (count($notInKanvas) > 10) {
-                    $this->line("  ... and " . (count($notInKanvas) - 10) . " more");
+                    $this->line('  ... and ' . (count($notInKanvas) - 10) . ' more');
                 }
                 $this->newLine();
             }
 
             if (! empty($results['update_failed_list'])) {
                 $updateFailed = $results['update_failed_list'];
-                $this->error("Customers that failed to update (" . count($updateFailed) . "):");
+                $this->error('Customers that failed to update (' . count($updateFailed) . '):');
                 foreach (array_slice($updateFailed, 0, 10) as $failed) {
                     $this->line("  - {$failed['netsuiteId']} (Error: {$failed['error']})");
                 }
                 if (count($updateFailed) > 10) {
-                    $this->line("  ... and " . (count($updateFailed) - 10) . " more");
+                    $this->line('  ... and ' . (count($updateFailed) - 10) . ' more');
                 }
                 $this->newLine();
             }
 
-            $this->info("Customer sync completed successfully!");
+            $this->info('Customer sync completed successfully!');
         } catch (Exception $e) {
-            $this->error("Error during bulk sync: " . $e->getMessage());
-            $this->error("Stack trace: " . $e->getTraceAsString());
+            $this->error('Error during bulk sync: ' . $e->getMessage());
+            $this->error('Stack trace: ' . $e->getTraceAsString());
         }
     }
 
@@ -173,8 +175,8 @@ class NetSuiteSyncCustomerCommand extends Command
 
             if ($netsuiteId) {
                 $customerList[$netsuiteId] = [
-                    "id" => $netsuiteId,
-                    "name" => $record["Name"] ?? $record["Customer Name"] ?? ""
+                    'id' => $netsuiteId,
+                    'name' => $record['Name'] ?? $record['Customer Name'] ?? '',
                 ];
             }
         }

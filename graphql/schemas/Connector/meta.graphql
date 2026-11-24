@@ -1,0 +1,17 @@
+type MetaWhatsAppPhoneNumber {
+    phone_number_id: String!
+    "In E.164: the account key of the connection it has when connected, and what an agent's whatsapp_config.phone_number holds."
+    phone_number: String!
+    display_phone_number: String!
+    verified_name: String
+    quality_rating: String
+    is_connected: Boolean!
+}
+
+extend type Query @guardByAdmin {
+    "Every number of the WhatsApp Business Account the company connected, read from Meta. Empty when it has none or Meta cannot be reached. Connect one by saving the meta_whatsapp integration with its phone_number_id."
+    metaWhatsAppPhoneNumbers: [MetaWhatsAppPhoneNumber!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Meta\\Queries\\MetaWhatsAppPhoneNumbersQuery"
+        )
+}

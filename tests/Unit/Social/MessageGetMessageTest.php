@@ -43,7 +43,6 @@ class MessageGetMessageTest extends TestCaseUnit
      * Str::isJson() is true for bare scalars, so json_decode() yields a non-array
      * (int/float/bool/null/string) — getMessage() must still return [] not fatal on
      * the array return type. Regression for KANVAS-ECOSYSTEM-62A.
-     *
      */
     #[DataProvider('scalarJsonProvider')]
     public function testGetMessageReturnsEmptyArrayForScalarJson(string $raw): void

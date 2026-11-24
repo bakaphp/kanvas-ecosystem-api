@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
@@ -46,6 +47,7 @@ use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -75,7 +77,7 @@ use Override;
  * @property string|null $apple_contact_id
  */
 #[ObservedBy([PeopleObserver::class, ReportSourceObserver::class])]
-class People extends BaseModel
+class People extends BaseModel implements ExposesTemplateData
 {
     use HasAdminLink;
     use HasApprovals;
@@ -519,14 +521,40 @@ class People extends BaseModel
 
     public function optOutPhoneContacts(): int
     {
-        $phoneTypes = [
-            ContactTypeEnum::PHONE->value,
-            ContactTypeEnum::CELLPHONE->value,
-            ContactTypeEnum::WORK_PHONE->value,
-        ];
+        return $this->optOutContactsOfTypes(Contact::PHONE_TYPES);
+    }
 
-        return $this->contacts()
-            ->whereIn('contacts_types_id', $phoneTypes)
+    public function optOutEmailContacts(): int
+    {
+        return $this->optOutContactsOfTypes(Contact::EMAIL_TYPES);
+    }
+
+    /**
+     * Returns how many contacts actually changed. Rows already opted out are left out of the
+     * UPDATE on purpose: Eloquent bumps `updated_at` on a bulk update, so without the guard a row
+     * that was already opted out counts as changed whenever the clock has moved a second, and the
+     * callers that act on `> 0` (the Reynolds consent note) would fire again.
+     *
+     * Updated by primary key: filtering the UPDATE itself lets MySQL pick the low-cardinality
+     * is_opt_out / is_deleted indexes (or merge them), locking contacts of every other person that
+     * share those values — which deadlocks against any concurrent contact insert.
+     *
+     * @param list<int>|null $types null opts out every contact
+     */
+    public function optOutContactsOfTypes(?array $types = null): int
+    {
+        $contactIds = $this->contacts()
+            ->when($types !== null, fn ($query) => $query->whereIn('contacts_types_id', $types))
+            ->where('is_opt_out', 0)
+            ->pluck('id');
+
+        if ($contactIds->isEmpty()) {
+            return 0;
+        }
+
+        return Contact::query()
+            ->whereKey($contactIds)
+            ->where('is_opt_out', 0)
             ->update(['is_opt_out' => 1]);
     }
 
@@ -547,6 +575,44 @@ class People extends BaseModel
                 $contact->set(ContactCustomFieldEnum::IS_LANDLINE->value, $isLandline);
             })
             ->count();
+    }
+
+    public function isPhoneLandline(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(fn (Contact $contact): bool => $contact->isLandline() === true);
+    }
+
+    /**
+     * A dead number, whoever marked it (a carrier failure, a CRM rejection, an agent). An opt-out is
+     * not this: that is the consent check's answer.
+     */
+    public function isPhoneUndeliverable(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(
+            fn (Contact $contact): bool => $contact->validation_status?->isPermanentFailure() === true
+        );
+    }
+
+    public function markEmailBounced(string $email): int
+    {
+        return $this->emailContactsMatching($email)
+            ->each(fn (Contact $contact): bool => $contact->markBounce(permanent: true))
+            ->count();
+    }
+
+    protected function emailContactsMatching(string $email): Collection
+    {
+        $normalizedEmail = Contact::normalizeValue($email, ContactTypeEnum::EMAIL->value);
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+            ->get()
+            ->filter(
+                fn (Contact $contact): bool => Contact::normalizeValue(
+                    $contact->value,
+                    $contact->contacts_types_id,
+                ) === $normalizedEmail,
+            );
     }
 
     protected function phoneContactsMatching(string $phoneNumber): Collection
@@ -774,6 +840,8 @@ class People extends BaseModel
 
     public function toSearchableArray(): array
     {
+        $contacts = $this->contacts()->get();
+
         $people = [
             'objectID' => $this->uuid,
             'id' => (string) $this->id,
@@ -784,6 +852,19 @@ class People extends BaseModel
             'companies_id' => $this->companies_id,
             'email' => $this->getEmails()->first()?->value,
             'phone' => $this->getAllPhones()->first()?->value,
+            'emails' => $contacts
+                ->filter(fn (Contact $contact) => Contact::isEmailType((int) $contact->contacts_types_id))
+                ->map(fn (Contact $contact) => Str::lowerTrim($contact->value))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all(),
+            'phones' => $contacts
+                ->filter(fn (Contact $contact) => Contact::isPhoneType((int) $contact->contacts_types_id))
+                ->flatMap(fn (Contact $contact) => Str::phoneSearchTerms($contact->value))
+                ->unique()
+                ->values()
+                ->all(),
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
@@ -873,6 +954,16 @@ class People extends BaseModel
                 [
                     'name' => 'phone',
                     'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'emails',
+                    'type' => 'string[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phones',
+                    'type' => 'string[]',
                     'optional' => true,
                 ],
                 [
@@ -975,7 +1066,7 @@ class People extends BaseModel
             ]
         );
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $query = self::traitSearch(Str::phoneSearchQuery((string) $query), $callback)->where('apps_id', $app->getId());
 
         /*         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
                     $query->where('companies_id', $user->getCurrentCompany()->getId());
@@ -991,7 +1082,7 @@ class People extends BaseModel
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,firstname,lastname,email,phone',
+                'query_by' => $query->model->queryByLiveFields('name,firstname,lastname,email,phone,emails,phones'),
             ]);
         }
 
@@ -1043,5 +1134,28 @@ class People extends BaseModel
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
 
         return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+    }
+
+    /**
+     * The row also holds a driving licence and third-party contact ids, which an HTML template could
+     * ship to any host through an image URL, so a template sees this list and nothing else.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
+            'lastname' => $this->lastname,
+            'dob' => $this->dob,
+            'email' => $this->getEmails()->first()?->value,
+            'phone' => $this->getAllPhones()->first()?->value,
+            'custom_fields' => $this->getAllCustomFields(),
+        ];
     }
 }

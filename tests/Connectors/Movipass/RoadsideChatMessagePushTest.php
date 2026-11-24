@@ -345,9 +345,10 @@ final class RoadsideChatMessagePushTest extends TestCase
 
         $delivery = $result['deliveries'][0];
         $this->assertSame($mechanic->getId(), $delivery['users_id']);
-        $this->assertContains('OneSignalNotificationChannel', $delivery['channels']);
+        $this->assertContains('MovipassOneSignalChannel', $delivery['channels']);
         $this->assertSame(0, $delivery['onesignal_devices']);
         $this->assertArrayHasKey('onesignal_configured', $delivery);
+        $this->assertArrayHasKey('onesignal_app', $delivery);
     }
 
     public function testActivityIgnoresMessageWithoutAssistanceChatVerb(): void

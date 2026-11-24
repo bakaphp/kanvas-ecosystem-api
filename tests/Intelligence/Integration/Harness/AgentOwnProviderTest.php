@@ -5,16 +5,12 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Integration\Harness;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Kanvas\Connectors\OpenCode\Actions\EnsureAgentCodingContainerAction;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingModelResolver;
 use Kanvas\Connectors\OpenCode\Services\CodingRuntimeReadinessService;
 use Kanvas\Connectors\OpenCode\Services\SessionConfigBuilder;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Models\AgentMachine;
-use ReflectionMethod;
 use Tests\Intelligence\Integration\Harness\Concerns\MocksCodingApp;
 use Tests\TestCase;
 
@@ -86,21 +82,29 @@ class AgentOwnProviderTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('no key of its own');
 
-        $this->invoke($this->containerAction($agent), 'resolveApiKey');
+        new CodingModelResolver($agent->app, $agent)->apiKey();
     }
 
     public function testTheContainerIsRebuiltWhenOnlyTheKeysVariableChanges(): void
     {
-        $before = $this->invoke($this->containerAction($this->agent(self::OPENROUTER)), 'keyFingerprint');
-        $after = $this->invoke(
-            $this->containerAction($this->agent([
-                ...self::OPENROUTER,
-                AgentCustomFieldEnum::PROVIDER_ENV_VAR->value => 'OPENAI_API_KEY',
-            ])),
-            'keyFingerprint'
-        );
+        $before = $this->agent(self::OPENROUTER);
+        $after = $this->agent([
+            ...self::OPENROUTER,
+            AgentCustomFieldEnum::PROVIDER_ENV_VAR->value => 'OPENAI_API_KEY',
+        ]);
 
-        $this->assertNotSame($before, $after);
+        $this->assertNotSame($this->fingerprint($before), $this->fingerprint($after));
+    }
+
+    /**
+     * The readiness check trims the company key before deciding whose key is used; the runtime must
+     * agree, or a blank company value passes the check and is then handed to the provider as the key.
+     */
+    public function testABlankCompanyKeyFallsThroughToTheAppKey(): void
+    {
+        $agent = $this->agent([], companyOverrides: [ConfigurationEnum::PROVIDER_API_KEY->value => '  ']);
+
+        $this->assertSame('sk-app-openai', new CodingModelResolver($agent->app, $agent)->apiKey());
     }
 
     public function testReadinessAsksForTheAgentsKeyNotTheApps(): void
@@ -142,15 +146,5 @@ class AgentOwnProviderTest extends TestCase
         $service = new CodingRuntimeReadinessService();
 
         return $service->failures($service->checksForAgent($agent));
-    }
-
-    private function containerAction(Agent $agent): EnsureAgentCodingContainerAction
-    {
-        return new EnsureAgentCodingContainerAction($agent, new AgentMachine(), $agent->app);
-    }
-
-    private function invoke(object $target, string $method): mixed
-    {
-        return new ReflectionMethod($target, $method)->invoke($target);
     }
 }

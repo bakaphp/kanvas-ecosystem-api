@@ -24,6 +24,7 @@ class ContactObserver
     {
         $this->runWorkflow($contact);
         $this->createSocialChannels($contact);
+        $this->reindexPeople($contact);
     }
 
     public function updated(Contact $contact): void
@@ -33,6 +34,15 @@ class ContactObserver
         if ($contact->wasChanged(['value', 'contacts_types_id'])) {
             $this->createSocialChannels($contact);
         }
+
+        if ($contact->wasChanged(['value', 'contacts_types_id', 'is_deleted'])) {
+            $this->reindexPeople($contact);
+        }
+    }
+
+    public function deleted(Contact $contact): void
+    {
+        $this->reindexPeople($contact);
     }
 
     private function cleanPhoneNumber(Contact $contact): void
@@ -71,5 +81,21 @@ class ContactObserver
         }
 
         new CreatePeopleSocialChannelsAction($contact->people)->execute();
+    }
+
+    /**
+     * Phones and emails are indexed on the person and on each of their leads, and a contact row
+     * saving on its own touches neither document.
+     */
+    private function reindexPeople(Contact $contact): void
+    {
+        $typeId = (int) $contact->contacts_types_id;
+
+        if ($contact->people === null || (! Contact::isPhoneType($typeId) && ! Contact::isEmailType($typeId))) {
+            return;
+        }
+
+        $contact->people->searchable();
+        $contact->people->leads()->get()->searchable();
     }
 }

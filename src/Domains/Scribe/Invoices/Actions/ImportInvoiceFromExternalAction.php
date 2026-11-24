@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Actions;
 
+use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Invoices\Actions\Concerns\FreezesBillableSnapshot;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -35,6 +37,8 @@ use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
  */
 class ImportInvoiceFromExternalAction
 {
+    use FreezesBillableSnapshot;
+
     private const float PAID_TOLERANCE = 0.005;
 
     /**
@@ -55,7 +59,9 @@ class ImportInvoiceFromExternalAction
             $invoice = $existing ?? new CreateInvoiceAction($this->data, $this->user)->execute();
 
             if ($existing === null) {
-                $this->freezeBillableSnapshot($invoice);
+                if ($this->data->billable !== null) {
+                    $this->freezeBillableSnapshot($invoice, $this->data->billable);
+                }
                 $this->setDates($invoice);
             }
 
@@ -74,9 +80,9 @@ class ImportInvoiceFromExternalAction
         $balanceNative = round(max($totalNative - $paidNative, 0.0), 4);
 
         $invoice->paid_native = $paidNative;
-        $invoice->paid_base = round($paidNative * $fxRate, 4);
+        $invoice->paid_base = Money::toBase($paidNative, $fxRate);
         $invoice->balance_due_native = $balanceNative;
-        $invoice->balance_due_base = round($balanceNative * $fxRate, 4);
+        $invoice->balance_due_base = Money::toBase($balanceNative, $fxRate);
 
         $isPaid = $balanceNative <= self::PAID_TOLERANCE;
         $invoice->document_status = $isPaid
@@ -98,22 +104,6 @@ class ImportInvoiceFromExternalAction
         }
 
         return InvoiceCollectionStateEnum::CURRENT;
-    }
-
-    private function freezeBillableSnapshot(Invoice $invoice): void
-    {
-        $billable = $this->data->billable;
-
-        if ($billable === null) {
-            return;
-        }
-
-        $invoice->customer_organization_id = $billable->getBillableId();
-        $invoice->billable_display_name = $invoice->billable_display_name ?? $billable->getBillableDisplayName();
-        $invoice->billable_legal_name = $invoice->billable_legal_name ?? $billable->getBillableLegalName();
-        $invoice->billable_tax_id = $invoice->billable_tax_id ?? $billable->getBillableTaxId();
-        $invoice->billable_email = $invoice->billable_email ?? $billable->getBillingEmail();
-        $invoice->billing_address_snapshot = $invoice->billing_address_snapshot ?? $billable->getBillingAddressArray();
     }
 
     private function setDates(Invoice $invoice): void

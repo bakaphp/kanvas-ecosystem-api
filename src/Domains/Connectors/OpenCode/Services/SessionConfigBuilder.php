@@ -49,6 +49,9 @@ class SessionConfigBuilder
         'php *' => 'allow',
         'composer *' => 'allow',
         'npm *' => 'allow',
+        'npx *' => 'allow',
+        'yarn *' => 'allow',
+        'pnpm *' => 'allow',
         'node *' => 'allow',
         './vendor/bin/*' => 'allow',
         'vendor/bin/*' => 'allow',
@@ -56,12 +59,14 @@ class SessionConfigBuilder
 
     /**
      * @param list<string> $instructionFiles paths INSIDE the container to load as extra rules
+     * @param list<string> $hostTools tool sets the machine advertises (`CodingHostToolsService`)
      */
     public function __construct(
         private readonly AppInterface $app,
         private readonly ?CodingRepository $repository = null,
         private readonly array $instructionFiles = [],
         private readonly ?Agent $agent = null,
+        private readonly array $hostTools = [],
     ) {
     }
 
@@ -206,19 +211,33 @@ class SessionConfigBuilder
      */
     private function permissions(): array
     {
-        $bash = self::DEFAULT_BASH_RULES;
+        $bash = [...self::DEFAULT_BASH_RULES, ...CodingHostToolsService::bashRules($this->hostTools)];
 
         // A repository's protected paths are enforced again on the diff before anything is pushed;
-        // denying the obvious shell routes to them just removes the easy way round.
+        // denying the obvious shell routes to them just removes the easy way round. Last, because
+        // opencode takes the last matching rule and a host tool set's allows must not outrank them.
         foreach ($this->repository?->protectedPaths ?? [] as $path) {
             $bash['* ' . $path . '*'] = 'deny';
         }
 
-        return [
+        $permission = [
             'edit' => 'allow',
             // The container has no egress restrictions yet, so the agent does not get a fetch tool.
             'webfetch' => 'deny',
             'bash' => $bash,
         ];
+
+        $read = CodingHostToolsService::readRules($this->hostTools);
+
+        if ($read !== []) {
+            // The dotenv allow would otherwise reopen `credentials/.env` to the read tool.
+            foreach ($this->repository?->protectedPaths ?? [] as $path) {
+                $read['*' . $path . '*'] = 'deny';
+            }
+
+            $permission['read'] = $read;
+        }
+
+        return $permission;
     }
 }

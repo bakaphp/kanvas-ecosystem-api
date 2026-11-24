@@ -1,0 +1,99 @@
+<tr>
+    <td style="padding: 24px 12px; font-family: Arial, sans-serif; color: #263238;">
+        <h1 style="margin: 0 0 8px; font-size: 22px; line-height: 1.3;">Accounting digest — {{ date }}</h1>
+        <p style="margin: 0 0 20px; color: #667085; font-size: 14px;">{{ company_name }} · what your AR and AP agents did, and what is waiting on a person.</p>
+
+        {% if issue_ecf %}
+            <p style="margin: 0 0 20px; padding: 12px; background: #fef3f2; border: 1px solid #fecdca; border-radius: 6px; font-size: 14px;">
+                <strong>Agent invoice approval (issue_ecf) is off</strong> ({{ issue_ecf.how }}) since {{ issue_ecf.since|default('an unknown date') }}, by {{ issue_ecf.by|default('someone unrecorded') }}.
+                e-CFs the agent issues reach DGII without a person; a mistake costs a credit note.
+            </p>
+        {% endif %}
+
+        <h2 style="margin: 0 0 8px; font-size: 16px;">Receivables</h2>
+        <p style="margin: 0 0 6px; font-size: 14px;">
+            {{ ar.invoices_issued }} invoice(s) issued · e-CF {{ ar.ecf_accepted }} accepted, {{ ar.ecf_rejected }} rejected, {{ ar.ecf_result_overdue }} with no DGII answer ·
+            {{ ar.credit_notes_issued }} credit note(s) · {{ ar.invoices_sent }} sent ·
+            {% if ar.engagements is null %}opens not tracked yet{% else %}{{ ar.engagements.opened|default(0) }} opened{% endif %} ·
+            {{ ar.invoices_paid }} paid
+        </p>
+        {% if ar.collections_due %}
+            <p style="margin: 0 0 6px; font-size: 14px;">Due in the next 7 days:
+                {% for row in ar.collections_due %}{{ row.currency }} {{ row.amount|number_format(2) }} ({{ row.count }}){% if not loop.last %}, {% endif %}{% endfor %}
+            </p>
+        {% endif %}
+        {% if ar.overdue %}
+            <p style="margin: 0 0 6px; font-size: 14px; color: #b42318;">Overdue:
+                {% for row in ar.overdue %}{{ row.currency }} {{ row.amount|number_format(2) }} ({{ row.count }}){% if not loop.last %}, {% endif %}{% endfor %}
+            </p>
+        {% endif %}
+
+        <h2 style="margin: 20px 0 8px; font-size: 16px;">Payables</h2>
+        <p style="margin: 0 0 6px; font-size: 14px;">
+            {{ ap.bills_received }} bill(s) received ({{ ap.received_ecf }} as e-CF) · {{ ap.bills_approved }} approved · {{ ap.bills_paid }} paid ·
+            {{ ap.payments_recorded }} payment(s) recorded · {{ ap.payments_confirmed }} confirmed by the bank · {{ ap.payments_unconfirmed }} not seen in the bank
+        </p>
+        {% if ap.bills_due_soon %}
+            <p style="margin: 0 0 6px; font-size: 14px;">Approved bills due within 7 days:
+                {% for row in ap.bills_due_soon %}{{ row.currency }} {{ row.amount|number_format(2) }} ({{ row.count }}){% if not loop.last %}, {% endif %}{% endfor %}
+            </p>
+        {% endif %}
+        {% for run in ap.open_payment_runs %}
+            <p style="margin: 0 0 6px; font-size: 14px;">Payment run #{{ run.id }}: {{ run.status }} ({{ run.line_count }} bill(s))</p>
+        {% endfor %}
+
+        <h2 style="margin: 20px 0 8px; font-size: 16px;">Bank</h2>
+        <p style="margin: 0 0 6px; font-size: 14px;">Statements: {{ banking.statements_ingested }} ingested · {{ banking.statements_rejected }} rejected · {{ banking.statements_requested }} requested</p>
+        {% if banking.accounts %}
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 12px;">
+                {% for account in banking.accounts %}
+                    <tr>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ account.account_name }} {{ account.currency }}</td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;{% if account.is_behind %} color: #b42318;{% endif %}">covered to {{ account.covered_through|default('never') }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+
+        {% if sequences %}
+            <h2 style="margin: 20px 0 8px; font-size: 16px;">Number ranges</h2>
+            {% for sequence in sequences %}
+                <p style="margin: 0 0 6px; font-size: 14px;">{{ sequence.prefix }}: {{ sequence.remaining|default('?') }} left{% if sequence.expires_at %}, expires {{ sequence.expires_at }}{% endif %} — request a new range from DGII</p>
+            {% endfor %}
+        {% endif %}
+
+        <h2 style="margin: 20px 0 8px; font-size: 16px;">Approvals</h2>
+        {% if approvals.waiting > 0 %}
+            <p style="margin: 0 0 6px; font-size: 14px;">{{ approvals.waiting }} waiting (oldest {{ approvals.oldest_waiting_hours }}h)</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 12px;">
+                {% for item in approvals.items %}
+                    <tr>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;"><strong>{{ item.name }}</strong> <span style="color: #667085;">{{ item.type }}</span></td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ item.action }}</td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px; color: #667085;">{{ item.requested_at }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p style="margin: 0 0 6px; font-size: 14px;">None waiting.</p>
+        {% endif %}
+        {% if approvals.approvers %}
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">
+                <tr>
+                    <th align="left" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Approver (30 days)</th>
+                    <th align="left" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Decided</th>
+                    <th align="left" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Avg time</th>
+                    <th align="left" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Rejected</th>
+                </tr>
+                {% for approver in approvals.approvers %}
+                    <tr>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ approver.name }}</td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ approver.decided }}</td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ approver.avg_hours }}h</td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ (approver.rejection_rate * 100)|round }}%</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+    </td>
+</tr>

@@ -1,0 +1,34 @@
+<tr>
+    <td style="padding: 24px 12px; font-family: Arial, sans-serif; color: #263238;">
+        <h1 style="margin: 0 0 8px; font-size: 22px; line-height: 1.3;">Payment run #{{ payment_run_id }}: {{ line_count }} bill(s) to pay</h1>
+        <p style="margin: 0 0 20px; color: #667085; font-size: 14px;">
+            {{ company_name }} · prepared for {{ payer_name }}{% if due_by %} · bills due by {{ due_by }}{% endif %}.
+            Nothing has been paid: pay these from your bank, then tell the agent (with the receipt if you have it) and each bill is marked paid.
+        </p>
+
+        {% for group in groups %}
+            <h2 style="margin: 20px 0 6px; font-size: 16px;">{{ group.currency }} {{ group.total|number_format(2) }} from {{ group.bank_account_name|default('no bank account on file for this currency') }}</h2>
+            <p style="margin: 0 0 8px; font-size: 13px;{% if group.cash_check == 'short' %} color: #b42318;{% endif %}">
+                {% if group.cash_check == 'enough' %}Known balance {{ group.known_balance|number_format(2) }} as of {{ group.balance_as_of|default('?') }} covers it.
+                {% elseif group.cash_check == 'short' %}Short by {{ group.shortfall|number_format(2) }}: known balance {{ group.known_balance|number_format(2) }} as of {{ group.balance_as_of|default('?') }}.
+                {% else %}Balance unknown: no bank feed or statement yet.{% endif %}
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">
+                <tr>
+                    <th align="left" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Vendor</th>
+                    <th align="left" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Bill</th>
+                    <th align="left" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Due</th>
+                    <th align="right" style="padding: 6px 8px; border-bottom: 2px solid #eaecf0; font-size: 12px; color: #667085;">Amount</th>
+                </tr>
+                {% for line in group.lines %}
+                    <tr>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ line.vendor|default('Vendor') }}</td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ line.bill_number|default('—') }}</td>
+                        <td style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ line.due_date|default('—') }}</td>
+                        <td align="right" style="padding: 6px 8px; border-bottom: 1px solid #eaecf0; font-size: 13px;">{{ line.amount|number_format(2) }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endfor %}
+    </td>
+</tr>

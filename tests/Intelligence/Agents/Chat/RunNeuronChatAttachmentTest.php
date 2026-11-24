@@ -10,12 +10,16 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
 use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
+use NeuronAI\Chat\Messages\Message;
 use Tests\Stubs\Intelligence\CapturingNeuronAgentStub;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
+use Tests\Stubs\Intelligence\HearingCapturingNeuronAgentStub;
 use Tests\TestCase;
 
 /**
@@ -66,6 +70,7 @@ class RunNeuronChatAttachmentTest extends TestCase
                 'output_format' => 'plain text',
             ]);
 
+        $this->app->instance(AttachmentDescriptionService::AUDIO_PROVIDER_BINDING, new FakeNeuronProvider('hello from the wav'));
         $handler = new CapturingNeuronAgentStub();
         $handler->setConfiguration(agent: $agent, user: $user);
 
@@ -94,9 +99,9 @@ class RunNeuronChatAttachmentTest extends TestCase
         $this->assertNotNull($image, 'Image must be attached as an ImageContent block');
         $this->assertSame('image/png', $image->mediaType);
 
-        $audio = $this->firstOfType($blocks, AudioContent::class);
-        $this->assertNotNull($audio, 'Audio must be attached as an AudioContent block');
-        $this->assertSame('audio/x-wav', $audio->mediaType);
+        // The capturing provider cannot listen, so the audio arrives as the audio provider's words.
+        $this->assertNull($this->firstOfType($blocks, AudioContent::class), 'A deaf provider must not get the audio block');
+        $this->assertNotNull($this->firstTextContaining($blocks, 'Transcript: hello from the wav'));
 
         $pdf = $this->firstOfType($blocks, FileContent::class);
         $this->assertNotNull($pdf, 'PDF must be attached as a FileContent block');
@@ -106,6 +111,48 @@ class RunNeuronChatAttachmentTest extends TestCase
         $this->assertNotNull($csv, 'CSV must be embedded inline as a TextContent block');
         $this->assertStringContainsString('Alice', $csv->content);
         $this->assertStringContainsString('Bob', $csv->content);
+    }
+
+    public function testAProviderThatCanListenKeepsTheAudioBlock(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create(['provider' => 'neuron', 'handler' => HearingCapturingNeuronAgentStub::class]);
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'name' => 'Hearing',
+                'agent_type_id' => $agentType->getId(),
+                'soul' => 'Test agent',
+                'instructions' => 'Listen',
+                'output_format' => 'plain text',
+            ]);
+
+        $handler = new HearingCapturingNeuronAgentStub();
+        $handler->setConfiguration(agent: $agent, user: $user);
+
+        new RunNeuronChatAction(
+            agent: $agent,
+            session: null,
+            message: 'Listen to this',
+            app: $app,
+            user: $user,
+            handler: $handler,
+            media: [$this->writeTempFile('wav', $this->wavBytes())],
+        )->execute();
+
+        $blocks = $this->blocksOf($handler->capturedProvider?->messages ?? []);
+        $audio = $this->firstOfType($blocks, AudioContent::class);
+
+        $this->assertNotNull($audio, 'A model that can listen gets the audio itself');
+        $this->assertSame('audio/x-wav', $audio->mediaType);
+        $this->assertNull($this->firstTextContaining($blocks, 'Transcript:'));
     }
 
     public function testUnsupportedAttachmentTypeIsSkipped(): void
@@ -200,8 +247,17 @@ class RunNeuronChatAttachmentTest extends TestCase
     {
         $this->assertNotNull($handler->capturedProvider, 'Provider should have been invoked');
 
+        return $this->blocksOf($handler->capturedProvider->messages);
+    }
+
+    /**
+     * @param list<Message> $messages
+     * @return list<ContentBlockInterface>
+     */
+    private function blocksOf(array $messages): array
+    {
         $blocks = [];
-        foreach ($handler->capturedProvider->messages as $message) {
+        foreach ($messages as $message) {
             foreach ($message->getContentBlocks() as $block) {
                 $blocks[] = $block;
             }

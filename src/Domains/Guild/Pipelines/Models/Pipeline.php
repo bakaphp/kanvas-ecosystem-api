@@ -38,12 +38,14 @@ class Pipeline extends BaseModel
     public function stages(): HasMany
     {
         return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id')
+            ->where('is_deleted', 0)
             ->orderBy('weight', 'ASC');
     }
 
     public function firstStage(): HasOne
     {
         return $this->hasOne(PipelineStage::class, 'pipelines_id', 'id')
+            ->where('is_deleted', 0)
             ->orderBy('weight', 'ASC');
     }
 

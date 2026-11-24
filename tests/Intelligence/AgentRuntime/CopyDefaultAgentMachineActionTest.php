@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\AgentRuntime;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Actions\CopyDefaultAgentMachineAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Tests\TestCase;
 
 class CopyDefaultAgentMachineActionTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
+
     public function testCopiesDefaultMachineToTargetCompany(): void
     {
         $app = app(Apps::class);
@@ -38,6 +44,11 @@ class CopyDefaultAgentMachineActionTest extends TestCase
         $this->assertSame($sourceMachine->port_range_end, $copiedMachine->port_range_end);
         $this->assertSame($sourceMachine->max_agents, $copiedMachine->max_agents);
         $this->assertSame($sourceMachine->is_active, $copiedMachine->is_active);
+        $this->assertSame('private_ip', $copiedMachine->network_mode);
+        $this->assertSame('kanvas-net', $copiedMachine->docker_network);
+        $this->assertSame('10.0.0.5', $copiedMachine->private_host);
+        // A copy is one company's shared container box, never the agent-owned host.
+        $this->assertSame(MachineRuntimeEnum::CONTAINER->value, $copiedMachine->refresh()->runtime);
     }
 
     public function testCopyIsIdempotentForSameCompanyAndHost(): void
@@ -78,6 +89,10 @@ class CopyDefaultAgentMachineActionTest extends TestCase
         $machine->port_range_end = 27100;
         $machine->max_agents = 25;
         $machine->is_active = true;
+        $machine->network_mode = 'private_ip';
+        $machine->docker_network = 'kanvas-net';
+        $machine->private_host = '10.0.0.5';
+        $machine->runtime = 'host';
         $machine->saveOrFail();
 
         return $machine;

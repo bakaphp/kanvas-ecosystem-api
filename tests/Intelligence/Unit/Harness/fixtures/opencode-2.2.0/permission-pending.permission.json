@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "id": "per_1a17ac369001ikHiVSYpJf3Rft",
+      "sessionID": "ses_e5e85425dffe8arogsLQfYhAcA",
+      "action": "shell",
+      "resources": [
+        "ls -la"
+      ],
+      "save": [
+        "ls *"
+      ],
+      "source": {
+        "type": "tool",
+        "messageID": "msg_1a17abe1b001XFtYl6qcwGJLvT",
+        "id": "call_GGNNYrU1ijBmjfKvH4pWlhDh"
+      }
+    }
+  ]
+}

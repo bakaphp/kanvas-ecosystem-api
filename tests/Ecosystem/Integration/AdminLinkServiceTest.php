@@ -129,6 +129,43 @@ final class AdminLinkServiceTest extends TestCase
         );
     }
 
+    public function testConsoleHostPrefersTheConfiguredUrl(): void
+    {
+        config()->set('kanvas.app.frontend_url', 'https://app.kanvas.dev');
+        config()->set('kanvas.app.console_url', 'https://console.kanvas.dev/');
+
+        $this->assertSame('https://console.kanvas.dev', new AdminLinkService()->consoleHost(app(Apps::class)));
+    }
+
+    public function testConsoleHostPrefersTheAppSettingOverTheEnv(): void
+    {
+        $app = app(Apps::class);
+        config()->set('kanvas.app.console_url', 'https://console.kanvas.dev');
+        $app->set(AppSettingsEnums::CONSOLE_URL->getValue(), 'https://console.tenant.example.com/');
+
+        try {
+            $this->assertSame('https://console.tenant.example.com', new AdminLinkService()->consoleHost($app));
+        } finally {
+            $app->del(AppSettingsEnums::CONSOLE_URL->getValue());
+        }
+    }
+
+    public function testConsoleHostIsDerivedFromAnAppFrontend(): void
+    {
+        config()->set('kanvas.app.frontend_url', 'https://app.kanvas.dev/');
+        config()->set('kanvas.app.console_url', null);
+
+        $this->assertSame('https://console.kanvas.dev', new AdminLinkService()->consoleHost(app(Apps::class)));
+    }
+
+    public function testConsoleHostIsNullWhenTheFrontendIsNotAnAppSubdomain(): void
+    {
+        config()->set('kanvas.app.frontend_url', 'http://localhost');
+        config()->set('kanvas.app.console_url', null);
+
+        $this->assertNull(new AdminLinkService()->consoleHost(app(Apps::class)));
+    }
+
     public function testRejectsAnIdentifierThatDoesNotMatchTheRoute(): void
     {
         $this->expectException(ValidationException::class);

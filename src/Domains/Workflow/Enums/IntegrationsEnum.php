@@ -49,6 +49,7 @@ enum IntegrationsEnum: string
     case RESPOND_IO = 'respond_io';
     case CALENDLY = 'calendly';
     case CARDNET = 'cardnet';
+    case CARDNET_ZTRANS = 'cardnet_ztrans';
     case CONTACT_CHECKER = 'contact_checker';
     case OPENCLAW = 'openclaw';
     case HERMES = 'hermes';
@@ -69,4 +70,11 @@ enum IntegrationsEnum: string
     case YUSEN = 'yusen';
     case DEALER_APP_CENTER = 'dealer_app_center';
     case BRUSHCRAZY = 'brushcrazy';
+    case META_WHATSAPP = 'meta_whatsapp';
+    case VAUTO = 'vauto';
+    case ALANUBE = 'alanube';
+    case WEBPOS = 'webpos';
+    case SHORTIO = 'shortio';
+    case DHL = 'dhl';
+    case READ_AI = 'read_ai';
 }

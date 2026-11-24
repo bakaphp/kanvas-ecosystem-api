@@ -7,19 +7,21 @@ namespace Tests\Connectors\Movipass;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\SyncRoadsideAssistanceStatusesAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideNotProceedReasonEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
-use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
@@ -27,6 +29,11 @@ use Tests\TestCase;
  * The three flow branches the case lifecycle gained: the authorization gate that declines a case
  * before dispatch, the incident record, and the reschedule/close decision that follows it.
  */
+/**
+ * Serial: it commits changes to the app's roadside statuses, which RoadsideAssistanceStatusSetupTest
+ * edits inside its own transaction and counts exactly.
+ */
+#[Group('serial')]
 final class RoadsideAssistanceFlowTest extends TestCase
 {
     use HasIntegrationCompany;
@@ -275,6 +282,64 @@ final class RoadsideAssistanceFlowTest extends TestCase
         $this->assertStringContainsString('no incident has been registered', $result['message']);
     }
 
+    public function testAssigningAMechanicMovesTheCaseToDispatched(): void
+    {
+        $order = $this->walkTo($this->createRoadsideOrder(), MovipassOrderStatusEnum::AWAITING_OPERATOR);
+        $this->setAssistanceCase($order, ['assign_mechanic_id' => $this->authUser->getId()]);
+
+        $result = $this->runUpdate($order);
+
+        $this->assertSame('success', $result['status']);
+
+        $order->refresh();
+        $this->assertSame(MovipassOrderStatusEnum::DISPATCHED->slug(), $order->orderStatus?->slug);
+        $this->assertSame($this->authUser->getId(), $order->metadata['assistance_case']['mechanic']['user_id']);
+        $this->assertArrayNotHasKey('assign_mechanic_id', $order->metadata['assistance_case']);
+    }
+
+    public function testAnAssignmentSentUnderTheDataCopyIsNotIgnored(): void
+    {
+        $order = $this->walkTo($this->createRoadsideOrder(), MovipassOrderStatusEnum::AWAITING_OPERATOR);
+        $metadata = $order->metadata;
+        $metadata['data']['assistance_case'] = [
+            ...$metadata['assistance_case'],
+            'assign_mechanic_id' => $this->authUser->getId(),
+        ];
+        $order->metadata = $metadata;
+        $order->saveQuietly();
+
+        $result = $this->runUpdate($order);
+
+        $this->assertSame('success', $result['status']);
+
+        $order->refresh();
+        $this->assertSame(MovipassOrderStatusEnum::DISPATCHED->slug(), $order->orderStatus?->slug);
+        $this->assertArrayNotHasKey('assign_mechanic_id', $order->metadata['data']['assistance_case']);
+    }
+
+    /**
+     * Regression: an undeclared transition left the order in awaiting_operator while the run
+     * reported success.
+     */
+    public function testAnAssignmentThatCannotTransitionFailsTheRun(): void
+    {
+        $order = $this->walkTo($this->createRoadsideOrder(), MovipassOrderStatusEnum::AWAITING_OPERATOR);
+        $this->setAssistanceCase($order, ['assign_mechanic_id' => $this->authUser->getId()]);
+
+        // setUp recreates the transition, so removing it here does not leak into other tests.
+        OrderStatusTransitions::where('from_status_id', $this->statusId(MovipassOrderStatusEnum::AWAITING_OPERATOR))
+            ->where('to_status_id', $this->statusId(MovipassOrderStatusEnum::PROVIDER_ASSIGNED))
+            ->delete();
+
+        $result = $this->runUpdate($order);
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('could not transition', $result['message']);
+
+        $order->refresh();
+        $this->assertSame(MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(), $order->orderStatus?->slug);
+    }
+
     private function runUpdate(Order $order): array
     {
         $this->setIntegration(
@@ -381,43 +446,6 @@ final class RoadsideAssistanceFlowTest extends TestCase
      */
     private function createRoadsideStatuses(): void
     {
-        $cancelled = MovipassOrderStatusEnum::SERVICE_CANCELLED->value;
-        $requestSubmitted = MovipassOrderStatusEnum::REQUEST_SUBMITTED->value;
-        $notAuthorized = MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->value;
-
-        new CreateOrderStatusesAction($this->apps, OrderTypeEnum::ROADSIDE_ASSISTANCE->value, [
-            $requestSubmitted => [
-                'is_default' => true,
-                'transitions' => [
-                    MovipassOrderStatusEnum::AWAITING_OPERATOR->value,
-                    $cancelled,
-                    $notAuthorized,
-                ],
-            ],
-            MovipassOrderStatusEnum::AWAITING_OPERATOR->value => [
-                'transitions' => [MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value, $requestSubmitted, $cancelled, $notAuthorized],
-            ],
-            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => [
-                'transitions' => [MovipassOrderStatusEnum::DISPATCHED->value, $requestSubmitted, $cancelled],
-            ],
-            MovipassOrderStatusEnum::DISPATCHED->value => [
-                'transitions' => [MovipassOrderStatusEnum::ON_SITE->value, $requestSubmitted, $cancelled],
-            ],
-            MovipassOrderStatusEnum::ON_SITE->value => [
-                'transitions' => [MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value, $requestSubmitted, $cancelled],
-            ],
-            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
-                    $requestSubmitted,
-                    $cancelled,
-                ],
-            ],
-            MovipassOrderStatusEnum::SERVICE_COMPLETED->value => ['is_final' => true],
-            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => ['is_final' => true],
-            $cancelled => ['is_final' => true],
-            $notAuthorized => ['is_final' => true],
-        ])->execute();
+        new SyncRoadsideAssistanceStatusesAction($this->apps)->execute();
     }
 }

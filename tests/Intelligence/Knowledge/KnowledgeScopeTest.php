@@ -24,9 +24,16 @@ class KnowledgeScopeTest extends TestCase
     public function testAKnowledgeReadLeavesTheMemoryKindsOut(): void
     {
         $this->assertSame(
-            'apps_id:=11 && companies_id:=22 && source_type:!=[`conversation`, `memory`, `ledger`]',
-            KnowledgeScope::forOrganization(11, 22)->knowledgeFilter(),
-            'An organization-wide read otherwise sees every user of the company'
+            'apps_id:=11 && companies_id:=22 && entity_id:=0 && source_type:!=[`conversation`, `memory`, `ledger`]',
+            KnowledgeScope::forTenant(11, 22)->knowledgeFilter(),
+        );
+    }
+
+    public function testADocumentReadKeepsOnlyUploadedDocuments(): void
+    {
+        $this->assertSame(
+            'apps_id:=11 && companies_id:=22 && entity_id:=0 && sourceType:=[`agent_document`, `company_document`, `company_url`, `company_website`]',
+            KnowledgeScope::forTenant(11, 22)->documentFilter(),
         );
     }
 

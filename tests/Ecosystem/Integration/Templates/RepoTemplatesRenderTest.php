@@ -171,6 +171,32 @@ final class RepoTemplatesRenderTest extends TestCase
         $this->assertStringContainsString('Oct 1, 2026 8:30 AM', $rendered);
     }
 
+    public function testApprovalEmailsListEveryRequestAndLinkOnlyWhenConfigured(): void
+    {
+        $approvals = [
+            ['id' => 1, 'name' => 'Adrian Castillo', 'type' => 'People', 'action' => 'Approve People Salesforce Create', 'approval_type' => 'approve_people_salesforce_create', 'requested_at' => '2026-11-02 10:00:00'],
+            ['id' => 2, 'name' => 'Rachel Kim', 'type' => 'People', 'action' => 'Approve People Salesforce Create', 'approval_type' => 'approve_people_salesforce_create', 'requested_at' => '2026-11-02 10:01:00'],
+        ];
+        $context = [
+            'count' => 2,
+            'approvals' => $approvals,
+            'approval' => $approvals[0],
+            'company_name' => 'GA Group',
+            'review_url' => 'https://app.example.test/approvals',
+        ];
+
+        $digest = $this->render('emails/approvalDigest.twig', $context);
+        $single = $this->render('emails/approvalRequested.twig', $context);
+        $withoutLink = $this->render('emails/approvalDigest.twig', ['review_url' => null] + $context);
+
+        $this->assertStringContainsString('Adrian Castillo', $digest);
+        $this->assertStringContainsString('Rachel Kim', $digest);
+        $this->assertStringContainsString('https://app.example.test/approvals', $digest);
+        $this->assertStringContainsString('Adrian Castillo', $single);
+        $this->assertStringNotContainsString('Rachel Kim', $single);
+        $this->assertStringNotContainsString('Review approvals', $withoutLink);
+    }
+
     public function testMentionEmailsRenderTheBodyAsMarkdown(): void
     {
         foreach (['emails/userMentioned.twig', 'emails/agentMentionReply.twig'] as $template) {

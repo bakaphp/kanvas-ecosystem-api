@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intras\Mappers;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\Intras\Mappers\Concerns\MapsContactSlots;
+use Kanvas\Event\Facilitators\Models\Facilitator;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use stdClass;
 
 class FacilitatorMapper
 {
+    use MapsContactSlots;
+
     /**
      * `facilitators_custom_fields` name → Kanvas contact type.
-     *
-     * None of a facilitator's 30 custom fields were being imported, so every facilitator landed
-     * with no email and no phone. Mirrors ParticipantMapper::CONTACT_FIELD_MAP.
      */
     public const array CONTACT_FIELD_MAP = [
         'email' => ['type' => ContactTypeEnum::EMAIL, 'weight' => 0],
@@ -32,6 +34,14 @@ class FacilitatorMapper
         'home_countries_id' => ['table' => 'countries', 'custom_field' => 'pais'],
         'home_cities_id' => ['table' => 'cities', 'custom_field' => 'ciudad'],
     ];
+
+    /**
+     * People custom fields the participant pull also writes (`estatus` from participants_statuses,
+     * `pais` from the company office). On a person who is both, the participant owns them: pushing
+     * them as facilitator values would propose the other catalog's name, or the employer's country
+     * as a home country.
+     */
+    public const array SHARED_WITH_PARTICIPANT = ['estatus', 'pais'];
 
     /**
      * @return list<string>
@@ -75,32 +85,6 @@ class FacilitatorMapper
     }
 
     /**
-     * @param array<string, string> $contactRows
-     *
-     * @return list<array{type: ContactTypeEnum, value: string, weight: int}>
-     */
-    public static function contactsFromCustomFields(array $contactRows): array
-    {
-        $contacts = [];
-
-        foreach (self::CONTACT_FIELD_MAP as $name => $spec) {
-            $value = Str::trimToNull((string) ($contactRows[$name] ?? ''));
-
-            if ($value === null) {
-                continue;
-            }
-
-            $contacts[] = [
-                'type' => $spec['type'],
-                'value' => $value,
-                'weight' => $spec['weight'],
-            ];
-        }
-
-        return $contacts;
-    }
-
-    /**
      * @param array<string, array<int, string>> $lookupNames
      *
      * @return array<string, string>
@@ -124,5 +108,46 @@ class FacilitatorMapper
         }
 
         return $fields;
+    }
+
+    /**
+     * The values SIPGO should hold for this facilitator. Identification and CV live on the Event
+     * domain's Facilitator row, not on the People; `events_count` is SIPGO's own and never pushed.
+     *
+     * @param array<string, string> $current facilitators_custom_fields.name => value
+     *
+     * @return array{row: array<string, string>, custom_fields: array<string, string>, catalog: array<string, array{table: string, name: string}>}
+     */
+    public static function toIntras(
+        People $people,
+        ?Facilitator $facilitator,
+        array $current = [],
+        bool $alsoParticipant = false
+    ): array {
+        $row = array_filter([
+            'first_name' => Str::trimToNull((string) $people->firstname),
+            'last_name' => Str::trimToNull((string) $people->lastname),
+            'identification' => Str::trimToNull((string) $facilitator?->identification),
+            'cv' => Str::trimToNull((string) $facilitator?->resume),
+        ], fn ($value) => $value !== null);
+
+        $catalog = [];
+
+        foreach (self::LOOKUP_FIELD_MAP as $column => $spec) {
+            if ($alsoParticipant && in_array($spec['custom_field'], self::SHARED_WITH_PARTICIPANT, true)) {
+                continue;
+            }
+
+            $name = Str::trimToNull((string) $people->get($spec['custom_field']));
+            if ($name !== null) {
+                $catalog[$column] = ['table' => $spec['table'], 'name' => $name];
+            }
+        }
+
+        return [
+            'row' => $row,
+            'custom_fields' => self::contactSlots($people, $current, self::CONTACT_FIELD_MAP),
+            'catalog' => $catalog,
+        ];
     }
 }

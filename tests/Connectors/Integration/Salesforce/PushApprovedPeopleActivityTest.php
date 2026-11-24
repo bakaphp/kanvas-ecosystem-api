@@ -82,6 +82,59 @@ final class PushApprovedPeopleActivityTest extends TestCase
             && $request->method() === 'POST');
     }
 
+    public function testReadsTheLocationIdFromAProjectVariantSku(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+        $this->configureSalesforce($company);
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
+
+        $product = Products::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $variant = $product->variants()->first();
+        $variant->sku = 'sf-location-a00xx00001TEST1AAA';
+        $variant->saveOrFail();
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($app->getId(), $company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+
+        $interest = LeadVariantInterest::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'leads_id' => $lead->getId(),
+            'variants_id' => $variant->getId(),
+            'is_active' => true,
+        ]);
+
+        $approvalRequest = $this->approvalRequest(
+            $app,
+            $company,
+            $people,
+            ['lead_variant_interest_id' => $interest->getId()],
+        );
+
+        $this->fakeSalesforceOAuth();
+        Http::fake([
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response(['records' => []], 200),
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/Contact' => Http::response(['id' => '003xx000004TmiQAAS'], 201),
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/Location_Contact__c' => Http::response(['id' => 'a01xx000003NEW1AAO'], 201),
+        ]);
+
+        $this->push($people, $approvalRequest);
+
+        Http::assertSent(fn ($request) => $request->url() === self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/Location_Contact__c'
+            && $request['Location__c'] === 'a00xx00001TEST1AAA');
+    }
+
     public function testPushesOnlyPeopleWhenApprovalCarriesNoVariantInterest(): void
     {
         $app = app(Apps::class);

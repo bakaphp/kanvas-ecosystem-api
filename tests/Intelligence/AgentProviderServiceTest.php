@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasBedrock;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Agents\Neuron\Providers\RecoversUnknownToolCalls;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Services\BedrockClientService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Providers\Anthropic\Anthropic;
 use NeuronAI\Providers\Deepseek\Deepseek;
@@ -20,9 +25,11 @@ use NeuronAI\Providers\Mistral\Mistral;
 use NeuronAI\Providers\Ollama\Ollama;
 use NeuronAI\Providers\OpenAILike;
 use NeuronAI\Providers\XAI\Grok;
+use PHPUnit\Framework\Attributes\Group;
 use ReflectionProperty;
 use Tests\TestCase;
 
+#[Group('serial')]
 final class AgentProviderServiceTest extends TestCase
 {
     /**
@@ -40,6 +47,7 @@ final class AgentProviderServiceTest extends TestCase
             ConfigurationEnum::AI_PROVIDER_BASE_URI->value,
             ConfigurationEnum::AI_PROVIDER_KEY->value,
             ConfigurationEnum::AI_PROVIDER_MODEL->value,
+            ConfigurationEnum::BEDROCK_KEY->value,
             ConfigurationEnum::GEMINI_KEY->value,
             ConfigurationEnum::GEMINI_MODEL->value,
             AgentRunConfigurationEnum::GEMINI_THINKING->value,
@@ -59,6 +67,7 @@ final class AgentProviderServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
         $app = app(Apps::class);
         foreach ($this->originalSettings as $key => $value) {
             if ($value === null || $value === '') {
@@ -290,6 +299,70 @@ final class AgentProviderServiceTest extends TestCase
         $this->assertSame(['store' => false], KanvasOpenAIResponses::toResponsesParameters([]));
     }
 
+    public function testAFreshAppWithoutAGeminiKeyRunsOnThePlatformTrialKey(): void
+    {
+        $app = $this->appInItsFirstDays(1);
+        config(['kanvas.agents.trial_llm_days' => 14, 'kanvas.agents.trial_llm_model' => 'trial-flash', 'ai.providers.gemini.key' => 'platform-key']);
+
+        $provider = AgentProviderService::resolve($this->geminiAgent($app, ['model' => 'gemini-2.5-pro']));
+
+        $this->assertInstanceOf(Gemini::class, $provider);
+        $this->assertSame('platform-key', new ReflectionProperty($provider, 'key')->getValue($provider));
+        $this->assertSame('trial-flash', new ReflectionProperty($provider, 'model')->getValue($provider));
+    }
+
+    public function testTheTenantKeyWinsOverTheTrial(): void
+    {
+        $app = $this->appInItsFirstDays(1);
+        $app->set(ConfigurationEnum::GEMINI_KEY->value, 'tenant-key');
+        config(['kanvas.agents.trial_llm_days' => 14, 'kanvas.agents.trial_llm_model' => 'trial-flash', 'ai.providers.gemini.key' => 'platform-key']);
+
+        $provider = AgentProviderService::resolve($this->geminiAgent($app, ['model' => 'gemini-2.5-pro']));
+
+        $this->assertSame('tenant-key', new ReflectionProperty($provider, 'key')->getValue($provider));
+        $this->assertSame('gemini-2.5-pro', new ReflectionProperty($provider, 'model')->getValue($provider));
+    }
+
+    public function testTheTrialEndsAfterTheConfiguredDays(): void
+    {
+        $app = $this->appInItsFirstDays(15);
+        config(['kanvas.agents.trial_llm_days' => 14, 'ai.providers.gemini.key' => 'platform-key']);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('not configured');
+
+        AgentProviderService::resolve($this->geminiAgent($app));
+    }
+
+    public function testTheTrialIsOffWhenDaysIsZero(): void
+    {
+        $app = $this->appInItsFirstDays(1);
+        config(['kanvas.agents.trial_llm_days' => 0, 'ai.providers.gemini.key' => 'platform-key']);
+
+        $this->expectException(ValidationException::class);
+
+        AgentProviderService::resolve($this->geminiAgent($app));
+    }
+
+    private function appInItsFirstDays(int $daysOld): Apps
+    {
+        $app = app(Apps::class);
+        Carbon::setTestNow(Carbon::parse((string) $app->created_at)->addDays($daysOld));
+
+        return $app;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function geminiAgent(Apps $app, array $config = []): Agent
+    {
+        return AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId(0)
+            ->create(['config' => $config]);
+    }
+
     public function testDefaultsToGeminiWhenNoProviderConfigured(): void
     {
         $app = app(Apps::class);
@@ -396,6 +469,97 @@ final class AgentProviderServiceTest extends TestCase
         } finally {
             $app->del(AgentRunConfigurationEnum::GEMINI_THINKING->value);
         }
+    }
+
+    public function testABedrockConfigBuildsTheBedrockProviderOnItsOwnModelAndRegion(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $cfg = AgentLlmConfigFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'provider' => AgentLlmProviderEnum::BEDROCK->value,
+                'base_uri' => null,
+                'api_key' => 'bedrock-config-key',
+                'model' => 'global.openai.gpt-6-luna',
+                'config' => [
+                    'region' => 'us-west-2',
+                    'maxTokens' => 2000,
+                ],
+            ]);
+
+        $agent = AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'agent_llm_config_id' => $cfg->getId(),
+                'config' => [],
+            ]);
+
+        $provider = AgentProviderService::resolve($agent);
+
+        $this->assertInstanceOf(KanvasBedrock::class, $provider);
+        $this->assertSame('global.openai.gpt-6-luna', $provider->getModel());
+        $this->assertSame(['maxTokens' => 2000], $this->readProp($provider, 'inferenceConfig'));
+        $this->assertSame('us-west-2', $this->readProp($provider, 'bedrockRuntimeClient')->getRegion());
+    }
+
+    /**
+     * Flipping an app to Bedrock must not strand the agents that carry a Gemini model of their own:
+     * agent.config.model wins over the app settings, and that id can never resolve on Bedrock.
+     */
+    public function testAnAppFlippedToBedrockIgnoresAGeminiModelLeftOnTheAgent(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::AI_PROVIDER->value, AgentLlmProviderEnum::BEDROCK->value);
+        $app->set(ConfigurationEnum::BEDROCK_KEY->value, 'app-bedrock-key');
+        $app->set(ConfigurationEnum::GEMINI_MODEL->value, 'gemini-2.5-flash');
+
+        $stale = AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId(0)
+            ->create(['config' => ['model' => 'gemini-3.6-flash']]);
+        $chosen = AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId(0)
+            ->create(['config' => ['model' => 'us.amazon.nova-lite-v1:0']]);
+
+        $this->assertInstanceOf(KanvasBedrock::class, AgentProviderService::resolve($stale));
+        $this->assertSame(BedrockClientService::defaultModel(), AgentProviderService::resolveModel($stale));
+        $this->assertSame('us.amazon.nova-lite-v1:0', AgentProviderService::resolveModel($chosen));
+
+        $app->set(ConfigurationEnum::AI_PROVIDER_MODEL->value, 'global.amazon.nova-2-lite-v1:0');
+
+        $this->assertSame('global.amazon.nova-2-lite-v1:0', AgentProviderService::resolveModel($stale));
+        $this->assertSame('us.amazon.nova-lite-v1:0', AgentProviderService::resolveModel($chosen));
+    }
+
+    public function testBedrockRunsOnThePlatformKeyOnlyWhenTheAppHasNoneOfItsOwn(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::AI_PROVIDER->value, AgentLlmProviderEnum::BEDROCK->value);
+        $agent = AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId(0)
+            ->create(['config' => []]);
+
+        config(['ai.providers.bedrock.key' => 'platform-bedrock-key']);
+        $this->assertSame('platform-bedrock-key', $this->bedrockToken(AgentProviderService::resolve($agent)));
+
+        $app->set(ConfigurationEnum::BEDROCK_KEY->value, 'app-bedrock-key');
+        $this->assertSame('app-bedrock-key', $this->bedrockToken(AgentProviderService::resolve($agent)));
+
+        $app->del(ConfigurationEnum::BEDROCK_KEY->value);
+        config(['ai.providers.bedrock.key' => null]);
+        $this->expectException(ValidationException::class);
+        AgentProviderService::resolve($agent);
+    }
+
+    private function bedrockToken(object $provider): string
+    {
+        return $this->readProp($provider, 'bedrockRuntimeClient')->getToken()->wait()->getToken();
     }
 
     private function readProp(object $object, string $property): mixed

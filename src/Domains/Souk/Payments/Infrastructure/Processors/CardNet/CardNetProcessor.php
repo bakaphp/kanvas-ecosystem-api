@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\CardNet;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\CardNet\Client;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardDetail;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
+use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
@@ -25,6 +27,7 @@ use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Infrastructure\Processors\Concerns\OpensProcessorRefunds;
 use Kanvas\Souk\Payments\Models\Payments;
 
 /**
@@ -42,6 +45,8 @@ use Kanvas\Souk\Payments\Models\Payments;
  */
 class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ActivationProcessorInterface
 {
+    use OpensProcessorRefunds;
+
     protected CardNetService $service;
 
     public function __construct(
@@ -97,6 +102,8 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                     'response_message' => $response->getResponseMessage(),
                     'transaction_id' => $response->getTransactionId(),
                     'status' => $response->getStatus(),
+                    'customer_ip' => $request->customerIp,
+                    'customer_user_agent' => $request->customerUserAgent,
                 ],
             ];
 
@@ -182,16 +189,18 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             );
         }
 
+        $capturedAmount = $amount ?? $order->getTotalDueAmount();
         $start = hrtime(true);
 
         try {
             $response = $this->service->commit(
                 $purchaseId,
-                $this->toCardNetAmount($amount ?? $order->getTotalDueAmount()),
+                $this->toCardNetAmount($capturedAmount),
             );
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->authorization_code = $response->getApprovalCode();
+            $payment->captured_amount = $capturedAmount;
 
             $payment->markAsPaid([
                 'data' => [
@@ -209,7 +218,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 'order_id' => $order->id,
                 'hold_purchase_id' => $purchaseId,
                 'capture_purchase_id' => $response->getPurchaseId(),
-                'amount' => $amount ?? $order->getTotalDueAmount(),
+                'amount' => $capturedAmount,
                 'response_time_ms' => $responseTimeMs,
                 'response' => $response->getResponseMessage(),
             ]);
@@ -259,55 +268,69 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             );
         }
 
+        $refund = $this->openRefund($payment, $amount, $context);
+
+        if ($refund instanceof RefundResult) {
+            return $refund;
+        }
+
         $start = hrtime(true);
 
         try {
             $response = $this->service->refund(
                 $purchaseId,
-                $this->buildRefundRequest($payment, $order, $amount),
+                $this->buildRefundRequest($payment, $order, (float) $refund->amount),
             );
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
-            $payment->update(['status' => PaymentStatusEnum::REVERSED->value]);
-            $payment->addMetadata([
-                'data' => [
-                    'refund_purchase_id' => $response->getPurchaseId(),
-                    'response_message' => $response->getResponseMessage(),
-                    'response_code' => $response->getResponseCode(),
-                ],
+            $raw = [
+                'purchase_id' => $response->getPurchaseId(),
+                'response_code' => $response->getResponseCode(),
+                'response_message' => $response->getResponseMessage(),
+                'transaction_id' => $response->getTransactionId(),
+                'status' => $response->getStatus(),
+            ];
+
+            $refund->markAsCompleted([
+                'cardnet_purchase_id' => $response->getPurchaseId(),
+                'cardnet_transaction_id' => $response->getTransactionId(),
+                'response_code' => $response->getResponseCode(),
+                'response_message' => $response->getResponseMessage(),
             ]);
 
             $payment->addLog('refund_success', [
                 'processor' => $this->name(),
                 'order_id' => $order->id,
+                'refund_id' => $refund->getId(),
+                'amount' => (float) $refund->amount,
                 'original_purchase_id' => $purchaseId,
                 'refund_purchase_id' => $response->getPurchaseId(),
                 'response_time_ms' => $responseTimeMs,
                 'response' => $response->getResponseMessage(),
-            ]);
+            ], actor: $refund->user);
 
             return new RefundResult(
                 success: true,
                 message: $response->getResponseMessage(),
                 transactionId: (string) $response->getPurchaseId(),
-                raw: [
-                    'purchase_id' => $response->getPurchaseId(),
-                    'response_code' => $response->getResponseCode(),
-                    'response_message' => $response->getResponseMessage(),
-                    'transaction_id' => $response->getTransactionId(),
-                    'status' => $response->getStatus(),
-                ],
+                raw: $raw,
             );
         } catch (CardNetException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
+            $refund->markAsFailed([
+                'error' => $e->getMessage(),
+                'error_body' => $e->responseBody,
+            ]);
+
             $payment->addLog('refund_failed', [
                 'processor' => $this->name(),
                 'order_id' => $order->id,
+                'refund_id' => $refund->getId(),
                 'error' => $e->getMessage(),
                 'error_body' => $e->responseBody,
                 'response_time_ms' => $responseTimeMs,
-            ]);
+            ], actor: $refund->user);
 
             return new RefundResult(
                 success: false,
@@ -634,14 +657,13 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         $paymentMethod = $payment->paymentMethod;
         $trxToken = (string) ($paymentMethod->getMetadata(CustomFieldEnum::TOKEN->value) ?? '');
 
-        // orders.currency is a CHAR-padded column ("DOP ") — CardNet rejects untrimmed values with PR004.
         // CustomerUserAgent/CustomerIP must be stored on the purchase: refunds of a purchase created
         // without a UserAgent are rejected with PR015 "Parámetro de UserAgent vacío".
         return new CardNetPurchaseRequest(
             trxToken: $trxToken,
             order: (string) $order->id,
             amount: $this->toCardNetAmount($order->getTotalDueAmount()),
-            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
+            currency: $this->requestCurrency($order),
             invoice: (string) ($order->order_number ?? $order->id),
             capture: $capture,
             customerIp: request()?->ip(),
@@ -649,11 +671,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         );
     }
 
-    /**
-     * CardNet's refund endpoint expects the original purchase payload echoed back
-     * (TrxToken, Order, Amount, Currency, CustomerIP, DataDo.Invoice) per the official
-     * Postman collection. The amount defaults to what was actually charged.
-     */
+    // The refund echoes the purchase payload, so the purchase's IP and user agent are replayed, not the refunding request's.
     private function buildRefundRequest(Payments $payment, Order $order, ?float $amount = null): CardNetPurchaseRequest
     {
         $paymentMethod = $payment->paymentMethod;
@@ -662,12 +680,25 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             trxToken: (string) ($paymentMethod?->getMetadata(CustomFieldEnum::TOKEN->value) ?? ''),
             order: (string) $order->id,
             amount: $this->toCardNetAmount($amount ?? (float) ($payment->amount ?: $order->getTotalDueAmount())),
-            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
+            currency: $this->requestCurrency($order),
             invoice: (string) ($order->order_number ?? $order->id),
             tip: 0,
-            customerIp: request()?->ip(),
-            customerUserAgent: request()?->userAgent() ?? 'KanvasEcosystem/1.0',
+            customerIp: $payment->getMetadata('customer_ip') ?? request()?->ip(),
+            customerUserAgent: $payment->getMetadata('customer_user_agent') ?? request()?->userAgent() ?? 'KanvasEcosystem/1.0',
         );
+    }
+
+    // orders.currency is a CHAR-padded column ("DOP ") — CardNet rejects untrimmed values with PR004.
+    private function requestCurrency(Order $order): string
+    {
+        $sandboxCurrency = Str::trimToNull($this->app->get(ConfigurationEnum::SANDBOX_CURRENCY->value));
+        $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? ConfigurationEnum::SANDBOX_URL->value;
+
+        if ($sandboxCurrency !== null && rtrim($baseUrl, '/') === ConfigurationEnum::SANDBOX_URL->value) {
+            return strtoupper($sandboxCurrency);
+        }
+
+        return trim((string) ($order->currency ?? '')) ?: 'DOP';
     }
 
     /**
@@ -698,6 +729,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 // MMYYYY → MM/YY
                 return substr($clean, 0, 2) . '/' . substr($clean, 4, 2);
             }
+
             // YYYYMM → MM/YY
             return substr($clean, 4, 2) . '/' . substr($clean, 2, 2);
         }

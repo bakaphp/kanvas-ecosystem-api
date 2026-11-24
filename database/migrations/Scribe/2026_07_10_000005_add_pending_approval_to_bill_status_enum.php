@@ -14,7 +14,7 @@ return new class () extends Migration {
     public function up(): void
     {
         DB::connection('accounting')->statement(
-            "ALTER TABLE bills MODIFY document_status "
+            'ALTER TABLE bills MODIFY document_status '
             . "ENUM('draft','pending_approval','received','paid','voided') NOT NULL DEFAULT 'draft'"
         );
     }
@@ -22,7 +22,7 @@ return new class () extends Migration {
     public function down(): void
     {
         DB::connection('accounting')->statement(
-            "ALTER TABLE bills MODIFY document_status "
+            'ALTER TABLE bills MODIFY document_status '
             . "ENUM('draft','received','paid','voided') NOT NULL DEFAULT 'draft'"
         );
     }

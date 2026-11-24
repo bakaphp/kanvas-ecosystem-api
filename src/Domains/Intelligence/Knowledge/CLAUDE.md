@@ -7,7 +7,10 @@ changing retrieval, or advising a tenant on what to upload.
 
 **Indexing.** An uploaded document is split by `KnowledgeChunker`: on blank lines, packing paragraphs
 together up to 1,000 characters. Each chunk is embedded and stored in Typesense with its scope (agent,
-record, or organization). A lead's own messages are indexed as record history by `LeadKnowledgeSource`.
+record, or organization). A lead is indexed as cards only (`LeadKnowledgeSource`: the lead, its company,
+organization and vehicles of interest). Its messages are not: what a lead said is kept by the rolling lead
+summary (`Guild/Leads/Summary/CLAUDE.md`). Rows indexed before that are removed per app with
+`intelligence:knowledge:prune-lead-messages {app_id} --force` (count first without `--force`).
 
 **Pre-turn recall** (`HasKnowledgeRag`, every reply of a RAG agent):
 
@@ -15,9 +18,11 @@ record, or organization). A lead's own messages are indexed as record history by
    model call the customer waits on, so it runs only for a terse message (≤ 6 words) or a long one (≥ 40),
    on the agent's model with Gemini thinking `low`. A plain sentence searches as written. Each rewrite logs
    `Agent query rewrite` with `duration_ms`; a failed rewrite searches with the original text.
-2. Search the agent's documents and the record's rows, top `neuron_lead_rag_result_limit` (default 8).
-3. `KnowledgeRetrieval::rank()` gives the agent's documents first claim on the slots, record rows fill the
-   rest, a hit identical to the question is dropped.
+2. Search the agent's own documents and the company's documents (agent, company files, URLs and the
+   researched website, never another agent's), plus the record's cards for a customer-facing agent only,
+   top `neuron_lead_rag_result_limit` (default 8) each.
+3. `KnowledgeRetrieval::rank()` gives the documents first claim on the slots, record cards fill the rest,
+   a hit identical to the question is dropped.
 4. `AdaptiveThresholdPostProcessor(0.6)` drops hits below `median − 0.6 × MAD`. **This is relative to the
    batch, not a quality bar**: a batch that is all noise at ~0.6 passes almost whole.
 
@@ -37,7 +42,7 @@ The search measures **similarity of meaning** between the question and a chunk. 
 | Facts looked up occasionally: addresses, hours, lot lists, price sheets, financing terms, product specs | ✅ | The customer's words and the fact share meaning ("where is the lot" ↔ "Lot address: …") |
 | Situational playbooks, one per situation, opening with the trigger in the customer's words | ✅ | "When the customer asks for photos or details…" sits next to "send me pictures" |
 | Large corpora that do not fit the prompt: manuals, catalogues, policies | ✅ | The reason RAG exists |
-| The record's own past (lead history) | ✅ | Already indexed per lead |
+| The record's own past (lead history) | ❌ | Kept by the history window and the rolling lead summary, never one message per document |
 | Always-on behaviour rules ("never say a vehicle is unavailable", "never mention tools") | ❌ prompt | A rule that applies only when a search happens to return it is not a rule |
 | A rulebook small enough for the prompt (≲ 5–8K tokens) | ❌ prompt | Whole and in order beats fragments, and the prompt is cached |
 | Text written about the assistant ("The AI Assistant must…", "Execute handoff_lead") | ❌ | Shares no meaning with customer questions; scores flat against everything |

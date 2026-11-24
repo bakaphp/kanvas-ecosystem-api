@@ -81,7 +81,12 @@ class TakeMessageTool extends Tool
         $callback = $this->normalizeOptional($callback_number);
 
         $body = $this->receptionistMessageBody($message, $forWhom, $callback);
-        $recorded = new RecordLeadNoteAction($lead)->execute($body, 'receptionist-note', $this->actingNoteUser()) !== null;
+        $recorded = new RecordLeadNoteAction($lead)->execute(
+            $body,
+            'receptionist-note',
+            $this->actingNoteUser(),
+            isPublic: true,
+        ) !== null;
 
         return $this->finalizeTakenMessage($lead, 'lead_id', $message, $forWhom, $callback, $recorded);
     }

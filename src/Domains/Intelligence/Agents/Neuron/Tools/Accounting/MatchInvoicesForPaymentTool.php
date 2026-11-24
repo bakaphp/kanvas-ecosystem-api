@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Invoices\Services\OpenInvoiceMatcherService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,8 +30,6 @@ class MatchInvoicesForPaymentTool extends Tool
         . 'invoices and flags an exact single-invoice match. Use this to propose how a received AR payment '
         . 'applies to invoices before recording it. Read-only — proposes, does not apply.';
 
-    private const OPEN_EXCLUDED = ['draft', 'paid', 'voided'];
-
     /**
      * @return array<int, ToolProperty>
      */
@@ -52,43 +48,31 @@ class MatchInvoicesForPaymentTool extends Tool
      */
     public function __invoke(string $customer, float $amount, ?int $limit = null): array
     {
-        $limit = max(1, min(100, $limit ?? 25));
-        $term = OrganizationNameNormalizerService::normalize($customer) ?: $customer;
+        $match = new OpenInvoiceMatcherService()->match(
+            app: $this->app,
+            company: $this->company,
+            customer: $customer,
+            amount: $amount,
+            limit: max(1, min(100, $limit ?? 25)),
+        );
 
-        $orgIds = Organization::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', false)
-            ->where('name', 'like', '%' . $term . '%')
-            ->pluck('id');
-
-        if ($orgIds->isEmpty()) {
+        if (! $match['customer_found']) {
             return ['customer' => $customer, 'amount' => $amount, 'open_invoices' => [], 'reason' => 'No customer matched that name.'];
         }
-
-        $invoices = Invoice::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', false)
-            ->whereIn('customer_organization_id', $orgIds)
-            ->whereNotIn('document_status', self::OPEN_EXCLUDED)
-            ->where('balance_due_native', '>', 0)
-            ->orderBy('due_date')
-            ->limit($limit)
-            ->get();
-
-        $exact = $invoices->first(fn (Invoice $i): bool => abs((float) $i->balance_due_native - $amount) < 0.005);
 
         return [
             'customer' => $customer,
             'amount' => $amount,
-            'exact_match' => $exact?->invoice_number,
-            'total_open' => round((float) $invoices->sum('balance_due_native'), 2),
-            'open_invoices' => $invoices->map(fn (Invoice $i): array => [
-                'invoice_number' => $i->invoice_number,
-                'balance_due' => round((float) $i->balance_due_native, 2),
-                'due_date' => $i->due_date?->toDateString(),
-            ])->all(),
+            'exact_match' => $match['exact_match'],
+            'total_open' => $match['total_open'],
+            'open_invoices' => array_map(
+                fn (array $invoice): array => [
+                    'invoice_number' => $invoice['invoice_number'],
+                    'balance_due' => $invoice['balance_due'],
+                    'due_date' => $invoice['due_date'],
+                ],
+                $match['open_invoices'],
+            ),
         ];
     }
 }

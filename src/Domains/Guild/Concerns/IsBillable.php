@@ -6,6 +6,8 @@ namespace Kanvas\Guild\Concerns;
 
 trait IsBillable
 {
+    use HasBillingParty;
+
     public function getBillableId(): int
     {
         return (int) $this->id;
@@ -13,35 +15,22 @@ trait IsBillable
 
     public function getBillableDisplayName(): string
     {
-        return (string) ($this->name ?? '');
+        return $this->partyDisplayName();
     }
 
     public function getBillableLegalName(): ?string
     {
-        return (string) ($this->name ?? null) ?: null;
+        return $this->partyLegalName();
     }
 
     public function getBillableTaxId(): ?string
     {
-        return $this->get('tax_id')
-            ?? $this->get('rnc')
-            ?? $this->get('ein');
+        return $this->partyTaxId();
     }
 
     public function getBillingEmail(): ?string
     {
-        // Organizations don't have a direct email column. Surface the primary person's email when
-        // available so invoices have a delivery destination by default. The `peoples` relation lives
-        // on Organization — guard for non-Org consumers of the trait.
-        if (! method_exists($this, 'peoples')) {
-            return null;
-        }
-        $primary = $this->peoples()->first();
-        if ($primary !== null && method_exists($primary, 'getEmails')) {
-            return $primary->getEmails()->first()?->value;
-        }
-
-        return null;
+        return $this->partyEmail();
     }
 
     /**
@@ -49,17 +38,7 @@ trait IsBillable
      */
     public function getBillingAddressArray(): ?array
     {
-        if (method_exists($this, 'peoples')) {
-            $primary = $this->peoples()->first();
-            $address = $primary?->getBillingAddressArray();
-            if ($address !== null) {
-                return $address;
-            }
-        }
-
-        $line = trim((string) ($this->address ?? ''));
-
-        return $line === '' ? null : ['address' => $line];
+        return $this->partyAddressArray();
     }
 
     public function getDefaultPaymentTermsDays(): int
@@ -74,8 +53,6 @@ trait IsBillable
 
     public function getDefaultCurrency(): string
     {
-        $stored = $this->get('default_currency');
-
-        return is_string($stored) && $stored !== '' ? $stored : 'USD';
+        return $this->partyDefaultCurrency();
     }
 }

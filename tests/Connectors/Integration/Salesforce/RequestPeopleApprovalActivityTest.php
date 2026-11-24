@@ -250,17 +250,52 @@ final class RequestPeopleApprovalActivityTest extends TestCase
         $this->assertSame('pending', $new->status->value);
     }
 
+    public function testAnAgentEditedPersonAlreadyInSalesforceOpensTheUpdateGate(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $this->seedSyncPolicies($app, $company);
+
+        $people = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create()->people;
+        $people->set(CustomFieldEnum::SALESFORCE_CONTACT_ID->value, '003xx000004TmiQAAS');
+
+        $result = $this->requestApproval($people, $app, $company);
+
+        $sync = ApprovalRequest::find($result['approval_request_id']);
+        $this->assertSame(PeopleSalesforceSyncApprovalTypeEnum::UPDATE->value, $sync->approval_type);
+        $this->assertSame(['people_id' => $people->getId()], $sync->payload);
+    }
+
+    public function testAnAgentEditedPersonNotYetInSalesforceOpensTheCreateGateAndRespectsPending(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $this->seedSyncPolicies($app, $company);
+
+        $people = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create()->people;
+
+        $first = $this->requestApproval($people, $app, $company);
+        $second = $this->requestApproval($people, $app, $company);
+
+        $this->assertSame(
+            PeopleSalesforceSyncApprovalTypeEnum::CREATE->value,
+            ApprovalRequest::find($first['approval_request_id'])->approval_type
+        );
+        $this->assertSame('already pending', $second['reason']);
+    }
+
     private function requestApproval(
-        Lead $lead,
+        Lead|People $entity,
         Apps $app,
         $company,
-        LeadAttempt $attempt,
+        ?LeadAttempt $attempt = null,
         array $extraParams = [],
     ): array {
         $activity = new ReflectionClass(RequestPeopleApprovalActivity::class)->newInstanceWithoutConstructor();
         $method = new ReflectionMethod($activity, 'requestApproval');
+        $params = $attempt !== null ? ['attempt' => $attempt, ...$extraParams] : $extraParams;
 
-        return $method->invoke($activity, $lead, $app, $company, ['attempt' => $attempt, ...$extraParams]);
+        return $method->invoke($activity, $entity, $app, $company, $params);
     }
 
     private function attempt(

@@ -25,7 +25,6 @@ class UpdateProductTypeAction
 
     /**
      * execute.
-     *
      */
     public function execute(): ProductsTypes
     {

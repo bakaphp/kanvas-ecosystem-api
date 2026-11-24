@@ -16,7 +16,7 @@ use Override;
  * Neuron counterpart of the Laravel-AI category_search tool — same body via
  * ListsCatalogReferenceData, so both report the full total alongside the page they return.
  */
-#[AgentTool(name: 'Category Search', category: 'inventory')]
+#[AgentTool(name: 'Category Search', category: 'inventory', readOnly: true)]
 class CategorySearchTool extends Tool
 {
     use HasKanvasContext;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Services;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
 
@@ -128,17 +129,10 @@ final class SignupProtectionSettingsService
      */
     public function anomalyAlertEmails(): array
     {
-        $configured = $this->raw(AppSettingsEnums::SIGNUP_ANOMALY_ALERT_EMAILS)
-            ?? config('kanvas.signup_anomaly.alert_emails', '');
-
-        $candidates = is_array($configured)
-            ? $configured
-            : (preg_split('/[\s,;]+/', (string) $configured) ?: []);
-
-        return array_values(array_filter(
-            array_map(trim(...), $candidates),
-            static fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false
-        ));
+        return Str::emailList(
+            $this->raw(AppSettingsEnums::SIGNUP_ANOMALY_ALERT_EMAILS)
+                ?? config('kanvas.signup_anomaly.alert_emails', '')
+        );
     }
 
     private function int(AppSettingsEnums $setting, int $default, int $minimum = 0): int

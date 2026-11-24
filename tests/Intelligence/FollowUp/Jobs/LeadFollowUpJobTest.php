@@ -315,7 +315,9 @@ class LeadFollowUpJobTest extends TestCase
             ->latest('id')
             ->first();
         $this->assertNotNull($skip);
-        $this->assertSame('no_session', $skip->payload['reason']);
+        // A lead inside its interval waits before a session is even looked for: the wait is a skip,
+        // a missing session is a failure, and a touch that is not due is neither.
+        $this->assertSame('too_soon', $skip->payload['reason']);
     }
 
     public function testAJobOutOfTriesLeavesAFailedLedgerRecordForTheReports(): void

@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 use Kanvas\Connectors\OpenCode\Actions\ReapOrphanCodingContainersAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -79,6 +80,10 @@ class ReapCodingAgentRuntimeCommand extends Command
                 $this->line($machine->name . '  workspace  ' . $path);
             }
 
+            foreach ($result['housekeeping'] as $item) {
+                $this->line($machine->name . '  reclaimed  ' . $item);
+            }
+
             $this->reportDisk($machine, $result['disk']);
         }
 
@@ -101,16 +106,17 @@ class ReapCodingAgentRuntimeCommand extends Command
      * it, it is the largest single item, and the decision about what to do with it is deliberately
      * deferred until there are a few weeks of these numbers — see the Harness CLAUDE.md.
      *
-     * @param array{home: int, total: int, available: int} $disk
+     * @param array{home: int, total: int, available: int, xcode: int} $disk
      */
     private function reportDisk(AgentMachine $machine, array $disk): void
     {
         $line = sprintf(
-            '%s  disk  total=%s  opencode_home=%s  free=%s',
+            '%s  disk  total=%s  opencode_home=%s  free=%s%s',
             $machine->name,
-            $this->humanBytes($disk['total']),
-            $this->humanBytes($disk['home']),
-            $this->humanBytes($disk['available']),
+            Number::fileSize($disk['total'], 1),
+            Number::fileSize($disk['home'], 1),
+            Number::fileSize($disk['available'], 1),
+            $disk['xcode'] > 0 ? '  xcode=' . Number::fileSize($disk['xcode'], 1) : '',
         );
 
         $this->line($line);
@@ -121,25 +127,14 @@ class ReapCodingAgentRuntimeCommand extends Command
             'total_bytes' => $disk['total'],
             'home_bytes' => $disk['home'],
             'available_bytes' => $disk['available'],
+            'xcode_bytes' => $disk['xcode'],
         ]);
-    }
-
-    private function humanBytes(int $bytes): string
-    {
-        if ($bytes <= 0) {
-            return '?';
-        }
-
-        $units = ['B', 'K', 'M', 'G', 'T'];
-        $power = min((int) floor(log($bytes, 1024)), count($units) - 1);
-
-        return round($bytes / 1024 ** $power, 1) . $units[$power];
     }
 
     /**
      * Only machines a coding session has actually run on.
      *
-     * "Every active machine" looks like the safe reading and is not: this database holds 1434 of them
+     * "Every active machine" looks like the safe reading and is not: this database holds thousands of them
      * against a single machine that has ever hosted a session, because test fixtures commit on a
      * non-default connection and survive their run. Each one costs a full SSH timeout, serially — so
      * the sweep would never finish, and `withoutOverlapping()` would then block every later run

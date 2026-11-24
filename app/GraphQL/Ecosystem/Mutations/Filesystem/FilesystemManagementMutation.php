@@ -24,6 +24,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\CsvReaderService;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Scribe\ElectronicInvoicing\Support\FiscalFileRetention;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -212,7 +213,7 @@ class FilesystemManagementMutation
      */
     public function singleFile(mixed $rootValue, array $request): Filesystem
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request['file'];
 
         // Validate file
@@ -231,7 +232,7 @@ class FilesystemManagementMutation
      */
     public function uploadCsv(mixed $rootValue, array $request): array
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request['file'];
 
         // Validate file
@@ -271,7 +272,7 @@ class FilesystemManagementMutation
      */
     public function multiFile(mixed $rootValue, array $request): array
     {
-        /** @var \Illuminate\Http\UploadedFile[] $files */
+        /** @var UploadedFile[] $files */
         $files = $request['files'];
 
         $fileSystems = [];
@@ -294,6 +295,9 @@ class FilesystemManagementMutation
         })->where('uuid', $request['uuid'])
             ->notDeleted()
             ->firstOrFail();
+
+        // The model-event guard fires on $filesystem->delete(), after the bytes are already gone from storage.
+        FiscalFileRetention::assertDeletable($filesystem);
 
         $filesystemService = new FilesystemServices(app(Apps::class));
 

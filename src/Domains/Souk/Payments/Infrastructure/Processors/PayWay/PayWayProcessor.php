@@ -234,8 +234,8 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
             return match (true) {
                 $response->is3dsStepRequired() => $this->handleStep2Required($payment, $response),
-                $response->isSuccess()         => $this->handleStep1NoChallenge($payment, $response),
-                default                        => $this->handleStep1Failure($payment, $response),
+                $response->isSuccess() => $this->handleStep1NoChallenge($payment, $response),
+                default => $this->handleStep1Failure($payment, $response),
             };
         } catch (Throwable $e) {
             $payment->status = PaymentStatusEnum::FAILED->value;
@@ -635,7 +635,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             'clienteUsuario' => $clienteUsuario,
             'clienteIp' => $clienteIp,
             'concepto' => $concepto,
-            'monto' => number_format((float) $order->getTotalAmount(), 2, '.', ''),
+            'monto' => number_format((float) $order->getTotalDueAmount(), 2, '.', ''),
             'traceId' => (string) $payment->idempotency_key,
             'datosAuxiliares' => [
                 'datoAuxiliar1' => (string) $order->order_number,

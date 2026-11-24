@@ -98,6 +98,14 @@ class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
                     . 'attached design".',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'expects_changes',
+                type: PropertyType::BOOLEAN,
+                description: 'Pass false when the job is to run, build, test, screenshot or inspect and '
+                    . 'no files should change — otherwise a job that changes nothing is treated as a '
+                    . 'failure and retried. Default true.',
+                required: false,
+            ),
         ];
     }
 
@@ -108,7 +116,8 @@ class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
         string $task,
         ?string $repository = null,
         ?string $references = null,
-        ?string $attachments = null
+        ?string $attachments = null,
+        ?bool $expects_changes = null
     ): array {
         try {
             $record = new DispatchHarnessTaskAction(
@@ -119,6 +128,7 @@ class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
                 session: $this->session,
                 referenceSlugs: $this->splitReferenceSlugs($references),
                 attachmentIds: $this->splitAttachmentIds($attachments),
+                expectsChanges: $expects_changes ?? true,
             )->execute();
         } catch (HarnessTransportException $e) {
             // A ValidationException by type, but an unreachable runtime is nothing the model can act on.

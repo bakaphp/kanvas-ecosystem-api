@@ -337,11 +337,12 @@ class FixPromptDataCommand extends Command
             }
 
             if ($messageData['type'] === 'image-format' && isset($messageData['image'])) {
-                if (! strpos($messageData['image'], "mc-canvas")) {
+                if (! strpos($messageData['image'], 'mc-canvas')) {
                     $message->is_deleted = 1;
                     $message->is_public = 0;
                     $message->saveOrFail();
                     $this->info('IMAGE DOES NOT HAVE A KANVAS URL, setting message as deleted and not public. Message ID: ' . $message->getId());
+
                     return;
                 }
             }

@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Duplicates\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Duplicates\Enums\DuplicateReviewStatusEnum;
 use Kanvas\Guild\Models\BaseModel;
@@ -40,6 +41,28 @@ class DuplicateReviewGroup extends BaseModel
         'member_ids' => Json::class,
         'resolved_at' => 'datetime',
     ];
+
+    public static function signatureFor(array $memberIds): string
+    {
+        $memberIds = array_map('intval', $memberIds);
+        sort($memberIds);
+
+        return sha1(implode(',', $memberIds));
+    }
+
+    public function scopeWithSignature(
+        Builder $query,
+        int $appsId,
+        int $companiesId,
+        string $entityType,
+        string $signature
+    ): Builder {
+        return $query
+            ->where('apps_id', $appsId)
+            ->where('companies_id', $companiesId)
+            ->where('entity_type', $entityType)
+            ->where('signature', $signature);
+    }
 
     public function resolvedByUser()
     {
