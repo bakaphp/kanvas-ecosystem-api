@@ -789,6 +789,29 @@ class ProjectPmToolsTest extends TestCase
         $this->assertStringNotContainsString('CURRENT PROJECT (authoritative', $instructions);
     }
 
+    /**
+     * The several-projects block tells the PM to ask which project; without the thank-you rule it
+     * answers a thank-you with that question.
+     */
+    public function testAThankYouNeitherReopensAQuestionNorAsksWhichProject(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $this->projectFor($agent, $app, $company, $user, 'Thanked board A');
+        $this->projectFor($agent, $app, $company, $user, 'Thanked board B');
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, user: $user);
+
+        $instructions = $pm->instructions();
+
+        $this->assertStringContainsString('A THANK-YOU IS NOT A REQUEST', $instructions);
+        $this->assertStringContainsString('not re-ask a question you asked earlier', $instructions);
+        $this->assertStringContainsString('When THIS message asks you to create, change, save or look up work', $instructions);
+        $this->assertStringContainsString('needs no project: answer it briefly and do not ask', $instructions);
+        $this->assertStringNotContainsString('Ask which project they mean before you create or move any work', $instructions);
+    }
+
     public function testWakeGroundsThePmInTheWokenProjectNotAnArbitraryOne(): void
     {
         [$app, $company, $user] = $this->context();
