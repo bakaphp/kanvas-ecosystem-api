@@ -75,7 +75,7 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
             return $this->conversationInitiationResponse($dynamicVariables);
         }
 
-        $people = $this->findPeopleByPhone($normalizedPhone, $phone);
+        $people = $this->findPeopleByPhone($phone);
 
         if ($people === null) {
             return $this->conversationInitiationResponse($dynamicVariables);

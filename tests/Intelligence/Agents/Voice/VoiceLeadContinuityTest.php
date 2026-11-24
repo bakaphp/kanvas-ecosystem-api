@@ -10,6 +10,7 @@ use Kanvas\Guild\Support\Setup;
 use Kanvas\Intelligence\Agents\Actions\Voice\BuildVoiceAgentLeadContextAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\CaptureVoiceCallerAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
@@ -56,6 +57,44 @@ final class VoiceLeadContinuityTest extends TestCase
 
         $this->assertNotNull($context);
         $this->assertNull($context['context_info']);
+    }
+
+    public function testANumberCapturedInOneFormatIsRecognizedInAnother(): void
+    {
+        $agent = $this->createAgent();
+        $local = (string) random_int(1000000, 9999999);
+
+        new CaptureVoiceCallerAction(agent: $agent, phone: '+1809' . $local, direction: 'inbound')->execute();
+
+        $formatted = '+1 (809) ' . substr($local, 0, 3) . '-' . substr($local, 3);
+        $context = new BuildVoiceAgentLeadContextAction(agent: $agent, phone: $formatted)->execute();
+
+        $this->assertNotNull($context);
+        $this->assertTrue($context['is_returning']);
+    }
+
+    public function testAWithheldCallerIdMatchesNobody(): void
+    {
+        $agent = $this->createAgent();
+        new CaptureVoiceCallerAction(agent: $agent, phone: $this->uniquePhone(), direction: 'inbound')
+            ->execute();
+
+        $this->assertNull(VoiceCallerLookupService::find($agent->app, $agent->company, ''));
+        $this->assertNull(VoiceCallerLookupService::find($agent->app, $agent->company, 'anonymous'));
+    }
+
+    public function testABlankNameKeepsThePlaceholder(): void
+    {
+        $phone = $this->uniquePhone();
+
+        $result = new CaptureVoiceCallerAction(
+            agent: $this->createAgent(),
+            phone: $phone,
+            name: '   ',
+            direction: 'inbound',
+        )->execute();
+
+        $this->assertSame($phone, People::find($result['people_id'])->firstname);
     }
 
     public function testAskingForAnAppointmentOnAnOutboundCallCreatesALead(): void

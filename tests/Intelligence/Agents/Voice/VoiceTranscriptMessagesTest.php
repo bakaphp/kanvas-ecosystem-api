@@ -9,6 +9,7 @@ use App\GraphQL\Intelligence\Queries\Agent\VoiceAgentTwilioQuery;
 use Bouncer;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -20,6 +21,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
+use RuntimeException;
 use Tests\TestCase;
 
 final class VoiceTranscriptMessagesTest extends TestCase
@@ -153,6 +155,29 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame($otherScope, $scopeAfter);
         $this->assertCount(3, $this->messagesOn($people));
+    }
+
+    public function testTheScopeIsPutBackWhenSavingFails(): void
+    {
+        $agent = $this->createAgent();
+        $phone = $this->uniquePhone();
+        $this->capture($agent, $phone);
+        $previousScope = Bouncer::scope()->get();
+        $otherScope = 'app_0_company_0';
+        $creatingMessage = 'eloquent.creating: ' . Message::class;
+        Event::listen($creatingMessage, fn () => throw new RuntimeException('The message store is down.'));
+        Bouncer::scope()->to($otherScope);
+
+        try {
+            $result = $this->record($agent, $phone, 'CAfails');
+            $scopeAfter = Bouncer::scope()->get();
+        } finally {
+            Bouncer::scope()->to($previousScope);
+            Event::forget($creatingMessage);
+        }
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame($otherScope, $scopeAfter);
     }
 
     public function testAnAppThatIsNotTheAgentsSavesNothing(): void

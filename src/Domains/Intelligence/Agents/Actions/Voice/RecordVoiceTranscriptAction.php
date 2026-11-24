@@ -6,16 +6,15 @@ namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Bouncer;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Actions\Voice\Concerns\RunsInAppScope;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Services\VoiceCallerLookup;
+use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -43,6 +42,8 @@ use function Sentry\captureException;
  */
 class RecordVoiceTranscriptAction
 {
+    use RunsInAppScope;
+
     public const string MESSAGE_VERB = 'voice';
     public const int MAX_TURNS = 300;
     public const int MAX_TURN_CHARS = 2000;
@@ -68,10 +69,7 @@ class RecordVoiceTranscriptAction
     public function execute(): array
     {
         try {
-            return Bouncer::scope()->onceTo(
-                RolesEnums::getScope($this->app),
-                fn (): array => $this->record(),
-            );
+            return $this->inAppScope($this->app, fn (): array => $this->record());
         } catch (Throwable $e) {
             captureException($e);
             logger()->error('recordVoiceTranscript failed', [
@@ -96,14 +94,12 @@ class RecordVoiceTranscriptAction
             return ['status' => 'error', 'message' => 'The agent does not belong to this app.'];
         }
 
-        $company = $this->agent->companies_id > 0
-            ? Companies::find($this->agent->companies_id)
-            : null;
+        $company = $this->agent->company;
         if ($company === null) {
             return ['status' => 'error', 'message' => 'No company is set for this agent.'];
         }
 
-        $people = VoiceCallerLookup::find($this->app, $company, $this->phone);
+        $people = VoiceCallerLookupService::find($this->app, $company, $this->phone);
         if ($people === null) {
             return ['status' => 'skipped', 'reason' => 'no_contact', 'saved' => 0];
         }

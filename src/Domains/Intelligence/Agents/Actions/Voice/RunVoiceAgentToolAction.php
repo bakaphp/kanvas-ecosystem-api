@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
-use Bouncer;
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\Voice\Concerns\RunsInAppScope;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\VoiceAgentSpecService;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 use NeuronAI\Exceptions\InvalidToolInput;
@@ -23,14 +21,15 @@ use Throwable;
  * result. This is what the external voice runtime hits when the LLM makes a
  * function call mid-call.
  *
- * The tool runs with the AGENT's own context — its app, its company, and its
- * dedicated AI user (a non-request path, so we can't lean on auth()). Entity ids
- * (lead, product, …) arrive as tool arguments, exactly like a chat-turn tool
- * call. Reuses NeuronAI's Tool::execute() so argument mapping + dispatch match
- * the in-process agent path.
+ * The tool runs in the agent's own app: a write tool resolves People and Roles under the
+ * current app and Bouncer scope, which are the runtime's app key until switched. Entity ids
+ * arrive as tool arguments, and NeuronAI's Tool::execute() maps and dispatches them exactly
+ * as on the in-process agent path.
  */
 class RunVoiceAgentToolAction
 {
+    use RunsInAppScope;
+
     /**
      * @param array<string, mixed> $arguments the LLM-supplied tool arguments
      */
@@ -47,43 +46,31 @@ class RunVoiceAgentToolAction
      */
     public function execute(): mixed
     {
-        // Cross-app: run the tool in the AGENT's app + Bouncer scope, not the
-        // runtime's app-key app. A write tool (create a lead, a channel, assign a
-        // role) resolves People/Roles under the current scope, so without this a
-        // cross-app agent hits ModelNotFoundException [People]/[Role] deep inside
-        // the tool. Same binding as CaptureVoiceCallerAction; restored in finally.
-        $previousApp = app(Apps::class);
-        app()->instance(Apps::class, $this->agent->app);
-        $previousScope = Bouncer::scope()->get();
-        Bouncer::scope()->to(RolesEnums::getScope($this->agent->app));
+        return $this->inApp($this->agent->app, fn (): mixed => $this->run());
+    }
+
+    private function run(): mixed
+    {
+        $handler = $this->resolveHandler();
+
+        // This is not a request path, so the acting user is the company's AI user, never auth().
+        $company = $this->agent->company;
+        if ($company !== null && method_exists($handler, 'withContext')) {
+            $handler->withContext($this->agent->app, $company, $company->getAiAgentUserOrFail());
+        }
 
         try {
-            $handler = $this->resolveHandler();
-
-            // Wire the agent's tenant context onto tools that accept it (withContext
-            // from HasKanvasContext). app/company come from the agent; the acting
-            // user is the company's dedicated AI user for this non-request path.
-            $company = $this->agent->companies_id > 0 ? Companies::find($this->agent->companies_id) : null;
-            if ($company !== null && method_exists($handler, 'withContext')) {
-                $handler->withContext($this->agent->app, $company, $company->getAiAgentUserOrFail());
-            }
-
-            try {
-                $handler->setInputs($this->arguments);
-                $handler->execute();
-            } catch (Throwable $e) {
-                return $this->errorResult($e);
-            }
-
-            // Tools setResult(json_encode($array)); decode so the runtime gets structure.
-            $result = $handler->getResult();
-            $decoded = json_decode($result, true);
-
-            return json_last_error() === JSON_ERROR_NONE ? $decoded : $result;
-        } finally {
-            Bouncer::scope()->to($previousScope);
-            app()->instance(Apps::class, $previousApp);
+            $handler->setInputs($this->arguments);
+            $handler->execute();
+        } catch (Throwable $e) {
+            return $this->errorResult($e);
         }
+
+        // Tools setResult(json_encode($array)); decode so the runtime gets structure.
+        $result = $handler->getResult();
+        $decoded = json_decode($result, true);
+
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : $result;
     }
 
     /**
@@ -113,24 +100,17 @@ class RunVoiceAgentToolAction
     }
 
     /**
-     * Resolve the runnable handler for $this->toolName among the agent's active
-     * NEURON tools.
+     * The handler for $this->toolName among the agent's active NEURON tools.
      *
-     * The name to match is the HANDLER's own name ($handler->getName(), a valid
-     * function-call identifier like `inventory_search`) — that is what
-     * VoiceAgentSpecService advertises to the runtime and therefore what the LLM
-     * calls back with. The catalog `Tool.name` column is a human display label
-     * (e.g. `Inventory Search`) and does NOT match; keying off it made every tool
-     * whose display name differs from its handler name uncallable mid-call. The
-     * catalog name is kept only as a fallback for tools whose two names coincide.
+     * The name matched is the HANDLER's ($handler->getName(), e.g. `inventory_search`): that is
+     * what VoiceAgentSpecService advertises and so what the LLM calls back with. The catalog
+     * `Tool.name` is a display label (`Inventory Search`) and only a fallback for tools whose two
+     * names coincide.
      *
-     * Fast path: a handler's name is almost always a literal `$name` default, read
-     * by reflection without building the tool, so only the match is instantiated
-     * (an agent can carry dozens of tools, each with its own constructor
-     * dependencies). Slow path, only when that finds nothing: build the remaining
-     * handlers and ask each for getName() — this keeps a tool whose name
-     * is set at construction time (no literal default) callable, so run-time
-     * selection still matches what VoiceAgentSpecService advertised.
+     * A handler's name is almost always a literal `$name` default, read by reflection, so only
+     * the match is built (an agent can carry dozens of tools, each with constructor dependencies).
+     * When that finds nothing the rest are built and asked, which keeps a tool named at
+     * construction time callable.
      */
     private function resolveHandler(): NeuronTool
     {
@@ -151,7 +131,7 @@ class RunVoiceAgentToolAction
                 continue;
             }
 
-            $handler = $this->buildHandler($handlerClass);
+            $handler = VoiceAgentSpecService::buildHandler($handlerClass);
             if ($handler !== null && $handler->getName() === $this->toolName) {
                 return $handler;
             }
@@ -160,7 +140,7 @@ class RunVoiceAgentToolAction
         $fallback = null;
 
         foreach ($remaining as [$catalogTool, $handlerClass]) {
-            $handler = $this->buildHandler($handlerClass);
+            $handler = VoiceAgentSpecService::buildHandler($handlerClass);
             if ($handler === null) {
                 continue;
             }
@@ -195,20 +175,5 @@ class RunVoiceAgentToolAction
         $name = new ReflectionClass($handlerClass)->getDefaultProperties()['name'] ?? null;
 
         return is_string($name) && $name !== '' ? $name : null;
-    }
-
-    /**
-     * A handler that can't be built is skipped, not fatal — mirrors
-     * VoiceAgentSpecService, so run-time selection matches advertise-time.
-     */
-    private function buildHandler(string $handlerClass): ?NeuronTool
-    {
-        try {
-            $handler = app($handlerClass);
-        } catch (Throwable) {
-            return null;
-        }
-
-        return $handler instanceof NeuronTool ? $handler : null;
     }
 }
