@@ -139,13 +139,15 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallerMutation@capture"
         )
-    "Data plane: file a finished call's transcript as `voice` messages, one per turn, on the caller's person and active lead. Voice runtime only (X-Voice-Runtime-Token). Re-sending a call saves nothing twice."
+    "Data plane: file a finished call as one `voice` message on the caller's person and active lead: the summary as its content, the turns in its `transcript`. Voice runtime only (X-Voice-Runtime-Token). Re-sending a call saves nothing twice."
     recordVoiceTranscript(
         agent_uuid: String!
         phone: String!
         call_sid: String!
         direction: String
         turns: [VoiceTranscriptTurnInput!]!
+        "The call's summary, with its [voice <direction> <time> UTC, <outcome>] header. Without it the transcript is the content."
+        summary: String
     ): Mixed
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallerMutation@recordTranscript"

@@ -18,8 +18,12 @@ use Kanvas\Intelligence\Agents\Actions\Voice\BuildVoiceAgentLeadContextAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\CaptureVoiceCallerAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\RecordVoiceTranscriptAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Tests\TestCase;
 use Tests\Traits\CreatesBareApps;
@@ -37,7 +41,10 @@ final class VoiceTranscriptMessagesTest extends TestCase
         ['role' => 'agent', 'text' => 'Tuesday at 4 PM works. See you then.'],
     ];
 
-    public function testEachTurnIsAVoiceMessageOnThePerson(): void
+    private const string SUMMARY = '[voice inbound 2026-11-24 19:27 UTC, conversation] Rafael wants to see '
+        . 'the 2021 Civic; booked for Tuesday at 4 PM.';
+
+    public function testACallIsOneVoiceMessageOnThePerson(): void
     {
         $agent = $this->createAgent();
         $phone = $this->uniquePhone();
@@ -46,24 +53,21 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $result = $this->record($agent, $phone, 'CAperson');
 
         $this->assertSame('success', $result['status']);
-        $this->assertSame(3, $result['saved']);
+        $this->assertSame(1, $result['saved']);
         $this->assertNull($result['lead_id']);
 
         $messages = $this->messagesOn($people);
-        $this->assertCount(3, $messages);
-        $this->assertSame(
-            ['voice'],
-            $messages->map(fn (Message $m) => $m->messageType->verb)->unique()->values()->all(),
-        );
-        $this->assertSame(
-            array_column(self::TURNS, 'text'),
-            $messages->map(fn (Message $m) => $m->message['content'])->all(),
-        );
-        $this->assertSame([true, false, true], $messages->map(fn (Message $m) => $m->message['from_ia'])->all());
-        $this->assertSame($people->getId(), $messages->first()->people_id);
+        $this->assertCount(1, $messages);
+        $message = $messages->first();
+        $this->assertSame('voice', $message->messageType->verb);
+        $this->assertSame(self::SUMMARY, $message->message['content']);
+        $this->assertSame(self::TURNS, $message->message['transcript']);
+        $this->assertTrue($message->message['from_ia']);
+        $this->assertSame(MessageSenderTypeEnum::AGENT->value, $message->sender_type);
+        $this->assertSame($people->getId(), $message->people_id);
     }
 
-    public function testTurnsAreFiledOnTheLeadToo(): void
+    public function testTheCallIsFiledOnTheLeadToo(): void
     {
         $agent = $this->createAgent();
         $phone = $this->uniquePhone();
@@ -71,8 +75,8 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $lead = Lead::find($this->record($agent, $phone, 'CAlead')['lead_id']);
 
         $this->assertNotNull($lead);
-        $this->assertCount(3, $this->messagesOn($lead));
-        $this->assertCount(3, $this->messagesOn($people));
+        $this->assertCount(1, $this->messagesOn($lead));
+        $this->assertCount(1, $this->messagesOn($people));
     }
 
     public function testResendingACallSavesNothingTwice(): void
@@ -85,21 +89,41 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $again = $this->record($agent, $phone, 'CAresend');
 
         $this->assertSame(0, $again['saved']);
-        $this->assertSame(3, $again['skipped']);
-        $this->assertCount(3, $this->messagesOn($people));
+        $this->assertCount(1, $this->messagesOn($people));
     }
 
-    public function testTheNextContactReadsTheCall(): void
+    public function testTheNextContactReadsTheCallAsTheAgents(): void
     {
         $agent = $this->createAgent();
         $phone = $this->uniquePhone();
-        $this->capture($agent, $phone);
+        $people = $this->capture($agent, $phone);
+        $this->attachText($people, 'Is the Civic still available?');
 
         $this->record($agent, $phone, 'CAnext');
         $context = new BuildVoiceAgentLeadContextAction(agent: $agent, phone: $phone)->execute();
 
-        $this->assertStringContainsString('[Agent] Tuesday at 4 PM works.', $context['recent_messages']);
-        $this->assertStringContainsString('I want to see the 2021 Civic tomorrow.', $context['recent_messages']);
+        $this->assertStringContainsString('[Agent] ' . self::SUMMARY, $context['recent_messages']);
+    }
+
+    public function testWithoutASummaryTheTranscriptIsTheContent(): void
+    {
+        $agent = $this->createAgent();
+        $phone = $this->uniquePhone();
+        $people = $this->capture($agent, $phone);
+
+        $this->record(
+            $agent,
+            $phone,
+            'CAnosummary',
+            summary: null,
+        );
+
+        $this->assertSame(
+            "Agent: Hi, this is Sally from the dealership.\n"
+            . "Customer: I want to see the 2021 Civic tomorrow.\n"
+            . 'Agent: Tuesday at 4 PM works. See you then.',
+            $this->messagesOn($people)->first()->message['content'],
+        );
     }
 
     public function testANumberWithNoPersonIsSkipped(): void
@@ -116,10 +140,10 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $phone = $this->uniquePhone();
         $people = $this->capture($agent, $phone);
 
-        $result = new RecordVoiceTranscriptAction(
+        new RecordVoiceTranscriptAction(
             agent: $agent,
             phone: $phone,
-            callSid: 'CAblank',
+            callSid: 'CAblank' . $phone,
             turns: [
                 ['role' => 'customer', 'text' => '   '],
                 ['role' => 'system', 'text' => 'You are an agent.'],
@@ -127,11 +151,26 @@ final class VoiceTranscriptMessagesTest extends TestCase
             ],
         )->execute();
 
-        $this->assertSame(1, $result['saved']);
-        $this->assertSame(
-            ['Hello?'],
-            $this->messagesOn($people)->map(fn (Message $m) => $m->message['content'])->all(),
-        );
+        $message = $this->messagesOn($people)->first();
+        $this->assertSame('Customer: Hello?', $message->message['content']);
+        $this->assertSame([['role' => 'customer', 'text' => 'Hello?']], $message->message['transcript']);
+    }
+
+    public function testACallWithNothingSaidIsSkipped(): void
+    {
+        $agent = $this->createAgent();
+        $phone = $this->uniquePhone();
+        $people = $this->capture($agent, $phone);
+
+        $result = new RecordVoiceTranscriptAction(
+            agent: $agent,
+            phone: $phone,
+            callSid: 'CAsilent' . $phone,
+            turns: [['role' => 'customer', 'text' => '  ']],
+        )->execute();
+
+        $this->assertSame('nothing_said', $result['reason']);
+        $this->assertCount(0, $this->messagesOn($people));
     }
 
     public function testTheMutationFilesACrossAppAgentsCallInTheAgentsApp(): void
@@ -160,7 +199,7 @@ final class VoiceTranscriptMessagesTest extends TestCase
         }
 
         $this->assertSame('success', $result['status']);
-        $this->assertCount(3, $this->messagesOn($people));
+        $this->assertCount(1, $this->messagesOn($people));
     }
 
     public function testTheMutationRefusesAnAppKeyWithoutTheRuntimeToken(): void
@@ -192,20 +231,26 @@ final class VoiceTranscriptMessagesTest extends TestCase
             'call_sid' => 'CAruntime',
             'direction' => 'inbound',
             'turns' => self::TURNS,
+            'summary' => self::SUMMARY,
         ]);
 
         $this->assertSame('success', $result['status']);
-        $this->assertSame(3, $result['saved']);
+        $this->assertSame(1, $result['saved']);
     }
 
-    private function record(Agent $agent, string $phone, string $callSid): array
-    {
+    private function record(
+        Agent $agent,
+        string $phone,
+        string $callSid,
+        ?string $summary = self::SUMMARY,
+    ): array {
         return new RecordVoiceTranscriptAction(
             agent: $agent,
             phone: $phone,
             callSid: $callSid . $phone,
             turns: self::TURNS,
             direction: 'inbound',
+            summary: $summary,
         )->execute();
     }
 
@@ -220,6 +265,21 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $this->assertSame('success', $result['status']);
 
         return People::find($result['people_id']);
+    }
+
+    private function attachText(People $people, string $text): void
+    {
+        $app = app(Apps::class);
+        new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $people->company,
+                user: auth()->user(),
+                type: MessageTypeService::getOrCreate($app, 'twilio-sms'),
+                message: ['content' => $text, 'from_ia' => false, 'from_me' => false],
+                is_public: 1,
+            )
+        )->execute()->addEntity($people);
     }
 
     /**
