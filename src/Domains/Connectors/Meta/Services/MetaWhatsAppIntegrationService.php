@@ -12,7 +12,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
-class MetaWhatsAppIntegration
+class MetaWhatsAppIntegrationService
 {
     /**
      * On: the company completed the integration in this app, it was not switched off, and it still

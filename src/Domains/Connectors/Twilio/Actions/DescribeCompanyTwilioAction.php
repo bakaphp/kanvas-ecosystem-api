@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Twilio\Actions;
 use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Twilio\Services\CompanyPhoneNumbersService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
 use Throwable;
@@ -60,7 +61,7 @@ class DescribeCompanyTwilioAction
         $account = $this->account();
 
         try {
-            $numbers = $account->execute();
+            $numbers = $account->list();
         } catch (ValidationException) {
             return [...$description, 'error' => 'Twilio is not connected for this company.'];
         } catch (RestException $e) {
@@ -86,9 +87,9 @@ class DescribeCompanyTwilioAction
         return [...$description, 'problems' => $this->problems($description, $numbers)];
     }
 
-    protected function account(): ListCompanyPhoneNumbersAction
+    protected function account(): CompanyPhoneNumbersService
     {
-        return new ListCompanyPhoneNumbersAction($this->company);
+        return new CompanyPhoneNumbersService($this->company);
     }
 
     /**

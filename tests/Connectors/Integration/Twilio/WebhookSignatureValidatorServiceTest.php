@@ -8,12 +8,12 @@ use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
+use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidatorService;
 use Mockery;
 use Tests\TestCaseUnit;
 use Twilio\Security\RequestValidator;
 
-final class WebhookSignatureValidatorTest extends TestCaseUnit
+final class WebhookSignatureValidatorServiceTest extends TestCaseUnit
 {
     private const string URL = 'https://api.salesassist.io/v1/receiver/twilio-status';
     private const string ACCOUNT_SID = 'AC123';
@@ -28,7 +28,7 @@ final class WebhookSignatureValidatorTest extends TestCaseUnit
             (new RequestValidator(self::AUTH_TOKEN))->computeSignature(self::URL, $parameters),
         );
 
-        $this->assertTrue(WebhookSignatureValidator::validate(
+        $this->assertTrue(WebhookSignatureValidatorService::validate(
             $request,
             $this->company(),
             $this->app(),
@@ -41,7 +41,7 @@ final class WebhookSignatureValidatorTest extends TestCaseUnit
         $request = $this->request($this->parameters());
         $request->headers->set('X-Twilio-Signature', 'invalid');
 
-        $this->assertFalse(WebhookSignatureValidator::validate(
+        $this->assertFalse(WebhookSignatureValidatorService::validate(
             $request,
             $this->company(),
             $this->app(),
@@ -58,7 +58,7 @@ final class WebhookSignatureValidatorTest extends TestCaseUnit
             (new RequestValidator(self::AUTH_TOKEN))->computeSignature(self::URL, $parameters),
         );
 
-        $this->assertFalse(WebhookSignatureValidator::validate(
+        $this->assertFalse(WebhookSignatureValidatorService::validate(
             $request,
             $this->company(),
             $this->app(),
@@ -79,7 +79,7 @@ final class WebhookSignatureValidatorTest extends TestCaseUnit
             new RequestValidator(self::AUTH_TOKEN)->computeSignature(self::URL, $parameters),
         );
 
-        $this->assertTrue(WebhookSignatureValidator::validate(
+        $this->assertTrue(WebhookSignatureValidatorService::validate(
             $request,
             $this->company(null, null),
             $this->app(self::ACCOUNT_SID, self::AUTH_TOKEN),
@@ -96,7 +96,7 @@ final class WebhookSignatureValidatorTest extends TestCaseUnit
             new RequestValidator('app-token')->computeSignature(self::URL, $parameters),
         );
 
-        $this->assertFalse(WebhookSignatureValidator::validate(
+        $this->assertFalse(WebhookSignatureValidatorService::validate(
             $request,
             $this->company(),
             $this->app('AC-app', 'app-token'),
@@ -113,7 +113,7 @@ final class WebhookSignatureValidatorTest extends TestCaseUnit
             new RequestValidator(self::AUTH_TOKEN)->computeSignature(self::URL, $parameters),
         );
 
-        $this->assertFalse(WebhookSignatureValidator::validate(
+        $this->assertFalse(WebhookSignatureValidatorService::validate(
             $request,
             $this->company(null, null),
             $this->app(),

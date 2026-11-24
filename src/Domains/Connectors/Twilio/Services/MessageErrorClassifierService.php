@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Twilio\Services;
 
 use Twilio\Exceptions\RestException;
 
-final class MessageErrorClassifier
+final class MessageErrorClassifierService
 {
     /**
      * What a refusal from the Messages API means, by Twilio's error code.

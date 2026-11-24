@@ -72,7 +72,12 @@ final class MetaWhatsAppHandlerTest extends TestCase
         $this->assertSame(self::WABA_ID, (string) $company->get(ConfigurationEnum::WABA_ID->value));
         $this->assertSame('+1 809-555-0100', $company->get(ConfigurationEnum::DISPLAY_PHONE_NUMBER->value));
         $this->assertSame(
-            ['phone_numbers' => [['phone_number_id' => self::PHONE_NUMBER_ID, 'display_phone_number' => '+1 809-555-0100']]],
+            ['phone_numbers' => [
+                [
+                    'phone_number_id' => self::PHONE_NUMBER_ID,
+                    'display_phone_number' => '+1 809-555-0100',
+                ],
+            ]],
             $handler->persistedConfig(),
             'the integration row keeps the numbers, never the credentials'
         );
@@ -81,9 +86,17 @@ final class MetaWhatsAppHandlerTest extends TestCase
     public function testAnotherNumberIsConnectedBesideTheFirst(): void
     {
         $this->fakeMeta();
-        $this->integrate(['phone_number_id' => self::PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID]);
+        $this->integrate([
+            'phone_number_id' => self::PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => self::WABA_ID,
+        ]);
 
-        $handler = $this->integrate(['phone_number_id' => self::SECOND_PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID]);
+        $handler = $this->integrate([
+            'phone_number_id' => self::SECOND_PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => self::WABA_ID,
+        ]);
 
         $this->assertSame(
             [self::PHONE_NUMBER_ID, self::SECOND_PHONE_NUMBER_ID],
@@ -102,12 +115,39 @@ final class MetaWhatsAppHandlerTest extends TestCase
     public function testACompanyAlreadyConnectedAddsANumberWithTheTokenItHas(): void
     {
         $this->fakeMeta();
-        $this->integrate(['phone_number_id' => self::PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID]);
+        $this->integrate([
+            'phone_number_id' => self::PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => self::WABA_ID,
+        ]);
 
-        $handler = $this->integrate(['phone_number_id' => self::SECOND_PHONE_NUMBER_ID, 'waba_id' => self::WABA_ID]);
+        $handler = $this->integrate([
+            'phone_number_id' => self::SECOND_PHONE_NUMBER_ID,
+            'waba_id' => self::WABA_ID,
+        ]);
 
         $this->assertCount(2, $handler->persistedConfig()['phone_numbers']);
         $this->assertSame('test-token', $handler->company->get(ConfigurationEnum::ACCESS_TOKEN->value));
+    }
+
+    /**
+     * A JSON client sends the ids as it has them from Meta's API: numbers.
+     */
+    public function testTheAccountAndNumberIdsAreAcceptedAsNumbers(): void
+    {
+        $this->fakeMeta();
+
+        $handler = $this->integrate([
+            'phone_number_id' => (int) self::PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => (int) self::WABA_ID,
+        ]);
+
+        $this->assertSame(self::WABA_ID, (string) $handler->company->get(ConfigurationEnum::WABA_ID->value));
+        $this->assertSame(
+            [self::PHONE_NUMBER_ID],
+            array_column($handler->persistedConfig()['phone_numbers'], 'phone_number_id')
+        );
     }
 
     /**
@@ -133,7 +173,11 @@ final class MetaWhatsAppHandlerTest extends TestCase
             'the connection it already has must not read as changed'
         );
 
-        $handler = $this->integrate(['phone_number_id' => self::SECOND_PHONE_NUMBER_ID, 'code' => null, 'waba_id' => self::WABA_ID]);
+        $handler = $this->integrate([
+            'phone_number_id' => self::SECOND_PHONE_NUMBER_ID,
+            'code' => null,
+            'waba_id' => self::WABA_ID,
+        ]);
 
         $this->assertSame(
             [self::PHONE_NUMBER_ID, self::SECOND_PHONE_NUMBER_ID],
@@ -145,7 +189,11 @@ final class MetaWhatsAppHandlerTest extends TestCase
     public function testAListOfNumbersIsTheWholeSelection(): void
     {
         $this->fakeMeta();
-        $this->integrate(['phone_number_id' => self::PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID]);
+        $this->integrate([
+            'phone_number_id' => self::PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => self::WABA_ID,
+        ]);
 
         $handler = $this->integrate([
             'phone_number_id' => self::SECOND_PHONE_NUMBER_ID,
@@ -153,7 +201,10 @@ final class MetaWhatsAppHandlerTest extends TestCase
             'waba_id' => self::WABA_ID,
         ]);
 
-        $this->assertSame([self::SECOND_PHONE_NUMBER_ID], array_column($handler->persistedConfig()['phone_numbers'], 'phone_number_id'));
+        $this->assertSame(
+            [self::SECOND_PHONE_NUMBER_ID],
+            array_column($handler->persistedConfig()['phone_numbers'], 'phone_number_id')
+        );
         $this->assertSame(
             self::SECOND_PHONE_NUMBER_ID,
             (string) $handler->company->get(ConfigurationEnum::PHONE_NUMBER_ID->value),
@@ -163,13 +214,17 @@ final class MetaWhatsAppHandlerTest extends TestCase
     }
 
     /**
-     * A form sends its untouched optional field as null or an empty list.
+     * A form sends its untouched optional field as null, an empty list or a list of blanks.
      */
     #[DataProvider('unsentSelection')]
     public function testAnEmptySelectionAddsTheNumberInsteadOfReplacingTheOthers(mixed $phoneNumberIds): void
     {
         $this->fakeMeta();
-        $this->integrate(['phone_number_id' => self::PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID]);
+        $this->integrate([
+            'phone_number_id' => self::PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => self::WABA_ID,
+        ]);
 
         $handler = $this->integrate([
             'phone_number_id' => self::SECOND_PHONE_NUMBER_ID,
@@ -188,6 +243,7 @@ final class MetaWhatsAppHandlerTest extends TestCase
         return [
             'null' => [null],
             'an empty list' => [[]],
+            'a list of blanks' => [['', null]],
         ];
     }
 
@@ -196,7 +252,11 @@ final class MetaWhatsAppHandlerTest extends TestCase
         $this->fakeMeta();
 
         try {
-            $this->handler(['phone_number_id' => '999000111222333', 'access_token' => 'test-token', 'waba_id' => self::WABA_ID])->setup();
+            $this->handler([
+                'phone_number_id' => '999000111222333',
+                'access_token' => 'test-token',
+                'waba_id' => self::WABA_ID,
+            ])->setup();
             $this->fail('A number the WABA does not have cannot be connected.');
         } catch (ValidationException $exception) {
             $this->assertStringContainsString('999000111222333 is not in WhatsApp Business Account', $exception->getMessage());
@@ -208,27 +268,45 @@ final class MetaWhatsAppHandlerTest extends TestCase
     public function testASecondWabaIsRefusedWhileTheFirstIsConnected(): void
     {
         $this->fakeMeta();
-        $this->integrate(['phone_number_id' => self::PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID]);
+        $this->integrate([
+            'phone_number_id' => self::PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => self::WABA_ID,
+        ]);
         Http::fake();
 
         try {
-            $this->handler(['phone_number_id' => self::SECOND_PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => '555000111222333'])->setup();
+            $this->handler([
+                'phone_number_id' => self::SECOND_PHONE_NUMBER_ID,
+                'access_token' => 'test-token',
+                'waba_id' => '555000111222333',
+            ])->setup();
             $this->fail('One integration is one WhatsApp Business Account.');
         } catch (ValidationException $exception) {
             $this->assertStringContainsString('Disconnect the integration', $exception->getMessage());
         }
 
-        $this->assertSame(self::WABA_ID, (string) auth()->user()->getCurrentCompany()->get(ConfigurationEnum::WABA_ID->value));
+        $this->assertSame(
+            self::WABA_ID,
+            (string) auth()->user()->getCurrentCompany()->get(ConfigurationEnum::WABA_ID->value)
+        );
     }
 
     public function testTheTokenACompanyHasIsNeverTriedOnAnotherWaba(): void
     {
         $this->fakeMeta();
-        $this->integrate(['phone_number_id' => self::PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID]);
+        $this->integrate([
+            'phone_number_id' => self::PHONE_NUMBER_ID,
+            'access_token' => 'test-token',
+            'waba_id' => self::WABA_ID,
+        ]);
         Http::fake();
 
         try {
-            $this->handler(['phone_number_id' => self::SECOND_PHONE_NUMBER_ID, 'waba_id' => '555000111222333'])->setup();
+            $this->handler([
+                'phone_number_id' => self::SECOND_PHONE_NUMBER_ID,
+                'waba_id' => '555000111222333',
+            ])->setup();
             $this->fail('A number of another account cannot ride on the token of the one connected.');
         } catch (ValidationException $exception) {
             $this->assertStringContainsString('Disconnect the integration', $exception->getMessage());
@@ -242,7 +320,11 @@ final class MetaWhatsAppHandlerTest extends TestCase
         Http::fake(fn (Request $request) => throw new ConnectionException('cURL error 28: timed out for ' . $request->url()));
 
         try {
-            $this->handler(['phone_number_id' => self::PHONE_NUMBER_ID, 'access_token' => 'test-token', 'waba_id' => self::WABA_ID])->setup();
+            $this->handler([
+                'phone_number_id' => self::PHONE_NUMBER_ID,
+                'access_token' => 'test-token',
+                'waba_id' => self::WABA_ID,
+            ])->setup();
             $this->fail('An unreachable Meta cannot connect a number.');
         } catch (ValidationException $exception) {
             $this->assertStringNotContainsString('graph.facebook.com', $exception->getMessage());

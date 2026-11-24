@@ -7,8 +7,8 @@ namespace App\GraphQL\Connector\Meta\Queries;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Meta\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Connectors\Meta\Client;
+use Kanvas\Connectors\Meta\Services\CompanyPhoneNumbersService;
 use Throwable;
 
 /**
@@ -28,7 +28,7 @@ class MetaWhatsAppPhoneNumbersQuery
         $ctx = $this->actingContext();
 
         try {
-            return new ListCompanyPhoneNumbersAction($ctx->app, $ctx->company)->execute();
+            return new CompanyPhoneNumbersService($ctx->app, $ctx->company)->list();
         } catch (Throwable $exception) {
             Log::warning('Meta WhatsApp numbers could not be listed', [
                 'company_id' => $ctx->company->getId(),

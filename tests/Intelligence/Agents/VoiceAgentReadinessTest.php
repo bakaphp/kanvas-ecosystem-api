@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Actions\DescribeCompanyTwilioAction;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
+use Kanvas\Connectors\Twilio\Services\CompanyPhoneNumbersService;
 use Kanvas\Intelligence\Agents\Actions\Voice\CheckVoiceAgentReadinessAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;
@@ -190,7 +190,7 @@ class VoiceAgentReadinessTest extends TestCase
      */
     private function readiness(Agent $agent, FakeTwilioAccountClient $client): array
     {
-        $account = new class ($this->company, $client) extends ListCompanyPhoneNumbersAction {
+        $account = new class ($this->company, $client) extends CompanyPhoneNumbersService {
             public function __construct(Companies $company, private FakeTwilioAccountClient $client)
             {
                 parent::__construct($company);
@@ -203,12 +203,12 @@ class VoiceAgentReadinessTest extends TestCase
         };
 
         $twilio = new class ($this->company, $account) extends DescribeCompanyTwilioAction {
-            public function __construct(Companies $company, private ListCompanyPhoneNumbersAction $fake)
+            public function __construct(Companies $company, private CompanyPhoneNumbersService $fake)
             {
                 parent::__construct($company);
             }
 
-            protected function account(): ListCompanyPhoneNumbersAction
+            protected function account(): CompanyPhoneNumbersService
             {
                 return $this->fake;
             }
@@ -218,7 +218,7 @@ class VoiceAgentReadinessTest extends TestCase
             public function __construct(
                 Agent $agent,
                 private DescribeCompanyTwilioAction $fakeTwilio,
-                private ListCompanyPhoneNumbersAction $fakeNumbers
+                private CompanyPhoneNumbersService $fakeNumbers
             ) {
                 parent::__construct($agent);
             }
@@ -228,7 +228,7 @@ class VoiceAgentReadinessTest extends TestCase
                 return $this->fakeTwilio;
             }
 
-            protected function phoneNumbers(): ListCompanyPhoneNumbersAction
+            protected function phoneNumbers(): CompanyPhoneNumbersService
             {
                 return $this->fakeNumbers;
             }

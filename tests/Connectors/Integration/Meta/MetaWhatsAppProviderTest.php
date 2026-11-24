@@ -715,7 +715,12 @@ final class MetaWhatsAppProviderTest extends TestCase
     public function testANumberIsAnsweredByTheAgentHoldingItAndFromThatNumber(): void
     {
         $this->fakeGraph(['messages' => [['id' => 'wamid.REPLY-B']]]);
-        $first = $this->metaConnectionOn(self::OUR_NUMBER, self::PHONE_NUMBER_ID, $this->agent(), default: true);
+        $first = $this->metaConnectionOn(
+            self::OUR_NUMBER,
+            self::PHONE_NUMBER_ID,
+            $this->agent(),
+            default: true
+        );
         $holder = $this->agent('Service Sofia', ['whatsapp_config' => ['phone_number' => self::SECOND_NUMBER]]);
         $second = $this->metaConnectionOn(self::SECOND_NUMBER, self::SECOND_PHONE_NUMBER_ID, $holder);
 
@@ -733,7 +738,12 @@ final class MetaWhatsAppProviderTest extends TestCase
     public function testANumberNoAgentHoldsIsFiledAndNotAnswered(): void
     {
         Http::fake();
-        $this->metaConnectionOn(self::OUR_NUMBER, self::PHONE_NUMBER_ID, $this->agent(), default: true);
+        $this->metaConnectionOn(
+            self::OUR_NUMBER,
+            self::PHONE_NUMBER_ID,
+            $this->agent(),
+            default: true
+        );
         $second = $this->metaConnectionOn(self::SECOND_NUMBER, self::SECOND_PHONE_NUMBER_ID);
 
         $result = $this->deliver($this->inboundOnSecondNumber('wamid.IN-U', '18095550207', 'Anyone there?'));

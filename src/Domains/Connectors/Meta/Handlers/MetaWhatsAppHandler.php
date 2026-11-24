@@ -58,8 +58,13 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
     #[Override]
     public function setup(): bool
     {
-        $wabaId = Str::trimToNull($this->data['waba_id'] ?? null);
-        $requested = $this->requestedPhoneNumberIds();
+        $wabaId = $this->data['waba_id'] ?? null;
+        $wabaId = is_scalar($wabaId) ? Str::trimToNull((string) $wabaId) : null;
+        $listed = $this->phoneNumberIds((array) ($this->data['phone_number_ids'] ?? []));
+        $requested = array_values(array_unique([
+            ...$this->phoneNumberIds([$this->data['phone_number_id'] ?? null]),
+            ...$listed,
+        ]));
 
         // The WABA too: its webhook subscription is what brings its numbers' messages in.
         if ($requested === [] || $wabaId === null) {
@@ -78,10 +83,9 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
             }
         }
 
-        // A null or empty list is a form's untouched field, not a selection of nothing: it adds.
-        // A number connected before that Meta no longer lists is gone there, so it is not kept.
-        $replaces = (array) ($this->data['phone_number_ids'] ?? []) !== [];
-        $kept = $replaces ? [] : array_column($connected, 'phone_number_id');
+        // A null, empty or all-blank list is a form's untouched field, not a selection of nothing: it
+        // adds. A number connected before that Meta no longer lists is gone there, so it is not kept.
+        $kept = $listed !== [] ? [] : array_column($connected, 'phone_number_id');
         $this->selection = array_values(array_intersect_key(
             $available,
             array_flip([...$kept, ...$requested])
@@ -89,7 +93,8 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
 
         // The company's default number stays the first it connected, for as long as it keeps it.
         $current = (string) $this->company->get(ConfigurationEnum::PHONE_NUMBER_ID->value);
-        $default = collect($this->selection)->firstWhere('phone_number_id', $current) ?? $available[$requested[0]];
+        $default = collect($this->selection)->firstWhere('phone_number_id', $current)
+            ?? $available[$requested[0]];
 
         $this->company->set(ConfigurationEnum::PHONE_NUMBER_ID->value, $default['phone_number_id']);
         $this->company->set(ConfigurationEnum::DISPLAY_PHONE_NUMBER->value, $default['display_phone_number']);
@@ -201,7 +206,10 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
             $displayPhoneNumber = Str::trimToNull((string) ($number['display_phone_number'] ?? ''));
 
             if ($phoneNumberId !== null && $displayPhoneNumber !== null) {
-                $selected[] = ['phone_number_id' => $phoneNumberId, 'display_phone_number' => $displayPhoneNumber];
+                $selected[] = [
+                    'phone_number_id' => $phoneNumberId,
+                    'display_phone_number' => $displayPhoneNumber,
+                ];
             }
         }
 
@@ -276,13 +284,15 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
     }
 
     /**
+     * The ids among what a form sent, blanks dropped.
+     *
      * @return list<string>
      */
-    protected function requestedPhoneNumberIds(): array
+    protected function phoneNumberIds(array $sent): array
     {
-        $requested = [];
+        $ids = [];
 
-        foreach ([$this->data['phone_number_id'] ?? null, ...(array) ($this->data['phone_number_ids'] ?? [])] as $id) {
+        foreach ($sent as $id) {
             $id = is_scalar($id) ? Str::trimToNull((string) $id) : null;
 
             if ($id === null) {
@@ -294,10 +304,10 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
                 throw new ValidationException('The WhatsApp phone number id must be numeric.');
             }
 
-            $requested[] = $id;
+            $ids[] = $id;
         }
 
-        return array_values(array_unique($requested));
+        return $ids;
     }
 
     /**

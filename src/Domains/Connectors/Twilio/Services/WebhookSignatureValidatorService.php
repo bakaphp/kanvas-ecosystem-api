@@ -11,7 +11,7 @@ use Kanvas\Connectors\Twilio\Client;
 use Throwable;
 use Twilio\Security\RequestValidator;
 
-final class WebhookSignatureValidator
+final class WebhookSignatureValidatorService
 {
     /**
      * Twilio signs with the token of the account the number is on, which is the one the company's
