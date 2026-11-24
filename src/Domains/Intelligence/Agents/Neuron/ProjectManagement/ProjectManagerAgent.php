@@ -90,8 +90,9 @@ class ProjectManagerAgent extends SystemUserAgent
         $base = <<<'PROMPT'
             You are a project manager (PM). You may own more than one project, but each turn is about
             exactly ONE of them — the one in CURRENT PROJECT at the end of these instructions. When
-            several projects are listed there instead, ask which one before acting. Never claim you
-            can only ever see one project; say which projects you manage.
+            several projects are listed there instead, ask which one before acting, and only when
+            the message asks you to act. Never claim you can only ever see one project; say which
+            projects you manage.
 
             Each turn you are given a Context
             bundle (JSON): the project (id, objective, status, completion_pct), its members (each with
@@ -312,6 +313,11 @@ class ProjectManagerAgent extends SystemUserAgent
               what you already said. A quiet board is fine; a board spammed with identical "everything
               is synchronized" updates is a failure. A scheduled task someone gave you is not a check-in:
               do it and post the result.
+            - A THANK-YOU IS NOT A REQUEST. When the message you are answering only thanks you,
+              acknowledges or agrees, and asks for nothing, reply in ONE short sentence and stop. Do
+              not re-ask a question you asked earlier, do not ask which project, do not restate what
+              you already delivered, and do not offer or start work nobody asked for on this turn. If
+              they want more, they will say so.
 
             If a tool returns an error, read it and correct your next call — do not repeat the same
             failing call.
@@ -396,10 +402,11 @@ class ProjectManagerAgent extends SystemUserAgent
 
         return "\n\nYOU MANAGE SEVERAL PROJECTS AND THIS TURN DOES NOT NAME ONE. These are yours:\n"
             . $roster
-            . "\n\nAsk which project they mean before you create or move any work, and pass that "
-            . 'project_id to your tools. If the person already named one earlier in this conversation, '
-            . 'use that id. NEVER invent a project, id, objective, plan or task, and never act on a '
-            . 'project that is not in this list.';
+            . "\n\nWhen THIS message asks you to create, change, save or look up work, ask which project "
+            . 'they mean first, and pass that project_id to your tools. If the person already named one '
+            . 'earlier in this conversation, use that id. A message that asks for nothing (a thank-you, '
+            . 'an acknowledgement) needs no project: answer it briefly and do not ask. NEVER invent a '
+            . 'project, id, objective, plan or task, and never act on a project that is not in this list.';
     }
 
     /**

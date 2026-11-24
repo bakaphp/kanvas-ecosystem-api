@@ -28,6 +28,9 @@ use Tests\Stubs\Intelligence\Tools\CallbackTool;
  */
 class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
 {
+    /** Gemini signs a function call and wants the signature back with it. */
+    public const string THOUGHT_SIGNATURE = 'signature-of-the-call';
+
     public static ?InMemoryPersistence $runs = null;
 
     public static ?InMemoryMessageStore $history = null;
@@ -35,6 +38,9 @@ class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
     public static bool $dieOnNextReply = false;
 
     public static int $writes = 0;
+
+    /** What the model says alongside its tool call, as Claude usually does and Gemini rarely. */
+    public static ?string $toolCallLeadIn = null;
 
     private ?AIProviderInterface $stubProvider = null;
 
@@ -44,6 +50,7 @@ class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
         self::$history = new InMemoryMessageStore();
         self::$dieOnNextReply = false;
         self::$writes = 0;
+        self::$toolCallLeadIn = null;
     }
 
     #[Override]
@@ -61,7 +68,13 @@ class DurableNeuronAgentStub extends KanvasGenericNeuronAgent
                 $last = end($messages);
 
                 if (! $last instanceof ToolResultMessage) {
-                    return $this->respond(new ToolCallMessage(null, [ToolCall::make('write_once', 'call-1', ['item' => 1])]));
+                    $call = new ToolCallMessage(
+                        DurableNeuronAgentStub::$toolCallLeadIn,
+                        [ToolCall::make('write_once', 'call-1', ['item' => 1])]
+                    );
+                    $call->addMetadata('thought_signature', DurableNeuronAgentStub::THOUGHT_SIGNATURE);
+
+                    return $this->respond($call);
                 }
 
                 if (DurableNeuronAgentStub::$dieOnNextReply) {
