@@ -105,7 +105,15 @@ class RespondIOHandler extends BaseIntegration implements CommunicationProvider
     #[Override]
     public static function accounts(IntegrationsCompany $integrationCompany): array
     {
-        $key = self::accountKey($integrationCompany->app, $integrationCompany->company);
+        $app = $integrationCompany->app;
+
+        // The key of a workspace with no stated number is built from its app, so a row saved before
+        // integrations recorded theirs has nothing to name.
+        if ($app === null) {
+            return [];
+        }
+
+        $key = self::accountKey($app, $integrationCompany->company);
         $agentId = Agent::owningWhatsAppNumber($integrationCompany, $key)?->getId()
             ?? (int) ($integrationCompany->config[self::LEGACY_AGENT] ?? 0);
 
