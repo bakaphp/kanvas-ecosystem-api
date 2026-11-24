@@ -15,7 +15,6 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
@@ -26,6 +25,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\VoiceCallerLookup;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Leads\Services\ContactHistoryService;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
@@ -98,7 +98,7 @@ class CaptureVoiceCallerAction
             $user = $company->getAiAgentUser() ?? $this->agent->user;
 
             // Existing People = they've been seen before (the "repeat" signal).
-            $existing = $this->findPeople($app, $company);
+            $existing = VoiceCallerLookup::find($app, $company, $this->phone);
             $isReturning = $existing !== null;
             $people = $existing ?? $this->createPeople($app, $company, $user);
 
@@ -169,27 +169,6 @@ class CaptureVoiceCallerAction
             Bouncer::scope()->to($previousScope);
             app()->instance(Apps::class, $previousApp);
         }
-    }
-
-    private function findPeople(mixed $app, Companies $company): ?People
-    {
-        $people = PeoplesRepository::getByPhoneNumber(
-            app: $app,
-            company: $company,
-            phoneNumbers: array_values(array_unique(array_filter([
-                Str::sanitizePhoneNumber($this->phone),
-                Str::normalizePhoneNumber($this->phone),
-            ]))),
-        )->get();
-
-        if ($people->isEmpty()) {
-            return null;
-        }
-
-        // Prefer someone with an active lead; else the first match.
-        return $people->first(
-            fn (People $p): bool => LeadsRepository::getPeopleActiveLead($p) !== null
-        ) ?? $people->first();
     }
 
     private function createPeople(mixed $app, Companies $company, mixed $user): People
