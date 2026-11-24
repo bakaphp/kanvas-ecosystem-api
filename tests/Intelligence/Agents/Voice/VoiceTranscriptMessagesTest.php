@@ -22,9 +22,11 @@ use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Tests\TestCase;
+use Tests\Traits\CreatesBareApps;
 
 final class VoiceTranscriptMessagesTest extends TestCase
 {
+    use CreatesBareApps;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'crm', 'social'];
@@ -140,7 +142,7 @@ final class VoiceTranscriptMessagesTest extends TestCase
         $phone = $this->uniquePhone();
         $people = $this->capture($agent, $phone);
         $agentApp = app(Apps::class);
-        $runtimeApp = Apps::where('id', '!=', $agent->apps_id)->firstOrFail();
+        $runtimeApp = $this->createBareApp();
         // The runtime's key belongs to another app, whose scope has no Admin role for the agent's app.
         app()->scoped(Apps::class, fn () => $runtimeApp);
         Bouncer::scope()->to('app_0_company_0');

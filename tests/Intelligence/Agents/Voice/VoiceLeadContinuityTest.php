@@ -19,9 +19,12 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Tests\TestCase;
+use Tests\Traits\CreatesBareApps;
 
 final class VoiceLeadContinuityTest extends TestCase
 {
+    use CreatesBareApps;
+
     public function testCallSummaryIsReadBackOnTheNextContact(): void
     {
         $agent = $this->createAgent();
@@ -81,7 +84,7 @@ final class VoiceLeadContinuityTest extends TestCase
     {
         $agent = $this->createAgent();
         $agentApp = app(Apps::class);
-        $runtimeApp = Apps::where('id', '!=', $agent->apps_id)->firstOrFail();
+        $runtimeApp = $this->createBareApp();
         app()->scoped(Apps::class, fn () => $runtimeApp);
         Bouncer::scope()->to(RolesEnums::getScope($runtimeApp));
 
@@ -108,7 +111,7 @@ final class VoiceLeadContinuityTest extends TestCase
         config(['kanvas.voice_runtime.cross_app' => true]);
         $agent = $this->createAgent();
         $agentApp = app(Apps::class);
-        $runtimeApp = Apps::where('id', '!=', $agent->apps_id)->firstOrFail();
+        $runtimeApp = $this->createBareApp();
         app()->scoped(Apps::class, fn () => $runtimeApp);
 
         try {
