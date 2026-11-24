@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
-use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Companies\Models\Companies;
@@ -51,12 +50,8 @@ class CaptureVoiceCallerAction
     private readonly ?string $summary;
     private readonly ?string $appointmentPreference;
 
-    /**
-     * @param AppInterface $callerApp the app the request came in on, bound again when the capture is done
-     */
     public function __construct(
         private readonly Agent $agent,
-        private readonly AppInterface $callerApp,
         private readonly string $phone,
         ?string $name = null,
         ?string $interest = null,
@@ -77,8 +72,9 @@ class CaptureVoiceCallerAction
      */
     public function execute(): array
     {
-        // The runtime's app key is not always the agent's app, and lead creation reads the bound
-        // app and the Bouncer scope (CreateLeadAction's getById(), the role behind the lead's channel).
+        // Only matters for a cross-app runtime (VOICE_RUNTIME_CROSS_APP), where the request's app is
+        // the runtime's key and not the agent's: a custom field's definition is registered under
+        // the bound app (HasCustomFields::createCustomField()).
         $this->overwriteAppService($this->agent->app);
 
         try {
@@ -95,8 +91,6 @@ class CaptureVoiceCallerAction
             ]);
 
             return ['status' => 'error', 'message' => "I couldn't save the caller details just now."];
-        } finally {
-            $this->overwriteAppService($this->callerApp);
         }
     }
 

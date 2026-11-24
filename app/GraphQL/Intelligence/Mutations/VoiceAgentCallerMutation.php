@@ -27,12 +27,10 @@ class VoiceAgentCallerMutation
      */
     public function capture(mixed $root, array $args): array
     {
-        $app = app(Apps::class);
-        $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['agent_uuid'], $app);
+        $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['agent_uuid'], app(Apps::class));
 
         return new CaptureVoiceCallerAction(
             agent: $agent,
-            callerApp: $app,
             phone: (string) $args['phone'],
             name: $args['name'] ?? null,
             interest: $args['interest'] ?? null,

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
-use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -32,12 +31,10 @@ class RunVoiceAgentToolAction
     use KanvasJobsTrait;
 
     /**
-     * @param AppInterface $callerApp the app the request came in on, bound again when the tool has run
      * @param array<string, mixed> $arguments the LLM-supplied tool arguments
      */
     public function __construct(
         private readonly Agent $agent,
-        private readonly AppInterface $callerApp,
         private readonly string $toolName,
         private readonly array $arguments,
     ) {
@@ -49,13 +46,12 @@ class RunVoiceAgentToolAction
      */
     public function execute(): mixed
     {
+        // Only matters for a cross-app runtime (VOICE_RUNTIME_CROSS_APP), where the request's app is
+        // the runtime's key and not the agent's: a tool that creates a row without an app of its own
+        // gets the bound one (AppsIdTrait, HasCustomFields::createCustomField()).
         $this->overwriteAppService($this->agent->app);
 
-        try {
-            return $this->run();
-        } finally {
-            $this->overwriteAppService($this->callerApp);
-        }
+        return $this->run();
     }
 
     private function run(): mixed

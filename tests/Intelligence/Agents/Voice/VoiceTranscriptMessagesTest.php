@@ -250,7 +250,6 @@ final class VoiceTranscriptMessagesTest extends TestCase
     {
         $result = new CaptureVoiceCallerAction(
             agent: $agent,
-            callerApp: app(Apps::class),
             phone: $phone,
             direction: 'inbound',
             wantsAppointment: $wantsAppointment,

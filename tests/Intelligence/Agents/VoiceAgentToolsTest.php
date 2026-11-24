@@ -92,12 +92,7 @@ final class VoiceAgentToolsTest extends TestCase
     {
         $agent = $this->agentWithTools([AddLeadNoteTool::class, CurrentTimeTool::class]);
 
-        $result = new RunVoiceAgentToolAction(
-            agent: $agent,
-            callerApp: $this->testApp,
-            toolName: 'get_current_time',
-            arguments: ['timezone' => 'UTC'],
-        )->execute();
+        $result = new RunVoiceAgentToolAction($agent, 'get_current_time', ['timezone' => 'UTC'])->execute();
 
         $this->assertSame('UTC', $result['timezone']);
     }
@@ -106,12 +101,7 @@ final class VoiceAgentToolsTest extends TestCase
     {
         $agent = $this->agentWithTools([CurrentTimeTool::class, DynamicallyNamedVoiceTool::class]);
 
-        $result = new RunVoiceAgentToolAction(
-            agent: $agent,
-            callerApp: $this->testApp,
-            toolName: 'dynamically_named_voice_tool',
-            arguments: [],
-        )->execute();
+        $result = new RunVoiceAgentToolAction($agent, 'dynamically_named_voice_tool', [])->execute();
 
         $this->assertSame(['ok' => true], $result);
     }
@@ -122,24 +112,14 @@ final class VoiceAgentToolsTest extends TestCase
 
         $this->expectException(ValidationException::class);
 
-        new RunVoiceAgentToolAction(
-            agent: $agent,
-            callerApp: $this->testApp,
-            toolName: 'add_lead_note',
-            arguments: [],
-        )->execute();
+        new RunVoiceAgentToolAction($agent, 'add_lead_note', [])->execute();
     }
 
     public function testAToolCrashNeverReachesTheCallerAsRawText(): void
     {
         $agent = $this->agentWithTools([CrashingVoiceTool::class]);
 
-        $result = new RunVoiceAgentToolAction(
-            agent: $agent,
-            callerApp: $this->testApp,
-            toolName: 'crashing_voice_tool',
-            arguments: ['kind' => 'crash'],
-        )->execute();
+        $result = new RunVoiceAgentToolAction($agent, 'crashing_voice_tool', ['kind' => 'crash'])->execute();
 
         $this->assertSame('error', $result['status']);
         $this->assertSame('tool_failed', $result['reason']);
@@ -150,12 +130,7 @@ final class VoiceAgentToolsTest extends TestCase
     {
         $agent = $this->agentWithTools([CrashingVoiceTool::class]);
 
-        $result = new RunVoiceAgentToolAction(
-            agent: $agent,
-            callerApp: $this->testApp,
-            toolName: 'crashing_voice_tool',
-            arguments: ['kind' => 'validation'],
-        )->execute();
+        $result = new RunVoiceAgentToolAction($agent, 'crashing_voice_tool', ['kind' => 'validation'])->execute();
 
         $this->assertSame('invalid_request', $result['reason']);
         $this->assertSame('That date is in the past.', $result['message']);
