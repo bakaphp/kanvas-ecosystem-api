@@ -6,12 +6,15 @@ namespace Kanvas\Intelligence\Agents\Neuron\Providers;
 
 use Aws\ResultInterface;
 use Baka\Support\Str;
+use Generator;
 use GuzzleHttp\Promise\PromiseInterface;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\ContentBlocks\ReasoningContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\Usage;
 use NeuronAI\Providers\AWS\BedrockRuntime;
+use NeuronAI\Providers\ProviderResponse;
 use Override;
 
 class KanvasBedrock extends BedrockRuntime
@@ -25,6 +28,13 @@ class KanvasBedrock extends BedrockRuntime
         BehavesAsKanvasAgent::TURN_CONTEXT_OPENING,
         '<EXTRA-CONTEXT>',
     ];
+
+    private const string REASONING_CONVERSATION = 'aws_reasoning_conversation';
+
+    private const string FINGERPRINT_ALGORITHM = 'xxh128';
+
+    /** Of the request last built, which is what the reply's reasoning is signed against. */
+    private string $conversationFingerprint = '';
 
     /**
      * Claude on Bedrock caches only what the request marks, and Neuron marks nothing on its own. The
@@ -41,6 +51,8 @@ class KanvasBedrock extends BedrockRuntime
         if (! str_contains($this->model, 'anthropic.')) {
             return $payload;
         }
+
+        $payload['messages'] = $this->keepReasoningOfThisConversation($messages, $payload);
 
         $slots = self::MAX_CACHE_POINTS;
 
@@ -74,9 +86,12 @@ class KanvasBedrock extends BedrockRuntime
     #[Override]
     public function chatAsync(Message ...$messages): PromiseInterface
     {
+        $payload = $this->createPayLoad($messages);
+        $conversation = $this->conversationFingerprint;
+
         return $this->bedrockRuntimeClient
-            ->converseAsync($this->createPayLoad($messages))
-            ->then(function (ResultInterface $result): AssistantMessage {
+            ->converseAsync($payload)
+            ->then(function (ResultInterface $result) use ($conversation): AssistantMessage {
                 $usage = $result['usage'] ?? [];
                 $cacheRead = (int) ($usage['cacheReadInputTokens'] ?? 0);
                 $cacheWrite = (int) ($usage['cacheWriteInputTokens'] ?? 0);
@@ -93,8 +108,92 @@ class KanvasBedrock extends BedrockRuntime
                     $message->addMetadata('cacheWriteTokens', $cacheWrite);
                 }
 
+                $this->bindReasoning($message, $conversation);
+
                 return $message;
             });
+    }
+
+    #[Override]
+    public function stream(Message ...$messages): Generator
+    {
+        /** @var ProviderResponse $response */
+        $response = yield from parent::stream(...$messages);
+        $this->bindReasoning($response->message(), $this->conversationFingerprint);
+
+        return $response;
+    }
+
+    /**
+     * Claude signs a thinking block with the request that produced it (instructions, tools, every
+     * message before it) and refuses the whole request when the block comes back under anything else
+     * (KANVAS-ECOSYSTEM-704). Our tool list changes inside a turn by design, so a block is replayed
+     * only while its request is unchanged. The fingerprint runs over the messages as they go out,
+     * earlier blocks already removed, because that is what the next signature covers.
+     *
+     * @param array<int, Message> $messages
+     * @param array<string, mixed> $payload
+     * @return array<int, array<string, mixed>>
+     */
+    private function keepReasoningOfThisConversation(array $messages, array $payload): array
+    {
+        $tools = $payload['toolConfig']['tools'] ?? [];
+        $name = static fn (array $tool): string => (string) ($tool['toolSpec']['name'] ?? '');
+        usort($tools, static fn (array $a, array $b): int => $name($a) <=> $name($b));
+
+        $conversation = hash_init(self::FINGERPRINT_ALGORITHM);
+        hash_update($conversation, serialize([$payload['system'] ?? null, $tools]));
+
+        $messages = array_values($messages);
+        $mapped = $payload['messages'];
+
+        foreach ($mapped as $index => $message) {
+            $content = $message['content'];
+
+            if (array_column($content, 'reasoningContent') !== []) {
+                $boundTo = ($messages[$index] ?? null)?->getMetadata(self::REASONING_CONVERSATION);
+
+                if ($boundTo !== hash_final(hash_copy($conversation))) {
+                    $content = self::without($content, 'reasoningContent');
+                    $mapped[$index]['content'] = $content;
+                }
+            }
+
+            hash_update($conversation, serialize([$message['role'], self::without($content, 'cachePoint')]));
+        }
+
+        $this->conversationFingerprint = hash_final($conversation);
+
+        return $mapped;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $content
+     * @return array<int, array<string, mixed>>
+     */
+    private static function without(array $content, string $blockType): array
+    {
+        return array_values(array_filter(
+            $content,
+            static fn (array $block): bool => ! isset($block[$blockType]),
+        ));
+    }
+
+    private function bindReasoning(Message $message, string $conversation): void
+    {
+        // Only a Claude request has a fingerprint.
+        if ($conversation === '') {
+            return;
+        }
+
+        $reasoning = array_filter(
+            $message->getContentBlocks(),
+            static fn (object $block): bool => $block instanceof ReasoningContent,
+        );
+
+        if ($reasoning !== [] || $message->getMetadata('aws_redacted_reasoning') !== null) {
+            $message->addMetadata(self::REASONING_CONVERSATION, $conversation);
+        }
     }
 
     /**
