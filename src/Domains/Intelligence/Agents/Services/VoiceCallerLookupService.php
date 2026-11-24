@@ -34,12 +34,15 @@ class VoiceCallerLookupService
     }
 
     /**
-     * Capture stores the phone as the firstname until the caller gives a name.
+     * A name that names nobody: blank, the phone number capture stores until the caller gives a
+     * name, or the "Unknown" other channels and connectors file a stranger under.
      */
     public static function isPlaceholderName(?string $name): bool
     {
         $name = trim((string) $name);
 
-        return $name === '' || preg_match('/^[\d\s+()\-]+$/', $name) === 1;
+        return $name === ''
+            || preg_match('/^[\d\s+()\-]+$/', $name) === 1
+            || preg_match('/^unknown(\s+(guest|caller|customer|contact|lead))?$/i', $name) === 1;
     }
 }
