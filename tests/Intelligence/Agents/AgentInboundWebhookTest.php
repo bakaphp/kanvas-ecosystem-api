@@ -7,8 +7,8 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Connectors\Twilio\Services\CompanyPhoneNumbersService;
 use Kanvas\Intelligence\Agents\Actions\Phone\ConfigureAgentInboundWebhookAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\ReleaseInboundWebhookForNumberAction;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
@@ -266,7 +266,7 @@ class AgentInboundWebhookTest extends TestCase
             ],
         ];
 
-        $numbers = new class ($this->company, $twilio) extends ListCompanyPhoneNumbersAction {
+        $numbers = new class ($this->company, $twilio) extends CompanyPhoneNumbersService {
             public function __construct(Companies $company, private FakeTwilioNumbersClient $fake)
             {
                 parent::__construct($company);
@@ -276,7 +276,7 @@ class AgentInboundWebhookTest extends TestCase
             {
                 return $this->fake;
             }
-        }->execute();
+        }->list();
 
         $this->assertSame([
             [
@@ -292,7 +292,7 @@ class AgentInboundWebhookTest extends TestCase
     {
         $twilio = new FakeTwilioNumbersClient();
 
-        $account = new class ($this->company, $twilio) extends ListCompanyPhoneNumbersAction {
+        $account = new class ($this->company, $twilio) extends CompanyPhoneNumbersService {
             public function __construct(Companies $company, private FakeTwilioNumbersClient $fake)
             {
                 parent::__construct($company);

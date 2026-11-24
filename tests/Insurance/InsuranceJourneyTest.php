@@ -644,6 +644,8 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, InsuranceStatus::of($order->fresh())?->value);
         $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $order->orderStatus?->slug);
         $this->assertSame(FakeUniversalServer::POLICY, $order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value));
+        $this->assertSame(FakeUniversalServer::POLICY_STARTS, data_get($order->metadata, 'data.start_at'));
+        $this->assertSame(FakeUniversalServer::POLICY_ENDS, data_get($order->metadata, 'data.end_at'));
         $this->assertCount(1, $this->universal->invoices);
         $this->assertSame(FakeUniversalServer::POLICY, $this->universal->invoices[0]['noPoliza']);
 

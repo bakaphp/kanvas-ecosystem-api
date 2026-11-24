@@ -119,7 +119,10 @@ A provider is a connector, never a folder in this domain:
 
 1. In `Connectors/{Vendor}`, the integration handler extends `Baka\Contracts\BaseIntegration` and
    implements `CommunicationProvider`: its `slug()`, the `transports()` it has per channel, the
-   `accounts()` a tenant selected, and the `provisioner()` and `inbound()` classes.
+   `accounts()` a tenant selected, and the `provisioner()` and `inbound()` classes. `accounts()` is
+   also asked about a row with no app (`ResolveIntegrationAppAction`, before any app is swept): a
+   provider whose accounts need the app returns `[]` there, as Mailgun and Respond.io do. A throw
+   stops `communication:setup --all-apps` for every app.
 2. A `Transport` per channel sends and names the conversation; an `InboundSource` authenticates and
    parses the webhook; a `Provisioner` registers and releases the vendor's webhook. The last two
    `use` `Contracts\Concerns\HasInboundDefaults` / `HasProvisionerDefaults` and write only the

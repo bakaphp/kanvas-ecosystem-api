@@ -525,6 +525,33 @@ class ProjectPmToolsTest extends TestCase
         $this->assertSame('done', $fresh->status);
     }
 
+    public function testUpdateProjectToolReadsEmptyStringsAsNotGiven(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $project->objective = 'Ship the redesign.';
+        $project->description = 'The whole app.';
+        $project->deadline_at = now()->addMonth();
+        $project->saveOrFail();
+
+        $tool = new UpdateNervousSystemProjectTool()->withContext($app, $company, $user);
+        $tool(
+            (int) $project->id,
+            objective: '',
+            title: '',
+            description: ' ',
+            status: 'done',
+            deadline_at: '',
+        );
+
+        $fresh = Project::query()->where('id', $project->id)->firstOrFail();
+        $this->assertSame('done', $fresh->status);
+        $this->assertSame('PM tools project', $fresh->title);
+        $this->assertSame('Ship the redesign.', $fresh->objective);
+        $this->assertSame('The whole app.', $fresh->description);
+        $this->assertNotNull($fresh->deadline_at, 'only "none" clears a deadline');
+    }
+
     public function testTaskMoveRollsUpProjectCompletion(): void
     {
         [$app, $company, $user] = $this->context();
@@ -789,6 +816,29 @@ class ProjectPmToolsTest extends TestCase
         $this->assertStringNotContainsString('CURRENT PROJECT (authoritative', $instructions);
     }
 
+    /**
+     * The several-projects block tells the PM to ask which project; without the thank-you rule it
+     * answers a thank-you with that question.
+     */
+    public function testAThankYouNeitherReopensAQuestionNorAsksWhichProject(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $this->projectFor($agent, $app, $company, $user, 'Thanked board A');
+        $this->projectFor($agent, $app, $company, $user, 'Thanked board B');
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, user: $user);
+
+        $instructions = $pm->instructions();
+
+        $this->assertStringContainsString('A THANK-YOU IS NOT A REQUEST', $instructions);
+        $this->assertStringContainsString('not re-ask a question you asked earlier', $instructions);
+        $this->assertStringContainsString('When THIS message asks you to create, change, save or look up work', $instructions);
+        $this->assertStringContainsString('needs no project: answer it briefly and do not ask', $instructions);
+        $this->assertStringNotContainsString('Ask which project they mean before you create or move any work', $instructions);
+    }
+
     public function testWakeGroundsThePmInTheWokenProjectNotAnArbitraryOne(): void
     {
         [$app, $company, $user] = $this->context();
@@ -852,6 +902,71 @@ class ProjectPmToolsTest extends TestCase
 
         $this->assertSame('done', $result['status']);
         $this->assertSame('done', Plan::query()->where('id', $plan->id)->value('status'));
+    }
+
+    public function testUpdatePlanToolReadsEmptyStringsAsNotGiven(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
+        $title = (string) $plan->title;
+
+        $tool = new UpdateNervousSystemPlanTool()->withContext($app, $company, $user);
+        $tool(
+            (int) $plan->id,
+            title: '',
+            description: ' ',
+            status: 'done',
+            blocked_needs: '',
+        );
+
+        $fresh = Plan::query()->where('id', $plan->id)->firstOrFail();
+        $this->assertSame('done', $fresh->status);
+        $this->assertSame($title, $fresh->title);
+    }
+
+    /** OpenAI sends `users_id: 0` beside the agent it means, and the refusal looped to the run cap. */
+    public function testAssignPlanReadsAZeroIdAsNotGiven(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
+        $agent = $this->makeAgent($app, $company, Users::factory()->create());
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = ($tool)(plan_id: $plan->id, agent_id: $agent->getId(), users_id: 0);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame($agent->getId(), $plan->refresh()->agent_id);
+    }
+
+    /** OpenAI fills the optional reply id with 0, and every comment came back "Message 0 is not among the recent activity". */
+    public function testCommentReadsAZeroReplyIdAsANewThread(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
+
+        $tool = new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = ($tool)(plan_id: $plan->id, comment: 'Starting the assessment.', reply_to_message_id: 0);
+
+        $this->assertTrue($result['posted'] ?? false);
+        $this->assertNull($result['in_reply_to']);
     }
 
     /**

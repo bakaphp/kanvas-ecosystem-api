@@ -14,6 +14,7 @@ use NeuronAI\Chat\Messages\ContentBlocks\ReasoningContent;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Tools\ToolCall;
+use Override;
 
 /**
  * What every Kanvas store shares. A store is built with its context (app, company, user, entity, lead,
@@ -37,6 +38,27 @@ abstract class KanvasMessageStore implements MessageStoreInterface
      */
     private array $appended = [];
 
+    protected bool $resumesInterruptedTurn = false;
+
+    /**
+     * A durable resume continues a turn in the middle of its tool loop, so its loads have to hand the
+     * model the rounds the dead worker already ran. A store that cannot rebuild them ignores this.
+     */
+    public function resumeInterruptedTurn(bool $resuming = true): void
+    {
+        $this->resumesInterruptedTurn = $resuming;
+    }
+
+    /**
+     * Whether a load mid-turn hands back the prompt the turn was started with. A store that leaves the
+     * prompt to another writer does not, and a resumed worker then has it only as the turn's Social rows.
+     */
+    public function holdsTurnPrompt(): bool
+    {
+        return true;
+    }
+
+    #[Override]
     final public function append(string $threadId, Message $message): void
     {
         $id = $message->getId();
@@ -53,6 +75,7 @@ abstract class KanvasMessageStore implements MessageStoreInterface
      * What the model reads back. Cards become markers here, on freshly loaded rows only, so the stored transcript
      * the person sees keeps them (ArtifactBlockService::asHistoryMarkers()).
      */
+    #[Override]
     public function loadAll(string $threadId, ?int $limit = null, ?string $before = null): array
     {
         return $this->paginate(
@@ -78,6 +101,7 @@ abstract class KanvasMessageStore implements MessageStoreInterface
         ));
     }
 
+    #[Override]
     final public function archive(string $threadId, int $count): void
     {
     }
@@ -102,6 +126,7 @@ abstract class KanvasMessageStore implements MessageStoreInterface
      * Summarization flushes the thread and re-appends the summary plus the kept tail, so the ids seen
      * so far are forgotten with it or the kept tail would be skipped as already written.
      */
+    #[Override]
     final public function clear(string $threadId): void
     {
         $this->appended = [];

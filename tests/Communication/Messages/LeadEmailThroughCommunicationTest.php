@@ -192,6 +192,50 @@ final class LeadEmailThroughCommunicationTest extends TestCase
         );
     }
 
+    public function testAnEmailAPersonWroteClosesWithTheirOwnSignature(): void
+    {
+        auth()->user()->set(UserEmailSignature::SETTING, ['append' => true, 'text' => "Sales Rep\nInternet Sales"]);
+
+        new SendMessageToLeadAction($this->lead())
+            ->sentByUser(auth()->user())
+            ->execute(channel: 'email', message: 'Hello', signature: false);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getData()['signature'] === false
+                && str_contains((string) $notification->getData()['user_signature'], 'Internet Sales')
+        );
+    }
+
+    public function testAPersonWhoSwitchedTheirSignatureOffSendsNone(): void
+    {
+        auth()->user()->set(UserEmailSignature::SETTING, ['append' => false, 'text' => 'Sales Rep']);
+
+        new SendMessageToLeadAction($this->lead())
+            ->sentByUser(auth()->user())
+            ->execute(channel: 'email', message: 'Hello', signature: false);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => ! isset($notification->getData()['user_signature'])
+        );
+    }
+
+    public function testASignatureOwnerWithNoAgentAndNoAuthorStillSendsNoOwnerSignature(): void
+    {
+        auth()->user()->set(UserEmailSignature::SETTING, ['append' => true, 'text' => 'Owner Name']);
+
+        new SendMessageToLeadAction($this->lead())
+            ->withSignatureOwner(auth()->user())
+            ->execute(channel: 'email', message: 'Hello');
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getData()['signature'] === true
+                && ! isset($notification->getData()['user_signature'])
+        );
+    }
+
     public function testTheOptionsSurviveTheRequestTheyAreStoredOn(): void
     {
         $options = new EmailOptions(

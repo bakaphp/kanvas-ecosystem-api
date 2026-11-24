@@ -413,7 +413,8 @@ final class ReceiveMessageActionTest extends TestCase
         $person = Message::query()->findOrFail($new['message_id'])->entity(People::class);
 
         $this->assertInstanceOf(People::class, $person);
-        $this->assertSame('Bob Ruiz', $person->firstname);
+        $this->assertSame('Bob', $person->firstname);
+        $this->assertSame('Ruiz', $person->lastname);
         $this->assertSame('bob@example.com', $person->contacts()->where('contacts_types_id', ContactTypeEnum::EMAIL->value)->value('value'));
         $this->assertInstanceOf(Lead::class, Message::query()->findOrFail($new['message_id'])->entity(Lead::class));
     }

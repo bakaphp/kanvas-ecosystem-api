@@ -10,6 +10,7 @@ use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Client\RequestException;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Support\BrushCrazyApi;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -61,6 +62,10 @@ abstract class BrushCrazyPushActivity extends KanvasActivity implements Workflow
             ]);
         }
 
+        if (filter_var($app->get(ConfigurationEnum::BRUSHCRAZY_API_DRY_RUN->value), FILTER_VALIDATE_BOOLEAN)) {
+            return $this->dryRun($api, $path, $body);
+        }
+
         try {
             $response = $api->post($path, $body);
         } catch (SsrfException $e) {
@@ -83,6 +88,37 @@ abstract class BrushCrazyPushActivity extends KanvasActivity implements Workflow
         }
 
         return $onSuccess($response);
+    }
+
+    /**
+     * `$onSuccess` is never called: nothing was booked, so nothing is stamped on the Kanvas side.
+     * The body that would have gone is kept in the result for whoever checks the run.
+     */
+    private function dryRun(BrushCrazyApi $api, string $path, array $body): array
+    {
+        try {
+            $status = $api->probe($path);
+        } catch (SsrfException $e) {
+            return $this->failWorkflow([
+                'message' => 'BRUSHCRAZY_API_URL is not an allowed address: ' . $e->getMessage(),
+                'entity' => null,
+            ]);
+        }
+
+        if ($status !== 422) {
+            return $this->failWorkflow([
+                'message' => "Dry run: BrushCrazy answered {$path} with HTTP {$status}; 422 was expected (signature accepted, empty body refused).",
+                'status' => $status,
+                'entity' => null,
+            ]);
+        }
+
+        return [
+            'message' => "Dry run: BrushCrazy accepted the signature on {$path}; the body was not sent.",
+            'dry_run' => true,
+            'request' => $body,
+            'entity' => null,
+        ];
     }
 
     protected function skip(string $message): array

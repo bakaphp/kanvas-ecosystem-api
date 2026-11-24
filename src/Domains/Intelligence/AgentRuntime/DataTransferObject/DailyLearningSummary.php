@@ -18,6 +18,10 @@ use Spatie\LaravelData\Data;
  * persistence layer trusts whichever field the LLM placed each item in.
  *
  * Safe to queue — only primitives, no Eloquent models.
+ *
+ * The three lists default to empty: the schema does not require them, and a model with nothing to
+ * propose leaves the key out instead of sending `[]`. A required list fails the whole summary on
+ * that reply (KANVAS-ECOSYSTEM-703).
  */
 final class DailyLearningSummary extends Data
 {
@@ -25,22 +29,22 @@ final class DailyLearningSummary extends Data
         // 2-3 paragraph narrative of yesterday for human consumption.
         public readonly string $briefing,
 
+        // 0.0–0.5 same scale as RecordAgentDailyCycleAction's existing scoring.
+        public readonly float $self_improvement_score,
+
         // Today-only todo list. Lands in AgentDailyCycle.proposed_actions.
         /** @var list<string> */
-        public readonly array $proposed_actions,
+        public readonly array $proposed_actions = [],
 
         // One-line declarative statements still useful in 30 days
         // ("Reynaldo handles POs.", "EVT starts 1 workday after sample receipt.").
         // Appended to MEMORY.md in §-separated format, deduped against existing entries.
         /** @var list<string> */
-        public readonly array $durable_facts,
+        public readonly array $durable_facts = [],
 
         // Tracked over time, scored. Lands in AgentDailyCycle.skills_emerged.
         /** @var list<array{name: string, confidence: float}> */
-        public readonly array $skills_emerged,
-
-        // 0.0–0.5 same scale as RecordAgentDailyCycleAction's existing scoring.
-        public readonly float $self_improvement_score,
+        public readonly array $skills_emerged = [],
     ) {
     }
 }

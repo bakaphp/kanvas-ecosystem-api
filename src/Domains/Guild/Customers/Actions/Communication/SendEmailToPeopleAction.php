@@ -97,9 +97,13 @@ class SendEmailToPeopleAction
         string $template,
         EmailOptions $options,
         ?Agent $fromAgent = null,
-        ?Users $signatureOwner = null
+        ?Users $signatureOwner = null,
+        bool $writtenByOwner = false
     ): Content {
-        $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
+        // A person who wrote the email signs it themselves; no agent's signing grant is involved.
+        $ownerSignature = $writtenByOwner && $fromAgent === null
+            ? UserEmailSignature::fromUser($signatureOwner, $this->people->company)
+            : UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
         $writesAsItself = Communication::for($this->people->app, $this->people->company)
             ->speaksFromOwnAddress(ChannelTypeEnum::EMAIL, $fromAgent);
         $template = $writesAsItself ? null : $template;

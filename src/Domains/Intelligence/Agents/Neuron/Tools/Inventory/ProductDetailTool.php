@@ -17,7 +17,7 @@ use Override;
  * The product-level counterpart of variant_detail. The catalog write tools can set categories,
  * attributes and a product type; this is what reads them back.
  */
-#[AgentTool(name: 'Product Detail', category: 'inventory')]
+#[AgentTool(name: 'Product Detail', category: 'inventory', readOnly: true)]
 class ProductDetailTool extends Tool
 {
     use HasKanvasContext;

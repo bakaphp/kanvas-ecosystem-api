@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -227,7 +228,7 @@ final class ReceiveMessageAction
             sourceChannel: $this->inbound->channel->value,
             body: $this->inbound->text,
             lead: $this->lead,
-            contactValue: $this->inbound->from,
+            contactValue: $this->inbound->fromIsVendorId ? null : $this->inbound->from,
             // Only the provider's own classification: our keyword match is the consent
             // action's to make, so it can still be second-guessed there.
             detectedSignal: $this->inbound->consentSignal,
@@ -274,9 +275,12 @@ final class ReceiveMessageAction
             );
         }
 
-        $address = $byPhone
-            ? Str::normalizePhoneNumber($this->inbound->from)
-            : strtolower(trim($this->inbound->from));
+        $address = match (true) {
+            // The vendor's id is no number to call or text, so it is never kept as one.
+            $this->inbound->fromIsVendorId => null,
+            $byPhone => Str::normalizePhoneNumber($this->inbound->from),
+            default => strtolower(trim($this->inbound->from)),
+        };
         $existing = $this->personOnFile($address, $byPhone);
 
         // Mail to an agent's own address is not a lead form: who the person is stays as it is on file.
@@ -288,20 +292,25 @@ final class ReceiveMessageAction
             return null;
         }
 
-        $name = Str::trimToNull($this->inbound->fromName);
+        $name = $this->personName($existing, $address ?? $this->inbound->from);
 
         $person = new PeopleDto(
             app: $this->receiver->app,
             branch: $this->company->defaultBranch,
             user: $this->user,
-            firstname: $existing !== null ? $existing->firstname : ($name ?? $address),
-            contacts: Contact::collect([[
-                'value' => $address,
-                'contacts_types_id' => $byPhone ? ContactTypeEnum::CELLPHONE->value : ContactTypeEnum::EMAIL->value,
-                'weight' => 100,
-            ]], DataCollection::class),
+            firstname: $name['firstname'],
+            contacts: Contact::collect(
+                $address !== null
+                    ? [[
+                        'value' => $address,
+                        'contacts_types_id' => $byPhone ? ContactTypeEnum::CELLPHONE->value : ContactTypeEnum::EMAIL->value,
+                        'weight' => 100,
+                    ]]
+                    : [],
+                DataCollection::class
+            ),
             address: Address::collect([], DataCollection::class),
-            lastname: $existing !== null ? $existing->lastname : '',
+            lastname: $name['lastname'],
             custom_fields: $this->inbound->personCustomFields,
             tags: $this->inbound->personTags,
             // We only know the address the message came from — anything else the person has (email,
@@ -315,22 +324,79 @@ final class ReceiveMessageAction
     }
 
     /**
+     * @return Collection<int, People>
+     */
+    private function peopleKnownByVendorId(): Collection
+    {
+        $field = $this->inbound->personIdField;
+        $vendorId = $field !== null ? ($this->inbound->personCustomFields[$field] ?? null) : null;
+
+        if ($vendorId === null) {
+            return new Collection();
+        }
+
+        return People::getByCustomFieldBuilderTransactionSafe($field, $vendorId, $this->company)
+            ->fromApp($this->receiver->app)
+            ->notDeleted()
+            ->get();
+    }
+
+    /**
+     * The name a message carries is one the sender typed themselves, so it only fills a gap: a new
+     * person, or one still filed under their number. A name someone put on the record stays.
+     *
+     * @return array{firstname: string, lastname: string|null}
+     */
+    private function personName(?People $existing, string $address): array
+    {
+        $sent = Str::trimToNull($this->inbound->fromName);
+
+        if ($sent !== null && ($existing === null || $this->isFiledUnderTheirNumber($existing))) {
+            return Str::parseFullName($sent);
+        }
+
+        return [
+            'firstname' => $existing !== null ? $existing->firstname : $address,
+            'lastname' => $existing !== null ? $existing->lastname : '',
+        ];
+    }
+
+    private function isFiledUnderTheirNumber(People $person): bool
+    {
+        if (Str::trimToNull($person->lastname) !== null) {
+            return false;
+        }
+
+        $isTheirNumber = Str::digitsOnly($person->firstname) !== ''
+            && preg_match('/\p{L}/u', (string) $person->firstname) !== 1;
+
+        return $isTheirNumber || $person->firstname === $this->inbound->from;
+    }
+
+    /**
      * Among several people on file with the address, the one with an open lead: that is the
      * conversation in progress.
      */
-    private function personOnFile(string $address, bool $byPhone): ?People
+    private function personOnFile(?string $address, bool $byPhone): ?People
     {
-        $candidates = $byPhone
-            ? PeoplesRepository::getByPhoneNumber(
+        $candidates = match (true) {
+            $address === null => new Collection(),
+            $byPhone => PeoplesRepository::getByPhoneNumber(
                 app: $this->receiver->app,
                 company: $this->company,
                 phoneNumbers: [$address, str_replace('+', '', $this->inbound->from)]
-            )->get()
-            : PeoplesRepository::getByAnyContact(
+            )->get(),
+            default => PeoplesRepository::getByAnyContact(
                 app: $this->receiver->app,
                 company: $this->company,
                 emails: [$address]
-            )->get();
+            )->get(),
+        };
+
+        // Someone who first wrote under the vendor's id and now shows a number is still one person.
+        if ($candidates->isEmpty()) {
+            $candidates = $this->peopleKnownByVendorId();
+        }
 
         return $candidates->first(fn (People $person): bool => $this->activeLead($person) !== null)
             ?? $candidates->first();

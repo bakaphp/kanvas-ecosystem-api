@@ -6,13 +6,13 @@ namespace Kanvas\Connectors\BrushCrazy\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Concerns\PullsSourceInChunks;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use Kanvas\Connectors\BrushCrazy\Support\SaleSource;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Souk\Orders\Models\Order;
@@ -40,7 +40,7 @@ class PullSalesFromBrushCrazyAction
     }
 
     /**
-     * @return array{synced: int, skipped: int, failed: int, errors: array<int, string>, warnings: array<int, string>, catalog: array{products: int, lines: int}|array{skipped: string}}
+     * @return array{synced: int, skipped: int, failed: int, errors: array<int, string>, warnings: array<int, string>, catalog: array{products: int, lines: int, category_types: int, categories: int, groups: int}|array{skipped: string}}
      */
     public function execute(?callable $onProgress = null): array
     {
@@ -60,7 +60,7 @@ class PullSalesFromBrushCrazyAction
             source: $source,
         );
 
-        // The full catalog pass scans every product the studio ever sold. An incremental run leaves
+        // The full catalog pass scans every product the studio stocks, prices or sold. An incremental run leaves
         // it out: variantFor() pulls a product the first time a sale needs it, and catalog edits
         // arrive through the product webhook.
         $results = [
@@ -108,12 +108,13 @@ class PullSalesFromBrushCrazyAction
                     }
                 }
 
-                // The sync writes with model events off, so Scout never saw these Order saves.
-                new EloquentCollection($orders)->searchable();
+                ImportPace::indexChanged($orders);
 
                 if ($onProgress !== null) {
                     $onProgress($rows->count());
                 }
+
+                ImportPace::pauseBetweenChunks();
             },
             'sales.id',
             'id'

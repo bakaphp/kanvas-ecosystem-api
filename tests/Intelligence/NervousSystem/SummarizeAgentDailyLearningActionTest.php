@@ -145,6 +145,51 @@ class SummarizeAgentDailyLearningActionTest extends TestCase
         );
     }
 
+    /**
+     * The schema requires only the briefing and the score, and a model with nothing to propose leaves a
+     * list out instead of sending it empty.
+     */
+    public function testASummaryWithoutItsOptionalListsIsStillSaved(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'felix-sales']);
+
+        $cycleDate = Carbon::parse('2026-05-23');
+
+        $this->seedConversationOnCompanyTimezoneDay(
+            $agent,
+            $app,
+            $company,
+            $user->getId(),
+            $cycleDate,
+        );
+
+        StructuredAnonymousAgent::fake([[
+            'briefing' => 'A quiet day: one question answered, nothing left open.',
+            'self_improvement_score' => 0.05,
+        ]]);
+
+        $summary = new SummarizeAgentDailyLearningAction(
+            agent: $agent,
+            app: $app,
+            company: $company,
+            cycleDate: $cycleDate,
+            dryRun: true,
+        )->execute();
+
+        $this->assertNotNull($summary);
+        $this->assertSame([], $summary->proposed_actions);
+        $this->assertSame([], $summary->durable_facts);
+        $this->assertSame([], $summary->skills_emerged);
+        $this->assertSame(0.05, $summary->self_improvement_score);
+    }
+
     public function testFullRunPersistsCycleAndEmitsLedgerWhenSkipPushIsTrue(): void
     {
         $app = app(Apps::class);

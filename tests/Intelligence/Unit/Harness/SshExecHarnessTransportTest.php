@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Unit\Harness;
 
+use Kanvas\Intelligence\AgentRuntime\Exceptions\AgentRuntimeUnreachableException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Transports\SshExecHarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
@@ -107,6 +108,34 @@ class SshExecHarnessTransportTest extends TestCase
         $this->expectExceptionMessage('curl did not run');
 
         $this->transport($this->ssh('bash: curl: command not found'), container: null, port: 4101)->request('GET', 'api/info');
+    }
+
+    /** A dropped tunnel escaped as the machine's own exception and killed the chat's watch job. */
+    public function testAConnectionThatCannotOpenIsATransportError(): void
+    {
+        $machine = new AgentMachine();
+        $machine->name = 'box';
+        $transport = new class ($machine) extends SshExecHarnessTransport {
+            public function __construct(AgentMachine $machine)
+            {
+                parent::__construct(
+                    machine: $machine,
+                    container: null,
+                    password: 'pw',
+                    port: 4101,
+                );
+            }
+
+            protected function openSshClient(): SshClient
+            {
+                throw new AgentRuntimeUnreachableException('Cannot reach machine box: Connection closed by server');
+            }
+        };
+
+        $this->expectException(HarnessTransportException::class);
+        $this->expectExceptionMessage('Connection closed by server');
+
+        $transport->request('POST', 'api/session/s/prompt', ['text' => 'hi']);
     }
 
     private function ssh(string $answer): FakeCodingSshClient

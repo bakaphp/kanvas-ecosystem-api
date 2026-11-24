@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\ContactType;
@@ -168,13 +169,12 @@ class PeopleExportCommand extends Command
         $filePath = Storage::disk('local')->path($this->csvFileName);
         $fileSize = Storage::disk('local')->size($this->csvFileName);
 
-        // Convert to MB for display
-        $fileSizeMB = round($fileSize / 1048576, 2);
-        $this->info("CSV file size: {$fileSizeMB}MB");
+        $readableSize = Number::fileSize($fileSize, 2);
+        $this->info("CSV file size: {$readableSize}");
 
         try {
             Mail::raw(
-                "Please find attached the CSV export for people.\n\nFile size: {$fileSizeMB}MB\nTotal records: {$this->getTotalRecords()}",
+                "Please find attached the CSV export for people.\n\nFile size: {$readableSize}\nTotal records: {$this->getTotalRecords()}",
                 function ($message) use ($emails, $filePath) {
                     $message->to($emails)
                         ->subject('People Export - Complete Dataset')

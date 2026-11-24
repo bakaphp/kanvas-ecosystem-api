@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis as RedisFacade;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
+use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Agent\Events\AgentStartEvent;
 use NeuronAI\Chat\Messages\Message;
@@ -88,7 +89,28 @@ trait RunsDurably
             return null;
         }
 
-        $state = $this->run(ExecutionRequest::start($this->getStartEvent(), $run->runId, recoverFailed: true));
+        $store = $this->resolveMessageStore();
+        $transcript = $store instanceof KanvasMessageStore ? $store : null;
+
+        // The engine drops the prompt once the first inference commits, so a resumed request is what
+        // the store loads. Without the prompt it ends on the agent's previous reply, which Gemini
+        // refuses (KANVAS-ECOSYSTEM-6TX), or answers an older message. That turn starts over instead,
+        // and a tool the dead worker already ran runs again.
+        if ($transcript?->holdsTurnPrompt() === false && $this->inboundMessageIds === []) {
+            return null;
+        }
+
+        $transcript?->resumeInterruptedTurn();
+
+        // Only this run reads the dead turn's tool rounds: a refused resume falls through to a plain
+        // chat() on the same store, which is a new turn and must load the transcript as text.
+        try {
+            $state = $this->run(
+                ExecutionRequest::start($this->getStartEvent(), $run->runId, recoverFailed: true)
+            );
+        } finally {
+            $transcript?->resumeInterruptedTurn(false);
+        }
 
         return $state instanceof AgentState ? $state : null;
     }

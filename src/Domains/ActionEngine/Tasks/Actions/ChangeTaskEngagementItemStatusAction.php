@@ -6,6 +6,7 @@ namespace Kanvas\ActionEngine\Tasks\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -289,7 +290,7 @@ class ChangeTaskEngagementItemStatusAction
             return [];
         }
 
-        return $this->baseSiblingQuery()
+        $siblings = $this->baseSiblingQuery()
             ->where(function (Builder $query) use ($submittedIds): void {
                 foreach ($submittedIds as $id) {
                     $query->orWhereJsonContains('company_task_list_items.config->id', $id);
@@ -297,6 +298,41 @@ class ChangeTaskEngagementItemStatusAction
             })
             ->select('company_task_list_items.*')
             ->get();
+
+        return $this->withoutOtherBuyerTwins($siblings);
+    }
+
+    /**
+     * Main-buyer and co-buyer items for one document share its `config.id`. The fan-out skips
+     * this item's twin on its own checklist, and where another checklist has a same-named twin
+     * it completes only that one.
+     *
+     * @param Collection<int, TaskListItem> $siblings
+     *
+     * @return Collection<int, TaskListItem>
+     */
+    protected function withoutOtherBuyerTwins(Collection $siblings): Collection
+    {
+        $source = $this->taskListItem;
+        $documentTypeId = $this->documentTypeIdOf($source);
+        $isTwin = fn (TaskListItem $sibling): bool => $this->documentTypeIdOf($sibling) === $documentTypeId;
+
+        $checklistsWithSameName = $siblings
+            ->filter($isTwin)
+            ->where('name', $source->name)
+            ->pluck('task_list_id');
+
+        return $siblings
+            ->reject(
+                fn (TaskListItem $sibling): bool => $isTwin($sibling) && (
+                    (int) $sibling->task_list_id === (int) $source->task_list_id
+                    || (
+                        $sibling->name !== $source->name
+                        && $checklistsWithSameName->contains($sibling->task_list_id)
+                    )
+                )
+            )
+            ->values();
     }
 
     /**

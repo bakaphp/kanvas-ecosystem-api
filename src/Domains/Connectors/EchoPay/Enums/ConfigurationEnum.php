@@ -17,6 +17,7 @@ enum ConfigurationEnum: string
     case MERCHANT_DOCUMENT_NUMBER = 'ECHO_PAY_MERCHANT_DOCUMENT_NUMBER';
     case REDIRECT_URL = 'ECHO_PAY_REDIRECT_URL';
     case SANDBOX_URL = 'https://api-test.portall.com.do:2053';
+    case PRODUCTION_URL = 'https://apiv2.portalnet.com.do';
     case BYPASS_ECI = 'ECHO_PAY_BYPASS_ECI';
     case CAPTURE_TIMEOUT = 'ECHO_PAY_CAPTURE_TIMEOUT';
     case USE_MOCK = 'ECHO_PAY_USE_MOCK';

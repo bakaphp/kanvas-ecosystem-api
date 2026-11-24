@@ -4,19 +4,27 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Voice;
 
+use App\GraphQL\Intelligence\Mutations\VoiceAgentCallerMutation;
+use Bouncer;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Intelligence\Agents\Actions\Voice\BuildVoiceAgentLeadContextAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\CaptureVoiceCallerAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Tests\TestCase;
+use Tests\Traits\CreatesBareApps;
 
 final class VoiceLeadContinuityTest extends TestCase
 {
+    use CreatesBareApps;
+
     public function testCallSummaryIsReadBackOnTheNextContact(): void
     {
         $agent = $this->createAgent();
@@ -56,6 +64,94 @@ final class VoiceLeadContinuityTest extends TestCase
 
         $this->assertNotNull($context);
         $this->assertNull($context['context_info']);
+    }
+
+    public function testANumberCapturedInOneFormatIsRecognizedInAnother(): void
+    {
+        $agent = $this->createAgent();
+        $local = (string) random_int(1000000, 9999999);
+
+        new CaptureVoiceCallerAction(agent: $agent, phone: '+1809' . $local, direction: 'inbound')->execute();
+
+        $formatted = '+1 (809) ' . substr($local, 0, 3) . '-' . substr($local, 3);
+        $context = new BuildVoiceAgentLeadContextAction(agent: $agent, phone: $formatted)->execute();
+
+        $this->assertNotNull($context);
+        $this->assertTrue($context['is_returning']);
+    }
+
+    public function testACaptureUnderAnotherAppsKeyLandsOnTheAgentsApp(): void
+    {
+        $agent = $this->createAgent();
+        $agentApp = app(Apps::class);
+        $runtimeApp = $this->createBareApp();
+        app()->scoped(Apps::class, fn () => $runtimeApp);
+        Bouncer::scope()->to(RolesEnums::getScope($runtimeApp));
+
+        try {
+            $result = new CaptureVoiceCallerAction(
+                agent: $agent,
+                phone: $this->uniquePhone(),
+                interest: '2021 Civic',
+                direction: 'inbound',
+                wantsAppointment: true,
+            )->execute();
+        } finally {
+            app()->scoped(Apps::class, fn () => $agentApp);
+            Bouncer::scope()->to(RolesEnums::getScope($agentApp));
+        }
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame($agent->apps_id, People::find($result['people_id'])->apps_id);
+        $this->assertSame($agent->apps_id, Lead::find($result['lead_id'])->apps_id);
+    }
+
+    public function testTheMutationBindsTheAgentsAppForACrossAppRuntimeKey(): void
+    {
+        config(['kanvas.voice_runtime.cross_app' => true]);
+        $agent = $this->createAgent();
+        $agentApp = app(Apps::class);
+        $runtimeApp = $this->createBareApp();
+        app()->scoped(Apps::class, fn () => $runtimeApp);
+
+        try {
+            $result = new VoiceAgentCallerMutation()->capture(null, [
+                'agent_uuid' => $agent->uuid,
+                'phone' => $this->uniquePhone(),
+                'direction' => 'inbound',
+            ]);
+            $boundApp = app(Apps::class)->getId();
+        } finally {
+            app()->scoped(Apps::class, fn () => $agentApp);
+            Bouncer::scope()->to(RolesEnums::getScope($agentApp));
+        }
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame($agent->apps_id, $boundApp);
+    }
+
+    public function testAWithheldCallerIdMatchesNobody(): void
+    {
+        $agent = $this->createAgent();
+        new CaptureVoiceCallerAction(agent: $agent, phone: $this->uniquePhone(), direction: 'inbound')
+            ->execute();
+
+        $this->assertNull(VoiceCallerLookupService::find($agent->app, $agent->company, ''));
+        $this->assertNull(VoiceCallerLookupService::find($agent->app, $agent->company, 'anonymous'));
+    }
+
+    public function testABlankNameKeepsThePlaceholder(): void
+    {
+        $phone = $this->uniquePhone();
+
+        $result = new CaptureVoiceCallerAction(
+            agent: $this->createAgent(),
+            phone: $phone,
+            name: '   ',
+            direction: 'inbound',
+        )->execute();
+
+        $this->assertSame($phone, People::find($result['people_id'])->firstname);
     }
 
     public function testAskingForAnAppointmentOnAnOutboundCallCreatesALead(): void

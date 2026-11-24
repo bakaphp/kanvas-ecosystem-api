@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -12,14 +13,18 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Actions\ApprovePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
+use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
+use RuntimeException;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -198,6 +203,175 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
     }
 
     /**
+     * A worker that marks its last task done and stops there leaves the plan open, and its own
+     * finish is skipped as self-notification — so nobody told the agent that asked, or the person.
+     */
+    public function testTheLastTaskFinishingOnAnOpenPlanWakesWhoeverAskedForIt(): void
+    {
+        Bus::fake();
+
+        [$project, $plan] = $this->delegatedPlan();
+
+        new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE)->execute();
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
+                && $job->wakeAgent?->getId() === $project->pmAgent?->getId()
+                && $job->reportsOn?->getId() === $plan->getId()
+                && str_contains((string) $job->triggerMessage, 'Every task on plan ' . $plan->getId())
+        );
+    }
+
+    /**
+     * A worker records its result as a sync, which is how a factory run finishes: a delegated check came
+     * back done and nobody told the agent that asked for it, because the wake skipped every sync.
+     */
+    public function testAWorkerFinishingTheLastTaskAsASyncStillWakesWhoeverAskedForIt(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+
+        new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE, fromSync: true)->execute();
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reportsOn?->getId() === $plan->getId()
+        );
+    }
+
+    /** A question the step delegated, left blocked, is the step's business; the plan's own steps are done. */
+    public function testABlockedSubQuestionDoesNotKeepAFinishedPlanFromReporting(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+        $step = $this->taskOn($plan);
+        $question = $this->taskOn($plan);
+        $question->update(['parent_task_id' => $step->getId(), 'status' => TaskStatusEnum::BLOCKED->value]);
+
+        new UpdateTaskStatusAction($step, TaskStatusEnum::DONE)->execute();
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reportsOn?->getId() === $plan->getId()
+        );
+    }
+
+    public function testATaskThatLeavesWorkOnThePlanWakesNobody(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+        $first = $this->taskOn($plan);
+        $this->taskOn($plan);
+
+        new UpdateTaskStatusAction($first, TaskStatusEnum::DONE)->execute();
+
+        Bus::assertNotDispatched(WakeAgentForProjectJob::class);
+    }
+
+    /** The creator closing the plan it was just told about is not news to it. */
+    public function testClosingAPlanWhoseFinishWasReportedDoesNotWakeTheCreatorAgain(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+        new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE)->execute();
+
+        $this->complete($plan->refresh(), PlanStatusEnum::DONE);
+
+        Bus::assertDispatchedTimes(WakeAgentForProjectJob::class, 1);
+    }
+
+    /**
+     * Only the agent that asked for the plan answers in the person's conversation, so only its wake may
+     * hold back the done alert there. With no creator recorded the project's PM is woken, and the person
+     * heard nothing at all.
+     */
+    public function testOnlyTheCreatorsWakeHoldsBackTheDoneAlertInTheConversation(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+        new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE)->execute();
+
+        $this->assertTrue($plan->finishWasReported());
+        $this->assertFalse($plan->answerIsComing());
+
+        [$project, $asked] = $this->delegatedPlan();
+        $asked->created_by_agent_id = $project->pmAgent?->getId();
+        $asked->saveQuietly();
+        new UpdateTaskStatusAction($this->taskOn($asked->refresh()), TaskStatusEnum::DONE)->execute();
+
+        $this->assertTrue($asked->answerIsComing());
+    }
+
+    /**
+     * The done alert in the person's conversation is held back for this wake's answer. Dropped on a busy
+     * project like any other automated wake, nothing would ever say the plan finished.
+     */
+    public function testAWakeReportingAFinishedPlanWaitsForTheProjectLockInsteadOfBeingDropped(): void
+    {
+        [$project, $plan] = $this->delegatedPlan();
+
+        $reporting = new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            'Every task is finished.',
+            reportsOn: $plan,
+        );
+        $plain = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_PLAN_OUTCOME, 'The plan is done.');
+
+        $this->assertSame(15, $this->projectLockOf($reporting)->releaseAfter);
+        $this->assertSame(41, $reporting->tries);
+        $this->assertNull($this->projectLockOf($plain)->releaseAfter);
+        $this->assertSame(6, $plain->tries);
+    }
+
+    public function testAnAbandonedReportingWakeLetsTheDoneAlertAndTheClosingWakeThrough(): void
+    {
+        [$project, $plan] = $this->delegatedPlan();
+        $plan->rememberFinishWasReported();
+        $plan->rememberAnswerIsComing();
+
+        new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            'Every task is finished.',
+            reportsOn: $plan,
+        )->failed(new RuntimeException('never won the lock'));
+
+        $this->assertFalse($plan->answerIsComing());
+        $this->assertFalse($plan->finishWasReported());
+    }
+
+    private function projectLockOf(WakeAgentForProjectJob $job): WithoutOverlapping
+    {
+        foreach ($job->middleware() as $middleware) {
+            if ($middleware instanceof WithoutOverlapping) {
+                return $middleware;
+            }
+        }
+
+        $this->fail('WakeAgentForProjectJob is missing its WithoutOverlapping middleware.');
+    }
+
+    /** A plan the worker blocks is still news, after its last task was reported or not. */
+    public function testBlockingAPlanWhoseFinishWasReportedStillWakesTheCreator(): void
+    {
+        Bus::fake();
+
+        [, $plan] = $this->delegatedPlan();
+        new UpdateTaskStatusAction($this->taskOn($plan), TaskStatusEnum::DONE)->execute();
+
+        $this->complete($plan->refresh(), PlanStatusEnum::BLOCKED);
+
+        Bus::assertDispatchedTimes(WakeAgentForProjectJob::class, 2);
+    }
+
+    /**
      * @return array{0: Project, 1: Plan}
      */
     private function delegatedPlan(): array
@@ -205,6 +379,20 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
         $project = $this->project();
 
         return [$project, $this->planFor($project, $this->worker())];
+    }
+
+    private function taskOn(Plan $plan): Task
+    {
+        return Task::create([
+            'plan_id' => $plan->getId(),
+            'apps_id' => $plan->apps_id,
+            'companies_id' => $plan->companies_id,
+            'agent_id' => $plan->agent_id,
+            'sequence' => 0,
+            'title' => 'Research ' . fake()->unique()->lexify('?????'),
+            'status' => TaskStatusEnum::IN_PROGRESS->value,
+            'is_deleted' => 0,
+        ]);
     }
 
     private function complete(Plan $plan, PlanStatusEnum $status): void

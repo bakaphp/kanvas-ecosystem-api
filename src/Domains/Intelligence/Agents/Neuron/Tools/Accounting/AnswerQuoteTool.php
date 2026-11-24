@@ -31,8 +31,11 @@ class AnswerQuoteTool extends Tool
 
     protected ?string $description = 'Records what the CUSTOMER decided about a quote you already sent: accepted or '
         . 'rejected. Only call it when someone tells you the customer actually answered — this is '
-        . 'their decision, never yours to assume. Accepting is what unlocks '
-        . 'convert_quote_to_invoice (or, for a quote with a SOW, bills its payment schedule); rejecting closes the quote '
+        . 'their decision, never yours to assume. A person saying "approved", "aprobada", "ok" or "go ahead" about '
+        . 'a draft is giving THEIR go-ahead to send it, not reporting the customer\'s answer: that is send_quote. When '
+        . 'you cannot tell whose approval it is, ask before calling this. Accepting is what unlocks '
+        . 'convert_quote_to_invoice (or, for a quote with a SOW, bills its payment schedule: a payment due on '
+        . 'signature is invoiced at once); rejecting closes the quote '
         . 'for good. When a person tells you the customer accepted a quote that was never sent through Kanvas (signed by '
         . 'email, agreed in person), pass accepted_outside_kanvas: it numbers the quote and records it as sent and '
         . 'accepted, so the invoice is made from it. Never rebuild a quote\'s lines with create_ar_invoice.';
@@ -59,8 +62,9 @@ class AnswerQuoteTool extends Tool
             new ToolProperty(
                 name: 'accepted_outside_kanvas',
                 type: PropertyType::BOOLEAN,
-                description: 'True only when a person says the customer already accepted this quote outside Kanvas while it '
-                    . 'was still a draft. Never set it on your own.',
+                description: 'True only when a person says the customer already accepted or signed this quote outside '
+                    . 'Kanvas while it was still a draft. The person approving the draft themselves is not that. Never '
+                    . 'set it on your own.',
                 required: false,
             ),
             new ToolProperty(
@@ -125,6 +129,8 @@ class AnswerQuoteTool extends Tool
             ];
         }
 
+        $billedBySow = $accepted && $answered->sow_message_id !== null;
+
         return [
             'recorded' => true,
             'quote_id' => $answered->getId(),
@@ -132,9 +138,13 @@ class AnswerQuoteTool extends Tool
             'status' => $answered->status->value,
             'total' => $answered->total_native,
             'invoices' => $accepted ? $answered->invoiceSummaries() : [],
+            'billing' => $billedBySow ? $answered->billingSummaries() : [],
             'message' => $accepted
-                ? ($answered->sow_message_id !== null
-                    ? 'Quote accepted. Its SOW payment schedule bills it: every payment already due is invoiced in the background (`invoices` lists those made so far), later ones on their dates. Tell the person; do not convert it or create another invoice.'
+                ? ($billedBySow
+                    ? 'Quote accepted. Its SOW payment schedule bills it: each `billing` entry with billing_now=true is '
+                        . 'being invoiced right now in the background, even while `invoices` is still empty; the others '
+                        . 'bill on their bills_on date. Tell the person which payments are being invoiced now and never '
+                        . 'say no invoice was created. Do not convert it or create another invoice.'
                     : 'Quote accepted. Call convert_quote_to_invoice to turn it into a draft invoice.')
                 : 'Quote rejected — it is closed and cannot be reopened. Issue a new quote if they come back.',
         ];

@@ -73,6 +73,17 @@ class ModelContextWindowService
         AgentLlmProviderEnum::ANTHROPIC->value => 200_000,
     ];
 
+    /**
+     * `model_pricing` rows carry the catalogue's provider names, which for Bedrock are not ours.
+     */
+    private const array PRICING_PROVIDER_ALIASES = [
+        AgentLlmProviderEnum::BEDROCK->value => [
+            'bedrock_converse',
+            'bedrock',
+            'bedrock_mantle',
+        ],
+    ];
+
     public static function forAgent(?Agent $agent): int
     {
         if ($agent === null) {
@@ -148,7 +159,7 @@ class ModelContextWindowService
             static function () use ($provider, $model): int {
                 $row = DB::connection('intelligence')
                     ->table('model_pricing')
-                    ->where('provider', $provider)
+                    ->whereIn('provider', self::PRICING_PROVIDER_ALIASES[$provider] ?? [$provider])
                     ->where('model', $model)
                     ->whereNull('effective_until')
                     ->where('is_deleted', 0)

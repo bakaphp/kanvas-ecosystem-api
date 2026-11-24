@@ -10,6 +10,7 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Support\TransientEntity;
+use Override;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
 
@@ -59,5 +60,27 @@ class DynamicRuleWorkflow extends Workflow
         }
 
         return $activities;
+    }
+
+    /**
+     * The engine releases a blocked workflow job with no delay and no cap, from the overlap middleware
+     * and from handle(); a blocker that never clears is ~30 releases a second per job. Not
+     * `overlapReleaseAfter`: that also delays every activity racing its own workflow's unlock.
+     */
+    #[Override]
+    public function release($delay = 0)
+    {
+        parent::release(
+            is_int($delay) ? max($delay, self::releaseDelayFor($this->attempts())) : $delay
+        );
+    }
+
+    public static function releaseDelayFor(int $attempts): int
+    {
+        return match (true) {
+            $attempts <= 25 => 0,
+            $attempts <= 200 => 5,
+            default => 60,
+        };
     }
 }

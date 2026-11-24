@@ -126,7 +126,23 @@ class SummarizationOnConversationStoreTest extends TestCase
         $this->assertSame($this->rows->firstWhere('content', 'turn two')->id, $payload['to_message_id']);
         $this->assertSame(3, $payload['archived_count']);
         $this->assertGreaterThan($payload['tokens_after'], $payload['tokens_before']);
-        $this->assertTrue($this->channel->messages()->where('messages.id', $social->getId())->exists());
+    }
+
+    /**
+     * On a channel the note renders as a post from the agent, above its reply, in the room people
+     * are reading.
+     */
+    public function testTheSummaryNoteIsNeverPostedOnTheChannel(): void
+    {
+        $noteIds = $this->rows
+            ->filter(fn (object $row): bool => $this->isSummary($row))
+            ->map(fn (object $row): array => json_decode($row->meta, true)['__meta'])
+            ->pluck(KanvasSummarization::SOCIAL_MESSAGE_ID)
+            ->all();
+
+        $this->assertCount(2, $noteIds);
+        $this->assertSame(2, SocialMessage::query()->whereIn('id', $noteIds)->count());
+        $this->assertFalse($this->channel->messages()->whereIn('messages.id', $noteIds)->exists());
     }
 
     public function testTheFourthInferenceOpensWithTheSummaryAndKeepsTheTailBehindIt(): void

@@ -52,6 +52,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetDefaultSowTemplateTool
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateDraftInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
@@ -149,6 +150,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
             new DiscardDraftInvoiceTool(),
+            new UpdateDraftInvoiceTool(),
             new ApplyArPaymentTool(),
             new CreateArCreditMemoTool(),
             new DraftCreditNoteTool(),
@@ -278,9 +280,21 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Void/cancel/undo that invoice" → void_ar_invoice for an issued or sent invoice (it reverses the posting); '
             . 'discard_draft_invoice for a DRAFT (nothing was posted, so it is withdrawn and its approval cancelled). '
             . 'A draft that already carries a fiscal number can be neither.',
+            '- "Change / fix / reword that draft invoice" → update_draft_invoice with every line it should have '
+            . 'afterwards. Never discard a draft to create another in its place: the replacement can be refused, and '
+            . 'a discarded draft of a billing schedule leaves that payment with no invoice at all. Ask before '
+            . 'discarding anything the person only asked you to change.',
+            '- An invoice made by a quote\'s SOW payment schedule bills one payment, not the quote: its total is '
+            . 'that payment, and it lists every quote line at that payment\'s share (three monthly lines on a '
+            . 'three-payment quote show a third of each). That is how the schedule bills, not an error; do not '
+            . 'report it as a mismatch with the quote. If the person wants it to read as one line, '
+            . 'update_draft_invoice keeps the total and replaces the lines.',
             '- "Quote customer X for Y" / "send them a proposal" → create_quote (customer name + priced lines). '
             . 'It stops at a DRAFT with no quote number. Then send_quote: it numbers it, marks it sent and '
-            . 'sends the customer a tracked link (a signing page when it has a SOW) with the PDFs.',
+            . 'sends the customer a tracked link (a signing page when it has a SOW) with the PDFs. When the user '
+            . 'wants to share it themselves ("give me a link", "I will send it"), send_quote with deliver=false '
+            . 'numbers it without contacting anyone, then get_document_link gives the link. Sharing a quote never '
+            . 'accepts it and never creates an invoice: only the customer\'s acceptance does.',
             '- "Send invoice Y to the customer" → send_invoice, never an email you write with the PDF yourself. '
             . 'On an e-CF company it refuses until DGII accepted the e-CF; wait for that. If it answers '
             . 'no_billing_contact, ask who receives invoices there and call again with their person_id. A '
@@ -296,7 +310,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'billing contacts; a send without person_id reaches all of them. "Give me the link to invoice/quote Y" '
             . '→ get_document_link: it contacts nobody and the user shares the link themselves.',
             '- Only record the customer\'s own answer with answer_quote (accepted or rejected, with their reason '
-            . 'when they said no) — never assume it. Once accepted, "turn that quote into an invoice" → '
+            . 'when they said no) — never assume it. The user saying "approved", "aprobada", "ok" or "go ahead" '
+            . 'about a draft is their own go-ahead to send or share it, not the customer\'s acceptance; when you '
+            . 'cannot tell whose approval it is, ask. Accepting a quote with a SOW invoices its on-signature payment '
+            . 'at once, so say that before you record it. Once accepted, "turn that quote into an invoice" → '
             . 'convert_quote_to_invoice, which creates a DRAFT invoice carrying the same lines; a human issues '
             . 'it. An invoice for a quote always comes from convert_quote_to_invoice, never from create_ar_invoice: '
             . 'a hand-built copy loses the link to the quote and its line-by-line detail, and create_ar_invoice '

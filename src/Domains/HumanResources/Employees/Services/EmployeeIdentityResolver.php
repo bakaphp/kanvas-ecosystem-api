@@ -8,7 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\HumanResources\Employees\Enums\EmployeeStatusEnum;
 use Kanvas\HumanResources\Employees\Models\Employee;
+use Kanvas\Users\Models\Users;
 
 /**
  * Resolves the acting user to its HR Employee record (the "who am I talking to" hot path).
@@ -30,6 +33,40 @@ class EmployeeIdentityResolver
             ->first();
 
         return $employee;
+    }
+
+    /**
+     * Users and People live on other connections than HR, so each is its own query, never a whereHas.
+     *
+     * @return list<string> lower-cased, de-duplicated
+     */
+    public function emails(CompanyInterface $company, AppInterface $app): array
+    {
+        $employees = Employee::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->where('status', '!=', EmployeeStatusEnum::DEPARTED->value)
+            ->toBase()
+            ->get(['users_id', 'people_id']);
+
+        $userIds = $employees->pluck('users_id')->filter()->unique()->values()->all();
+        $peopleIds = $employees->pluck('people_id')->filter()->unique()->values()->all();
+
+        $emails = [
+            ...($userIds === [] ? [] : Users::query()->whereIn('id', $userIds)->pluck('email')->all()),
+            ...($peopleIds === [] ? [] : Contact::query()
+                ->whereIn('peoples_id', $peopleIds)
+                ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+                ->where('is_deleted', 0)
+                ->pluck('value')
+                ->all()),
+        ];
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn (mixed $email): string => strtolower(trim((string) $email)),
+            $emails
+        ))));
     }
 
     /**

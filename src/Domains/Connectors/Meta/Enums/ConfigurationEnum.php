@@ -23,6 +23,13 @@ enum ConfigurationEnum: string
     case DISPLAY_PHONE_NUMBER = 'meta_whatsapp_display_phone_number';
 
     /**
+     * Read by `MetaInbound::burstPolicy()`: `BurstPolicy::fromCompanySettings()` builds these keys
+     * from the `meta_whatsapp` prefix, so they have to keep that shape.
+     */
+    case BURST_IDLE_SECONDS = 'meta_whatsapp_burst_idle_seconds';
+    case BURST_JITTER_SECONDS = 'meta_whatsapp_burst_jitter_seconds';
+
+    /**
      * App setting, so a Graph upgrade is a config change rather than a release.
      */
     case GRAPH_API_VERSION = 'meta_graph_api_version';
@@ -32,6 +39,12 @@ enum ConfigurationEnum: string
      * an operator; without it no webhook is accepted.
      */
     case APP_SECRET = 'meta_app_secret';
+
+    /**
+     * App setting: the Meta app's id. With the secret it turns an embedded signup's code into the
+     * company's business token.
+     */
+    case APP_ID = 'meta_app_id';
 
     /**
      * App setting: what Meta echoes back when it verifies a callback URL. Generated on first use.

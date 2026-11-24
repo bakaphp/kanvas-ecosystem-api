@@ -98,7 +98,9 @@ class Message extends BaseModel
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
     use HasPermissions;
-    use AsTree;
+    use AsTree {
+        rebuildSubtreePaths as rebuildDescendantPaths;
+    }
     use CanUseWorkflow;
     use HasLightHouseCache;
     use HasFilesystemTrait;
@@ -195,7 +197,35 @@ class Message extends BaseModel
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+        return $this->belongsToMany(
+            Users::class,
+            'user_messages',
+            'messages_id',
+            'users_id'
+        );
+    }
+
+    /**
+     * The tree's rebuild is a range update (`path like '<id>.%'`) that gap-locks the `path` index,
+     * and concurrent message inserts land in that gap: two inbound deliveries deadlock (1213) and
+     * one loses its chaining. A message nobody has replied to has no range to rewrite, so it is
+     * moved by primary key; only a real subtree pays for the range.
+     */
+    protected function rebuildSubtreePaths(): void
+    {
+        $hasChildren = static::withoutGlobalScopes()
+            ->where($this->getParentKeyName(), $this->getKey())
+            ->exists();
+
+        if ($hasChildren) {
+            $this->rebuildDescendantPaths();
+
+            return;
+        }
+
+        $this->newQuery()
+            ->whereKey($this->getKey())
+            ->update([$this->getPathColumn() => $this->buildPath()->getValue()]);
     }
 
     public function childrenByType(string $verb): HasMany
@@ -592,6 +622,24 @@ class Message extends BaseModel
         }
 
         return $query;
+    }
+
+    /**
+     * A message belongs to the person who wrote it: `myMessages` uses this so a coworker in the
+     * same company can never read it by widening a `where`. Fails closed when no user is
+     * authenticated, so no caller can turn a missing user into an app-wide list.
+     *
+     * Overrides the shared `KanvasUsersScopesTrait::scopeFromUser`, which ignores its argument and
+     * throws with no user; `UserManagementMutation` relies on it ignoring the argument, so it is not
+     * changed there (same reason `ScheduledAction` keeps its own).
+     */
+    public function scopeFromUser(Builder $query, mixed $user = null): Builder
+    {
+        $userId = $user instanceof Users ? $user->getId() : auth()->id();
+
+        return $userId !== null
+            ? $query->where($this->getTable() . '.users_id', (int) $userId)
+            : $query->whereRaw('1 = 0');
     }
 
     public function setLock(): void

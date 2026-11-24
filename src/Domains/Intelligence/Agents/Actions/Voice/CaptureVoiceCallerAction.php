@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
-use Bouncer;
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -15,7 +12,6 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
@@ -26,41 +22,46 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Leads\Services\ContactHistoryService;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
+use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 use function Sentry\captureException;
 
 /**
- * Voice data plane: capture a caller the agent is talking to.
+ * Voice data plane: capture the caller the agent is talking to.
  *
- * On the FIRST substantive call we record the person as a People (contact) — no
- * lead yet — so they're recognized next time. We PROMOTE to a Lead when they
- * qualify: either a repeat (a People for this number already existed) OR the
- * agent flags clear intent (`interested`). Details the agent learns (name,
- * interest) are backfilled onto the contact. When the agent sends a call summary it is
- * appended to the contact history (lead, or People before promotion), which the next
- * call and the lead's SMS agent session both read back.
- *
- * Reuses the same People/Lead creation scaffolding as the ElevenLabs connector.
- * Best-effort: returns a structured result the LLM can speak; never throws.
+ * The first call records a People and no lead, so the caller is recognized next time; a lead is
+ * opened once they qualify (qualifiesForLead()). A call summary is appended to the contact history
+ * (the lead's, or the People's before there is one), which the next call and the lead's SMS agent
+ * session read back. Best-effort: returns a result the LLM can speak; never throws.
  */
 class CaptureVoiceCallerAction
 {
+    private readonly ?string $name;
+    private readonly ?string $interest;
+    private readonly ?string $summary;
+    private readonly ?string $appointmentPreference;
+
     public function __construct(
         private readonly Agent $agent,
         private readonly string $phone,
-        private readonly ?string $name = null,
-        private readonly ?string $interest = null,
+        ?string $name = null,
+        ?string $interest = null,
         private readonly bool $interested = false,
         private readonly ?string $direction = null,
-        private readonly ?string $summary = null,
+        ?string $summary = null,
         private readonly bool $wantsAppointment = false,
-        private readonly ?string $appointmentPreference = null,
+        ?string $appointmentPreference = null,
     ) {
+        $this->name = Str::trimToNull($name);
+        $this->interest = Str::trimToNull($interest);
+        $this->summary = Str::trimToNull($summary);
+        $this->appointmentPreference = Str::trimToNull($appointmentPreference);
     }
 
     /**
@@ -68,94 +69,11 @@ class CaptureVoiceCallerAction
      */
     public function execute(): array
     {
-        // Cross-app: the agent may live in a different app than the app-key the
-        // voice runtime authenticated with. Bind the agent's app as the current
-        // app so downstream app-scoped queries resolve against it — notably
-        // CreateLeadAction re-resolving the People by id, whose getById scopes
-        // fromApp(app(Apps::class)). Restore afterward so nothing leaks into the
-        // rest of the request (same pattern as TenantAware*Searchable jobs).
-        $previousApp = app(Apps::class);
-        app()->instance(Apps::class, $this->agent->app);
-
-        // Same reason, for RBAC: Role is a Bouncer model with a global scope that
-        // filters by the ACTIVE scope, which is the runtime's app-key app. Lead
-        // creation fires LeadObserver -> CreateChannelAction, which looks up the
-        // "Admin" role for the agent's app; under the wrong scope that role is
-        // hidden and firstOrFail throws. Point Bouncer at the agent's app scope.
-        $previousScope = Bouncer::scope()->get();
-        Bouncer::scope()->to(RolesEnums::getScope($this->agent->app));
-
         try {
-            $company = $this->agent->companies_id > 0
-                ? Companies::find($this->agent->companies_id)
-                : null;
-            if ($company === null) {
-                return ['status' => 'error', 'message' => 'No company is set for this agent.'];
-            }
-
-            $app = $this->agent->app;
-            // Records created here are attributed to the agent's dedicated AI user.
-            $user = $company->getAiAgentUser() ?? $this->agent->user;
-
-            // Existing People = they've been seen before (the "repeat" signal).
-            $existing = $this->findPeople($app, $company);
-            $isReturning = $existing !== null;
-            $people = $existing ?? $this->createPeople($app, $company, $user);
-
-            if ($this->name !== null && $this->name !== '') {
-                $this->applyName($people);
-            }
-            if ($this->interest !== null && $this->interest !== '') {
-                $people->set('voice_interest', $this->interest);
-            }
-            if ($this->wantsAppointment) {
-                $people->set('voice_wants_appointment', '1');
-                if ($this->appointmentPreference !== null && $this->appointmentPreference !== '') {
-                    $people->set('voice_appointment_preference', $this->appointmentPreference);
-                }
-            }
-
-            // Promote to a lead when there's no active lead yet. OUTBOUND (we
-            // dialed them) requires clear intent — placing the call isn't itself
-            // a qualifying signal. INBOUND keeps the "repeat OR intent" rule: a
-            // second call counts even without stated intent. Asking for an
-            // appointment is intent, whatever the model set `interested` to.
-            $lead = LeadsRepository::getPeopleActiveLead($people);
-            $createdLead = false;
-            $intent = $this->interested || $this->wantsAppointment;
-            $qualifies = $this->direction === 'outbound'
-                ? $intent
-                : ($isReturning || $intent);
-            if ($lead === null && $qualifies) {
-                $lead = $this->createLeadFromPeople($people, $user);
-                $createdLead = true;
-            }
-            // Only a summary marks the end of a conversation; interest-only mid-call
-            // captures would otherwise add several entries for one call.
-            if (Str::trimToNull($this->summary) !== null) {
-                new ContactHistoryService()->record(
-                    entity: $lead ?? $people,
-                    channel: 'voice',
-                    direction: $this->direction,
-                    summary: $this->buildContextInfo(),
-                );
-                $this->refreshAgentSessions($lead);
-            }
-
-            return [
-                'status' => 'success',
-                'people_id' => $people->getId(),
-                'lead_id' => $lead?->getId(),
-                'created_lead' => $createdLead,
-                'is_returning' => $isReturning,
-                'message' => $createdLead
-                    ? 'Saved the caller and created a lead.'
-                    : 'Saved the caller details.',
-            ];
+            return $this->capture();
         } catch (Throwable $e) {
             captureException($e);
-            // Log the real reason — the spoken message below is deliberately
-            // generic, so without this the actual failure is only in Sentry.
+            // The spoken message is deliberately generic, so the reason is logged here.
             logger()->error('captureVoiceLead failed', [
                 'phone' => $this->phone,
                 'agent_id' => $this->agent->getId(),
@@ -165,34 +83,67 @@ class CaptureVoiceCallerAction
             ]);
 
             return ['status' => 'error', 'message' => "I couldn't save the caller details just now."];
-        } finally {
-            Bouncer::scope()->to($previousScope);
-            app()->instance(Apps::class, $previousApp);
         }
     }
 
-    private function findPeople(mixed $app, Companies $company): ?People
+    /**
+     * @return array<string, mixed>
+     */
+    private function capture(): array
     {
-        $people = PeoplesRepository::getByPhoneNumber(
-            app: $app,
-            company: $company,
-            phoneNumbers: array_values(array_unique(array_filter([
-                Str::sanitizePhoneNumber($this->phone),
-                Str::normalizePhoneNumber($this->phone),
-            ]))),
-        )->get();
-
-        if ($people->isEmpty()) {
-            return null;
+        $company = $this->agent->company;
+        if ($company === null) {
+            return ['status' => 'error', 'message' => 'No company is set for this agent.'];
         }
 
-        // Prefer someone with an active lead; else the first match.
-        return $people->first(
-            fn (People $p): bool => LeadsRepository::getPeopleActiveLead($p) !== null
-        ) ?? $people->first();
+        $user = $company->getAiAgentUser() ?? $this->agent->user;
+        $existing = VoiceCallerLookupService::find($this->agent->app, $company, $this->phone);
+        $people = $existing ?? $this->createPeople($company, $user);
+        $this->saveCallerDetails($people);
+
+        $lead = LeadsRepository::getPeopleActiveLead($people);
+        $createdLead = $lead === null && $this->qualifiesForLead(isReturning: $existing !== null);
+        if ($createdLead) {
+            $lead = $this->createLeadFromPeople($people, $user);
+        }
+
+        // Only a summary marks the end of a conversation; interest-only mid-call
+        // captures would otherwise add several entries for one call.
+        if ($this->summary !== null) {
+            new ContactHistoryService()->record(
+                entity: $lead ?? $people,
+                channel: 'voice',
+                direction: $this->direction,
+                summary: $this->buildContextInfo(),
+            );
+            $this->refreshAgentSessions($lead);
+        }
+
+        return [
+            'status' => 'success',
+            'people_id' => $people->getId(),
+            'lead_id' => $lead?->getId(),
+            'created_lead' => $createdLead,
+            'is_returning' => $existing !== null,
+            'message' => $createdLead
+                ? 'Saved the caller and created a lead.'
+                : 'Saved the caller details.',
+        ];
     }
 
-    private function createPeople(mixed $app, Companies $company, mixed $user): People
+    /**
+     * Placing an outbound call is not itself a signal, so it needs clear intent; an inbound caller
+     * also qualifies by calling a second time. Asking for an appointment is intent, whatever the
+     * model set `interested` to.
+     */
+    private function qualifiesForLead(bool $isReturning): bool
+    {
+        $intent = $this->interested || $this->wantsAppointment;
+
+        return $this->direction === 'outbound' ? $intent : ($isReturning || $intent);
+    }
+
+    private function createPeople(Companies $company, Users $user): People
     {
         $contactData = [[
             'value' => $this->phone,
@@ -201,7 +152,7 @@ class CaptureVoiceCallerAction
         ]];
 
         $dto = new PeopleDto(
-            app: $app,
+            app: $this->agent->app,
             branch: $company->defaultBranch,
             user: $user,
             firstname: $this->phone, // placeholder until we learn a real name
@@ -214,30 +165,42 @@ class CaptureVoiceCallerAction
         return new CreatePeopleAction($dto)->execute();
     }
 
-    /**
-     * Backfill a real name, but never clobber one we already have — createPeople
-     * stores the phone as firstname, so only overwrite a phone-like placeholder.
-     */
-    private function applyName(People $people): void
+    private function saveCallerDetails(People $people): void
     {
-        $current = trim((string) $people->firstname);
-        $isPlaceholder = $current === '' || preg_match('/^[\d\s+()\-]+$/', $current) === 1;
-        if (! $isPlaceholder) {
+        if ($this->name !== null) {
+            $this->applyName($people);
+        }
+        if ($this->interest !== null) {
+            $people->set('voice_interest', $this->interest);
+        }
+        if (! $this->wantsAppointment) {
             return;
         }
 
-        $parts = preg_split('/\s+/', trim((string) $this->name), 2) ?: [];
+        $people->set('voice_wants_appointment', '1');
+        if ($this->appointmentPreference !== null) {
+            $people->set('voice_appointment_preference', $this->appointmentPreference);
+        }
+    }
+
+    /**
+     * Fills in the placeholder only: a name already on the contact is never overwritten.
+     */
+    private function applyName(People $people): void
+    {
+        if (! VoiceCallerLookupService::isPlaceholderName($people->firstname)) {
+            return;
+        }
+
+        $parts = preg_split('/\s+/', $this->name, 2) ?: [];
         $people->firstname = $parts[0] ?? '';
         $people->lastname = $parts[1] ?? '';
         $people->saveOrFail();
     }
 
-    private function createLeadFromPeople(People $people, mixed $user): Lead
+    private function createLeadFromPeople(People $people, Users $user): Lead
     {
-        // Self-provision the "Warm" type if the company lacks it (it's a seeded
-        // default, but older/incomplete companies may not have it) — same
-        // create-if-missing pattern the Reynolds/Elead connectors use, so capture
-        // never hard-fails on a missing lead type.
+        // "Warm" is a seeded default that older companies can lack; capture must not fail on it.
         $leadType = LeadType::firstOrCreate(
             [
                 'apps_id' => $people->app->getId(),
@@ -251,7 +214,14 @@ class CaptureVoiceCallerAction
         );
 
         $leadSource = new CreateLeadSourceAction(
-            new LeadSource($people->app, $people->company, $leadType->getId(), 'voice', true, 'voice')
+            new LeadSource(
+                app: $people->app,
+                company: $people->company,
+                leads_types_id: $leadType->getId(),
+                name: 'voice',
+                is_active: true,
+                description: 'voice',
+            )
         )->execute();
 
         $leadReceiver = new CreateLeadReceiverAction(
@@ -275,14 +245,14 @@ class CaptureVoiceCallerAction
             title: $this->leadTitle($people),
             pipeline_stage_id: 0,
             people: new PeopleDto(
-                $people->app,
-                $people->company->defaultBranch,
-                $user,
-                (string) $people->firstname,
-                Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
-                Address::collect([], DataCollection::class),
-                (string) $people->lastname,
-                $people->id,
+                app: $people->app,
+                branch: $people->company->defaultBranch,
+                user: $user,
+                firstname: (string) $people->firstname,
+                contacts: Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
+                address: Address::collect([], DataCollection::class),
+                lastname: (string) $people->lastname,
+                id: $people->id,
             ),
             leads_owner_id: 0,
             status_id: 0,
@@ -299,48 +269,30 @@ class CaptureVoiceCallerAction
     }
 
     /**
-     * A scannable lead title: who + how they came in + what they want, e.g.
+     * Who, how they came in and what they want, e.g.
      * "Rafael Lopez — Outbound voice call — interested in a 2024 Camry".
-     * Falls back to the phone when we don't have a real name yet, and omits the
-     * interest clause when none was captured.
      */
     private function leadTitle(People $people): string
     {
-        $who = trim((string) $people->name);
-        if ($who === '' || preg_match('/^[\d\s+()\-]+$/', $who) === 1) {
-            $who = $this->phone;
-        }
+        $who = VoiceCallerLookupService::isPlaceholderName($people->name)
+            ? $this->phone
+            : trim((string) $people->name);
 
-        $direction = $this->direction === 'outbound' ? 'Outbound' : 'Inbound';
-
-        $parts = array_filter([
+        return implode(' — ', array_filter([
             $who,
-            $direction . ' voice call',
-            ($this->interest !== null && $this->interest !== '') ? trim($this->interest) : null,
-        ]);
-
-        return implode(' — ', $parts);
+            "{$this->directionLabel()} voice call",
+            $this->interest,
+        ]));
     }
 
-    /**
-     * Human-facing lead description for the CRM: how the lead came in plus the
-     * interest the agent captured (when any).
-     */
     private function leadDescription(): string
     {
-        $direction = $this->direction === 'outbound' ? 'Outbound' : 'Inbound';
-        $parts = ["{$direction} voice call captured by the AI agent."];
-        if ($this->interest !== null && trim($this->interest) !== '') {
-            $parts[] = 'Interest: ' . trim($this->interest);
-        }
-        if ($this->summary !== null && trim($this->summary) !== '') {
-            $parts[] = trim($this->summary);
-        }
-        if ($this->wantsAppointment) {
-            $parts[] = $this->appointmentNote();
-        }
-
-        return implode(' ', $parts);
+        return implode(' ', array_filter([
+            "{$this->directionLabel()} voice call captured by the AI agent.",
+            $this->interestNote(),
+            $this->summary,
+            $this->appointmentNote(),
+        ]));
     }
 
     /**
@@ -362,30 +314,37 @@ class CaptureVoiceCallerAction
     }
 
     /**
-     * What the next agent should know about this call: the call summary, interest and
-     * any appointment request, one per line.
+     * What the next agent should know about this call, one item per line.
      */
     private function buildContextInfo(): string
     {
         // Summary first: it carries the runtime's "[voice <direction> <date>, <outcome>]"
         // header, which ContactHistoryService keeps as the line's header.
-        $interest = Str::trimToNull($this->interest);
-        $lines = array_filter([
-            Str::trimToNull($this->summary),
-            $interest !== null ? "Interest: {$interest}" : null,
-            $this->wantsAppointment ? $this->appointmentNote() : null,
-        ]);
-
-        return implode("\n", $lines);
+        return implode("\n", array_filter([
+            $this->summary,
+            $this->interestNote(),
+            $this->appointmentNote(),
+        ]));
     }
 
-    /**
-     * A one-line appointment note including the caller's time preference, if any.
-     */
-    private function appointmentNote(): string
+    private function directionLabel(): string
     {
-        $pref = trim((string) $this->appointmentPreference);
+        return $this->direction === 'outbound' ? 'Outbound' : 'Inbound';
+    }
 
-        return $pref !== '' ? "Wants an appointment: {$pref}." : 'Wants an appointment.';
+    private function interestNote(): ?string
+    {
+        return $this->interest !== null ? "Interest: {$this->interest}" : null;
+    }
+
+    private function appointmentNote(): ?string
+    {
+        if (! $this->wantsAppointment) {
+            return null;
+        }
+
+        return $this->appointmentPreference !== null
+            ? "Wants an appointment: {$this->appointmentPreference}."
+            : 'Wants an appointment.';
     }
 }

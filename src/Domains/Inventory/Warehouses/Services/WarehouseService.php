@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Services;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -38,14 +39,7 @@ class WarehouseService
                 $variantWarehouseData->restore();
             }
 
-            if (isset($warehouseData['status'])) {
-                $warehouseData['status_id'] = StatusRepository::getById(
-                    (int) $warehouseData['status']['id'],
-                    $variant->product->company
-                )->getId();
-            } else {
-                $warehouseData['status_id'] = Status::getDefault($variant->product->company)->getId();
-            }
+            $warehouseData['status_id'] = self::resolveStatusId($warehouseData, $variant->product->company);
 
             $variantWarehousesDto = VariantsWarehouses::viaRequest($variant, $warehouseModel, $warehouseData);
 
@@ -75,23 +69,19 @@ class WarehouseService
         Companies $company,
         array $warehousesInfo
     ): ModelsVariantsWarehouses {
-        if (isset($warehousesInfo['status'])) {
-            $status = StatusRepository::getById(
-                (int) $warehousesInfo['status']['id'],
-                $company
-            )->getId();
-        } else {
-            $status = Status::getDefault($company);
-        }
+        $warehousesInfo['status_id'] = self::resolveStatusId($warehousesInfo, $company);
+        $variantWarehouses = VariantsWarehouses::viaRequest($variant, $warehouse, $warehousesInfo);
 
-        $warehousesInfo['status_id'] = $status ? $status->getId() : null;
-        $variantWarehouses = VariantsWarehouses::viaRequest($variant, $warehouse, $warehousesInfo ?? []);
+        return new AddToWarehouse($variant, $warehouse, $variantWarehouses)->execute();
+    }
 
-        if ($variant->sku && (! isset($warehousesInfo['sku']) || ! $warehousesInfo['sku'])) {
-            $warehousesInfo['sku'] = $variant->sku;
-        }
+    private static function resolveStatusId(array $warehouseInfo, CompanyInterface $company): ?int
+    {
+        $status = isset($warehouseInfo['status'])
+            ? StatusRepository::getById((int) $warehouseInfo['status']['id'], $company)
+            : Status::getDefault($company);
 
-        return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
+        return $status?->getId();
     }
 
     public static function removeVariantWarehouses(

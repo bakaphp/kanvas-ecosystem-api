@@ -38,9 +38,27 @@ class SetupVoiceWorkflowCommand extends Command
         $agentType = $this->resolveADKAgentType($app);
 
         $this->setupInternalIntegration($app, $company);
-        $mainAgent = $this->setupAgent($app, $company, AgentEnum::LEAD_INTENT_TOOL->value, $this->leadIntentToolRole(), $agentType);
-        $this->setupAgent($app, $company, AgentEnum::FIRST_MESSAGE_ENGAGER->value, $this->firstMessageEngagerRole(), $agentType);
-        $this->setupAgent($app, $company, AgentEnum::VOICE_OUTREACH->value, $this->voiceOutreachAgentRole(), $agentType);
+        $mainAgent = $this->setupAgent(
+            $app,
+            $company,
+            AgentEnum::LEAD_INTENT_TOOL->value,
+            $this->leadIntentToolRole(),
+            $agentType
+        );
+        $this->setupAgent(
+            $app,
+            $company,
+            AgentEnum::FIRST_MESSAGE_ENGAGER->value,
+            $this->firstMessageEngagerRole(),
+            $agentType
+        );
+        $this->setupAgent(
+            $app,
+            $company,
+            AgentEnum::VOICE_OUTREACH->value,
+            $this->voiceOutreachAgentRole(),
+            $agentType
+        );
 
         $this->info('Done. Voice workflow is ready.');
         $this->newLine();
@@ -76,8 +94,13 @@ class SetupVoiceWorkflowCommand extends Command
         return $agentType;
     }
 
-    private function setupAgent(Apps $app, Companies $company, string $name, array $role, AgentType $agentType): ?Agent
-    {
+    private function setupAgent(
+        Apps $app,
+        Companies $company,
+        string $name,
+        array $role,
+        AgentType $agentType
+    ): ?Agent {
         $agent = Agent::fromApp($app)
             ->fromCompany($company)
             ->where('name', $name)

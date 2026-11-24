@@ -116,6 +116,23 @@ class CreateLeadsFromReceiverJobTest extends TestCase
         $this->assertEquals($this->leadReceiver->getId(), $lead->leads_receivers_id);
     }
 
+    public function testWebhookWithoutReceiverIdFailsWithClearMessage(): void
+    {
+        $this->receiver->update(['configuration' => ['flag' => 'user']]);
+
+        $webhookRequest = new ProcessWebhookAttemptAction(
+            $this->receiver,
+            Request::create('https://localhost/v1/receiver/' . $this->receiver->uuid, 'POST', ['title' => 'x']),
+        )->execute();
+
+        $result = new CreateLeadsFromReceiverJob($webhookRequest)->handle();
+
+        $this->assertNull($result);
+        $webhookRequest->refresh();
+        $this->assertSame('failed', $webhookRequest->status);
+        $this->assertStringContainsString('has no receiver_id', $webhookRequest->exception['message']);
+    }
+
     public function testSavePhoneAsCellphoneFlagDuplicatesPhoneContact(): void
     {
         $this->receiver->update([

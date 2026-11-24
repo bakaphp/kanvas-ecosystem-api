@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message as SocialMessage;
@@ -27,6 +26,9 @@ use Throwable;
  * archived rather than erased (the conversation store's clear() archives), and the summary itself is
  * written to Social as a private `agent_summary` message so a human can see what the agent kept,
  * and a later evaluation can read how often and at what size an agent compacts.
+ *
+ * The note is linked to the session's entity and never attached to its channel: on a channel it
+ * renders as a post from the agent, about whatever the oldest turns happened to cover.
  */
 class KanvasSummarization extends Summarization
 {
@@ -163,11 +165,6 @@ class KanvasSummarization extends Summarization
             $entity = $this->session?->entity();
             if ($entity !== null) {
                 $message->addEntity($entity);
-            }
-
-            $channel = $this->session?->channel;
-            if ($channel instanceof Channel) {
-                $channel->addMessage($message, $author);
             }
 
             return $message;

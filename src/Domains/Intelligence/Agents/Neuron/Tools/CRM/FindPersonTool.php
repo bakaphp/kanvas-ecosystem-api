@@ -21,7 +21,7 @@ use Override;
  * unreachable. Returns candidates with a person_id to hand to get_person or other person tools.
  * Company-wide read — an internal-teammate capability, NOT the customer-facing prospect surface.
  */
-#[AgentTool(name: 'Find Person', category: 'crm')]
+#[AgentTool(name: 'Find Person', category: 'crm', readOnly: true)]
 class FindPersonTool extends Tool
 {
     use ExtractsPersonContacts;

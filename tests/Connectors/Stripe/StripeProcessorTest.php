@@ -148,14 +148,14 @@ class StripeProcessorTest extends TestCase
         return $pm;
     }
 
-    private function buildOrderMock(string $currency = 'USD', float $total = 100.00): Order
+    private function buildOrderMock(string $currency = 'USD', float $total = 100.00, ?float $net = null): Order
     {
         $order = Mockery::mock(Order::class)->makePartial();
         $order->exists = true;
         $order->id = 1;
         $order->currency = $currency;
         $order->total_gross_amount = $total;
-        $order->total_net_amount = $total;
+        $order->total_net_amount = $net ?? $total;
 
         $order->shouldReceive('getId')->andReturn(1)->byDefault();
         $order->shouldReceive('getTotalAmount')->andReturn($total)->byDefault();
@@ -170,6 +170,22 @@ class StripeProcessorTest extends TestCase
         $this->assertSame('stripe', $processor->name());
         $this->assertInstanceOf(PaymentProcessorInterface::class, $processor);
         $this->assertInstanceOf(ThreeDSProcessorInterface::class, $processor);
+    }
+
+    public function testAuthorizeChargesNetAmountAfterOrderDiscount(): void
+    {
+        $payment = $this->buildPaymentMock();
+        $order = $this->buildOrderMock(total: 100.00, net: 70.00);
+
+        $client = new FakeStripeClient();
+        $client->getPaymentIntents()->queueResponse('create', $this->fakeIntent('pi_1', 'succeeded', [
+            'latest_charge' => 'ch_1',
+        ]));
+
+        $this->processor($client)->authorize($payment, $order);
+
+        $createCalls = $client->getPaymentIntents()->getCalls('create');
+        $this->assertSame(7000, $createCalls[0]['params']['amount']);
     }
 
     public function testAuthorizeSucceededMarksPaid(): void

@@ -28,6 +28,8 @@ use Kanvas\NervousSystem\Ledger\Models\Event as LedgerEvent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Approvals\Concerns\NotifiesApproversOnSlack;
 use Kanvas\Scribe\Approvals\Concerns\ReturnsToDraftOnApprovalExpiry;
+use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
+use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Concerns\HasInternalNotes;
 use Kanvas\Scribe\Delivery\Concerns\IsEngageableDocument;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
@@ -322,6 +324,30 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
     public function hasBeenAmended(): bool
     {
         return $this->amendmentHistory() !== [];
+    }
+
+    /**
+     * What a tenant with no approval policy waits on (RequestApprovalAction falls back to the legacy
+     * queue for it). `pendingApprovals()` never sees these rows.
+     *
+     * @return Builder<ApprovalQueueItem>
+     */
+    public function pendingLegacyApprovals(): Builder
+    {
+        return ApprovalQueueItem::query()
+            ->where('apps_id', $this->apps_id)
+            ->where('companies_id', $this->companies_id)
+            ->where('target_type', 'invoice')
+            ->where('target_id', $this->getId())
+            ->where('status', ApprovalQueueStatusEnum::PENDING->value);
+    }
+
+    /** The billing schedule that made this invoice, from the tag RunBillingScheduleAction leaves on it. */
+    public function billingScheduleId(): ?int
+    {
+        $id = $this->metadata['billing_schedule_id'] ?? null;
+
+        return $id !== null ? (int) $id : null;
     }
 
     public function customer(): BelongsTo

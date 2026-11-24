@@ -14,6 +14,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -73,6 +74,9 @@ use Override;
 class AgentTaskSession extends BaseModel
 {
     use UuidTrait;
+
+    /** The line a factory task run ends its final reply with; without it a stopped turn is not a finish. */
+    public const string RUN_FINISHED_MARKER = 'TASK COMPLETE';
 
     protected $table = 'agent_task_sessions';
     protected $guarded = [];
@@ -145,8 +149,9 @@ class AgentTaskSession extends BaseModel
     }
 
     /**
-     * One branch per ticket, under the agent that works it and named for the task, so a person can
-     * tell from the branch list who built what and find it on the board.
+     * The branch the task names, when its ticket's tasks share one (design, then logic). Otherwise one
+     * branch per task, under the agent that works it and named for the task, so a person can tell from
+     * the branch list who built what and find it on the board.
      */
     public function taskRunBranch(): ?string
     {
@@ -156,8 +161,14 @@ class AgentTaskSession extends BaseModel
             return null;
         }
 
+        $declared = TaskDirectives::branch($ticket->fullText());
+
+        if ($declared !== null) {
+            return $declared;
+        }
+
         $owner = Str::slug((string) $this->agent?->name);
-        $slug = trim(Str::limit(Str::slug((string) $ticket->title), 40, ''), '-');
+        $slug = TaskDirectives::branchSlug((string) $ticket->title);
 
         return ($owner !== '' ? $owner : 'agent') . '/task-' . $ticket->getId() . ($slug !== '' ? '-' . $slug : '');
     }

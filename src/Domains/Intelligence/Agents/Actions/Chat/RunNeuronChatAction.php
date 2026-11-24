@@ -103,6 +103,10 @@ class RunNeuronChatAction
             $this->handler->setThreadId($this->session?->uuid ?? Str::uuid()->toString());
         }
 
+        if ($this->handler instanceof BehavesAsKanvasAgent) {
+            $this->handler->setTurnId(Str::uuid()->toString());
+        }
+
         // Agents whose chatHistory already records each turn (ConversationMessageStore) must not also
         // logTurn here — that writes a second, parallel conversation. Agents on the rollup store write
         // their history to Social messages, so they keep logTurn as their only conversation record.

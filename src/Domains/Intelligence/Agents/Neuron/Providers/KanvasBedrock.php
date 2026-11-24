@@ -1,0 +1,260 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\Agents\Neuron\Providers;
+
+use Aws\ResultInterface;
+use Baka\Support\Str;
+use Generator;
+use GuzzleHttp\Promise\PromiseInterface;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\ContentBlocks\ReasoningContent;
+use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\Usage;
+use NeuronAI\Providers\AWS\BedrockRuntime;
+use NeuronAI\Providers\ProviderResponse;
+use Override;
+
+class KanvasBedrock extends BedrockRuntime
+{
+    use RecoversUnknownToolCalls;
+
+    private const array CACHE_POINT = ['cachePoint' => ['type' => 'default']];
+
+    /** Ours for the time, Neuron's for retrieved documents (RAG\Nodes\InstructionsNode). */
+    private const array TURN_CONTEXT_OPENINGS = [
+        BehavesAsKanvasAgent::TURN_CONTEXT_OPENING,
+        '<EXTRA-CONTEXT>',
+    ];
+
+    private const string REASONING_CONVERSATION = 'aws_reasoning_conversation';
+
+    private const string FINGERPRINT_ALGORITHM = 'xxh128';
+
+    /** Of the request last built, which is what the reply's reasoning is signed against. */
+    private string $conversationFingerprint = '';
+
+    /**
+     * Claude on Bedrock caches only what the request marks, and Neuron marks nothing on its own. The
+     * tools come first in the cached prefix and are the one part that never changes, so they get their
+     * own marker, which still matches when the instructions changed. The marker before the question's
+     * context is what the next turn reads; the one at the end of the conversation serves the tool loop
+     * of this turn. OpenAI models cache on their own and refuse one.
+     */
+    #[Override]
+    protected function createPayLoad(array $messages): array
+    {
+        $payload = parent::createPayLoad($messages);
+
+        if (! str_contains($this->model, 'anthropic.')) {
+            return $payload;
+        }
+
+        $payload['messages'] = $this->keepReasoningOfThisConversation($messages, $payload);
+
+        $slots = self::MAX_CACHE_POINTS;
+
+        if (isset($payload['toolConfig']['tools'])) {
+            $payload['toolConfig']['tools'][] = self::CACHE_POINT;
+            $slots--;
+        }
+
+        if (isset($payload['system'])) {
+            $payload['system'][] = self::CACHE_POINT;
+            $slots--;
+        }
+
+        $payload['messages'] = $this->markQuestionBeforeItsContext($payload['messages']);
+
+        $last = array_key_last($payload['messages']);
+        if ($last !== null && ! isset(end($payload['messages'][$last]['content'])['cachePoint'])) {
+            $payload['messages'][$last]['content'][] = self::CACHE_POINT;
+        }
+
+        $payload['messages'] = $this->keepNewestCachePoints($payload['messages'], $slots);
+
+        return $payload;
+    }
+
+    /**
+     * BedrockRuntime::chatAsync() with the cache writes kept apart: upstream folds them into the input
+     * count and names them nowhere, so a prompt written to the cache would be costed as plain input.
+     * Same metadata key as Neuron's Anthropic provider, which is what the usage row reads.
+     */
+    #[Override]
+    public function chatAsync(Message ...$messages): PromiseInterface
+    {
+        $payload = $this->createPayLoad($messages);
+        $conversation = $this->conversationFingerprint;
+
+        return $this->bedrockRuntimeClient
+            ->converseAsync($payload)
+            ->then(function (ResultInterface $result) use ($conversation): AssistantMessage {
+                $usage = $result['usage'] ?? [];
+                $cacheRead = (int) ($usage['cacheReadInputTokens'] ?? 0);
+                $cacheWrite = (int) ($usage['cacheWriteInputTokens'] ?? 0);
+
+                $message = $this->createResponseMessage($result['output']['message']['content'] ?? []);
+                $message->setUsage(new Usage(
+                    (int) ($usage['inputTokens'] ?? 0) + $cacheRead + $cacheWrite,
+                    (int) ($usage['outputTokens'] ?? 0),
+                    $cacheRead,
+                ));
+                $message->setStopReason($result['stopReason'] ?? '');
+
+                if ($cacheWrite > 0) {
+                    $message->addMetadata('cacheWriteTokens', $cacheWrite);
+                }
+
+                $this->bindReasoning($message, $conversation);
+
+                return $message;
+            });
+    }
+
+    #[Override]
+    public function stream(Message ...$messages): Generator
+    {
+        /** @var ProviderResponse $response */
+        $response = yield from parent::stream(...$messages);
+        $this->bindReasoning($response->message(), $this->conversationFingerprint);
+
+        return $response;
+    }
+
+    /**
+     * Claude signs a thinking block with the request that produced it (instructions, tools, every
+     * message before it) and refuses the whole request when the block comes back under anything else
+     * (KANVAS-ECOSYSTEM-704). Our tool list changes inside a turn by design, so a block is replayed
+     * only while its request is unchanged. The fingerprint runs over the messages as they go out,
+     * earlier blocks already removed, because that is what the next signature covers.
+     *
+     * @param array<int, Message> $messages
+     * @param array<string, mixed> $payload
+     * @return array<int, array<string, mixed>>
+     */
+    private function keepReasoningOfThisConversation(array $messages, array $payload): array
+    {
+        $tools = $payload['toolConfig']['tools'] ?? [];
+        $name = static fn (array $tool): string => (string) ($tool['toolSpec']['name'] ?? '');
+        usort($tools, static fn (array $a, array $b): int => $name($a) <=> $name($b));
+
+        $conversation = hash_init(self::FINGERPRINT_ALGORITHM);
+        hash_update($conversation, serialize([$payload['system'] ?? null, $tools]));
+
+        $messages = array_values($messages);
+        $mapped = $payload['messages'];
+
+        foreach ($mapped as $index => $message) {
+            $content = $message['content'];
+
+            if (array_column($content, 'reasoningContent') !== []) {
+                $boundTo = ($messages[$index] ?? null)?->getMetadata(self::REASONING_CONVERSATION);
+
+                if ($boundTo !== hash_final(hash_copy($conversation))) {
+                    $content = self::without($content, 'reasoningContent');
+                    $mapped[$index]['content'] = $content;
+                }
+            }
+
+            hash_update($conversation, serialize([$message['role'], self::without($content, 'cachePoint')]));
+        }
+
+        $this->conversationFingerprint = hash_final($conversation);
+
+        return $mapped;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $content
+     * @return array<int, array<string, mixed>>
+     */
+    private static function without(array $content, string $blockType): array
+    {
+        return array_values(array_filter(
+            $content,
+            static fn (array $block): bool => ! isset($block[$blockType]),
+        ));
+    }
+
+    private function bindReasoning(Message $message, string $conversation): void
+    {
+        // Only a Claude request has a fingerprint.
+        if ($conversation === '') {
+            return;
+        }
+
+        $reasoning = array_filter(
+            $message->getContentBlocks(),
+            static fn (object $block): bool => $block instanceof ReasoningContent,
+        );
+
+        if ($reasoning !== [] || $message->getMetadata('aws_redacted_reasoning') !== null) {
+            $message->addMetadata(self::REASONING_CONVERSATION, $conversation);
+        }
+    }
+
+    /**
+     * A turn's context (the time, retrieved documents) is appended to its question and never stored,
+     * so the next turn replays the question without it and can only match a prefix that ends before it.
+     *
+     * @param array<int, array<string, mixed>> $messages
+     * @return array<int, array<string, mixed>>
+     */
+    private function markQuestionBeforeItsContext(array $messages): array
+    {
+        foreach (array_reverse(array_keys($messages)) as $index) {
+            $content = $messages[$index]['content'];
+
+            if ($messages[$index]['role'] !== 'user' || array_column($content, 'toolResult') !== []) {
+                continue;
+            }
+
+            foreach ($content as $position => $block) {
+                if ($position > 0
+                    && ! isset($content[$position - 1]['cachePoint'])
+                    && Str::startsWith($block['text'] ?? '', self::TURN_CONTEXT_OPENINGS)) {
+                    array_splice($messages[$index]['content'], $position, 0, [self::CACHE_POINT]);
+
+                    return $messages;
+                }
+            }
+
+            return $messages;
+        }
+
+        return $messages;
+    }
+
+    /**
+     * BedrockRuntime::limitCachePoints() with a variable limit: upstream reads its limit through
+     * `self::`, so it cannot be told that the tools and the instructions already took two of the four.
+     *
+     * @param array<int, array<string, mixed>> $messages
+     * @return array<int, array<string, mixed>>
+     */
+    private function keepNewestCachePoints(array $messages, int $slots): array
+    {
+        foreach (array_reverse(array_keys($messages)) as $index) {
+            $content = $messages[$index]['content'];
+
+            foreach (array_reverse(array_keys($content)) as $position) {
+                if (! isset($content[$position]['cachePoint'])) {
+                    continue;
+                }
+
+                if ($slots > 0) {
+                    $slots--;
+                } else {
+                    unset($content[$position]);
+                }
+            }
+
+            $messages[$index]['content'] = array_values($content);
+        }
+
+        return $messages;
+    }
+}

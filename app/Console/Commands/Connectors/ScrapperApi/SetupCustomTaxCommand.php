@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\ScrapperApi;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Actions\CalculateCustomTaxAction;
 use Kanvas\Connectors\ScrapperApi\Enums\CustomTaxEnum;
@@ -55,7 +56,7 @@ class SetupCustomTaxCommand extends Command
                     ['Product Name', $variant->product->name],
                     ['Variant Name', $variant->name],
                     ['SKU', $variant->sku],
-                    ['Price', '$' . number_format((float) $variant->getPriceInfoFromDefaultChannel()->price, 2) . ' USD'],
+                    ['Price', Number::currency((float) $variant->getPriceInfoFromDefaultChannel()->price, 'USD') . ' USD'],
                     ['Quantity', $quantity],
                 ]
             );
@@ -88,7 +89,7 @@ class SetupCustomTaxCommand extends Command
             foreach ($result['taxBreakdown'] as $tax) {
                 $rows[] = [
                     $tax['description'] . ' (' . $tax['rate'] . '%)',
-                    '$' . number_format($tax['amount_usd'], 2),
+                    Number::currency($tax['amount_usd'], 'USD'),
                     'RD$' . number_format($tax['amount_rd'], 2),
                 ];
             }
@@ -96,7 +97,7 @@ class SetupCustomTaxCommand extends Command
             $rows[] = ['', '', ''];
             $rows[] = [
                 'TOTAL TAX',
-                '$' . number_format($result['customTax'], 2),
+                Number::currency($result['customTax'], 'USD'),
                 'RD$' . number_format($result['customTaxRD'], 2),
             ];
 
@@ -110,7 +111,7 @@ class SetupCustomTaxCommand extends Command
                     ['Arancel Code', $result['arancelCode'] ?? 'sin clasificar'],
                     ['Description', $result['arancelDescription'] ?? 'N/A'],
                     ['Resolved From', $result['arancelSource'] ?? 'N/A'],
-                    ['CIF Value', '$' . number_format($result['cif'], 2) . ' / RD$' . number_format($result['cifRD'], 2)],
+                    ['CIF Value', Number::currency($result['cif'], 'USD') . ' / RD$' . number_format($result['cifRD'], 2)],
                     ['Elapsed', number_format($elapsed, 2) . ' ms'],
                 ]
             );

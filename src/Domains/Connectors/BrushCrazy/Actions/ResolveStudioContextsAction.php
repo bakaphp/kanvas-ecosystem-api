@@ -141,8 +141,9 @@ class ResolveStudioContextsAction
             $company->saveOrFail();
         }
 
-        $company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, $bcStudioId);
-        $company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_TIMEZONE->value, $timezone);
+        // Public: the site lists as studios only the companies carrying a studio id (0 is Corporate).
+        $company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, $bcStudioId, isPublic: true);
+        $company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_TIMEZONE->value, $timezone, isPublic: true);
 
         // By studio id first: a studio whose name changed (studio 0 went from "Studio 0" to
         // "Corporate") would otherwise get a second area carrying the same studio id.

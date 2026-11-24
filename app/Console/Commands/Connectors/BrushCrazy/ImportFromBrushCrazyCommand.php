@@ -18,9 +18,12 @@ use Kanvas\Connectors\BrushCrazy\Actions\PullSalesFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\PullStaffFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Actions\ResolveStudioContextsAction;
 use Kanvas\Connectors\BrushCrazy\Actions\SeedBrushCrazyLookupDataAction;
+use Kanvas\Connectors\BrushCrazy\Actions\SyncCommerceCatalogFromBrushCrazyAction;
+use Kanvas\Connectors\BrushCrazy\Actions\SyncStudioProfileFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\SyncEntityEnum;
 use Kanvas\Connectors\BrushCrazy\Support\CorrectionCutoff;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -39,6 +42,7 @@ class ImportFromBrushCrazyCommand extends Command
         'calendarables',
         'registrations',
         'sales',
+        'catalog',
         'receivers',
     ];
 
@@ -52,12 +56,13 @@ class ImportFromBrushCrazyCommand extends Command
     protected $signature = 'kanvas:brushcrazy-import
                             {app_id : The application ID}
                             {user_id : User the imported rows and receivers are created as}
-                            {--entity=all : all, studios, lookups, paintings, customers, staff, calendarables, registrations, sales, receivers}
+                            {--entity=all : all, studios, lookups, paintings, customers, staff, calendarables, registrations, sales, catalog, receivers}
                             {--studio=* : Only these BrushCrazy studio ids (repeatable)}
                             {--since= : Only rows updated since this UTC datetime (Y-m-d H:i:s)}
                             {--incremental : Resume each studio from its own cursor instead of a full pass}
                             {--correction-cutoff= : Pin the timezone correction cutoff (UTC); first run only, defaults to now}
                             {--chunk=500 : Source rows per chunk}
+                            {--pause-ms=0 : Wait this long after each chunk, to spread a full pass over time}
                             {--force : Run even though the BRUSHCRAZY_CUTOVER_AT kill switch is on}
                             {--show-secrets : Print each receiver signing secret, for configuring BrushCrazy}';
 
@@ -83,6 +88,9 @@ class ImportFromBrushCrazyCommand extends Command
 
             return self::FAILURE;
         }
+
+        // This process only: the scheduled incremental run passes no --pause-ms and stays at 0.
+        config([ImportPace::PAUSE_CONFIG_KEY => max(0, (int) $this->option('pause-ms'))]);
 
         $this->cutoverAt = CorrectionCutoff::cutoverAt($app);
 
@@ -116,6 +124,11 @@ class ImportFromBrushCrazyCommand extends Command
             foreach ($contexts as $context) {
                 $this->line('');
                 $this->info("Studio {$context->bcStudioId} → company {$context->companyId()} ({$context->company->name}, {$context->timezone})");
+
+                if (in_array($entity, ['all', 'studios'], true)) {
+                    $profile = new SyncStudioProfileFromBrushCrazyAction($app, $context)->execute();
+                    $this->line('  profile: ' . ($profile ? 'synced' : 'missing at the source'));
+                }
 
                 if ($entity !== 'studios' && $entity !== 'receivers') {
                     $this->seedLookups($app, $user, $context);
@@ -152,6 +165,13 @@ class ImportFromBrushCrazyCommand extends Command
 
                 if (in_array($entity, ['all', 'sales'], true)) {
                     $failed += $this->importSales($app, $user, $context);
+                }
+
+                // The sales pull already runs the catalog on a full pass; this is the catalog alone,
+                // for a studio whose sales are imported and only the products need a refresh.
+                if ($entity === 'catalog') {
+                    $catalog = new SyncCommerceCatalogFromBrushCrazyAction($app, $user, $context)->execute();
+                    $this->line('  catalog: ' . http_build_query($catalog, '', ', '));
                 }
 
                 if (in_array($entity, ['all', 'receivers'], true)) {

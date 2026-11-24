@@ -88,7 +88,8 @@ class CommentOnNervousSystemPlanTool extends Tool
             return $plan;
         }
 
-        $replyTo = $this->resolveReplyTarget($plan, $reply_to_message_id);
+        // OpenAI models fill an optional id with 0; read as a real id it refused every comment.
+        $replyTo = $this->resolveReplyTarget($plan, $reply_to_message_id > 0 ? $reply_to_message_id : null);
 
         if (is_array($replyTo)) {
             return $replyTo;

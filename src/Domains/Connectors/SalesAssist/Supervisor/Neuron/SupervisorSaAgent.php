@@ -39,7 +39,7 @@ class SupervisorSaAgent extends SystemUserAgent
         return Agent::query()
             ->where('is_active', 1)
             ->where('is_deleted', 0)
-            ->whereHas('type', fn ($query) => $query->where('handler', self::class))
+            ->ofHandler(self::class)
             ->orderBy('id')
             ->get()
             ->unique(static fn (Agent $agent): string => "{$agent->apps_id}:{$agent->companies_id}")

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Closure;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Actions\RecordAppKeySourceAction;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
@@ -113,6 +115,11 @@ class KanvasAppKeyMiddleware
                 $this->scopeAppKeyAndApp($kanvasAppKey, $kanvasApp);
                 $this->setUserIfNoBearerToken($request, $kanvasAppKey);
                 $this->updateLastUsedDate($kanvasAppKey);
+                new RecordAppKeySourceAction(
+                    $kanvasAppKey,
+                    IPInfo::getClientIp($request),
+                    $request->userAgent(),
+                )->execute();
             } catch (Throwable $e) {
                 return response()->json(['message' => 'No App Key configured with this key: ' . $appKey], 500);
             }

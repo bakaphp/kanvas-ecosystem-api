@@ -445,6 +445,13 @@ class OneDriveClient
             ],
         };
 
+        // "Reconnect" alone hides a refusal that reconnecting cannot fix (a tenant policy, a blocked
+        // app), so what Graph answered travels with it.
+        if ($reason === OneDriveErrorReasonEnum::PERMISSION_MISSING) {
+            $graphError = trim($response->json('error.code') . ' ' . $graphMessage);
+            $message .= ' (HTTP ' . $response->status() . ($graphError !== '' ? ': ' . $graphError : '') . ')';
+        }
+
         throw new OneDriveException($reason, $message);
     }
 

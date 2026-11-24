@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Ledger\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -48,6 +50,18 @@ class Subaccount extends BaseModel
         'last_synced_at' => 'datetime',
         'metadata' => Json::class,
     ];
+
+    public static function firstOrCreateByCode(AppInterface $app, CompanyInterface $company, string $subCode): self
+    {
+        return self::firstOrCreate(
+            [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'sub_code' => trim($subCode),
+            ],
+            ['source' => 'kanvas'],
+        );
+    }
 
     public function journalEntryLines(): HasMany
     {

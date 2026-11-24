@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\App;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Payments\Contracts\HttpClientInterface;
+use Override;
 
 class Client implements HttpClientInterface
 {
@@ -26,7 +28,7 @@ class Client implements HttpClientInterface
         protected CompanyInterface $company,
         protected array $config = []
     ) {
-        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? ConfigurationEnum::SANDBOX_URL->value;
+        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? $this->defaultBaseUrl();
 
         $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'] ?? '';
         $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'] ?? '';
@@ -48,6 +50,17 @@ class Client implements HttpClientInterface
         ]);
     }
 
+    /**
+     * Outside production the fallback stays on the sandbox: the test suites run with sandbox
+     * credentials and no base-url setting, and must never reach the live gateway.
+     */
+    protected function defaultBaseUrl(): string
+    {
+        return App::environment('production')
+            ? ConfigurationEnum::PRODUCTION_URL->value
+            : ConfigurationEnum::SANDBOX_URL->value;
+    }
+
     public function getAccessToken(): string
     {
         $client = new GuzzleClient();
@@ -63,9 +76,26 @@ class Client implements HttpClientInterface
         return $body->data->token;
     }
 
-    /**
-     * Perform a GET request to the API.
-     */
+    private function toEchoPayException(RequestException $e): EchoPayException
+    {
+        $errorBody = [];
+        $statusCode = 0;
+
+        if ($e->hasResponse()) {
+            $response = $e->getResponse();
+            $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
+            $statusCode = $response->getStatusCode();
+        }
+
+        return new EchoPayException(
+            $errorBody['message'] ?? $e->getMessage(),
+            $statusCode,
+            $e,
+            $errorBody
+        );
+    }
+
+    #[Override]
     public function get(string $endpoint): array
     {
         try {
@@ -74,27 +104,11 @@ class Client implements HttpClientInterface
 
             return json_decode($body, true);
         } catch (RequestException $e) {
-            $errorBody = [];
-            $statusCode = 0;
-
-            if ($e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
-                $statusCode = $response->getStatusCode();
-            }
-
-            throw new EchoPayException(
-                $errorBody['message'] ?? $e->getMessage(),
-                $statusCode,
-                $e,
-                $errorBody
-            );
+            throw $this->toEchoPayException($e);
         }
     }
 
-    /**
-     * Perform a POST request to the API.
-     */
+    #[Override]
     public function post(string $endpoint, array $data, ?int $timeout = null): array
     {
         try {
@@ -109,27 +123,11 @@ class Client implements HttpClientInterface
 
             return json_decode($body, true);
         } catch (RequestException $e) {
-            $errorBody = [];
-            $statusCode = 0;
-
-            if ($e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
-                $statusCode = $response->getStatusCode();
-            }
-
-            throw new EchoPayException(
-                $errorBody['message'] ?? $e->getMessage(),
-                $statusCode,
-                $e,
-                $errorBody
-            );
+            throw $this->toEchoPayException($e);
         }
     }
 
-    /**
-     * Perform a PATCH request to the API.
-     */
+    #[Override]
     public function patch(string $endpoint, array $data): array
     {
         try {
@@ -140,23 +138,11 @@ class Client implements HttpClientInterface
 
             return json_decode($body, true);
         } catch (RequestException $e) {
-            $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
-
-            $errorMessage = $errorBody['message'] ?? $e->getMessage();
-
-            throw new EchoPayException(
-                $errorMessage,
-                $response->getStatusCode(),
-                $e,
-                $errorBody
-            );
+            throw $this->toEchoPayException($e);
         }
     }
 
-    /**
-     * Perform a DELETE request to the API.
-     */
+    #[Override]
     public function delete(string $endpoint, array $data = []): array
     {
         try {
@@ -165,21 +151,7 @@ class Client implements HttpClientInterface
 
             return json_decode($body, true);
         } catch (RequestException $e) {
-            $errorBody = [];
-            $statusCode = 0;
-
-            if ($e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
-                $statusCode = $response->getStatusCode();
-            }
-
-            throw new EchoPayException(
-                $errorBody['message'] ?? $e->getMessage(),
-                $statusCode,
-                $e,
-                $errorBody
-            );
+            throw $this->toEchoPayException($e);
         }
     }
 }

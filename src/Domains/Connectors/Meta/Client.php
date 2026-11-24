@@ -22,6 +22,8 @@ class Client
 {
     public const string DEFAULT_GRAPH_VERSION = 'v23.0';
 
+    private const int MAX_PHONE_NUMBER_PAGES = 20;
+
     public function __construct(
         protected string $accessToken,
         protected string $graphVersion = self::DEFAULT_GRAPH_VERSION
@@ -34,6 +36,42 @@ class Client
             $accessToken,
             (string) ($app->get(ConfigurationEnum::GRAPH_API_VERSION->value) ?? self::DEFAULT_GRAPH_VERSION)
         );
+    }
+
+    /**
+     * The business token behind the code an embedded signup hands the browser. Only the server can
+     * do this, because it takes our app secret.
+     */
+    public static function exchangeCode(AppInterface $app, string $code): string
+    {
+        $appId = (string) $app->get(ConfigurationEnum::APP_ID->value);
+        $appSecret = (string) $app->get(ConfigurationEnum::APP_SECRET->value);
+
+        if ($appId === '' || $appSecret === '') {
+            throw new RuntimeException(sprintf(
+                'The app needs %s and %s to finish a WhatsApp embedded signup.',
+                ConfigurationEnum::APP_ID->value,
+                ConfigurationEnum::APP_SECRET->value
+            ));
+        }
+
+        $graphVersion = (string) ($app->get(ConfigurationEnum::GRAPH_API_VERSION->value) ?? self::DEFAULT_GRAPH_VERSION);
+
+        $token = (string) Http::acceptJson()
+            ->timeout(30)
+            ->get('https://graph.facebook.com/' . $graphVersion . '/oauth/access_token', [
+                'client_id' => $appId,
+                'client_secret' => $appSecret,
+                'code' => $code,
+            ])
+            ->throw()
+            ->json('access_token');
+
+        if ($token === '') {
+            throw new RuntimeException('Meta answered the signup code without a business token.');
+        }
+
+        return $token;
     }
 
     /**
@@ -59,6 +97,37 @@ class Client
             ->get(self::graphId($phoneNumberId), ['fields' => 'display_phone_number,verified_name,quality_rating'])
             ->throw()
             ->json();
+    }
+
+    /**
+     * Every number of the WABA, whatever its state at Meta. Paged by cursor; the page cap only
+     * keeps a cursor Meta never ends from looping.
+     *
+     * @return list<array{id: string, display_phone_number?: string, verified_name?: string, quality_rating?: string}>
+     */
+    public function phoneNumbers(string $wabaId): array
+    {
+        $numbers = [];
+        $after = null;
+
+        for ($page = 0; $page < self::MAX_PHONE_NUMBER_PAGES; $page++) {
+            $response = $this->request()
+                ->get(self::graphId($wabaId) . '/phone_numbers', array_filter([
+                    'fields' => 'id,display_phone_number,verified_name,quality_rating',
+                    'limit' => 100,
+                    'after' => $after,
+                ]))
+                ->throw();
+
+            array_push($numbers, ...($response->json('data') ?? []));
+            $after = $response->json('paging.next') !== null ? $response->json('paging.cursors.after') : null;
+
+            if ($after === null) {
+                break;
+            }
+        }
+
+        return $numbers;
     }
 
     /**

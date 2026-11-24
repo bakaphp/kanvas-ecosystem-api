@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\Agents\Helpers\AgentChatBroadcastChannel;
 use Kanvas\Intelligence\Models\ImmutableBaseModel;
 use Kanvas\Users\Models\Users;
 use Override;
@@ -74,6 +75,18 @@ class AgentConversation extends ImmutableBaseModel
     public function participant(): MorphTo
     {
         return $this->morphTo('participant', 'participant_type', 'participant_id');
+    }
+
+    /**
+     * Where this chat's replies are pushed, so a client that opens it listens before anything is sent:
+     * the agent also posts on its own (a plan finishing, a run still working), and a client that
+     * subscribed only after the person's first message showed none of it until a reload.
+     */
+    public function broadcastChannel(): ?string
+    {
+        return $this->agent !== null
+            ? AgentChatBroadcastChannel::nameFor($this->agent, (string) $this->title)
+            : null;
     }
 
     /**

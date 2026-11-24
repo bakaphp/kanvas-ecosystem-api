@@ -71,4 +71,48 @@ final class SentryUrlRedactorTest extends TestCase
         $this->assertStringNotContainsString(self::KEY, (string) $scrubbed->getSpans()[0]->getDescription());
         $this->assertStringNotContainsString(self::KEY, (string) json_encode($scrubbed->getSpans()[0]->getData()));
     }
+
+    public function test_the_app_key_header_is_scrubbed_from_the_request(): void
+    {
+        $event = Event::createEvent();
+        $event->setRequest([
+            'url' => 'https://example.test/graphql',
+            'headers' => [
+                'X-Kanvas-Key' => ['super-secret'],
+                'x-kanvas-key' => 'super-secret',
+                'Accept' => ['application/json'],
+            ],
+        ]);
+
+        $headers = SentryUrlRedactor::event($event)->getRequest()['headers'];
+
+        $this->assertSame([SentryUrlRedactor::REDACTED], $headers['X-Kanvas-Key']);
+        $this->assertSame(SentryUrlRedactor::REDACTED, $headers['x-kanvas-key']);
+        $this->assertSame(['application/json'], $headers['Accept']);
+    }
+
+    public function test_bindings_of_a_query_on_a_secret_column_are_scrubbed(): void
+    {
+        $lookup = SentryUrlRedactor::breadcrumb(new Breadcrumb(
+            Breadcrumb::LEVEL_INFO,
+            Breadcrumb::TYPE_DEFAULT,
+            'db.sql.query',
+            'select * from `apps_keys` where `client_secret_id` = ? and `is_deleted` = ? limit 1',
+            ['bindings' => ['super-secret', 0], 'connectionName' => 'ecosystem', 'executionTimeMs' => 0.9]
+        ));
+
+        $this->assertSame(SentryUrlRedactor::REDACTED, $lookup->getMetadata()['bindings']);
+        $this->assertSame('ecosystem', $lookup->getMetadata()['connectionName']);
+        $this->assertSame(0.9, $lookup->getMetadata()['executionTimeMs']);
+
+        $other = SentryUrlRedactor::breadcrumb(new Breadcrumb(
+            Breadcrumb::LEVEL_INFO,
+            Breadcrumb::TYPE_DEFAULT,
+            'db.sql.query',
+            'select * from `companies` where `id` = ? limit 1',
+            ['bindings' => [9602]]
+        ));
+
+        $this->assertSame([9602], $other->getMetadata()['bindings']);
+    }
 }

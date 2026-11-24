@@ -8,25 +8,30 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Movipass\Actions\ApplyRoadsideQuoteToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\AssignMechanicToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\CancelMechanicAssignmentAction;
 use Kanvas\Connectors\Movipass\Actions\CheckMechanicArrivalAction;
 use Kanvas\Connectors\Movipass\Actions\CloseAssistanceWithIncidentAction;
+use Kanvas\Connectors\Movipass\Actions\DispatchRegionalRoadsideCaseAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\MarkAssistanceNotAuthorizedAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
+use Kanvas\Connectors\Movipass\Actions\RefreshRoadsideAdditionalChargesAction;
 use Kanvas\Connectors\Movipass\Actions\RegisterAssistanceIncidentAction;
 use Kanvas\Connectors\Movipass\Actions\RescheduleAssistanceAction;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
-use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
+use Kanvas\Connectors\Movipass\Actions\StartRoadsideServiceWithPinAction;
+use Kanvas\Connectors\Movipass\Actions\SyncRoadsideCaseStateFromOrderStatusAction;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideNotProceedReasonEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Support\RegionalAssistance;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
@@ -56,6 +61,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) {
                 $orderTypeName = $order->orderType?->name;
 
+                if ($orderTypeName === OrderTypeEnum::ROADSIDE_ADDITIONAL_CHARGE->value) {
+                    return $this->handleAdditionalChargeOrder($order);
+                }
+
                 if ($orderTypeName !== OrderTypeEnum::ROADSIDE_ASSISTANCE->value) {
                     return [
                         'order' => $order->getId(),
@@ -66,9 +75,18 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 }
 
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
+                $isRegionalAssistance = RegionalAssistance::isEnabledFor($order);
+
+                if ($isRegionalAssistance && $eventName !== WorkflowEnum::CREATED->value) {
+                    new RefreshRoadsideAdditionalChargesAction($order)->execute();
+                }
 
                 if ($eventName === WorkflowEnum::CREATED->value) {
                     $result = $this->handleCreated($order, $app);
+
+                    if ($isRegionalAssistance) {
+                        $result = $this->priceRegionalAssistanceCase($order, $result);
+                    }
                 } elseif ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
                     $result = $this->handleStatusTransition($order, $additionalParams['to_status'] ?? null);
                 } elseif ($eventName === WorkflowEnum::UPDATED->value) {
@@ -111,7 +129,8 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $mechanicNotificationError = null;
         $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
-        if (empty($mechanic['user_id'])) {
+        // Asistencia Regional offers the case only once it is paid (DispatchRegionalRoadsideCaseAction).
+        if (empty($mechanic['user_id']) && ! RegionalAssistance::isEnabledFor($order)) {
             try {
                 new NotifyAvailableMechanicsAction($order, $app, $user)->execute();
             } catch (ValidationException $exception) {
@@ -276,6 +295,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             }
 
             $isResolved = ($assistanceCase['complete_order'] ?? false) === true;
+
+            if ($isResolved && $this->regionalChargesBlockClosing($order, $assistanceCase)) {
+                return $this->outstandingChargesBlockClosing($order);
+            }
+
             $user = $this->resolveCaseUser($order->users_id);
 
             if (! $user instanceof Users) {
@@ -341,6 +365,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $feedback = $this->normalizeOptionalText($assistanceCase['user_feedback'] ?? null);
 
             $isResolved = (bool) ($assistanceCase['mechanic_completion_resolved'] ?? true);
+
+            if ($isResolved && $this->regionalChargesBlockClosing($order, $assistanceCase)) {
+                return $this->outstandingChargesBlockClosing($order);
+            }
+
             $targetStatus = $isResolved
                 ? MovipassOrderStatusEnum::SERVICE_COMPLETED->slug()
                 : MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug();
@@ -533,54 +562,23 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
+        if (! $this->resolveCaseUser($order->users_id) instanceof Users) {
+            return $this->missingOrderUser($order);
+        }
+
         try {
-            new ValidateRoadsideAssistancePinAction(
+            new StartRoadsideServiceWithPinAction(
                 order: $order,
                 pin: (string) $pinAttempt,
+                technician: $this->resolveCaseUser($assistanceCase['mechanic']['user_id'] ?? 0),
             )->execute();
         } catch (ValidationException $e) {
-            $assistanceCase['pin_validation_error'] = $e->getMessage();
-            $assistanceCase['pin_validation_attempted_at'] = Carbon::now()->toISOString();
-            unset($assistanceCase['pin_attempt']);
-
-            $this->saveAssistanceCase($order, $assistanceCase);
-
             return [
                 'order' => $order->getId(),
                 'status' => 'error',
                 'message' => 'PIN validation failed: ' . $e->getMessage(),
             ];
         }
-
-        $orderUser = $this->resolveCaseUser($order->users_id);
-
-        if (! $orderUser instanceof Users) {
-            return $this->missingOrderUser($order);
-        }
-
-        // PIN is valid — clean up metadata and transition to SERVICE_IN_PROGRESS
-        $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
-        if ($mechanicId > 0) {
-            RefreshActiveAssistanceEvent::dispatch($order, $mechanicId);
-        }
-
-        $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
-        $assistanceCase['status'] = MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug();
-        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
-        unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
-        $this->saveAssistanceCase($order, $assistanceCase);
-
-        $order->transitionToStatus(
-            $orderUser,
-            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
-        );
-
-        $this->notifySafely($orderUser, new RoadsideAssistanceStatusNotification(
-            $order,
-            'Service started',
-            'The mechanic has started the roadside assistance service.',
-            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
-        ));
 
         return [
             'order' => $order->getId(),
@@ -683,6 +681,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             if (! $alreadyNotified) {
                 $this->notifyStatusTransition($order, $toStatus, $mechanicId);
             }
+        }
+
+        if (RegionalAssistance::isEnabledFor($order)) {
+            new SyncRoadsideCaseStateFromOrderStatusAction($order, $toStatus)->execute();
         }
 
         return [
@@ -811,6 +813,79 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             'chat_push_message_id' => (int) $message->id,
             'chat_push_recipients' => $notified,
             'chat_push_deliveries' => $pushAction->deliveries(),
+        ];
+    }
+
+    /**
+     * A charge order carries no case of its own; its only job here is to settle the matching
+     * charge on the parent once its payment lands.
+     */
+    private function handleAdditionalChargeOrder($order): array
+    {
+        $parent = $order->parent;
+
+        if ($parent === null) {
+            return $this->failWorkflow([
+                'order' => $order->getId(),
+                'status' => 'error',
+                'message' => 'Additional charge order has no parent roadside assistance order',
+            ]);
+        }
+
+        $approved = new RefreshRoadsideAdditionalChargesAction($parent)->execute();
+
+        return [
+            'order' => $parent->getId(),
+            'charge_order' => $order->getId(),
+            'status' => 'success',
+            'message' => $approved === []
+                ? 'Additional charge refreshed, nothing settled'
+                : 'Additional charge approved',
+        ];
+    }
+
+    /**
+     * Runs after the regular case preparation, never inside it, so a case outside Asistencia
+     * Regional never reaches this code. A pricing failure leaves the case
+     * intact and flags the run so the cabin can price it by hand.
+     */
+    private function priceRegionalAssistanceCase($order, array $result): array
+    {
+        try {
+            new ApplyRoadsideQuoteToOrderAction($order)->execute();
+        } catch (ValidationException $exception) {
+            return $this->failWorkflow([
+                ...$result,
+                'status' => 'error',
+                'message' => $result['message'] . '; the case could not be priced: ' . $exception->getMessage(),
+            ]);
+        }
+
+        new DispatchRegionalRoadsideCaseAction($order)->execute();
+        $order->refresh();
+
+        return [
+            ...$result,
+            'data' => $order->toArray(),
+            'response' => $order->toArray(),
+        ];
+    }
+
+    /**
+     * Only a resolved close is blocked: the spec still lets a case end as not resolved or cancelled
+     * with a charge unpaid, and those endings cancel the charge instead.
+     */
+    private function regionalChargesBlockClosing($order, array $assistanceCase): bool
+    {
+        return RegionalAssistance::isEnabledFor($order) && $this->hasOutstandingAdditionalCharges($assistanceCase);
+    }
+
+    private function outstandingChargesBlockClosing($order): array
+    {
+        return [
+            'order' => $order->getId(),
+            'status' => 'error',
+            'message' => 'Cannot close the case as resolved while an additional charge is unpaid',
         ];
     }
 

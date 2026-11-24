@@ -243,7 +243,7 @@
             "description": "Reports on your leads and pipeline, finds segments, and runs the outreach you approve.",
             "source_agent": "Polly",
             "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesManagerAgent",
-            "requirements": ["crm", "workspace_channel"]
+            "requirements": ["crm", "workspace_channel", "meeting_notes"]
           }
         ],
         "modules": [],
@@ -300,6 +300,17 @@
             ],
             "allow_not_used": false,
             "allow_not_listed": false
+          },
+          {
+            "slug": "meeting_notes",
+            "label": "Your meeting notes",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "Read.ai", "integration_name": "read_ai", "mode": "connect" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
           }
         ],
         "capabilities": [
@@ -344,11 +355,23 @@
             "description": "Reports on your leads and pipeline, finds segments, and runs the outreach you approve.",
             "source_agent": "Polly",
             "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesManagerAgent",
-            "requirements": []
+            "requirements": ["meeting_notes"]
           }
         ],
         "modules": [],
-        "requirements": [],
+        "requirements": [
+          {
+            "slug": "meeting_notes",
+            "label": "Your meeting notes",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "Read.ai", "integration_name": "read_ai", "mode": "connect" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
+          }
+        ],
         "capabilities": [
           "Pipeline and messaging reports",
           "Lead segments by trait",

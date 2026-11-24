@@ -13,6 +13,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingQuestionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
@@ -35,6 +40,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlans
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryReleaseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
@@ -82,8 +90,9 @@ class ProjectManagerAgent extends SystemUserAgent
         $base = <<<'PROMPT'
             You are a project manager (PM). You may own more than one project, but each turn is about
             exactly ONE of them — the one in CURRENT PROJECT at the end of these instructions. When
-            several projects are listed there instead, ask which one before acting. Never claim you
-            can only ever see one project; say which projects you manage.
+            several projects are listed there instead, ask which one before acting, and only when
+            the message asks you to act. Never claim you can only ever see one project; say which
+            projects you manage.
 
             Each turn you are given a Context
             bundle (JSON): the project (id, objective, status, completion_pct), its members (each with
@@ -304,6 +313,11 @@ class ProjectManagerAgent extends SystemUserAgent
               what you already said. A quiet board is fine; a board spammed with identical "everything
               is synchronized" updates is a failure. A scheduled task someone gave you is not a check-in:
               do it and post the result.
+            - A THANK-YOU IS NOT A REQUEST. When the message you are answering only thanks you,
+              acknowledges or agrees, and asks for nothing, reply in ONE short sentence and stop. Do
+              not re-ask a question you asked earlier, do not ask which project, do not restate what
+              you already delivered, and do not offer or start work nobody asked for on this turn. If
+              they want more, they will say so.
 
             If a tool returns an error, read it and correct your next call — do not repeat the same
             failing call.
@@ -388,10 +402,11 @@ class ProjectManagerAgent extends SystemUserAgent
 
         return "\n\nYOU MANAGE SEVERAL PROJECTS AND THIS TURN DOES NOT NAME ONE. These are yours:\n"
             . $roster
-            . "\n\nAsk which project they mean before you create or move any work, and pass that "
-            . 'project_id to your tools. If the person already named one earlier in this conversation, '
-            . 'use that id. NEVER invent a project, id, objective, plan or task, and never act on a '
-            . 'project that is not in this list.';
+            . "\n\nWhen THIS message asks you to create, change, save or look up work, ask which project "
+            . 'they mean first, and pass that project_id to your tools. If the person already named one '
+            . 'earlier in this conversation, use that id. A message that asks for nothing (a thank-you, '
+            . 'an acknowledgement) needs no project: answer it briefly and do not ask. NEVER invent a '
+            . 'project, id, objective, plan or task, and never act on a project that is not in this list.';
     }
 
     /**
@@ -424,6 +439,9 @@ class ProjectManagerAgent extends SystemUserAgent
 
         $core = $this->addToolContext([
             new ReadMessageContentTool(),
+            // Organization meetings are routed to the PM (MeetingAgentEnum::ORGANIZATION).
+            new AddOrganizationNoteTool(),
+            new ReadOrganizationActivityTool(),
             new ListProjectsTool(),
             new ListAssignedWorkTool(),
             new ListNervousSystemPlansTool(),
@@ -456,6 +474,20 @@ class ProjectManagerAgent extends SystemUserAgent
             new ListWorkflowOptionsTool(),
             new ListCompanyWorkflowsTool(),
         ]);
+
+        // Only a company with a factory has stages to start.
+        if ($this->companyHasFactory()) {
+            array_push($core, ...$this->addToolContext([
+                new StartAppKickoffTool($this->session),
+                new StartFactoryTicketTool($this->session),
+                new StartFactoryReleaseTool($this->session),
+            ]));
+            // A factory step that stops on a permission or a question is asked in this conversation; the
+            // check tool is where both answer tools read the ids from.
+            $core[] = new CheckHarnessCodingJobTool($agent);
+            $core[] = new AnswerHarnessCodingPermissionTool($agent, onlyRelays: true);
+            $core[] = new AnswerHarnessCodingQuestionTool($agent);
+        }
 
         $core[] = new CapabilityLookupTool($agent);
         $core[] = new ReportCapabilityGapTool($agent, $requestingHuman, $this->session);

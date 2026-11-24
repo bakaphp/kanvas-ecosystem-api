@@ -4,24 +4,26 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Kanvas\Souk\Services\StorefrontProductUrlService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
-#[AgentTool(name: 'Variant Detail', category: 'inventory')]
+#[AgentTool(name: 'Variant Detail', category: 'inventory', readOnly: true)]
 class VariantDetailTool extends Tool
 {
+    use HasKanvasContext;
+
     protected string $name = 'variant_detail';
 
     protected ?string $description = 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), '
         . 'descriptions, weight, publish state, parent product, inventory per warehouse '
-        . '(stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. '
+        . '(stock, price, flags) including the channels priced on each warehouse, attributes and media. '
         . 'Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.';
 
     #[Override]
@@ -39,11 +41,27 @@ class VariantDetailTool extends Tool
 
     public function __invoke(int $variant_id): array
     {
-        try {
-            /** @var Variants $variant */
-            $variant = Variants::getById($variant_id, app(Apps::class));
-        } catch (Throwable $e) {
-            return ['message' => "Variant #{$variant_id} not found."];
+        if (! $this->hasTenantContext()) {
+            return ['status' => 'error', ...$this->tenantContextMissingError('variant detail')];
+        }
+
+        // The agent's own company, unless the app shares variants across companies — the same
+        // rule list_available_products lists by, so every product it offers can be opened here.
+        // An explicit where, not fromCompany(): under an app key (the voice runtime) that scope
+        // widens to every company in the app.
+        /** @var Variants|null $variant */
+        $variant = Variants::query()
+            ->where('id', $variant_id)
+            ->fromApp($this->app)
+            ->notDeleted()
+            ->when(
+                ! $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value),
+                fn ($query) => $query->where('companies_id', $this->company->getId()),
+            )
+            ->first();
+
+        if ($variant === null) {
+            return ['status' => 'not_found', 'message' => "Variant #{$variant_id} not found."];
         }
 
         $variant->load([
@@ -82,7 +100,6 @@ class VariantDetailTool extends Tool
                 'sku' => $vw->sku,
                 'stock' => (int) $vw->quantity,
                 'price' => (float) $vw->price,
-                'cost' => (float) $vw->cost,
                 'is_new' => (bool) $vw->is_new,
                 'is_oversellable' => (bool) $vw->is_oversellable,
                 'is_on_sale' => (bool) $vw->is_on_sale,

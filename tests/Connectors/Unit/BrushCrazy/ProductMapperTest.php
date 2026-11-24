@@ -48,6 +48,35 @@ final class ProductMapperTest extends TestCase
         $this->assertTrue(ProductMapper::map($this->product())['product']['is_published']);
     }
 
+    public function testProductCostBecomesTheVariantBaseCost(): void
+    {
+        $this->assertSame(5.0, ProductMapper::map($this->product())['variant']['base_cost']);
+    }
+
+    public function testStudioInventoryRowBecomesTheStock(): void
+    {
+        $mapped = ProductMapper::map(
+            $this->product(),
+            null,
+            (object) ['quantity' => 12, 'cost' => '{"amount":650,"currency":"USD"}'],
+        );
+
+        $this->assertSame(['quantity' => 12, 'cost' => 6.5], $mapped['stock']);
+    }
+
+    public function testInventoryRowWithoutCostFallsBackToTheProductCost(): void
+    {
+        $mapped = ProductMapper::map($this->product(), null, (object) ['quantity' => 3, 'cost' => null]);
+
+        $this->assertSame(['quantity' => 3, 'cost' => 5.0], $mapped['stock']);
+    }
+
+    /** No inventory row: the caller keeps whatever stock the warehouse already has. */
+    public function testProductTheStudioDoesNotStockHasNoStock(): void
+    {
+        $this->assertNull(ProductMapper::map($this->product())['stock']);
+    }
+
     public function testGenericLineIsKeyedByItsKind(): void
     {
         $line = ProductMapper::genericLine(SaleLineKindEnum::CLASS_SEAT);

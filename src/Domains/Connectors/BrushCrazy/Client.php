@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use PDO;
+use Pdo\Mysql;
 
 /**
  * Read-only connection to the legacy BrushCrazy MySQL database, built at runtime from app
@@ -70,16 +70,38 @@ class Client
             return [];
         }
 
-        $options = [PDO::MYSQL_ATTR_SSL_CA => $sslCa];
+        $options = [Mysql::ATTR_SSL_CA => self::caFile((string) $sslCa)];
 
         // Reaching the instance through an SSH tunnel means connecting to localhost, which never
         // matches the certificate's RDS hostname. The tunnel already encrypts the hop, so verify
         // the CA without the hostname check instead of failing the handshake.
         if (in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
-            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            $options[Mysql::ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
 
         return $options;
+    }
+
+    /**
+     * PDO only takes a path, so PEM content is written once per container, named by its hash so a
+     * rotated CA gets a new file. Not a TempFile: PDO re-reads it on every reconnect.
+     */
+    public static function caFile(string $sslCa): string
+    {
+        if (! str_contains($sslCa, '-----BEGIN CERTIFICATE-----')) {
+            return $sslCa;
+        }
+
+        $path = sys_get_temp_dir() . '/brushcrazy-rds-ca-' . hash('sha256', $sslCa) . '.pem';
+
+        if (! is_file($path)) {
+            // Write then rename, so a worker connecting at the same moment never reads half a file.
+            $partial = $path . '.' . getmypid();
+            file_put_contents($partial, $sslCa);
+            rename($partial, $path);
+        }
+
+        return $path;
     }
 
     public static function connectionName(AppInterface $app): string

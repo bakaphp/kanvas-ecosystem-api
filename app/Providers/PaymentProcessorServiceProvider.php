@@ -6,6 +6,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\CardNet\Ztrans\ThreeDSServerClient;
+use Kanvas\Connectors\CardNet\Ztrans\ZtransClient;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Connectors\PayWay\PayWayClient;
 use Kanvas\Connectors\PayWay\Services\PayWayTokenizationService;
@@ -14,6 +16,7 @@ use Kanvas\Connectors\Stripe\Services\StripeTokenizationService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Azul\AzulProcessor;
 use Kanvas\Souk\Payments\Infrastructure\Processors\CardNet\CardNetProcessor;
+use Kanvas\Souk\Payments\Infrastructure\Processors\CardNetZtrans\CardNetZtransProcessor;
 use Kanvas\Souk\Payments\Infrastructure\Processors\PayWay\PayWayProcessor;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Stripe\StripeProcessor;
 use Override;
@@ -80,6 +83,16 @@ class PaymentProcessorServiceProvider extends ServiceProvider
         $this->app->bind('payment_processor.cardnet', function ($app, array $params) {
             return new CardNetProcessor(
                 $params['app'] ?? $app->make(Apps::class),
+            );
+        });
+
+        $this->app->bind('payment_processor.cardnet_ztrans', function ($app, array $params) {
+            $appModel = $params['app'] ?? $app->make(Apps::class);
+
+            return new CardNetZtransProcessor(
+                app: $appModel,
+                ztrans: new ZtransClient($appModel),
+                threeDSServer: new ThreeDSServerClient($appModel),
             );
         });
 

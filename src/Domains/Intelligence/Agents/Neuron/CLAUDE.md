@@ -27,6 +27,7 @@ the one company setting is `$company->set()`; unset means the default.
 | `agent_lead_summary_enabled` | app | `AgentRunConfigurationEnum::LEAD_SUMMARY` | **on** | `0` turns off the rolling coverage-tracked summary on a lead's rollup, caught up before the reply; `Guild/Leads/Summary/CLAUDE.md` |
 | `agent_lead_summary_keys` | app, or **company** (wins) | `AgentRunConfigurationEnum::LEAD_SUMMARY_KEYS` | none | facts the lead summary tracks beyond its generic sections, named after lead custom fields; `Guild/Leads/Summary/CLAUDE.md` |
 | `agent_gemini_thinking` | app | `AgentRunConfigurationEnum::GEMINI_THINKING` | model default | `minimal` / `low` / `medium` / `high` sets Gemini's `thinkingLevel` on every chat step, an integer sets `thinkingBudget`; thought tokens land in the step's usage as `reasoning_tokens`, so compare before and after on one agent |
+| `agent_still_working_updates_enabled` | app | `AgentRunConfigurationEnum::STILL_WORKING_UPDATES` | off | a chat whose agent handed work to another agent (a PM's delegated plan, a factory stage) hears "⏳ Still working on it" after three silent minutes, from the per-minute `kanvas:nervous-system:post-still-working-updates`; the update lands in the agent's transcript and is pushed to Slack or WhatsApp when the chat lives there, so turn it on only where long delegated runs are the norm |
 
 Add a row here whenever a new `*ConfigurationEnum` case lands.
 
@@ -135,6 +136,20 @@ a session uuid, which is how `EntityRollupMessageStore` knows whether to filter 
 `RunNeuronChatAction` binds the session uuid itself when a caller that skips the kernel
 (`RespondToMentionJob`, `DraftCustomerUpdateAction`) hands it an unbound handler.
 
+## Turn id and write confirmation
+
+`RunNeuronChatAction::execute()` stamps a fresh uuid on the handler (`setTurnId()`) for every run, one per
+user turn on every entry point (userChat, channel responders, mentions); a retry inside the run keeps it.
+`MergesRegisteredTools::fillKanvasContext()` hands the thread id and that turn id to a tool that uses
+`Neuron/Tools/Concerns/HasTurnContext` (`withTurn()`); any other tool is untouched. Tools are wired inside
+`chat()`, after the id is set. A sub-agent or a hand-built tool has no turn and fails closed.
+
+A write the person must approve uses `RequiresTurnConfirmation` (needs `confirmingUserId()`): the first call
+returns a preview plus a one-use token from `ToolConfirmationTokens` (cache, 10 min, bound to thread, user,
+tool and exact arguments, plus the preview's turn id); the call that carries the token only executes on a
+LATER turn. Same turn, other thread/user/arguments, expired, reused or no turn context all refuse. Reference:
+`Connectors/Movipass/Neuron/Tools/ProviderAdmin/`.
+
 ## History: `resources()` is the only seam
 
 `Agent::getChatHistory()` is final in v4. The override point is `resources()`, and
@@ -211,9 +226,13 @@ real hook, and only `ConversationMessageStore` implements it (`archived_at`).
   rows out; `messages(include_internal: true)` returns every row with its `kind` for the backend view
   of what the agent did. The summary text is also written
   to Social as a private `agent_summary` message (`AgentMessageTypeEnum`, distinct from the lead
-  `summary` verb) on the session channel and entity, with the covered id range, `archived_count` and the
-  token counts before and after. That write never fails the turn.
-- `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
+  `summary` verb) on the session entity, with the covered id range, `archived_count` and the
+  token counts before and after. That write never fails the turn. **The note is never attached to the
+  session channel**: a channel renders it as a post from the agent, and the oldest turns it covers are
+  rarely what the room is talking about (a PM thanked for a summary posted a recap of a month-old
+  meeting above its reply). A human reads it through `messages(include_internal: true)`.
+- Notes written before that change are still on their channels, so every reader keeps skipping them.
+  `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
   skips it, so a customer-facing agent never replays the agent's own compaction note. Three more
   readers skip it through `AgentChannelActivity::isCompactionNote()`: `MessageObserver` never parses
   it for mentions (it quotes the thread, handles included, so it woke the PM that wrote it with its own
@@ -334,6 +353,26 @@ only when the dead run was started by that same message, continues it by run id
 running them. `RunNeuronChatAction` tries that before `chat()`, so a redelivered job never repeats a
 write (`DurableAgentRunTest`). A different message is a new turn.
 
+The resumed worker rebuilds its history from the store, and the transcript reloads as text. So
+`recoverInterruptedRun()` calls `resumeInterruptedTurn()` on the store, and `ConversationMessageStore`
+then rebuilds the tool rounds left at the end of the transcript as real `ToolCallMessage` /
+`ToolResultMessage` from the rows' `steps`, metadata included (Gemini wants a call's thought signature
+back with it). Read as text, a resumed request is the question plus the call's lead-in as a plain
+assistant turn, which Claude refuses as a prefill (KANVAS-ECOSYSTEM-6QX, 705), or the question alone,
+and the tool runs a second time. The flag is on for that one run only: a resume that fails falls
+through to a plain `chat()` on the same store, which is a new turn and reads text. The rollup and
+channel stores do not rebuild anything. `DurableResumeOnConversationStoreTest`.
+
+A resume also needs the prompt back, and the engine drops it from the run once the first inference
+commits. The transcript wrote it and a mention is a row of its channel, but the rollup store leaves
+the prompt to another writer (`holdsTurnPrompt()` is false): there it comes back only as the turn's
+Social rows (`inboundMessageIds`, connector turns). A turn with neither, a scheduled wake or a
+userChat on a lead, is not resumed: `recoverInterruptedRun()` returns null and `chat()` starts it
+over, so a tool the dead worker already ran runs a second time. Resumed, its request is the lead's
+messages alone, ending on the agent's previous reply, which Gemini refuses with "Requests ending with
+a model turn are not supported" (KANVAS-ECOSYSTEM-6TX, 6QX), and a recurring task fires with the same
+text, so every later firing resumes the same dead run. `DurableResumeOnRollupStoreTest`.
+
 A second inbound on a thread whose run still holds its lease, two emails minutes apart on one AP
 mailbox, is refused with `RunInFlightException`. `RunNeuronChatAction::chatOnceTheThreadSettles()`
 waits for it, polling every 5 s for up to 150 s, and only then lets the exception through
@@ -374,9 +413,50 @@ is safe only while nothing enables parallel calls or deferred tools.
 - `KanvasGemini::createToolCallMessage()` re-indexes the function-call parts: upstream collects them
   with a key-preserving `array_filter` and reads the thought signature off key 0, so a thinking model's
   thought part ahead of the call loses the signature and Gemini rejects the next request.
-- `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) keeps the agent's
-  `SystemMessage` as given; `neuron-core/router` 2.1.0 stores it in a `?string` and throws a TypeError
-  on the first turn of any tenant with a fallback LLM config. Drop it when the package fixes the type.
+- `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) teaches the router that a
+  Bedrock failure is an AWS SDK exception, not Neuron's `HttpException`: the stock strategy fails over
+  only on the latter, so a throttled or down Bedrock model never reached its fallback. It needs
+  `neuron-core/router` 2.1.2 or later (the lock's version); 2.1.0 stored the prompt in a `?string` and
+  threw a TypeError on the first turn of any failover chain.
+
+## Claude on Bedrock caches only an unchanged prefix
+
+Claude reads its prompt cache up to the first changed byte, in the order tools, instructions,
+messages, and only where `KanvasBedrock::createPayLoad()` put a marker (four at most). Anything that
+changes per turn and sits early makes every later token full price.
+
+- **Per-turn text goes in `context()`, never in `instructions()`.** Neuron appends the context blocks
+  to the turn's question on a copy and never stores them, so the instructions and the replayed history
+  stay identical between turns. On Bedrock the clock travels that way, in a `<turn-context>` block
+  (`HasKanvasAgentBehavior::context()`); it sat near the top of the instructions before and a
+  105K-token agent paid for the whole prompt on every message.
+- **The marker goes before the question's context, not after it.** The next turn replays the question
+  without its context, so a prefix that ends after the context never matches again. The provider finds
+  the context by its opening tag (`<turn-context>`, Neuron's `<EXTRA-CONTEXT>` for retrieved
+  documents); a new kind of context block needs its tag in `TURN_CONTEXT_OPENINGS`.
+- **Not covered:** the customer-facing agents (`SalesAgent`, `ReceptionistAgent`,
+  `ShoppingAssistantAgent`) write their own instructions with the time and the lead in them, so they
+  still miss between turns. A history that is trimmed from the front misses too; one that is
+  summarised in batches hits between summaries. The cache lives five minutes.
+- A hit shows as `cache_read` in the turn's `usage`, with `input_tokens` down to what was new.
+
+## Claude on Bedrock: a thinking block is replayed only under the request that produced it
+
+Claude signs each thinking block with the request it came from (instructions, the set of tools, every
+message before it) and answers a replay under anything else with a 400 for the whole request
+(`Invalid signature in thinking block ... The tools list differs`, KANVAS-ECOSYSTEM-704). Thinking is on
+by default on the current models and we never configure it, so every tool round carries one. Our tool
+list changes inside a turn by design: the tool search loads a tool, an unknown-tool stub gets declared,
+a summary replaces the oldest turns.
+
+`KanvasBedrock::keepReasoningOfThisConversation()` is the guard. Each reply that carries reasoning is
+stamped (`aws_reasoning_conversation` metadata) with a fingerprint of the request as it was sent, and
+`createPayLoad()` recomputes that fingerprint for every reasoning block it is about to replay; a block
+whose request no longer matches is left out of the payload, tool calls and text untouched. The cost is
+that one piece of reasoning. A block reloaded without a stamp (a stored row's `aws_redacted_reasoning`)
+is always left out. Cache points are excluded from the fingerprint and tools are compared as a set.
+Anything new that edits a request mid-turn is covered by the same check, with no code of its own.
+`KanvasBedrockReasoningBindingTest`.
 
 ## Unknown tool calls have two halves
 

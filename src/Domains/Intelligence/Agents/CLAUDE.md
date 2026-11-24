@@ -282,8 +282,9 @@ Connectors set two protected props on their class:
 
 ## Voice notes: a model that cannot listen gets words
 
-Audio reaches a Neuron agent as an `AudioContent` block, and only Gemini, Mistral and Bedrock take
-one; Anthropic's and OpenAI's mappers drop it, so the agent would answer a customer it never heard.
+Audio reaches a Neuron agent as an `AudioContent` block, and only Gemini, Mistral and the Bedrock
+models listed in `BEDROCK_AUDIO_MODELS` take one (Bedrock is a catalogue: Claude and GPT behind it do
+not); Anthropic's and OpenAI's mappers drop it, so the agent would answer a customer it never heard.
 `AttachmentDescriptionService::providerHearsAudio()` is the one place that knows which is which.
 
 - **On the turn** (`RunNeuronChatAction`): when the agent's provider cannot hear, the voice note is
@@ -609,6 +610,7 @@ There is no approved path for a free-text external recipient.
 | `send_lead_sms` | **Leads only** — the lead's on-file phone | message on the lead's SMS channel + lead note |
 | `send_email_to_user` | A Kanvas user in the company (internal) | assistant turn in the recipient's own chat with the agent (Social channel **and** `agent_conversation_messages`) + `agent.email.sent_to_user` ledger event |
 | `gmail_reply_to_thread` | The bill/invoice approver, inside an existing Gmail thread | the Gmail thread itself |
+| `send_outlook_email` | From the company's connected Outlook (`microsoft` integration), to a closed set: users of the company, deliverable CRM contacts not marked do-not-contact, or the CC domain allowlist. One address outside it refuses the whole send. Internal agents only, a person must ask (`RequiresHumanCaller`), and it sends only a draft the person confirmed on a later turn | the Outlook Sent Items, plus the message on each reached CRM person's email channel; a teammate or allowlisted address gets no Kanvas record |
 
 A send to a lead or a person goes through `Communication::send()`, from the mailbox the speaking
 agent owns when it has one and otherwise from the company's email connection. `send_email_to_user`

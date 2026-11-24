@@ -171,7 +171,11 @@ class MessageManagementMutation
         }
 
         if ($message->delete()) {
-            $message->unsearchableSync();
+            // A private message is never indexed (shouldBeSearchable), so there is nothing to take
+            // out, and reaching an engine the app has no key for failed a delete that already happened.
+            if ($message->isPublic()) {
+                $message->unsearchableSync();
+            }
 
             return true;
         }
