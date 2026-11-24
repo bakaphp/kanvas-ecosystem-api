@@ -11,5 +11,7 @@ type MetaWhatsAppPhoneNumber {
 extend type Query @guardByAdmin {
     "Every number of the WhatsApp Business Account the company connected, read from Meta. Empty when it has none or Meta cannot be reached. Connect one by saving the meta_whatsapp integration with its phone_number_id."
     metaWhatsAppPhoneNumbers: [MetaWhatsAppPhoneNumber!]!
-        @field(resolver: "App\\GraphQL\\Connector\\Meta\\Queries\\MetaWhatsAppPhoneNumbersQuery")
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Meta\\Queries\\MetaWhatsAppPhoneNumbersQuery"
+        )
 }
