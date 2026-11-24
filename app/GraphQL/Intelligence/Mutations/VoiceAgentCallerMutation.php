@@ -49,7 +49,7 @@ class VoiceAgentCallerMutation
     }
 
     /**
-     * @param array{agent_uuid: string, phone: string, call_sid: string, direction?: string|null, turns: list<array{role: string, text: string}>} $args
+     * @param array{agent_uuid: string, phone: string, call_sid: string, direction?: string|null, turns: list<array{role: string, text: string}>, summary?: string|null} $args
      *
      * @return array<string, mixed>
      */
@@ -73,6 +73,7 @@ class VoiceAgentCallerMutation
             callSid: (string) $args['call_sid'],
             turns: $args['turns'],
             direction: $args['direction'] ?? null,
+            summary: $args['summary'] ?? null,
         )->execute();
     }
 }
