@@ -363,6 +363,16 @@ and the tool runs a second time. The flag is on for that one run only: a resume 
 through to a plain `chat()` on the same store, which is a new turn and reads text. The rollup and
 channel stores do not rebuild anything. `DurableResumeOnConversationStoreTest`.
 
+A resume also needs the prompt back, and the engine drops it from the run once the first inference
+commits. The transcript wrote it and a mention is a row of its channel, but the rollup store leaves
+the prompt to another writer (`holdsTurnPrompt()` is false): there it comes back only as the turn's
+Social rows (`inboundMessageIds`, connector turns). A turn with neither, a scheduled wake or a
+userChat on a lead, is not resumed: `recoverInterruptedRun()` returns null and `chat()` starts it
+over, so a tool the dead worker already ran runs a second time. Resumed, its request is the lead's
+messages alone, ending on the agent's previous reply, which Gemini refuses with "Requests ending with
+a model turn are not supported" (KANVAS-ECOSYSTEM-6TX, 6QX), and a recurring task fires with the same
+text, so every later firing resumes the same dead run. `DurableResumeOnRollupStoreTest`.
+
 A second inbound on a thread whose run still holds its lease, two emails minutes apart on one AP
 mailbox, is refused with `RunInFlightException`. `RunNeuronChatAction::chatOnceTheThreadSettles()`
 waits for it, polling every 5 s for up to 150 s, and only then lets the exception through
