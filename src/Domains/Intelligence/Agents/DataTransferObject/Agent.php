@@ -37,6 +37,7 @@ class Agent extends Data
         public ?string $toolsConfig = null,
         public array|string|null $voiceConfig = null,
         public array|string|null $smsConfig = null,
+        public array|string|null $whatsappConfig = null,
         public ?array $tools = null,
         public ?AgentModel $parentAgent = null,
         public ?Users $createdBy = null,

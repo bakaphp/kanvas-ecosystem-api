@@ -60,7 +60,7 @@ final class Communication
             company: $this->company,
             recipient: $recipient,
             content: $this->content($content),
-            routes: new Router($this->app, $this->company)->forChannels($recipient, $channels),
+            routes: new Router($this->app, $this->company)->forChannels($recipient, $channels, $from),
             sender: $from,
             idempotencyKey: $idempotencyKey,
             tag: $tag,

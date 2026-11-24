@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Models\BaseModel;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
@@ -97,6 +98,26 @@ class Connection extends BaseModel
             ->fromApp((int) $message->apps_id)
             ->where('companies_id', (int) $message->companies_id)
             ->find((int) $connectionId);
+    }
+
+    /**
+     * The agent holding this number, who answers what arrives on it. Read from the company's own
+     * agents each time, so one deleted since the last setup holds nothing.
+     */
+    public function agent(): ?Agent
+    {
+        $agentId = (int) ($this->config['agent_id'] ?? 0);
+
+        if ($agentId === 0) {
+            return null;
+        }
+
+        return Agent::query()
+            ->where('apps_id', (int) $this->apps_id)
+            ->where('companies_id', (int) $this->companies_id)
+            ->notDeleted()
+            ->whereKey($agentId)
+            ->first();
     }
 
     /**

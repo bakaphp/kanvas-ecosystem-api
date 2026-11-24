@@ -10,14 +10,16 @@ use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\DataTransferObject\ConversationRef;
 use Kanvas\Communication\Messages\DataTransferObject\DeliveryRoute;
 use Kanvas\Communication\Messages\DataTransferObject\Recipient;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
  * Decides which connection a message goes through. Fixed in one place so no caller can route: a new
- * send uses the company's default for the channel, a reply uses the conversation it answers, and a
- * connection that cannot carry the message is never swapped for one that can.
+ * send uses the number its agent holds, else the company's default for the channel, a reply uses
+ * the conversation it answers, and a connection that cannot carry the message is never swapped for
+ * one that can.
  */
 final class Router
 {
@@ -32,16 +34,42 @@ final class Router
      *
      * @return list<DeliveryRoute>
      */
-    public function forChannels(Recipient $recipient, array|string $channels): array
+    public function forChannels(Recipient $recipient, array|string $channels, ?Sender $sender = null): array
     {
         if ($channels === 'all') {
             return $this->everyUsableChannel($recipient);
         }
 
         return array_map(
-            fn (ChannelTypeEnum $channel): DeliveryRoute => $this->routeFor($recipient, $channel),
+            fn (ChannelTypeEnum $channel): DeliveryRoute => new DeliveryRoute(
+                $channel,
+                $this->connectionFor($channel, $sender),
+                $recipient->addressOn($channel)
+            ),
             array_map(ChannelTypeEnum::from(...), array_values(array_unique((array) $channels)))
         );
+    }
+
+    /**
+     * The number the speaking agent holds, else the company's default for the channel.
+     */
+    public function connectionFor(ChannelTypeEnum $channel, ?Sender $sender = null): ?Connection
+    {
+        if ($sender?->isAgent() !== true) {
+            return $this->defaultConnection($channel);
+        }
+
+        $transports = new TransportManager();
+
+        return Connection::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->live()
+            ->where('config->agent_id', $sender->id)
+            ->orderBy('id')
+            ->get()
+            ->first(fn (Connection $connection): bool => $transports->supports($connection->provider, $channel))
+            ?? $this->defaultConnection($channel);
     }
 
     /**
@@ -84,11 +112,6 @@ final class Router
             ->orderByRaw('active_key IS NULL')
             ->orderByDesc('id')
             ->first();
-    }
-
-    private function routeFor(Recipient $recipient, ChannelTypeEnum $channel): DeliveryRoute
-    {
-        return new DeliveryRoute($channel, $this->defaultConnection($channel), $recipient->addressOn($channel));
     }
 
     /**

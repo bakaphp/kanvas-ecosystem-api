@@ -7,8 +7,11 @@ namespace App\GraphQL\Intelligence\Mutations;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Actions\RefreshAgentConnectionsAction;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\ConfigureAgentInboundWebhookAction;
@@ -46,7 +49,9 @@ class AgentManagementMutation
 
         $voiceConfig = $this->normalizeConfigPhone($input['voice_config'] ?? null);
         $smsConfig = $this->normalizeConfigPhone($input['sms_config'] ?? null);
+        $whatsappConfig = $this->normalizeConfigPhone($input['whatsapp_config'] ?? null);
         $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig);
+        $this->assertWhatsAppNumberAvailable($whatsappConfig, $company, $app);
         $this->resolveLlmConfig($voiceConfig['llm_config_id'] ?? null, $company, $app);
 
         $personaUser = isset($input['user_id'])
@@ -74,6 +79,7 @@ class AgentManagementMutation
             toolsConfig: $input['tools_config'] ?? null,
             voiceConfig: $voiceConfig,
             smsConfig: $smsConfig,
+            whatsappConfig: $whatsappConfig,
             tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
@@ -97,6 +103,10 @@ class AgentManagementMutation
         // Never throws — inbound wiring must not block creating the agent.
         new ConfigureAgentInboundWebhookAction($agent)->execute();
         new ConfigureAgentInboundWebhookAction($agent, AgentPhoneChannelEnum::SMS)->execute();
+
+        if ($agent->whatsappPhoneNumber() !== null) {
+            new RefreshAgentConnectionsAction($agent, ChannelTypeEnum::WHATSAPP)->execute();
+        }
 
         return $agent;
     }
@@ -128,6 +138,7 @@ class AgentManagementMutation
         // Capture the agent's number BEFORE the update overwrites voice_config, so
         // we can release the OLD number's inbound webhook if it changes below.
         $previousNumber = (string) $agent->phoneNumber(AgentPhoneChannelEnum::VOICE);
+        $previousWhatsAppNumber = Str::toE164($agent->whatsappPhoneNumber());
         $agentType = AgentTypeModel::getById($input['agent_type_id'], app: $app);
         $agentModel = isset($input['agent_model_id']) ? AgentModel::getById($input['agent_model_id'], app: $app) : null;
         $task = isset($input['company_task_list_id']) ? TaskList::getById($input['company_task_list_id'], app: $app) : null;
@@ -142,7 +153,19 @@ class AgentManagementMutation
         $smsConfig = array_key_exists('sms_config', $input)
             ? $this->normalizeConfigPhone($input['sms_config'])
             : $agent->sms_config;
+        $whatsappConfig = array_key_exists('whatsapp_config', $input)
+            ? $this->normalizeConfigPhone($input['whatsapp_config'])
+            : $agent->whatsapp_config;
         $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig, $agent);
+        // Only a number being taken is checked, so an agent saved before the rule keeps saving.
+        if (Str::toE164((string) ($whatsappConfig['phone_number'] ?? '')) !== $previousWhatsAppNumber) {
+            $this->assertWhatsAppNumberAvailable(
+                $whatsappConfig,
+                $company,
+                $app,
+                $agent
+            );
+        }
         $this->resolveLlmConfig($voiceConfig['llm_config_id'] ?? null, $company, $app);
 
         $personaUser = isset($input['user_id'])
@@ -170,6 +193,7 @@ class AgentManagementMutation
             toolsConfig: $input['tools_config'] ?? null,
             voiceConfig: $voiceConfig,
             smsConfig: $smsConfig,
+            whatsappConfig: $whatsappConfig,
             parentAgent: $parentAgent,
             isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
             agentLlmConfig: $llmConfig,
@@ -207,6 +231,11 @@ class AgentManagementMutation
                 company: $company,
                 exceptAgentId: $agent->getId(),
             )->execute();
+        }
+
+        // The number an agent holds is who answers it: the company's connections follow the change.
+        if (Str::toE164($agent->whatsappPhoneNumber()) !== $previousWhatsAppNumber) {
+            new RefreshAgentConnectionsAction($agent, ChannelTypeEnum::WHATSAPP)->execute();
         }
 
         return $agent->refresh();
@@ -249,7 +278,7 @@ class AgentManagementMutation
 
         // The input is Mixed and these are JSON columns, so anything else fails as a SQL error.
         if (! is_array($decoded)) {
-            throw new ValidationException('voice_config and sms_config must be objects.');
+            throw new ValidationException('voice_config, sms_config and whatsapp_config must be objects.');
         }
 
         $number = $decoded['phone_number'] ?? null;
@@ -267,6 +296,38 @@ class AgentManagementMutation
             if ($number !== '') {
                 SetAgentPhoneNumberAction::assertNumberAvailable($number, $agent);
             }
+        }
+    }
+
+    /**
+     * One agent per WhatsApp number: the holder is who answers it, so a second holder would never be
+     * asked.
+     */
+    private function assertWhatsAppNumberAvailable(
+        ?array $whatsappConfig,
+        CompanyInterface $company,
+        AppInterface $app,
+        ?Agent $agent = null
+    ): void {
+        $number = Str::toE164((string) ($whatsappConfig['phone_number'] ?? ''));
+
+        if ($number === '') {
+            return;
+        }
+
+        $holder = Agent::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->notDeleted()
+            ->whereNotNull('whatsapp_config')
+            ->when($agent !== null, fn (Builder $agents) => $agents->whereKeyNot($agent->getKey()))
+            ->get()
+            ->first(fn (Agent $other): bool => $other->holdsWhatsAppNumber($number));
+
+        if ($holder !== null) {
+            throw new ValidationException(
+                'WhatsApp number ' . $number . ' is already held by agent ' . $holder->name . '.'
+            );
         }
     }
 

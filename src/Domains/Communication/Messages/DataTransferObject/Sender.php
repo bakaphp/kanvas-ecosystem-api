@@ -8,8 +8,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 
 /**
- * Who is speaking. It is recorded on the request and on the filed message; it does not choose the
- * connection — that is routing, and an agent has no number of its own.
+ * Who is speaking. It is recorded on the request and on the filed message. Routing reads it for a
+ * new message only: an agent holding a number speaks from it.
  */
 final readonly class Sender
 {

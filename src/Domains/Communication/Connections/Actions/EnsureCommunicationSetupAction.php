@@ -203,7 +203,7 @@ final class EnsureCommunicationSetupAction
             }
 
             new SetupCompanyDefaultsAction($this->app, $connection->company)->execute();
-            $this->ensureAutoReply($provider, $provisioner);
+            $this->ensureAutoReply($provider, $provisioner, $connection);
             $this->ensureChannelDefaults($provider, $connection);
 
             $connection->forceFill([
@@ -278,7 +278,7 @@ final class EnsureCommunicationSetupAction
     /**
      * @param class-string<CommunicationProvider> $provider
      */
-    private function ensureAutoReply(string $provider, Provisioner $provisioner): void
+    private function ensureAutoReply(string $provider, Provisioner $provisioner, Connection $connection): void
     {
         $autoReply = $provisioner->autoReply();
 
@@ -287,7 +287,11 @@ final class EnsureCommunicationSetupAction
         }
 
         foreach (array_keys($provider::transports()) as $channel) {
-            $agent = new AutoReplyPolicy()->agentFor($this->app, $this->integrationCompany->company, ChannelTypeEnum::from($channel));
+            // The rule only has to exist; a company with no answering agent of its own still gets
+            // it for a number one of its agents holds.
+            $agent = new AutoReplyPolicy()
+                ->agentFor($this->app, $this->integrationCompany->company, ChannelTypeEnum::from($channel))
+                ?? $connection->agent();
 
             if ($agent !== null) {
                 new EnsureAutoReplyRuleAction(

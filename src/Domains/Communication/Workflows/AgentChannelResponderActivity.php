@@ -37,7 +37,8 @@ use Kanvas\Workflow\KanvasActivity;
         . 'reply to the customer.',
     params: [
         'channelAgentMapping' => 'Optional per-chat agent overrides. Every other conversation is answered by the '
-            . 'agent the company setting sales_agent_id names, else the company\'s agent named Sally.',
+            . 'agent holding the number it arrived on, else the agent the company setting sales_agent_id names, '
+            . 'else the company\'s agent named Sally.',
         'message' => 'Supplied by the trigger — the inbound message. Not something you set.',
     ],
 )]
@@ -130,12 +131,14 @@ class AgentChannelResponderActivity extends KanvasActivity
             return ['message' => 'Lead turned off AI agent responses', 'entity' => null];
         }
 
-        // A chat mapped to its own agent keeps it; every other conversation is the company's agent.
+        // A chat mapped to its own agent keeps it; every other conversation is answered by the agent
+        // holding the number it arrived on, and by the company's agent when nobody holds it.
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
         $mappedAgentId = $channelAgentMapping[$chatJid]['agent_id'] ?? null;
         $agent = $mappedAgentId !== null
             ? Agent::getByIdFromCompanyApp($mappedAgentId, $channel->company, $app)
-            : new AutoReplyPolicy()->conversationAgent($app, $channel->company);
+            : Connection::forFiledMessage($message)?->agent()
+                ?? new AutoReplyPolicy()->conversationAgent($app, $channel->company);
         $session = $this->session(
             $channel,
             $app,
