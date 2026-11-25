@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\InAppPurchase\Jobs;
 
 use Imdhemy\GooglePlay\DeveloperNotifications\DeveloperNotification;
 use Imdhemy\GooglePlay\DeveloperNotifications\SubscriptionNotification;
-use Imdhemy\GooglePlay\Subscriptions\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Entity\SubscriptionPurchase;
 use Kanvas\Connectors\InAppPurchase\Concerns\FindsStoreSubscription;
 use Kanvas\Connectors\InAppPurchase\Enums\GoogleNotificationTypeEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\StoreProviderEnum;
@@ -19,9 +19,8 @@ use Override;
 /**
  * Google Play RTDN. When the app has a Play payment service account the notification is only a signal:
  * status and ends_at come from the Play Developer API, so an unauthenticated push cannot grant or revoke
- * access, whatever type it claims. Play fills cancellation fields when a user only turns off auto-renew,
- * so a REVOKED claim is believed only through the expiry Play reports. If that call fails the job throws
- * and leaves the row alone. Only apps without that account trust the notification itself.
+ * access, whatever type it claims. If that call fails the job throws and leaves the row alone. Only apps
+ * without that account trust the notification itself.
  */
 #[WorkflowAction]
 class ProcessGoogleSubscriptionWebhookJob extends ProcessWebhookJob
@@ -80,9 +79,10 @@ class ProcessGoogleSubscriptionWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $purchase = $this->fetchSubscriptionPurchase($subscriptionId, $purchaseToken);
+        $purchase = $this->fetchSubscriptionPurchase($purchaseToken);
         if ($purchase instanceof SubscriptionPurchase) {
-            GooglePlayBillingService::applyPurchaseState($subscription, $purchase);
+            // The stored product, not the notification's: RTDN is unauthenticated.
+            GooglePlayBillingService::applyPurchaseState($subscription, $purchase, $subscription->stripe_price);
         } else {
             $this->applyNotificationState($subscription, $typeEnum);
         }
@@ -116,10 +116,8 @@ class ProcessGoogleSubscriptionWebhookJob extends ProcessWebhookJob
      * A Play API failure is not caught: ProcessWebhookJob reports it and marks the call failed, so it
      * can be replayed (kanvas:retry-webhook-call), and a sync receiver answers 500 so Pub/Sub redelivers.
      */
-    private function fetchSubscriptionPurchase(
-        string $subscriptionId,
-        string $purchaseToken
-    ): ?SubscriptionPurchase {
+    private function fetchSubscriptionPurchase(string $purchaseToken): ?SubscriptionPurchase
+    {
         /** @var GooglePlayBillingService $billing */
         $billing = app(GooglePlayBillingService::class, ['app' => $this->receiver->app]);
 
@@ -127,6 +125,6 @@ class ProcessGoogleSubscriptionWebhookJob extends ProcessWebhookJob
             return null;
         }
 
-        return $billing->getSubscription($subscriptionId, $purchaseToken);
+        return $billing->getSubscription($purchaseToken);
     }
 }

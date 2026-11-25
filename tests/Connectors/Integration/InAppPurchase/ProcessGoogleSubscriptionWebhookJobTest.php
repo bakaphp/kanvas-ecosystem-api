@@ -6,10 +6,16 @@ namespace Tests\Connectors\Integration\InAppPurchase;
 
 use Baka\Contracts\AppInterface;
 use Closure;
+use GuzzleHttp\Client;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
-use Imdhemy\GooglePlay\Subscriptions\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Entity\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Subscription\SubscriptionState;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum as InAppPurchaseConfigurationEnum;
@@ -20,11 +26,15 @@ use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Laravel\Cashier\Subscription as CashierSubscription;
+use Psr\Http\Client\ClientInterface;
 use RuntimeException;
+use Tests\Connectors\Traits\MakesPlaySubscriptions;
 use Tests\TestCase;
 
 class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
 {
+    use MakesPlaySubscriptions;
+
     private const array PLAY_SETTINGS = [
         ConfigurationEnum::GOOGLE_PAYMENT_CLIENT_CONFIG->value => ['type' => 'service_account'],
         InAppPurchaseConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value => 'com.test.app',
@@ -130,10 +140,7 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
         $this->seedSubscription('active');
         $this->findSubscription()->forceFill(['ends_at' => now()->subDay()])->saveOrFail();
         $nextExpiry = now()->addMonth()->startOfSecond();
-        $this->fakePlaySubscription([
-            'expiryTimeMillis' => (string) $nextExpiry->getTimestampMs(),
-            'paymentState' => 1,
-        ]);
+        $this->fakePlaySubscription(['expiryTime' => $nextExpiry->toIso8601ZuluString()]);
 
         $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 2));
 
@@ -147,10 +154,7 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
     public function testForgedRevocationDoesNotEndAccessWhenPlaySaysActive(): void
     {
         $this->seedSubscription('active');
-        $this->fakePlaySubscription([
-            'expiryTimeMillis' => (string) now()->addMonth()->getTimestampMs(),
-            'paymentState' => 1,
-        ]);
+        $this->fakePlaySubscription();
 
         $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 12));
 
@@ -162,15 +166,14 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
     {
         $this->seedSubscription('active');
         $revokedAt = now()->subMinute()->startOfSecond();
-        $this->fakePlaySubscription([
-            'expiryTimeMillis' => (string) $revokedAt->getTimestampMs(),
-            'paymentState' => 1,
-            'cancelReason' => 3,
-        ]);
+        $this->fakePlaySubscription(
+            ['expiryTime' => $revokedAt->toIso8601ZuluString()],
+            ['subscriptionState' => SubscriptionState::EXPIRED->value]
+        );
 
         $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 12));
 
-        $this->assertEquals('canceled', $result['new_status']);
+        $this->assertEquals('expired', $result['new_status']);
         $subscription = $this->findSubscription();
         $this->assertEquals($revokedAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
         $this->assertFalse($subscription->active());
@@ -180,13 +183,10 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
     {
         $this->seedSubscription('active');
         $paidUntil = now()->addMonth()->startOfSecond();
-        $this->fakePlaySubscription([
-            'expiryTimeMillis' => (string) $paidUntil->getTimestampMs(),
-            'paymentState' => 1,
-            'autoRenewing' => false,
-            'cancelReason' => 0,
-            'userCancellationTimeMillis' => (string) now()->getTimestampMs(),
-        ]);
+        $this->fakePlaySubscription(
+            ['expiryTime' => $paidUntil->toIso8601ZuluString()],
+            ['subscriptionState' => SubscriptionState::CANCELED->value]
+        );
 
         $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 12));
 
@@ -196,12 +196,88 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
         $this->assertTrue($subscription->active());
     }
 
+    public function testGracePeriodKeepsAccess(): void
+    {
+        $this->seedSubscription('active');
+        $graceEnds = now()->addDays(3)->startOfSecond();
+        $this->fakePlaySubscription(
+            ['expiryTime' => $graceEnds->toIso8601ZuluString()],
+            ['subscriptionState' => SubscriptionState::IN_GRACE_PERIOD->value]
+        );
+
+        $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 6));
+
+        $this->assertEquals('active', $result['new_status']);
+        $subscription = $this->findSubscription();
+        $this->assertEquals($graceEnds->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+        $this->assertTrue($subscription->active());
+    }
+
+    public function testAccountHoldEndsAccess(): void
+    {
+        $this->seedSubscription('active');
+        $this->fakePlaySubscription(
+            ['expiryTime' => now()->subHour()->toIso8601ZuluString()],
+            ['subscriptionState' => SubscriptionState::ON_HOLD->value]
+        );
+
+        $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 5));
+
+        $this->assertEquals('past_due', $result['new_status']);
+        $this->assertFalse($this->findSubscription()->active());
+    }
+
+    public function testNotificationNamingAnotherProductCannotRedirectTheLookup(): void
+    {
+        $this->seedSubscription('active');
+        $this->fakePlaySubscription();
+        $payload = $this->buildGooglePayload(notificationType: 2, subscriptionId: 'com.test.another.product');
+
+        $result = $this->dispatchWebhookJob($payload);
+
+        $this->assertEquals('play_api', $result['source']);
+        $this->assertEquals('active', $this->findSubscription()->stripe_status);
+    }
+
+    public function testPlayStateForAnotherProductLeavesSubscriptionUnchanged(): void
+    {
+        Exceptions::fake();
+        $this->seedSubscription('active');
+        $endsAt = $this->findSubscription()->ends_at;
+        $this->fakePlaySubscription(['productId' => 'com.test.another.product']);
+
+        $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 2));
+
+        $this->assertNull($result);
+        $storedEndsAt = $this->findSubscription()->ends_at;
+        $this->assertEquals($endsAt->toDateTimeString(), $storedEndsAt->toDateTimeString());
+    }
+
+    public function testSubscriptionIsReadFromThePlayV2Api(): void
+    {
+        $requests = [];
+        $resource = $this->playSubscriptionResource(
+            $this->subscriptionId,
+            purchase: ['subscriptionState' => SubscriptionState::CANCELED->value]
+        );
+        $billing = $this->billingOverHttp(new Response(200, [], (string) json_encode($resource)), $requests);
+
+        $purchase = $billing->getSubscription($this->purchaseToken);
+
+        $this->assertSame(SubscriptionState::CANCELED, $purchase->subscriptionState);
+        $this->assertSame($this->subscriptionId, $purchase->lineItems[0]->productId);
+        $this->assertStringEndsWith(
+            '/applications/com.test.app/purchases/subscriptionsv2/tokens/' . $this->purchaseToken,
+            (string) $requests[0]['request']->getUri()
+        );
+    }
+
     public function testPlayStateWithoutExpiryLeavesSubscriptionUnchanged(): void
     {
         Exceptions::fake();
         $this->seedSubscription('active');
         $endsAt = $this->findSubscription()->ends_at;
-        $this->fakePlaySubscription(['paymentState' => 1]);
+        $this->fakePlaySubscription(['expiryTime' => null]);
 
         $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 2));
 
@@ -355,9 +431,13 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
         $this->assertEquals('No matching Google Play subscription found', $result['message']);
     }
 
-    private function fakePlaySubscription(array $response): void
+    /**
+     * @param array<string, mixed> $lineItem
+     * @param array<string, mixed> $purchase
+     */
+    private function fakePlaySubscription(array $lineItem = [], array $purchase = []): void
     {
-        $purchase = SubscriptionPurchase::fromArray($response);
+        $purchase = $this->playSubscription($this->subscriptionId, $lineItem, $purchase);
 
         $this->bindPlayBilling(fn (): SubscriptionPurchase => $purchase);
     }
@@ -386,15 +466,39 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
                 parent::__construct($app);
             }
 
-            public function getSubscription(
-                string $subscriptionId,
-                string $purchaseToken
-            ): SubscriptionPurchase {
+            public function getSubscription(string $purchaseToken): SubscriptionPurchase
+            {
                 return ($this->respond)();
             }
         };
 
         $this->app->bind(GooglePlayBillingService::class, $factory);
+    }
+
+    /**
+     * The real service over a canned HTTP response, so the v2 client wiring is exercised and not only faked.
+     *
+     * @param array<int, array<string, mixed>> $requests
+     */
+    private function billingOverHttp(Response $response, array &$requests): GooglePlayBillingService
+    {
+        $handler = HandlerStack::create(new MockHandler([$response]));
+        $handler->push(Middleware::history($requests));
+
+        return new class (
+            $this->appWithSettings(self::PLAY_SETTINGS),
+            new Client(['handler' => $handler])
+        ) extends GooglePlayBillingService {
+            public function __construct(AppInterface $app, private readonly ClientInterface $client)
+            {
+                parent::__construct($app);
+            }
+
+            protected function subscriptionClient(): ClientInterface
+            {
+                return $this->client;
+            }
+        };
     }
 
     private function billingFor(array $settings): GooglePlayBillingService
@@ -459,8 +563,11 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
             ->fresh();
     }
 
-    private function buildGooglePayload(int $notificationType = 3, bool $isTest = false): array
-    {
+    private function buildGooglePayload(
+        int $notificationType = 3,
+        bool $isTest = false,
+        ?string $subscriptionId = null
+    ): array {
         if ($isTest) {
             $data = [
                 'version' => '1.0',
@@ -479,7 +586,7 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
                     'version' => '1.0',
                     'notificationType' => $notificationType,
                     'purchaseToken' => $this->purchaseToken,
-                    'subscriptionId' => $this->subscriptionId,
+                    'subscriptionId' => $subscriptionId ?? $this->subscriptionId,
                 ],
             ];
         }

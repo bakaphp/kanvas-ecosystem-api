@@ -6,16 +6,22 @@ namespace Kanvas\Connectors\InAppPurchase\Services;
 
 use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
-use Imdhemy\GooglePlay\ClientFactory;
+use Imdhemy\GooglePlay\ClientFactory as ProductClientFactory;
+use Imdhemy\GooglePlay\Domain\Purchase\Entity\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Subscription\SubscriptionPurchaseLineItem;
+use Imdhemy\GooglePlay\Domain\Purchase\Subscription\SubscriptionState;
+use Imdhemy\GooglePlay\Domain\Purchase\SubscriptionService;
+use Imdhemy\GooglePlay\Infrastructure\Http\ClientFactory;
+use Imdhemy\GooglePlay\Infrastructure\Transformer\Normalizer;
+use Imdhemy\GooglePlay\Infrastructure\Transformer\Serializer;
 use Imdhemy\GooglePlay\Products\ProductPurchase;
-use Imdhemy\GooglePlay\Subscriptions\SubscriptionPurchase;
 use Imdhemy\Purchases\Facades\Product;
-use Imdhemy\Purchases\Facades\Subscription;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum as InAppPurchaseConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\SubscriptionStatusEnum;
 use Kanvas\Exceptions\ValidationException;
 use Laravel\Cashier\Subscription as CashierSubscription;
+use Psr\Http\Client\ClientInterface;
 
 /**
  * Google Play Developer API access for an app, configured by its
@@ -44,17 +50,17 @@ class GooglePlayBillingService
     }
 
     /**
+     * purchases.subscriptionsv2 identifies a purchase by its token alone and does not check the product,
+     * so callers read the state through lineItemOf(), which refuses another product's token.
+     *
      * @throws ValidationException
      */
-    public function getSubscription(string $subscriptionId, string $purchaseToken): SubscriptionPurchase
+    public function getSubscription(string $purchaseToken): SubscriptionPurchase
     {
         $this->assertConfigured();
 
-        return Subscription::googlePlay(ClientFactory::createWithJsonKey($this->serviceAccountConfig()))
-            ->packageName($this->packageName())
-            ->id($subscriptionId)
-            ->token($purchaseToken)
-            ->get();
+        return new SubscriptionService($this->subscriptionClient(), Normalizer::create(), Serializer::create())
+            ->get($this->packageName(), $purchaseToken);
     }
 
     /**
@@ -64,7 +70,7 @@ class GooglePlayBillingService
     {
         $this->assertConfigured();
 
-        return Product::googlePlay(ClientFactory::createWithJsonKey($this->serviceAccountConfig()))
+        return Product::googlePlay(ProductClientFactory::createWithJsonKey($this->serviceAccountConfig()))
             ->packageName($this->packageName())
             ->id($productId)
             ->token($purchaseToken)
@@ -74,38 +80,72 @@ class GooglePlayBillingService
     /**
      * Play is the source of truth for a token, so the purchase mutation and the webhook both copy its state
      * as is, in either direction. A canceled subscription keeps access until its expiry; a revoked one comes
-     * back with the expiry moved to the revocation. A missing expiry is refused, as it would never end.
+     * back expired with the expiry moved to the revocation. A missing expiry is refused, as it would never end.
      *
      * @throws ValidationException
      */
-    public static function applyPurchaseState(CashierSubscription $subscription, SubscriptionPurchase $purchase): void
-    {
-        $expiry = self::expiryOf($purchase);
+    public static function applyPurchaseState(
+        CashierSubscription $subscription,
+        SubscriptionPurchase $purchase,
+        string $productId
+    ): void {
+        $expiry = self::expiryOf($purchase, $productId);
+        $isFreeTrial = self::lineItemOf($purchase, $productId)->offerPhase?->freeTrial !== null;
 
-        $subscription->stripe_status = self::statusOf($purchase, $expiry)->value;
+        $subscription->stripe_status = self::statusOf($purchase)->value;
         $subscription->ends_at = $expiry;
-        $subscription->trial_ends_at = $purchase->getPaymentState() === SubscriptionPurchase::PAYMENT_STATE_FREE_TRIAL
-            ? $expiry
-            : null;
+        $subscription->trial_ends_at = $isFreeTrial ? $expiry : null;
     }
 
     /**
      * @throws ValidationException
      */
-    public static function expiryOf(SubscriptionPurchase $purchase): Carbon
+    public static function lineItemOf(SubscriptionPurchase $purchase, string $productId): SubscriptionPurchaseLineItem
     {
-        return $purchase->getExpiryTime()?->carbon
-            ?? throw new ValidationException('Google Play subscription has no expiry time');
+        foreach ($purchase->lineItems as $lineItem) {
+            if ($lineItem->productId === $productId) {
+                return $lineItem;
+            }
+        }
+
+        throw new ValidationException('Google Play purchase token is not for subscription ' . $productId);
     }
 
-    private static function statusOf(SubscriptionPurchase $purchase, Carbon $expiry): SubscriptionStatusEnum
+    /**
+     * @throws ValidationException
+     */
+    public static function expiryOf(SubscriptionPurchase $purchase, string $productId): Carbon
     {
-        return match (true) {
-            $purchase->getCancellation() !== null => SubscriptionStatusEnum::CANCELED,
-            $expiry->isPast() => SubscriptionStatusEnum::EXPIRED,
-            $purchase->getPaymentState() === SubscriptionPurchase::PAYMENT_STATE_PENDING => SubscriptionStatusEnum::PENDING,
-            default => SubscriptionStatusEnum::ACTIVE,
+        $expiresAt = self::lineItemOf($purchase, $productId)->expiresAt
+            ?? throw new ValidationException('Google Play subscription has no expiry time');
+
+        return Carbon::instance($expiresAt);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private static function statusOf(SubscriptionPurchase $purchase): SubscriptionStatusEnum
+    {
+        return match ($purchase->subscriptionState) {
+            SubscriptionState::ACTIVE,
+            // Play is still retrying the payment and has already extended the expiry, so access continues.
+            SubscriptionState::IN_GRACE_PERIOD => SubscriptionStatusEnum::ACTIVE,
+            SubscriptionState::CANCELED,
+            SubscriptionState::PENDING_PURCHASE_CANCELED => SubscriptionStatusEnum::CANCELED,
+            SubscriptionState::ON_HOLD => SubscriptionStatusEnum::PAST_DUE,
+            SubscriptionState::PAUSED => SubscriptionStatusEnum::PAUSED,
+            SubscriptionState::EXPIRED => SubscriptionStatusEnum::EXPIRED,
+            SubscriptionState::PENDING => SubscriptionStatusEnum::PENDING,
+            SubscriptionState::UNSPECIFIED => throw new ValidationException(
+                'Google Play did not report a subscription state'
+            ),
         };
+    }
+
+    protected function subscriptionClient(): ClientInterface
+    {
+        return ClientFactory::create($this->serviceAccountConfig());
     }
 
     /**

@@ -9,7 +9,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use Imdhemy\GooglePlay\Subscriptions\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Entity\SubscriptionPurchase;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromGoogleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromReceiptActionBase;
@@ -22,11 +22,13 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Cashier\Subscription as CashierSubscription;
+use Tests\Connectors\Traits\MakesPlaySubscriptions;
 use Tests\TestCase;
 
 class GoogleSubscriptionOwnershipTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesPlaySubscriptions;
 
     // Same leak as AppleSignedTransactionTest: a purchase files the process's shared user as a CRM person.
     protected $connectionsToTransact = [null, 'crm', 'commerce'];
@@ -72,13 +74,7 @@ class GoogleSubscriptionOwnershipTest extends TestCase
                 purchase_token: $purchaseToken,
                 is_renewable_subscription: true
             ),
-            SubscriptionPurchase::fromArray([
-                'orderId' => $orderId,
-                'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-                'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-                'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-                'autoRenewing' => true,
-            ])
+            $this->playSubscription($sku, ['latestSuccessfulOrderId' => $orderId])
         );
 
         try {
@@ -118,13 +114,7 @@ class GoogleSubscriptionOwnershipTest extends TestCase
             purchase_token: $purchaseToken,
             is_renewable_subscription: true
         );
-        $purchase = SubscriptionPurchase::fromArray([
-            'orderId' => $orderId,
-            'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-            'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-            'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-            'autoRenewing' => true,
-        ]);
+        $purchase = $this->playSubscription($sku, ['latestSuccessfulOrderId' => $orderId]);
 
         $first = $this->mockedRenewableAction($receipt, $purchase)->execute();
         CashierSubscription::where('stripe_id', $purchaseToken)->delete();
@@ -242,13 +232,7 @@ class GoogleSubscriptionOwnershipTest extends TestCase
                 purchase_token: 'token_' . Str::random(20),
                 is_renewable_subscription: true
             ),
-            SubscriptionPurchase::fromArray([
-                'orderId' => $orderId,
-                'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-                'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-                'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-                'autoRenewing' => true,
-            ]),
+            $this->playSubscription($sku, ['latestSuccessfulOrderId' => $orderId]),
         ];
     }
 
