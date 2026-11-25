@@ -54,7 +54,10 @@ class WhatsAppTransport implements Transport
         $recipient = self::recipient((string) $delivery->to_address);
 
         if ($recipient === null) {
-            return TransportResult::failed('invalid_address', 'Not a WhatsApp number or a Meta user id: ' . $delivery->to_address);
+            return TransportResult::failed(
+                'invalid_address',
+                'Not a WhatsApp number or a Meta user id: ' . $delivery->to_address
+            );
         }
 
         $connection = $delivery->connection;
@@ -120,16 +123,16 @@ class WhatsAppTransport implements Transport
     public function conversationOf(Message $message): ?ConversationRef
     {
         $raw = $message->message['raw_data'] ?? null;
+        $sender = is_array($raw) ? self::senderOf($raw) : null;
 
         if ($message->messageType?->verb !== self::MESSAGE_VERB
-            || ! is_array($raw)
+            || $sender === null
             || empty($raw['metadata']['display_phone_number'])
-            || self::senderOf($raw) === null
         ) {
             return null;
         }
 
-        return self::conversationBetween((string) $raw['metadata']['display_phone_number'], self::senderOf($raw));
+        return self::conversationBetween((string) $raw['metadata']['display_phone_number'], $sender);
     }
 
     /**
@@ -180,9 +183,7 @@ class WhatsAppTransport implements Transport
         }
 
         // The full international number, digits only; normalizePhoneNumber() would drop a +1.
-        $number = ltrim(Str::toE164($address), '+');
-
-        return $number !== '' && preg_match('/\p{L}/u', $address) !== 1 ? ['to' => $number] : null;
+        return Str::isPhoneLike($address) ? ['to' => ltrim(Str::toE164($address), '+')] : null;
     }
 
     /**

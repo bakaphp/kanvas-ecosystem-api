@@ -9,6 +9,17 @@ use Tests\TestCaseUnit;
 
 final class StrPhoneTest extends TestCaseUnit
 {
+    public function testAPhoneLikeValueHasDigitsAndNoLetters(): void
+    {
+        $this->assertTrue(Str::isPhoneLike('+1 (404) 790-7130'));
+        $this->assertTrue(Str::isPhoneLike('8095550211'));
+        $this->assertFalse(Str::isPhoneLike('do.1632950178139894'));
+        $this->assertFalse(Str::isPhoneLike('DO_18095551234'));
+        $this->assertFalse(Str::isPhoneLike('Ana'));
+        $this->assertFalse(Str::isPhoneLike(''));
+        $this->assertFalse(Str::isPhoneLike(null));
+    }
+
     public function testToE164PrependsPlusOneFor10DigitUsNumber(): void
     {
         $this->assertSame('+14047907130', Str::toE164('4047907130'));
