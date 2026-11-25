@@ -94,6 +94,14 @@ abstract class AbstractCodingRuntimeDriver implements CodingRuntimeDriver
         return (string) $agent->get(AgentCustomFieldEnum::CONTAINER_PASSWORD->value);
     }
 
+    /**
+     * exec() returns output, not the exit status, so the command prints its own verdict.
+     */
+    protected function succeeds(SshClient $client, string $command, int $timeout = 30): bool
+    {
+        return trim($client->exec($command . ' && echo OK || echo NO', $timeout)) === 'OK';
+    }
+
     protected function installHint(AppInterface $app): string
     {
         return ' — run: php artisan kanvas:coding:build-image --app=' . $app->getId()

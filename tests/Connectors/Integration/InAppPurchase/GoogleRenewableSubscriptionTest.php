@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\InAppPurchase;
 
 use Carbon\Carbon;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
-use Imdhemy\GooglePlay\Subscriptions\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Entity\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Subscription\SubscriptionState;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromGoogleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\GooglePlayInAppPurchaseReceipt;
@@ -19,10 +21,17 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Cashier\Subscription as CashierSubscription;
+use Tests\Connectors\Traits\MakesPlaySubscriptions;
 use Tests\TestCase;
 
 class GoogleRenewableSubscriptionTest extends TestCase
 {
+    use DatabaseTransactions;
+    use MakesPlaySubscriptions;
+
+    // Same leak as AppleSignedTransactionTest: a purchase files the process's shared user as a CRM person.
+    protected $connectionsToTransact = [null, 'crm', 'commerce'];
+
     public function testCreateRenewableGoogleSubscriptionOrderAndPersistSubscription(): void
     {
         $app = app(Apps::class);
@@ -34,14 +43,10 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $this->createProduct($app, $company, $user, 'google_sub_monthly_001');
         $purchaseToken = 'token_' . Str::random(20);
 
-        $subscriptionPurchase = SubscriptionPurchase::fromArray([
-            'orderId' => 'GPA.1000-2000-3000-40000..0',
-            'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-            'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-            'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-            'autoRenewing' => true,
-            'linkedPurchaseToken' => null,
-        ]);
+        $subscriptionPurchase = $this->playSubscription(
+            'google_sub_monthly_001',
+            ['latestSuccessfulOrderId' => 'GPA.1000-2000-3000-40000..0']
+        );
 
         $action = $this->mockedRenewableAction(
             new GooglePlayInAppPurchaseReceipt(
@@ -95,13 +100,10 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $this->createProduct($app, $company, $user, 'google_sub_monthly_002');
         $purchaseToken = 'token_' . Str::random(20);
 
-        $subscriptionPurchase = SubscriptionPurchase::fromArray([
-            'orderId' => 'GPA.1000-2000-3000-50000..0',
-            'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-            'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-            'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-            'autoRenewing' => true,
-        ]);
+        $subscriptionPurchase = $this->playSubscription(
+            'google_sub_monthly_002',
+            ['latestSuccessfulOrderId' => 'GPA.1000-2000-3000-50000..0']
+        );
 
         $dto = new GooglePlayInAppPurchaseReceipt(
             app: $app,
@@ -138,22 +140,19 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $this->createProduct($app, $company, $user, 'google_sub_monthly_003');
         $purchaseToken = 'token_' . Str::random(20);
 
-        $firstPurchase = SubscriptionPurchase::fromArray([
-            'orderId' => 'GPA.1000-2000-3000-60000..0',
-            'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-            'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-            'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-            'autoRenewing' => true,
-        ]);
+        $firstPurchase = $this->playSubscription(
+            'google_sub_monthly_003',
+            ['latestSuccessfulOrderId' => 'GPA.1000-2000-3000-60000..0']
+        );
 
-        $secondPurchase = SubscriptionPurchase::fromArray([
-            'orderId' => 'GPA.1000-2000-3000-60000..1',
-            'expiryTimeMillis' => now()->addMonths(2)->getTimestampMs(),
-            'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-            'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-            'autoRenewing' => true,
-            'linkedPurchaseToken' => $purchaseToken,
-        ]);
+        $secondPurchase = $this->playSubscription(
+            'google_sub_monthly_003',
+            [
+                'latestSuccessfulOrderId' => 'GPA.1000-2000-3000-60000..1',
+                'expiryTime' => now()->addMonths(2)->toIso8601ZuluString(),
+            ],
+            ['linkedPurchaseToken' => $purchaseToken]
+        );
 
         $firstOrder = $this->mockedRenewableAction(
             new GooglePlayInAppPurchaseReceipt(
@@ -224,12 +223,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
                 purchase_token: $purchaseToken,
                 is_renewable_subscription: true
             ),
-            SubscriptionPurchase::fromArray([
-                'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-                'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-                'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-                'autoRenewing' => true,
-            ])
+            $this->playSubscription('google_sub_monthly_004')
         )->execute();
     }
 
@@ -251,13 +245,8 @@ class GoogleRenewableSubscriptionTest extends TestCase
 
         $purchaseToken = 'token_' . Str::random(20);
 
-        $subscriptionPurchase = SubscriptionPurchase::fromArray([
-            'orderId' => 'GPA.resolve-test-' . uniqid(),
-            'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
-            'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
-            'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
-            'autoRenewing' => true,
-        ]);
+        $orderId = 'GPA.resolve-test-' . uniqid();
+        $subscriptionPurchase = $this->playSubscription($sku, ['latestSuccessfulOrderId' => $orderId]);
 
         $action = $this->mockedRenewableAction(
             new GooglePlayInAppPurchaseReceipt(
@@ -266,7 +255,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
                 user: $user,
                 region: $region,
                 product_id: (string) $variant->getId(),
-                order_id: $subscriptionPurchase->getOrderId(),
+                order_id: $orderId,
                 purchase_token: $purchaseToken,
                 is_renewable_subscription: true
             ),
@@ -282,6 +271,77 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $this->assertNotNull($subscription);
         $this->assertEquals('google_play:' . $sku, $subscription->type);
         $this->assertEquals($sku, $subscription->stripe_price);
+    }
+
+    public function testPurchaseTokenOfAnotherProductIsRefused(): void
+    {
+        $sku = 'google_sub_claimed_' . uniqid();
+        $receipt = $this->renewableReceipt($sku);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('is not for subscription ' . $sku);
+
+        $this->mockedRenewableAction($receipt, $this->playSubscription('google_sub_cheaper_plan'))->execute();
+    }
+
+    public function testPendingSubscriptionIsRefused(): void
+    {
+        $sku = 'google_sub_pending_' . uniqid();
+        $receipt = $this->renewableReceipt($sku);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('pending state');
+
+        $this->mockedRenewableAction(
+            $receipt,
+            $this->playSubscription($sku, purchase: ['subscriptionState' => SubscriptionState::PENDING->value])
+        )->execute();
+    }
+
+    public function testFreeTrialSetsTrialEndsAt(): void
+    {
+        $sku = 'google_sub_trial_' . uniqid();
+        $receipt = $this->renewableReceipt($sku);
+        $trialEnds = now()->addWeek()->startOfSecond();
+
+        $this->mockedRenewableAction(
+            $receipt,
+            $this->playSubscription($sku, [
+                'latestSuccessfulOrderId' => $receipt->order_id,
+                'expiryTime' => $trialEnds->toIso8601ZuluString(),
+                'offerPhase' => ['freeTrial' => []],
+            ])
+        )->execute();
+
+        $subscription = CashierSubscription::where('stripe_id', $receipt->purchase_token)->firstOrFail();
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertEquals($trialEnds->toDateTimeString(), $subscription->trial_ends_at->toDateTimeString());
+        $this->assertEquals($trialEnds->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+    }
+
+    private function renewableReceipt(string $sku): GooglePlayInAppPurchaseReceipt
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new Setup($app, $user, $company)->run();
+        $this->createProduct(
+            $app,
+            $company,
+            $user,
+            $sku
+        );
+
+        return new GooglePlayInAppPurchaseReceipt(
+            app: $app,
+            company: $company,
+            user: $user,
+            region: Regions::fromApp($app)->fromCompany($company)->firstOrFail(),
+            product_id: $sku,
+            order_id: 'GPA.' . uniqid(),
+            purchase_token: 'token_' . Str::random(20),
+            is_renewable_subscription: true
+        );
     }
 
     private function createProduct(Apps $app, mixed $company, mixed $user, string $sku): void

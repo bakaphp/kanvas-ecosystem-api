@@ -23,7 +23,8 @@ class AppleInAppPurchaseReceipt extends Data
         public readonly int $transaction_date,
         public readonly array $custom_fields = [],
         public readonly bool $is_renewable_subscription = false,
-        public readonly ?string $original_transaction_id = null
+        public readonly ?string $original_transaction_id = null,
+        public readonly ?string $signed_transaction = null
     ) {
     }
 
@@ -41,11 +42,12 @@ class AppleInAppPurchaseReceipt extends Data
             $region,
             $data['product_id'],
             $data['transaction_id'],
-            $data['receipt'],
+            (string) ($data['receipt'] ?? ''),
             (int) $data['transaction_date'],
             $data['custom_fields'] ?? [],
             (bool) ($data['is_renewable_subscription'] ?? false),
-            $data['original_transaction_id'] ?? null
+            $data['original_transaction_id'] ?? null,
+            $data['signed_transaction'] ?? null
         );
     }
 }

@@ -162,11 +162,11 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
             $problems[] = $this->machine->name . ' is ' . $arch . '; only Apple silicon (arm64) is supported.';
         }
 
-        if (trim($client->exec('test -x ' . escapeshellarg($binary) . ' && echo OK || echo NO', 30)) !== 'OK') {
+        if (! $this->succeeds($client, 'test -x ' . escapeshellarg($binary))) {
             $problems[] = 'opencode ' . $version . ' is not installed on ' . $this->machine->name . $this->installHint($app);
         }
 
-        if (trim($client->exec('launchctl print gui/' . $identity['uid'] . ' >/dev/null 2>&1 && echo OK || echo NO', 30)) !== 'OK') {
+        if (! $this->succeeds($client, 'launchctl print gui/' . $identity['uid'] . ' >/dev/null 2>&1')) {
             $problems[] = 'No GUI session for ' . $identity['user'] . ' on ' . $this->machine->name
                 . ' — enable auto-login for the runtime user (FileVault must be off) and log it in.';
         }
@@ -186,7 +186,37 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
             $problems = [...$problems, ...$this->xcodeProblems($client, $identity['user'])];
         }
 
+        if ($this->advertisesAppStoreConnect()) {
+            $root = CodingWorkspaceService::rootFor($app);
+            $problems = [...$problems, ...$this->appStoreConnectProblems($client, $root, $identity['user'])];
+        }
+
         return $problems;
+    }
+
+    /**
+     * Sessions run with `$HOME` inside their worktree, so `~/.asc` is never read: asc finds its key
+     * through the nearest `.asc/config.json` above the working directory, which is the workspace root.
+     *
+     * @return list<string>
+     */
+    private function appStoreConnectProblems(SshClient $client, string $root, string $user): array
+    {
+        if (! $this->succeeds($client, 'PATH=' . self::PATH . '; command -v asc >/dev/null 2>&1')) {
+            return ['asc is not installed on ' . $this->machine->name . ' — brew install asc as ' . $user . '.'];
+        }
+
+        $config = $root . '/.asc/config.json';
+
+        if (! $this->succeeds($client, 'test -r ' . escapeshellarg($config))) {
+            return [
+                'No App Store Connect key for agents on ' . $this->machine->name . ' — write ' . $config
+                . ' (key_id, issuer_id, private_key_path) as ' . $user . '. Give the key file\'s real path: '
+                . 'asc will not follow a symlink, and /srv is one on macOS.',
+            ];
+        }
+
+        return [];
     }
 
     /**
@@ -197,7 +227,7 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
      */
     private function xcodeProblems(SshClient $client, string $user): array
     {
-        if (trim($client->exec('PATH=' . self::PATH . '; xcode-select -p >/dev/null 2>&1 && echo OK || echo NO', 30)) !== 'OK') {
+        if (! $this->succeeds($client, 'PATH=' . self::PATH . '; xcode-select -p >/dev/null 2>&1')) {
             return [
                 'Xcode is not installed on ' . $this->machine->name . ' — install Xcode, accept the licence '
                 . '(sudo xcodebuild -license accept) as ' . $user . ', and download an iOS simulator runtime.',
@@ -219,6 +249,11 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
     private function advertisesXcode(): bool
     {
         return CodingHostToolsService::hasXcode(CodingHostToolsService::forMachine($this->machine));
+    }
+
+    private function advertisesAppStoreConnect(): bool
+    {
+        return CodingHostToolsService::hasAppStoreConnect(CodingHostToolsService::forMachine($this->machine));
     }
 
     /**
@@ -452,7 +487,7 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
             30
         );
 
-        if (trim($client->exec('test -x ' . escapeshellarg($binary) . ' && echo OK || echo NO', 30)) !== 'OK') {
+        if (! $this->succeeds($client, 'test -x ' . escapeshellarg($binary))) {
             throw new ValidationException(
                 'opencode ' . $version . ' is not installed on ' . $this->machine->name . $this->installHint($app)
             );

@@ -64,7 +64,7 @@ class UserSubscriptionTest extends TestCase
                 'data' => [
                     'me' => [
                         'currentSubscription' => [
-                            'id' => (string) $stripeCustomer->id,
+                            'id' => (string) $subscription->id,
                             'type' => 'default',
                             'stripe_status' => 'active',
                             'status' => 'active',
@@ -190,6 +190,65 @@ class UserSubscriptionTest extends TestCase
                 'data' => [
                     'me' => [
                         'currentSubscription' => null,
+                    ],
+                ],
+            ]);
+    }
+
+    public function testCurrentSubscriptionPrefersActiveOverNewerExpired(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $appleCustomer = AppsStripeCustomer::updateOrCreate(
+            ['users_id' => $user->getId(), 'companies_id' => 0, 'apps_id' => $app->getId(), 'provider' => 'apple'],
+            ['stripe_id' => 'apple_orig_' . Str::random(12)]
+        );
+        $googleCustomer = AppsStripeCustomer::updateOrCreate(
+            ['users_id' => $user->getId(), 'companies_id' => 0, 'apps_id' => $app->getId(), 'provider' => 'google_play'],
+            ['stripe_id' => 'google_token_' . Str::random(12)]
+        );
+
+        $active = Subscription::create([
+            'apps_stripe_customer_id' => $appleCustomer->id,
+            'type' => 'apple:pro_monthly',
+            'stripe_id' => 'apple_orig_' . Str::random(12),
+            'stripe_status' => 'active',
+            'stripe_price' => 'pro_monthly',
+            'quantity' => 1,
+            'ends_at' => now()->addWeeks(2),
+            'created_at' => now()->addSecond(),
+        ]);
+        Subscription::create([
+            'apps_stripe_customer_id' => $googleCustomer->id,
+            'type' => 'google_play:pro_monthly',
+            'stripe_id' => 'google_token_' . Str::random(12),
+            'stripe_status' => 'expired',
+            'stripe_price' => 'pro_monthly',
+            'quantity' => 1,
+            'ends_at' => now()->subDay(),
+            'created_at' => now()->addSeconds(2),
+        ]);
+
+        $this->graphQL('
+            query {
+                me {
+                    currentSubscription {
+                        id
+                        stripe_status
+                        is_active
+                    }
+                }
+            }
+        ')->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'me' => [
+                        'currentSubscription' => [
+                            'id' => (string) $active->id,
+                            'stripe_status' => 'active',
+                            'is_active' => true,
+                        ],
                     ],
                 ],
             ]);

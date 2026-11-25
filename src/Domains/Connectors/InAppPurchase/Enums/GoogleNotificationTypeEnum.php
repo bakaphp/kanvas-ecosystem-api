@@ -21,7 +21,7 @@ enum GoogleNotificationTypeEnum: int
     case SUBSCRIPTION_EXPIRED = 13;
     case SUBSCRIPTION_PENDING_PURCHASE_CANCELED = 20;
 
-    public function toSubscriptionStatus(): string
+    public function toSubscriptionStatus(): SubscriptionStatusEnum
     {
         return match ($this) {
             self::SUBSCRIPTION_RECOVERED,
@@ -29,15 +29,15 @@ enum GoogleNotificationTypeEnum: int
             self::SUBSCRIPTION_PURCHASED,
             self::SUBSCRIPTION_RESTARTED,
             self::SUBSCRIPTION_PRICE_CHANGE_CONFIRMED,
-            self::SUBSCRIPTION_DEFERRED => 'active',
+            self::SUBSCRIPTION_DEFERRED => SubscriptionStatusEnum::ACTIVE,
             self::SUBSCRIPTION_CANCELED,
             self::SUBSCRIPTION_REVOKED,
-            self::SUBSCRIPTION_PENDING_PURCHASE_CANCELED => 'canceled',
+            self::SUBSCRIPTION_PENDING_PURCHASE_CANCELED => SubscriptionStatusEnum::CANCELED,
             self::SUBSCRIPTION_ON_HOLD,
-            self::SUBSCRIPTION_IN_GRACE_PERIOD => 'past_due',
+            self::SUBSCRIPTION_IN_GRACE_PERIOD => SubscriptionStatusEnum::PAST_DUE,
             self::SUBSCRIPTION_PAUSED,
-            self::SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED => 'paused',
-            self::SUBSCRIPTION_EXPIRED => 'expired',
+            self::SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED => SubscriptionStatusEnum::PAUSED,
+            self::SUBSCRIPTION_EXPIRED => SubscriptionStatusEnum::EXPIRED,
         };
     }
 }

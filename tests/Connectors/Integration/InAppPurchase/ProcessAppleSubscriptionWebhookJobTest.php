@@ -4,19 +4,33 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\InAppPurchase;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Queue;
+use Imdhemy\AppStore\Jws\JsonWebSignature;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Jobs\ProcessAppleSubscriptionWebhookJob;
+use Kanvas\Connectors\InAppPurchase\Services\AppleJwsVerifier;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Laravel\Cashier\Subscription as CashierSubscription;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
+/**
+ * Serial: the job reads APPLE_BUNDLE_ID, an app setting shared by every parallel process.
+ */
+#[Group('serial')]
 class ProcessAppleSubscriptionWebhookJobTest extends TestCase
 {
+    use ManagesAppSettings;
+
+    private const string BUNDLE_ID = 'com.test.app';
+
     private string $originalTransactionId;
     private string $productId = 'com.test.premium.monthly';
 
@@ -24,6 +38,59 @@ class ProcessAppleSubscriptionWebhookJobTest extends TestCase
     {
         parent::setUp();
         $this->originalTransactionId = 'apple_test_txn_' . uniqid();
+        $this->verifierAnswers(true);
+        $this->setAppSettings([ConfigurationEnum::APPLE_BUNDLE_ID->value => self::BUNDLE_ID]);
+    }
+
+    public function testRejectsNotificationOfAnotherBundle(): void
+    {
+        $this->seedSubscription('active');
+        $endsAt = $this->findSubscription()->ends_at;
+
+        $result = $this->dispatchWebhookJob($this->buildApplePayload('REFUND', bundleId: 'com.someone.else'));
+
+        $this->assertEquals('rejected', $result['status']);
+        $this->assertStringContainsString('belongs to another app', $result['message']);
+        $subscription = $this->findSubscription();
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertEquals($endsAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+    }
+
+    public function testRejectsEveryNotificationWhenBundleIdIsNotConfigured(): void
+    {
+        app(Apps::class)->del(ConfigurationEnum::APPLE_BUNDLE_ID->value);
+        $this->seedSubscription('active');
+
+        $result = $this->dispatchWebhookJob($this->buildApplePayload('REFUND'));
+
+        $this->assertEquals('rejected', $result['status']);
+        $this->assertStringContainsString(ConfigurationEnum::APPLE_BUNDLE_ID->value, $result['message']);
+        $this->assertEquals('active', $this->findSubscription()->stripe_status);
+    }
+
+    public function testRejectsPayloadNotSignedByApple(): void
+    {
+        $this->app->forgetInstance(AppleJwsVerifier::class);
+        $this->seedSubscription('active');
+
+        $result = $this->dispatchWebhookJob($this->buildApplePayload('REFUND'));
+
+        $this->assertEquals('rejected', $result['status']);
+        $this->assertEquals('active', $this->findSubscription()->stripe_status);
+    }
+
+    public function testVerifierRejectionLeavesSubscriptionUnchanged(): void
+    {
+        $this->verifierAnswers(false);
+        $this->seedSubscription('active');
+        $endsAt = $this->findSubscription()->ends_at;
+
+        $result = $this->dispatchWebhookJob($this->buildApplePayload('REFUND'));
+
+        $this->assertEquals('rejected', $result['status']);
+        $subscription = $this->findSubscription();
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertEquals($endsAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
     }
 
     public function testHandleTestNotification(): void
@@ -109,6 +176,94 @@ class ProcessAppleSubscriptionWebhookJobTest extends TestCase
 
         $subscription = $this->findSubscription();
         $this->assertEquals('canceled', $subscription->stripe_status);
+        $this->assertTrue($subscription->ends_at->lessThanOrEqualTo(now()));
+        $this->assertFalse($subscription->active());
+    }
+
+    public function testRefundOfEarlierPeriodLeavesCurrentAccess(): void
+    {
+        $this->seedSubscription('active');
+        $currentEndsAt = $this->findSubscription()->ends_at;
+
+        $result = $this->dispatchWebhookJob(
+            $this->buildApplePayload('REFUND', expiresDate: now()->subMonth())
+        );
+
+        $this->assertStringContainsString('earlier period', $result['message']);
+        $this->assertArrayNotHasKey('new_status', $result);
+        $subscription = $this->findSubscription();
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertEquals($currentEndsAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+        $this->assertTrue($subscription->active());
+    }
+
+    public function testLateRenewalOfEarlierPeriodDoesNotRollBackEndsAt(): void
+    {
+        $this->seedSubscription('active');
+        $currentEndsAt = now()->addMonths(2)->startOfSecond();
+        $this->findSubscription()->forceFill(['ends_at' => $currentEndsAt])->saveOrFail();
+
+        $result = $this->dispatchWebhookJob(
+            $this->buildApplePayload('DID_RENEW', expiresDate: now()->addMonth())
+        );
+
+        $this->assertStringContainsString('earlier period', $result['message']);
+        $this->assertArrayNotHasKey('new_status', $result);
+        $subscription = $this->findSubscription();
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertEquals($currentEndsAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+    }
+
+    public function testLateExpirationOfEarlierPeriodLeavesStatusUnchanged(): void
+    {
+        $this->seedSubscription('active');
+
+        $this->dispatchWebhookJob($this->buildApplePayload('EXPIRED', expiresDate: now()->subDay()));
+
+        $subscription = $this->findSubscription();
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertTrue($subscription->active());
+    }
+
+    public function testUpdatesOlderLineageAfterCustomerMovedToNewerOne(): void
+    {
+        $olderTransactionId = $this->originalTransactionId;
+        $this->seedSubscription('active');
+        $this->originalTransactionId = 'apple_test_txn_' . uniqid();
+        $this->seedSubscription('active');
+        $this->originalTransactionId = $olderTransactionId;
+
+        $result = $this->dispatchWebhookJob(
+            $this->buildApplePayload('DID_CHANGE_RENEWAL_STATUS', 'AUTO_RENEW_DISABLED')
+        );
+
+        $this->assertEquals('canceled', $result['new_status']);
+        $this->assertEquals('canceled', $this->findSubscription($olderTransactionId)->stripe_status);
+    }
+
+    public function testDoesNotTouchSubscriptionOfAnotherApp(): void
+    {
+        $this->seedSubscription('active', appsId: app(Apps::class)->getId() + 1000000);
+        $endsAt = $this->findSubscription()->ends_at;
+
+        $result = $this->dispatchWebhookJob($this->buildApplePayload('REFUND'));
+
+        $this->assertEquals('No matching Apple subscription found', $result['message']);
+        $subscription = $this->findSubscription();
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertEquals($endsAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+    }
+
+    public function testHandleSubscriptionRenewalExtendsEndsAt(): void
+    {
+        $this->seedSubscription('active');
+        $this->findSubscription()->forceFill(['ends_at' => now()->subDay()])->saveOrFail();
+
+        $this->dispatchWebhookJob($this->buildApplePayload('DID_RENEW'));
+
+        $subscription = $this->findSubscription();
+        $this->assertTrue($subscription->ends_at->greaterThan(now()->addWeeks(4)));
+        $this->assertTrue($subscription->active());
     }
 
     public function testHandleBillingFailure(): void
@@ -144,6 +299,91 @@ class ProcessAppleSubscriptionWebhookJobTest extends TestCase
         $this->assertEquals('active', $subscription->stripe_status);
     }
 
+    public function testLatePreferenceChangeDoesNotReopenARefundedPeriod(): void
+    {
+        $this->seedSubscription('active');
+        $this->dispatchWebhookJob($this->buildApplePayload('REFUND'));
+
+        $result = $this->dispatchWebhookJob($this->buildApplePayload(
+            'DID_CHANGE_RENEWAL_STATUS',
+            'AUTO_RENEW_ENABLED'
+        ));
+
+        $this->assertArrayNotHasKey('new_status', $result);
+        $subscription = $this->findSubscription();
+        $this->assertEquals('canceled', $subscription->stripe_status);
+        $this->assertFalse($subscription->active());
+    }
+
+    public function testLateRenewalOfARefundedPeriodDoesNotReopenAccess(): void
+    {
+        $this->seedSubscription('active');
+        $this->dispatchWebhookJob($this->buildApplePayload('REFUND', revocationDate: now()->subMinute()));
+
+        foreach (['DID_RENEW', 'SUBSCRIBED', 'OFFER_REDEEMED'] as $type) {
+            $result = $this->dispatchWebhookJob($this->buildApplePayload(
+                $type,
+                expiresDate: now()->addMonth(),
+                purchaseDate: now()->subDays(2)
+            ));
+
+            $this->assertStringContainsString('refunded period', $result['message'], $type);
+        }
+
+        $subscription = $this->findSubscription();
+        $this->assertEquals('canceled', $subscription->stripe_status);
+        $this->assertFalse($subscription->active());
+    }
+
+    public function testPurchaseAfterTheRefundReactivates(): void
+    {
+        $this->seedSubscription('active');
+        $this->dispatchWebhookJob($this->buildApplePayload('REFUND', revocationDate: now()->subHour()));
+
+        $result = $this->dispatchWebhookJob($this->buildApplePayload(
+            'SUBSCRIBED',
+            'RESUBSCRIBE',
+            now()->addMonth(),
+            purchaseDate: now()->subMinute()
+        ));
+
+        $this->assertEquals('active', $result['new_status']);
+        $this->assertTrue($this->findSubscription()->active());
+    }
+
+    public function testPreferenceChangesOtherThanAutoRenewLeaveStatusAlone(): void
+    {
+        $this->seedSubscription('canceled');
+        $paidUntil = $this->findSubscription()->ends_at->toDateTimeString();
+
+        foreach (['PRICE_INCREASE', 'CONSUMPTION_REQUEST', 'REFUND_DECLINED', 'DID_CHANGE_RENEWAL_PREF'] as $type) {
+            $result = $this->dispatchWebhookJob($this->buildApplePayload($type));
+
+            $this->assertArrayNotHasKey('new_status', $result, $type);
+        }
+
+        $subscription = $this->findSubscription();
+        $this->assertEquals('canceled', $subscription->stripe_status);
+        $this->assertEquals($paidUntil, $subscription->ends_at->toDateTimeString());
+    }
+
+    public function testPreferenceChangeKeepsThePaidPeriod(): void
+    {
+        $this->seedSubscription('active');
+        $paidUntil = $this->findSubscription()->ends_at->toDateTimeString();
+
+        $this->dispatchWebhookJob($this->buildApplePayload(
+            'DID_CHANGE_RENEWAL_STATUS',
+            'AUTO_RENEW_DISABLED',
+            now()->addYear()
+        ));
+
+        $subscription = $this->findSubscription();
+        $this->assertEquals('canceled', $subscription->stripe_status);
+        $this->assertEquals($paidUntil, $subscription->ends_at->toDateTimeString());
+        $this->assertTrue($subscription->active());
+    }
+
     public function testHandleMissingSubscription(): void
     {
         $unknownTxnId = 'apple_unknown_txn_' . uniqid();
@@ -158,14 +398,27 @@ class ProcessAppleSubscriptionWebhookJobTest extends TestCase
         $this->assertEquals($unknownTxnId, $result['original_transaction_id']);
     }
 
-    private function seedSubscription(string $status): void
+    private function verifierAnswers(bool $isSignedByApple): void
     {
-        $app = app(Apps::class);
+        $this->app->instance(AppleJwsVerifier::class, new class ($isSignedByApple) extends AppleJwsVerifier {
+            public function __construct(private readonly bool $isSignedByApple)
+            {
+            }
+
+            public function verify(JsonWebSignature $jws): bool
+            {
+                return $this->isSignedByApple;
+            }
+        });
+    }
+
+    private function seedSubscription(string $status, ?int $appsId = null): void
+    {
         $user = auth()->user();
 
         $appsStripeCustomer = AppsStripeCustomer::updateOrCreate(
             [
-                'apps_id' => $app->getId(),
+                'apps_id' => $appsId ?? app(Apps::class)->getId(),
                 'companies_id' => 0,
                 'users_id' => $user->getId(),
                 'provider' => 'apple',
@@ -191,37 +444,35 @@ class ProcessAppleSubscriptionWebhookJobTest extends TestCase
         );
     }
 
-    private function findSubscription(): CashierSubscription
+    private function findSubscription(?string $originalTransactionId = null): CashierSubscription
     {
-        $app = app(Apps::class);
-
-        /** @var AppsStripeCustomer $customer */
-        $customer = AppsStripeCustomer::where('apps_id', $app->getId())
-            ->where('provider', 'apple')
-            ->where('stripe_id', $this->originalTransactionId)
-            ->firstOrFail();
-
-        /** @var CashierSubscription $subscription */
-        $subscription = CashierSubscription::where('apps_stripe_customer_id', $customer->getId())
-            ->where('stripe_id', $this->originalTransactionId)
-            ->firstOrFail();
-
-        return $subscription->fresh();
+        return CashierSubscription::where('stripe_id', $originalTransactionId ?? $this->originalTransactionId)
+            ->firstOrFail()
+            ->fresh();
     }
 
-    private function buildApplePayload(string $notificationType, ?string $subtype = null): array
-    {
-        $expiresDateMs = now()->addMonth()->getTimestampMs();
-
+    private function buildApplePayload(
+        string $notificationType,
+        ?string $subtype = null,
+        ?Carbon $expiresDate = null,
+        ?Carbon $purchaseDate = null,
+        ?Carbon $revocationDate = null,
+        string $bundleId = self::BUNDLE_ID
+    ): array {
         $transactionClaims = [
             'originalTransactionId' => $this->originalTransactionId,
             'transactionId' => 'txn_' . uniqid(),
             'productId' => $this->productId,
-            'bundleId' => 'com.test.app',
-            'expiresDate' => $expiresDateMs,
+            'bundleId' => $bundleId,
+            'purchaseDate' => ($purchaseDate ?? now()->subMinute())->getTimestampMs(),
+            'expiresDate' => ($expiresDate ?? now()->addMonth())->getTimestampMs(),
             'environment' => 'Sandbox',
             'type' => 'Auto-Renewable Subscription',
         ];
+
+        if ($revocationDate !== null) {
+            $transactionClaims['revocationDate'] = $revocationDate->getTimestampMs();
+        }
 
         $renewalClaims = [
             'originalTransactionId' => $this->originalTransactionId,
@@ -235,7 +486,7 @@ class ProcessAppleSubscriptionWebhookJobTest extends TestCase
             'version' => '2.0',
             'signedDate' => now()->getTimestampMs(),
             'data' => [
-                'bundleId' => 'com.test.app',
+                'bundleId' => $bundleId,
                 'environment' => 'Sandbox',
                 'signedTransactionInfo' => $this->buildUnsignedJws($transactionClaims),
                 'signedRenewalInfo' => $this->buildUnsignedJws($renewalClaims),
