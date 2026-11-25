@@ -251,6 +251,7 @@ class DownloadAllLeadsCommand extends Command
 
             $successCount = 0;
             $errorCount = 0;
+            $skippedServiceCount = 0;
 
             // Create progress bar
             $progressBar = $this->output->createProgressBar($totalPages - $lastLeadsPagination);
@@ -277,16 +278,28 @@ class DownloadAllLeadsCommand extends Command
                             // Use cache lock to prevent duplicate lead creation from concurrent cron jobs
                             $lockKey = "vinsolution_lead_sync:{$company->getId()}:{$leadId}";
 
-                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $transformedLead, $company, $app, $user, &$successCount) {
+                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $transformedLead, $company, $app, $user, &$successCount, &$skippedServiceCount) {
                                 $existingLead = ModelsLead::getByCustomField(
                                     CustomFieldEnum::LEADS->value,
                                     $leadId,
                                     $company,
                                 );
 
+                                // Checked on the list row so a skipped lead costs no further VinSolutions calls.
+                                if ($existingLead === null
+                                    && EnumsConfigurationEnum::skipsCrmServiceLead($company, $transformedLead['newLeadType'])
+                                ) {
+                                    $skippedServiceCount++;
+
+                                    return;
+                                }
+
                                 // Use PullLeadAction to sync the lead
                                 $pullLeadAction = new PullLeadAction($app, $company, $user);
-                                $result = $pullLeadAction->execute(null, $leadId);
+                                $result = $pullLeadAction->execute(
+                                    leadId: $leadId,
+                                    skipUnimportedServiceLeads: $existingLead === null
+                                );
 
                                 if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
                                     //$lead = ModelsLead::getById($leadId);
@@ -339,6 +352,7 @@ class DownloadAllLeadsCommand extends Command
             $this->newLine(2);
             $this->info('Download completed!');
             $this->info("Successfully synced: {$successCount} leads");
+            $this->info("Skipped service leads: {$skippedServiceCount}");
             $this->info("Errors: {$errorCount} leads");
         } catch (Throwable $e) {
             $this->error('Failed to download leads: ' . $e->getMessage());

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Enums;
 
+use Kanvas\Companies\Models\Companies;
+
 enum ConfigurationEnum: string
 {
     case SEND_NEW_LEAD_NOTIFICATION = 'guild_send_new_lead_notification';
@@ -34,8 +36,19 @@ enum ConfigurationEnum: string
     case DAILY_LEADS_DIGEST_SUMMARY_FIELDS = 'guild_daily_leads_digest_summary_fields';
     case AGENT_EMAIL_CC_ALLOWED_DOMAINS = 'guild_agent_email_cc_allowed_domains';
     case EMAIL_THREAD_SUBJECT = 'title_email_follow_up';
+    case CRM_DOWNLOAD_SERVICE_LEADS = 'guild_crm_download_service_leads';
 
     // App settings named when Twilio was the only carrier; the keys stay so saved values still apply.
     case SMS_MEDIA_BATCH_SIZE = 'twilio-mms-batch-size';
     case SMS_MEDIA_MAX_TOTAL = 'twilio-mms-max-total-media';
+
+    /**
+     * A dealer CRM files service-department visits as leads of type SERVICE (VinSolutions) or
+     * Service (eLeads). The downloads leave them out unless the company turns the setting on.
+     */
+    public static function skipsCrmServiceLead(Companies $company, ?string $leadTypeName): bool
+    {
+        return strtolower(trim((string) $leadTypeName)) === 'service'
+            && ! $company->getBool(self::CRM_DOWNLOAD_SERVICE_LEADS->value);
+    }
 }
