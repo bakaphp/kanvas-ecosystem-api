@@ -55,6 +55,10 @@ final class StartIntegrationImportActionTest extends TestCase
         $run = $this->start('plain', []);
 
         $this->assertSame(IntegrationImportStatusEnum::QUEUED, $run->status);
+
+        $chunky = $this->start('chunky', ['region_ids' => ['1'], 'flag' => null]);
+
+        $this->assertArrayNotHasKey('flag', $chunky->fresh()->options);
         Queue::assertPushed(RunIntegrationImportJob::class);
     }
 
@@ -110,7 +114,7 @@ final class StartIntegrationImportActionTest extends TestCase
             'status_id' => $this->row->status_id,
         ]);
 
-        $this->assertRefused('A plain import is already in progress for this integration.', 'plain', [], $other);
+        $this->assertRefused('A plain import is already in progress for this integration.', 'plain', row: $other);
         $this->start('whole');
         Queue::assertPushed(RunIntegrationImportJob::class, 2);
     }
@@ -154,7 +158,12 @@ final class StartIntegrationImportActionTest extends TestCase
         )->execute();
     }
 
-    private function assertRefused(string $message, string $entity, array $options = [], ?IntegrationsCompany $row = null): void
+    private function assertRefused(
+        string $message,
+        string $entity,
+        array $options = [],
+        ?IntegrationsCompany $row = null
+    ): void
     {
         try {
             $this->start($entity, $options, $row);

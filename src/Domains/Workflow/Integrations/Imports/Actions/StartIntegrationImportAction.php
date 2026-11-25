@@ -6,6 +6,7 @@ namespace Kanvas\Workflow\Integrations\Imports\Actions;
 
 use Baka\Support\AllowedClass;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
@@ -37,16 +38,19 @@ class StartIntegrationImportAction
             throw new ValidationException('This integration is not active.');
         }
 
-        $importable = $this->integrationCompany->importableFor($this->entity)
+        $importables = $this->integrationCompany->importables();
+        $importable = array_find($importables, fn (Importable $candidate) => $candidate->entity === $this->entity)
             ?? throw new ValidationException(sprintf(
                 '%s cannot import %s. It can import: %s.',
                 $integrationName,
                 $this->entity,
-                implode(', ', array_map(
-                    fn (Importable $candidate) => $candidate->entity,
-                    $this->integrationCompany->importables()
-                ))
+                implode(', ', array_map(fn (Importable $candidate) => $candidate->entity, $importables))
             ));
+
+        $this->options = array_filter(
+            $this->options,
+            fn (mixed $value) => $value !== null && $value !== '' && $value !== []
+        );
 
         $this->validateOptions($importable);
 
@@ -54,24 +58,36 @@ class StartIntegrationImportAction
             ?? throw new RuntimeException(sprintf('%s is not an allowed importer.', $importable->importer));
         $options = new $importerClass($this->integrationCompany, $this->user)->prepare($this->options);
 
-        if (IntegrationImport::inProgressFor($this->integrationCompany, $this->entity) !== null) {
-            throw new ValidationException(sprintf(
-                'A %s import is already in progress for this integration.',
+        $lock = Cache::lock(
+            sprintf(
+                'integration-import-start:%d:%d:%s',
+                $this->integrationCompany->companies_id,
+                $this->integrationCompany->integrations_id,
                 $this->entity
-            ));
-        }
+            ),
+            10
+        );
 
-        $run = IntegrationImport::create([
-            'apps_id' => $this->integrationCompany->apps_id ?? app(Apps::class)->getId(),
-            'companies_id' => $this->integrationCompany->companies_id,
-            'integrations_id' => $this->integrationCompany->integrations_id,
-            'integrations_companies_id' => $this->integrationCompany->getId(),
-            'users_id' => $this->user->getId(),
-            'entity' => $this->entity,
-            'status' => IntegrationImportStatusEnum::QUEUED,
-            'options' => $options,
-            'queued_at' => Carbon::now(),
-        ]);
+        $run = $lock->block(5, function () use ($options) {
+            if (IntegrationImport::inProgressFor($this->integrationCompany, $this->entity) !== null) {
+                throw new ValidationException(sprintf(
+                    'A %s import is already in progress for this integration.',
+                    $this->entity
+                ));
+            }
+
+            return IntegrationImport::create([
+                'apps_id' => $this->integrationCompany->apps_id ?? app(Apps::class)->getId(),
+                'companies_id' => $this->integrationCompany->companies_id,
+                'integrations_id' => $this->integrationCompany->integrations_id,
+                'integrations_companies_id' => $this->integrationCompany->getId(),
+                'users_id' => $this->user->getId(),
+                'entity' => $this->entity,
+                'status' => IntegrationImportStatusEnum::QUEUED,
+                'options' => $options,
+                'queued_at' => Carbon::now(),
+            ]);
+        });
 
         RunIntegrationImportJob::dispatch($run);
 
