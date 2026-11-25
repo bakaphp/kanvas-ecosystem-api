@@ -421,7 +421,12 @@ is safe only while nothing enables parallel calls or deferred tools.
   thought part ahead of the call loses the signature and Gemini rejects the next request.
 - `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) teaches the router that a
   Bedrock failure is an AWS SDK exception, not Neuron's `HttpException`: the stock strategy fails over
-  only on the latter, so a throttled or down Bedrock model never reached its fallback. It needs
+  only on the latter, so a throttled or down Bedrock model never reached its fallback. Bedrock's 408
+  (`ModelTimeoutException`) counts as transient too: it comes back in under a second when the model has
+  no capacity, and the AWS SDK's own retry does not cover it (KANVAS-ECOSYSTEM-70B). A 403 or 404 does
+  not fail over: a model the account cannot use is a setup fault, and answering it with another model
+  would hide it. `RunNeuronChatAction::humanizedFallback()` tells an internal user so
+  (KANVAS-ECOSYSTEM-707) and the failure is still reported. It needs
   `neuron-core/router` 2.1.2 or later (the lock's version); 2.1.0 stored the prompt in a `?string` and
   threw a TypeError on the first turn of any failover chain.
 
@@ -487,8 +492,17 @@ durable run that died on it starts over like any spent budget, and the error han
 `ToolRunsExceededException` through: it is a `ToolException`, and answered as a miss it would never stop
 the loop.
 
-Coverage: `tests/Intelligence/Agents/Providers/UnknownToolCallRecoveryTest.php` has one test per half
-and two for the bound.
+The name the model sent is not always one a provider can take back. The call record keeps it, the next
+round replays the call and declares its stub under it, and the provider refuses the whole request over
+either: llama4-scout on Bedrock called a tool with no name at all and the AWS SDK rejected the second
+round before it left (KANVAS-ECOSYSTEM-708). `RecoversUnknownToolCalls::newToolCall()` therefore records
+a call to a tool the agent does not hold under `UnknownToolStub::declarableName()`: unchanged when it
+fits `[a-zA-Z_][a-zA-Z0-9_-]{0,63}` (what Bedrock, OpenAI and Gemini all accept), cleaned otherwise, and
+`unnamed_tool` when nothing is left, which the stub answers with "you made a tool call without a tool
+name". A tool the agent holds is never renamed, whatever its name looks like.
+
+Coverage: `tests/Intelligence/Agents/Providers/UnknownToolCallRecoveryTest.php` has one test per half,
+two for the bound and one per kind of undeclarable name, sent through the real AWS request validator.
 
 ## Providers
 

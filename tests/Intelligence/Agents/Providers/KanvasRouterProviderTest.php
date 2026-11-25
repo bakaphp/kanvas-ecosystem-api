@@ -47,6 +47,8 @@ class KanvasRouterProviderTest extends TestCase
     public static function bedrockFailures(): array
     {
         return [
+            // KANVAS-ECOSYSTEM-70B: ModelTimeoutException, which the AWS SDK never retries.
+            'model timed out' => [408, false, true],
             'throttled' => [429, false, true],
             'server failure' => [500, false, true],
             'unavailable' => [503, false, true],

@@ -293,7 +293,10 @@ not); Anthropic's and OpenAI's mappers drop it, so the agent would answer a cust
 - **In memory**: `DescribeMessageAttachmentsJob` builds its describer with `forAgent()`, which carries
   the same audio provider, so the history of a Claude-backed agent still gets the transcript. A voice
   note on a deaf provider is therefore transcribed twice (turn + caption job); accepted for now, cache
-  it on the message if the bill says otherwise.
+  it on the message if the bill says otherwise. `forAgent()` also asks through the agent's failover
+  chain (`NeuronResponderProviderFallback`), so a caption survives a model that is briefly out of
+  capacity (KANVAS-ECOSYSTEM-70B); audio is still matched against the agent's own provider, because a
+  chain says nothing about what its models can hear.
 - Laravel-AI agents hand `Audio::fromBase64` to laravel/ai and are not gated here.
 
 ## Adding a new backend (e.g. Anthropic-direct)

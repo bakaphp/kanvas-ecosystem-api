@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Providers;
 
+use Aws\MockHandler;
+use Aws\Result;
 use Kanvas\Intelligence\Agents\Exceptions\UnknownToolRunsExceededException;
 use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasBedrock;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
+use Kanvas\Intelligence\Agents\Services\BedrockClientService;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
@@ -17,6 +21,7 @@ use NeuronAI\Providers\ProviderResponse;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolCall;
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use ReflectionProperty;
 use Tests\Stubs\Intelligence\CapturingNeuronAgentStub;
@@ -274,5 +279,100 @@ final class UnknownToolCallRecoveryTest extends TestCase
         $reply = $agent->chat(new UserMessage('Summarise these leads'))->getMessage();
 
         $this->assertSame('Review done', $reply?->getContent());
+    }
+
+    /**
+     * Regression for KANVAS-ECOSYSTEM-708: a Bedrock model answered with a tool call that carried no
+     * name. The call was replayed and its stub declared under that empty name, and the AWS SDK refuses
+     * both before the request leaves, so the turn died on its second round.
+     */
+    #[DataProvider('namesNoProviderDeclares')]
+    public function testAToolCalledUnderANameNoProviderDeclaresIsAnsweredUnderOneItAccepts(string $called): void
+    {
+        $bedrock = new MockHandler([
+            $this->bedrockReply([['toolUse' => ['toolUseId' => 'tooluse_1', 'name' => $called, 'input' => []]]]),
+            $this->bedrockReply([['text' => 'Review done']]),
+        ]);
+        $client = BedrockClientService::make('test-key');
+        $client->getHandlerList()->setHandler($bedrock);
+
+        $provider = new KanvasBedrock($client, 'us.meta.llama4-scout-17b-instruct-v1:0');
+        $provider->setTools([$this->realTool()]);
+
+        $question = new UserMessage('Who is lead 12?');
+        $call = $provider->chat($question)->message();
+
+        $this->assertInstanceOf(ToolCallMessage::class, $call);
+
+        $answered = array_map(
+            static fn (ToolCall $tool): ToolCall => $tool->setResult(
+                UnknownToolStub::response($tool->getName(), ['search_leads'])
+            ),
+            $call->getToolCalls(),
+        );
+
+        // Neuron re-sends the agent's own tool list on every inference round.
+        $provider->setTools([$this->realTool()]);
+        $reply = $provider->chat($question, $call, new ToolResultMessage($answered))->message();
+
+        $this->assertSame('Review done', $reply->getContent());
+
+        $sent = $bedrock->getLastCommand()->toArray();
+        $names = [
+            ...array_column(array_column($sent['toolConfig']['tools'], 'toolSpec'), 'name'),
+            ...array_column(array_column($sent['messages'][1]['content'], 'toolUse'), 'name'),
+        ];
+
+        $this->assertCount(3, $names, 'The real tool, the stub and the replayed call');
+        foreach ($names as $name) {
+            $this->assertMatchesRegularExpression('/^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/', $name);
+        }
+        $this->assertSame($names[1], $names[2], 'The call is replayed under the name its stub is declared with');
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function namesNoProviderDeclares(): array
+    {
+        return [
+            'no name' => [''],
+            'only spaces' => ['   '],
+            'characters outside the grammar' => ['functions.get lead/ref'],
+            'opens with a digit' => ['2nd_lookup'],
+            'longer than the limit' => [str_repeat('lookup_', 20)],
+        ];
+    }
+
+    public function testACallWithNoNameIsToldSoInsteadOfBeingQuotedAnEmptyName(): void
+    {
+        $provider = $this->provider();
+        $provider->setTools([$this->realTool()]);
+
+        $call = $provider->newToolCall('', 'call-1', []);
+        $message = UnknownToolStub::response($call->getName(), ['search_leads'])['message'];
+
+        $this->assertStringContainsString('without a tool name', $message);
+        $this->assertStringContainsString('search_leads', $message);
+    }
+
+    public function testARealToolIsNeverRenamedWhateverItsNameLooksLike(): void
+    {
+        $provider = $this->provider();
+        $provider->setTools([new CallbackTool('crm.search-leads', 'Find leads by name.', fn (): string => 'ok')]);
+
+        $this->assertSame('crm.search-leads', $provider->newToolCall('crm.search-leads', 'call-1', [])->getName());
+    }
+
+    /**
+     * @param list<array<string, mixed>> $content
+     */
+    private function bedrockReply(array $content): Result
+    {
+        return new Result([
+            'output' => ['message' => ['role' => 'assistant', 'content' => $content]],
+            'stopReason' => 'end_turn',
+            'usage' => ['inputTokens' => 10, 'outputTokens' => 5],
+        ]);
     }
 }
