@@ -7,6 +7,7 @@ namespace Tests\Guild\Leads;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\FollowLeadOnMessageAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
@@ -29,6 +30,56 @@ final class LeadFollowersNotificationTest extends TestCase
         $this->assertInstanceOf(UsersFollows::class, $follow);
         $this->assertSame($follow->getId(), $again->getId());
         $this->assertSame(1, $this->followRows($lead, $sender));
+    }
+
+    public function testMessagingTheLeadAlsoFollowsItsPerson(): void
+    {
+        $sender = auth()->user();
+        $lead = $this->makeLead(Users::factory()->create());
+
+        new FollowLeadOnMessageAction($lead, $sender)->execute();
+        new FollowLeadOnMessageAction($lead, $sender)->execute();
+
+        $this->assertSame(1, $this->followRows($lead->people, $sender));
+    }
+
+    public function testFollowAndUnFollowPeopleThroughGraphQL(): void
+    {
+        $user = auth()->user();
+        $people = $this->makeLead($user)->people;
+
+        foreach ([$people->getId(), $people->uuid] as $entityId) {
+            $input = ['entity_id' => $entityId, 'user_id' => $user->getId()];
+
+            $this->graphQL('
+                mutation($input: FollowInput!) {
+                    followPeople(input: $input)
+                }
+            ', ['input' => $input])->assertJson(['data' => ['followPeople' => true]]);
+
+            $this->graphQL('
+                query($where: QueryPeoplesWhereWhereConditions) {
+                    peoples(where: $where) {
+                        data {
+                            followers {
+                                data {
+                                    id
+                                }
+                            }
+                        }
+                    }
+                }
+            ', ['where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $people->getId()]])
+                ->assertJsonPath('data.peoples.data.0.followers.data.0.id', (string) $user->getId());
+
+            $this->graphQL('
+                mutation($input: FollowInput!) {
+                    unFollowPeople(input: $input)
+                }
+            ', ['input' => $input])->assertJson(['data' => ['unFollowPeople' => true]]);
+
+            $this->assertSame(0, $this->followRows($people, $user));
+        }
     }
 
     public function testTheOwnerAndTheCreatorAreNotAddedAsFollowers(): void
@@ -151,11 +202,11 @@ final class LeadFollowersNotificationTest extends TestCase
         Notification::assertNothingSentTo($follower);
     }
 
-    private function followRows(Lead $lead, Users $user): int
+    private function followRows(Lead|People $entity, Users $user): int
     {
         return UsersFollows::query()
-            ->where('entity_namespace', Lead::class)
-            ->where('entity_id', $lead->getId())
+            ->where('entity_namespace', $entity::class)
+            ->where('entity_id', $entity->getId())
             ->where('users_id', $user->getId())
             ->where('is_deleted', 0)
             ->count();
