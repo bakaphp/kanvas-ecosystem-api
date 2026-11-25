@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Leads;
 
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -41,6 +42,52 @@ final class LeadFollowersNotificationTest extends TestCase
         new FollowLeadOnMessageAction($lead, $sender)->execute();
 
         $this->assertSame(1, $this->followRows($lead->people, $sender));
+    }
+
+    public function testAPersonUnderAnotherCompanyKeepsTheLeadFollowAndReportsNothing(): void
+    {
+        Exceptions::fake();
+
+        $sender = auth()->user();
+        $lead = $this->makeLead(Users::factory()->create());
+        $lead->people
+            ->forceFill(['companies_id' => Companies::factory()->create()->getId()])
+            ->saveQuietly();
+
+        $follow = new FollowLeadOnMessageAction($lead, $sender)->execute();
+
+        $this->assertInstanceOf(UsersFollows::class, $follow);
+        $this->assertSame(1, $this->followRows($lead, $sender));
+        $this->assertSame(0, $this->followRows($lead->people, $sender));
+        Exceptions::assertNothingReported();
+    }
+
+    public function testFollowPeopleRefusesAnotherCompanysPersonAndAUserOutsideTheCompany(): void
+    {
+        $user = auth()->user();
+        $outsider = Users::factory()->create();
+        $ours = $this->makeLead($user)->people;
+        $theirs = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId(Companies::factory()->create()->getId())
+            ->create();
+
+        $refused = [
+            [$theirs, $user, $theirs->getId()],
+            [$theirs, $user, $theirs->uuid],
+            [$ours, $outsider, $ours->getId()],
+        ];
+
+        foreach ($refused as [$people, $follower, $entityId]) {
+            $response = $this->graphQL('
+                mutation($input: FollowInput!) {
+                    followPeople(input: $input)
+                }
+            ', ['input' => ['entity_id' => $entityId, 'user_id' => $follower->getId()]]);
+
+            $this->assertNotEmpty($response->json('errors'));
+            $this->assertSame(0, $this->followRows($people, $follower));
+        }
     }
 
     public function testFollowAndUnFollowPeopleThroughGraphQL(): void

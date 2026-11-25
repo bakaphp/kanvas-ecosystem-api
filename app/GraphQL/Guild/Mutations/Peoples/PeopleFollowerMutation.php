@@ -24,7 +24,8 @@ class PeopleFollowerMutation
     {
         $input = $request['input'];
 
-        return Users::getById($input['user_id'])->unFollow($this->peopleFor($input), $this->actingContext()->app);
+        return Users::getById($input['user_id'])
+            ->unFollow($this->peopleFor($input), $this->actingContext()->app);
     }
 
     /**
