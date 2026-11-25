@@ -203,7 +203,8 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
         $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 2));
 
         $this->assertNull($result);
-        $this->assertEquals($endsAt->toDateTimeString(), $this->findSubscription()->ends_at->toDateTimeString());
+        $storedEndsAt = $this->findSubscription()->ends_at;
+        $this->assertEquals($endsAt->toDateTimeString(), $storedEndsAt->toDateTimeString());
     }
 
     public function testPlayFailureLeavesSubscriptionUnchanged(): void

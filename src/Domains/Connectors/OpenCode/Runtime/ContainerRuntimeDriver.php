@@ -128,7 +128,7 @@ class ContainerRuntimeDriver extends AbstractCodingRuntimeDriver
         $problems = [];
         $owner = trim($client->exec('whoami', 30));
 
-        if (trim($client->exec('docker info >/dev/null 2>&1 && echo OK || echo NO', 60)) !== 'OK') {
+        if (! $this->succeeds($client, 'docker info >/dev/null 2>&1', 60)) {
             $problems[] = 'Docker is not usable by ' . $owner . ' on ' . $this->machine->name
                 . ' — install it, or add that user to the docker group.';
         }

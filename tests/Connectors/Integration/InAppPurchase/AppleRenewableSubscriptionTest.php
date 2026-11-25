@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\InAppPurchase;
 
 use Carbon\Carbon;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
@@ -24,6 +25,11 @@ use Tests\TestCase;
 
 class AppleRenewableSubscriptionTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    // Same leak as AppleSignedTransactionTest: a purchase files the process's shared user as a CRM person.
+    protected $connectionsToTransact = [null, 'crm', 'commerce'];
+
     private string $runId;
 
     protected function setUp(): void

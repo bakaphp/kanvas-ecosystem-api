@@ -101,28 +101,32 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         }
 
         $metadata = $this->normalizeSignedTransactionMetadata($transaction);
+        $orderMetadata = $this->buildReceiptPayload();
+        $orderMetadata['transactionId'] = $metadata['transaction_id'];
+        $orderMetadata['transactionReceipt'] = null;
 
         return $this->recordAppleSubscription(
             $metadata,
-            fn (): ModelsOrder => $this->createSignedTransactionOrder($metadata)
+            fn (): ModelsOrder => $this->createAppleSubscriptionOrder($orderMetadata, $metadata)
         );
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param array<string, mixed> $orderMetadata buildReceiptPayload()
+     * @param array<string, mixed> $subscriptionMetadata
      */
-    private function createSignedTransactionOrder(array $metadata): ModelsOrder
+    private function createAppleSubscriptionOrder(array $orderMetadata, array $subscriptionMetadata): ModelsOrder
     {
         $orderItems = [
-            $this->createOrderItem($this->getVariant($metadata['product_id']), $metadata['quantity']),
+            $this->createOrderItem(
+                $this->getVariant($subscriptionMetadata['product_id']),
+                $subscriptionMetadata['quantity']
+            ),
         ];
         $this->processCustomFieldsVariants($orderItems);
 
-        $orderMetadata = $this->buildReceiptPayload();
-        $orderMetadata['transactionId'] = $metadata['transaction_id'];
-        $orderMetadata['transactionReceipt'] = null;
         $orderMetadata['source'] = StoreProviderEnum::APPLE->value;
-        $orderMetadata['apple_subscription'] = $metadata;
+        $orderMetadata['apple_subscription'] = $subscriptionMetadata;
         $this->addMessageMetadataFromCustomFields($orderMetadata);
 
         return new CreateOrderAction(
@@ -330,14 +334,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         return $this->recordAppleSubscription(
             $metadata,
-            fn (): ModelsOrder => new CreateOrderAction(
-                $this->createRenewableOrderData(
-                    $receipt,
-                    $this->createPeople(),
-                    $resolvedReceiptInfo,
-                    $metadata
-                )
-            )->execute()
+            fn (): ModelsOrder => $this->createAppleSubscriptionOrder($receipt, $metadata)
         );
     }
 
@@ -453,36 +450,6 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         );
     }
 
-    /**
-     * @param array<string, mixed> $subscriptionMetadata
-     */
-    private function createRenewableOrderData(
-        array $allReceiptData,
-        People $people,
-        LatestReceiptInfo $receiptInfo,
-        array $subscriptionMetadata
-    ): Order {
-        $variant = $this->getVariant($receiptInfo->getProductId());
-        /** @var array<OrderItem> $orderItems */
-        $orderItems = [];
-
-        $orderItems[] = $this->createOrderItem(
-            $variant,
-            $receiptInfo->getQuantity()
-        );
-
-        $this->processCustomFieldsVariants($orderItems);
-        $allReceiptData['source'] = StoreProviderEnum::APPLE->value;
-        $allReceiptData['apple_subscription'] = $subscriptionMetadata;
-        $this->addMessageMetadataFromCustomFields($allReceiptData);
-
-        return $this->createOrderDto(
-            $orderItems,
-            $people,
-            $allReceiptData
-        );
-    }
-
     private function resolveRenewableReceiptInfo(
         ReceiptResponse $receiptResponse,
         string $requestedTransactionId,
@@ -590,13 +557,14 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         $expiresDate = $this->toCarbon($metadata['expires_date']);
         $cancellationDate = $this->toCarbon($metadata['cancellation_date']);
+        $status = $this->resolveAppleSubscriptionStatus($cancellationDate, $expiresDate);
 
         $subscription ??= new CashierSubscription();
         $subscription->apps_stripe_customer_id = $appsStripeCustomer->getId();
         $subscription->type = StoreProviderEnum::APPLE->value . ':' . $metadata['product_id'];
         $subscription->stripe_id = $metadata['original_transaction_id'];
         $subscription->stripe_price = $metadata['product_id'];
-        $subscription->stripe_status = $this->resolveAppleSubscriptionStatus($cancellationDate, $expiresDate)->value;
+        $subscription->stripe_status = $status->value;
         $subscription->quantity = $metadata['quantity'];
         // A refund ends access at the refund date; the future expiry would keep Cashier's active() true.
         $subscription->ends_at = $cancellationDate ?? $expiresDate;

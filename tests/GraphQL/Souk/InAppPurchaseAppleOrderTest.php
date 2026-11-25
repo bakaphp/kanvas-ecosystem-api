@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Exceptions;
 use Imdhemy\AppStore\ClientFactory;
 use Kanvas\Apps\Models\Apps;
@@ -30,7 +31,11 @@ use Tests\Traits\ManagesAppSettings;
 #[Group('serial')]
 class InAppPurchaseAppleOrderTest extends TestCase
 {
+    use DatabaseTransactions;
     use ManagesAppSettings;
+
+    // Same leak as AppleSignedTransactionTest: a purchase files the process's shared user as a CRM person.
+    protected $connectionsToTransact = [null, 'crm', 'commerce'];
 
     /**
      * An app with a global registration company buys under that company, while these tests stock

@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\InAppPurchase;
 
 use Closure;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Imdhemy\GooglePlay\Subscriptions\SubscriptionPurchase;
@@ -25,6 +26,11 @@ use Tests\TestCase;
 
 class GoogleSubscriptionOwnershipTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    // Same leak as AppleSignedTransactionTest: a purchase files the process's shared user as a CRM person.
+    protected $connectionsToTransact = [null, 'crm', 'commerce'];
+
     public function testPurchaseTokenOfAnotherUserIsNotTakenOver(): void
     {
         $app = app(Apps::class);

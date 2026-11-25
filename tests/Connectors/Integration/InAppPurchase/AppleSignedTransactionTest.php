@@ -231,7 +231,8 @@ class AppleSignedTransactionTest extends TestCase
             $this->assertStringContainsString('not an auto-renewable subscription', $e->getMessage());
         }
 
-        $this->assertEquals(0, CashierSubscription::where('stripe_id', $this->originalTransactionId)->count());
+        $subscriptions = CashierSubscription::where('stripe_id', $this->originalTransactionId)->count();
+        $this->assertEquals(0, $subscriptions);
     }
 
     public function testRejectsSubscriptionTransactionWithoutExpiresDate(): void

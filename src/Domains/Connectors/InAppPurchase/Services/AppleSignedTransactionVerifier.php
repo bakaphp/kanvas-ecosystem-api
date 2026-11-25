@@ -105,7 +105,7 @@ class AppleSignedTransactionVerifier
      */
     public function assertBundle(array $payload): void
     {
-        $expected = (string) ($this->app->get(ConfigurationEnum::APPLE_BUNDLE_ID->value) ?? '');
+        $expected = $this->configuredBundleId();
 
         if ($expected === '') {
             throw new ValidationException(
@@ -127,7 +127,7 @@ class AppleSignedTransactionVerifier
      */
     public function assertReceiptBundle(?string $bundleId): void
     {
-        if ((string) ($this->app->get(ConfigurationEnum::APPLE_BUNDLE_ID->value) ?? '') === '') {
+        if ($this->configuredBundleId() === '') {
             report(new ValidationException(
                 'APPLE_BUNDLE_ID is not configured for app ' . $this->app->getId()
                 . ', so an Apple receipt was accepted without a bundle check'
@@ -137,5 +137,10 @@ class AppleSignedTransactionVerifier
         }
 
         $this->assertBundle(['bundleId' => $bundleId]);
+    }
+
+    private function configuredBundleId(): string
+    {
+        return (string) ($this->app->get(ConfigurationEnum::APPLE_BUNDLE_ID->value) ?? '');
     }
 }
