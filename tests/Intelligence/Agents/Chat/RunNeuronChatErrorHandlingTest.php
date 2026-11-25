@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
+use Kanvas\Intelligence\Agents\Exceptions\UnknownToolRunsExceededException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
@@ -368,6 +369,18 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertStringContainsString('again', $response);
         $this->assertStringNotContainsString('I ran into a hiccup', $response);
         $this->assertStringNotContainsString('rephrasing', $response);
+    }
+
+    /** Narrowing a name or a date range, the spent-budget advice, cannot supply a tool the agent lacks. */
+    public function testALoopOnAMissingToolIsNotAnsweredWithTheNarrowYourLookupAdvice(): void
+    {
+        $response = $this->runChatWithThrowingHandler(
+            new UnknownToolRunsExceededException('Tool nutrition_totals is not one this agent has')
+        );
+
+        $this->assertStringContainsString('a tool I do not have', $response);
+        $this->assertStringNotContainsString('narrow it down', $response);
+        $this->assertStringNotContainsString('nutrition_totals', $response);
     }
 
     /** Same fault, whichever provider reports it — 429 rate limit, 529 Anthropic overloaded, 5xx. */

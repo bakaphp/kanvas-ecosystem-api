@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Providers;
 
+use Kanvas\Intelligence\Agents\Exceptions\UnknownToolRunsExceededException;
+use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
+use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Providers\ProviderResponse;
 use NeuronAI\Tools\Tool;
+use NeuronAI\Tools\ToolCall;
+use Override;
 use ReflectionMethod;
 use ReflectionProperty;
 use Tests\Stubs\Intelligence\CapturingNeuronAgentStub;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\Stubs\Intelligence\ScriptedToolCallNeuronProvider;
 use Tests\Stubs\Intelligence\Tools\CallbackTool;
 use Tests\TestCase;
@@ -185,5 +193,86 @@ final class UnknownToolCallRecoveryTest extends TestCase
         $this->assertSame('error', $result['status']);
         $this->assertStringContainsString('no tool named "get_lead_ref"', $result['message']);
         $this->assertStringContainsString('search_leads', $result['message']);
+    }
+
+    /**
+     * Regression for KANVAS-ECOSYSTEM-70A: a registry miss is never counted by the engine, so a model
+     * alternating `get_current_time` with a `nutrition_totals` it was never given ran until the real
+     * tool's budget ended the turn, under the real tool's name.
+     */
+    public function testAModelThatKeepsCallingAToolItWasNeverGivenEndsTheTurnOnThatTool(): void
+    {
+        $provider = new class () extends FakeNeuronProvider {
+            public int $inferences = 0;
+
+            #[Override]
+            public function chat(Message ...$messages): ProviderResponse
+            {
+                $this->inferences++;
+                $tool = $this->inferences % 2 === 1 ? 'get_current_time' : 'nutrition_totals';
+                $call = ToolCall::make($tool, 'call-' . $this->inferences, []);
+
+                return $this->respond(new ToolCallMessage(null, [$call]));
+            }
+        };
+
+        $timeRuns = 0;
+        $agent = new CapturingNeuronAgentStub()->setThreadId('unknown-tool-loop');
+        $agent->capturedProvider = $provider;
+        $agent->addTool(new CallbackTool(
+            'get_current_time',
+            'The current time.',
+            function () use (&$timeRuns): string {
+                $timeRuns++;
+
+                return 'noon';
+            }
+        ));
+
+        try {
+            $agent->chat(new UserMessage('I had rice and beans'));
+            $this->fail('A model looping on a tool it does not have must not run the turn out');
+        } catch (UnknownToolRunsExceededException $e) {
+            $this->assertStringContainsString('nutrition_totals', $e->getMessage());
+        }
+
+        $this->assertSame(BoundedToolNode::MAX_UNKNOWN_TOOL_ROUNDS + 1, $timeRuns);
+        $this->assertSame((BoundedToolNode::MAX_UNKNOWN_TOOL_ROUNDS + 1) * 2, $provider->inferences);
+    }
+
+    /**
+     * Calls made in one response were all made before the model was told anything, so a batch of them is
+     * one strike however many it holds: the model still gets its feedback and the turn goes on.
+     */
+    public function testSeveralCallsToAMissingToolInOneResponseDoNotEndTheTurn(): void
+    {
+        $provider = new class () extends FakeNeuronProvider {
+            private bool $called = false;
+
+            #[Override]
+            public function chat(Message ...$messages): ProviderResponse
+            {
+                if ($this->called) {
+                    return $this->respond(new AssistantMessage('Review done'));
+                }
+
+                $this->called = true;
+
+                $calls = array_map(
+                    static fn (int $lead): ToolCall => ToolCall::make('get_lead_ref', 'call-' . $lead, []),
+                    range(1, BoundedToolNode::MAX_UNKNOWN_TOOL_ROUNDS + 2)
+                );
+
+                return $this->respond(new ToolCallMessage(null, $calls));
+            }
+        };
+
+        $agent = new CapturingNeuronAgentStub()->setThreadId('unknown-tool-batch');
+        $agent->capturedProvider = $provider;
+        $agent->addTool($this->realTool());
+
+        $reply = $agent->chat(new UserMessage('Summarise these leads'))->getMessage();
+
+        $this->assertSame('Review done', $reply?->getContent());
     }
 }
