@@ -1,0 +1,37 @@
+type AppUserMailing {
+    id: ID!
+    uuid: String!
+    company: Company @belongsTo(relation: "company")
+    requester: User @belongsTo(relation: "requester")
+    audience: String! @method(name: "audienceValue")
+    template_name: String!
+    subject: String
+    criteria: JSON
+    status: String! @method(name: "statusValue")
+    confirmed_total: Int
+    total_eligible: Int!
+    total_excluded: Int!
+    excluded_breakdown: JSON
+    sent_count: Int!
+    failed_count: Int!
+    failed_reason: String
+    scheduled_at: String
+    started_at: String
+    completed_at: String
+    created_at: String!
+}
+
+extend type Query @guardByAdmin {
+    appUserMailings(
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "status", "audience", "template_name"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+    ): [AppUserMailing!]!
+        @paginate(
+            model: "Kanvas\\Notifications\\Mailings\\Models\\AppUserMailing"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
