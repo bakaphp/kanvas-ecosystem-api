@@ -477,7 +477,19 @@ turn dies with a `ProviderException` / `ToolException`:
    throws. `HasKanvasAgentBehavior::resolveToolErrorHandler()` answers that `ToolException` with the same
    `UnknownToolStub::response()` payload so the model can self-correct.
 
-Coverage: `tests/Intelligence/Agents/Providers/UnknownToolCallRecoveryTest.php` has one test per half.
+The recovery is bounded. A registry miss throws before the engine counts the call, so nothing stopped a
+model that never self-corrects: llama4-scout alternated `get_current_time` with a `nutrition_totals` it
+was never given until the real tool's budget ended the turn, 21 inferences in and under the real tool's
+name (KANVAS-ECOSYSTEM-70A). `BoundedToolNode::checkToolRuns()` counts the misses per name and throws
+`UnknownToolRunsExceededException` on the round after `MAX_UNKNOWN_TOOL_ROUNDS` (3). It counts rounds,
+not calls: five calls in one response were all made before the model was told anything, and ending the
+turn on them would take away the recovery above. The exception extends `ToolRunsExceededException`, so a
+durable run that died on it starts over like any spent budget, and the error handler lets every
+`ToolRunsExceededException` through: it is a `ToolException`, and answered as a miss it would never stop
+the loop.
+
+Coverage: `tests/Intelligence/Agents/Providers/UnknownToolCallRecoveryTest.php` has one test per half
+and two for the bound.
 
 ## Providers
 

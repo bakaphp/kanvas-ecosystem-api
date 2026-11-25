@@ -16,6 +16,7 @@ use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Exceptions\AgentTurnCancelledException;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
+use Kanvas\Intelligence\Agents\Exceptions\UnknownToolRunsExceededException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -598,6 +599,12 @@ class RunNeuronChatAction
         if ($this->isDuplicateEntryError($e)) {
             return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "
                 . 'like me to look into it or handle it a different way.';
+        }
+
+        // Narrowing the request does not give the agent a tool it was never given.
+        if ($e instanceof UnknownToolRunsExceededException) {
+            return 'I kept reaching for a tool I do not have, so I could not finish that. '
+                . 'Ask me again, and if it keeps happening this agent is missing a tool it needs.';
         }
 
         // Any tool can trip the run budget, not just the people lookups — a reporting tool looping on an
