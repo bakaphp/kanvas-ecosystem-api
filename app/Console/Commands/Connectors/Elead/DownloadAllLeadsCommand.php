@@ -79,6 +79,7 @@ class DownloadAllLeadsCommand extends Command
         $successCount = 0;
         $errorCount = 0;
         $existingCount = 0;
+        $skippedServiceCount = 0;
         $force = (bool) $this->option('force');
 
         try {
@@ -105,7 +106,7 @@ class DownloadAllLeadsCommand extends Command
                             // Use cache lock to prevent duplicate lead creation from concurrent cron jobs
                             $lockKey = "elead_lead_sync:{$company->getId()}:{$leadId}";
 
-                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $customerId, $item, $company, $app, $user, $force, &$successCount, &$existingCount): void {
+                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $customerId, $item, $company, $app, $user, $force, &$successCount, &$existingCount, &$skippedServiceCount): void {
                                 // Check if lead already exists
                                 $existingLead = ModelsLead::getByCustomField(
                                     CustomFieldEnum::OPPORTUNITY_ID->value,
@@ -123,6 +124,9 @@ class DownloadAllLeadsCommand extends Command
 
                                     $this->line("Lead {$leadId} already exists as {$existingLead->id} - re-syncing");
                                     new SyncLeadAction($existingLead, fresh: true)->execute();
+                                } elseif (ConfigurationEnum::skipsCrmServiceLead($company, $item['upType'] ?? null)) {
+                                    $skippedServiceCount++;
+                                    $this->line("Lead {$leadId} is a service lead - skipping");
                                 } else {
                                     $this->line("Creating new Lead {$leadId}");
 
@@ -189,8 +193,9 @@ class DownloadAllLeadsCommand extends Command
             $this->info('Download completed!');
             $this->info("Successfully created: {$successCount} leads");
             $this->info(($force ? 'Re-synced' : 'Skipped') . " existing: {$existingCount} leads");
+            $this->info("Skipped service leads: {$skippedServiceCount}");
             $this->info("Errors: {$errorCount} leads");
-            $this->info('Total processed: ' . ($successCount + $existingCount + $errorCount) . ' leads');
+            $this->info('Total processed: ' . ($successCount + $existingCount + $skippedServiceCount + $errorCount) . ' leads');
         } catch (Throwable $e) {
             $this->error('Failed to download leads: ' . $e->getMessage());
         }

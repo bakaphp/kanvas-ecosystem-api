@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Enums;
 
+use Kanvas\Companies\Models\Companies;
+
 enum ConfigurationEnum: string
 {
     case SEND_NEW_LEAD_NOTIFICATION = 'guild_send_new_lead_notification';
@@ -33,4 +35,15 @@ enum ConfigurationEnum: string
     case DAILY_LEADS_DIGEST_COMBINED = 'guild_daily_leads_digest_combined';
     case DAILY_LEADS_DIGEST_SUMMARY_FIELDS = 'guild_daily_leads_digest_summary_fields';
     case AGENT_EMAIL_CC_ALLOWED_DOMAINS = 'guild_agent_email_cc_allowed_domains';
+    case CRM_DOWNLOAD_SERVICE_LEADS = 'guild_crm_download_service_leads';
+
+    /**
+     * A dealer CRM files service-department visits as leads of type SERVICE (VinSolutions) or
+     * Service (eLeads). The downloads leave them out unless the company turns the setting on.
+     */
+    public static function skipsCrmServiceLead(Companies $company, ?string $leadTypeName): bool
+    {
+        return in_array(strtolower(trim((string) $leadTypeName)), ['service', 'services'], true)
+            && ! $company->getBool(self::CRM_DOWNLOAD_SERVICE_LEADS->value);
+    }
 }
