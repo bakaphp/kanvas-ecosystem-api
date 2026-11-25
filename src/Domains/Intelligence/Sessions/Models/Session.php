@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -32,6 +32,8 @@ use Override;
  */
 class Session extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'sessions';
     protected $guarded = [];
 
@@ -79,7 +81,6 @@ class Session extends BaseModel
                 ...$extraKey,
             ],
             [
-                'uuid' => Str::uuid()->toString(),
                 'channel_id' => null,
                 'content' => '',
                 'user' => [],

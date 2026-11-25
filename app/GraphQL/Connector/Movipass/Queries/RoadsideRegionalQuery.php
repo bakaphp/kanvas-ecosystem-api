@@ -38,7 +38,11 @@ class RoadsideRegionalQuery
     {
         $ctx = $this->actingContext();
 
-        return $this->auditEntries(RoadsideAuditTrail::TARIFF_ENTITY, null, $ctx->app->getId());
+        return $this->auditEntries(
+            entityType: RoadsideAuditTrail::TARIFF_ENTITY,
+            entityId: null,
+            appId: $ctx->app->getId()
+        );
     }
 
     public function sla(mixed $rootValue, array $request): array

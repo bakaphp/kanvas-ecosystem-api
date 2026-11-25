@@ -198,20 +198,5 @@ class TransitionOrderStateAction
                 'who' => $this->user,
             ]
         );
-
-        // $activity = new TookanOrderStatusActivity(
-        //     0,
-        //     now()->toDateTimeString(),
-        //     StoredWorkflow::make(),
-        //     []
-        // );
-
-        // $result = $activity->execute($this->order, $this->order->app, [
-        //     'currentEventTypeName' =>  WorkflowEnum::STATUS_TRANSITION->value,
-        //     'app' => $this->order->app,
-        //     'from_status' => $currentOrderStatus?->slug ?? null,
-        //     'to_status' => $this->newOrderStatus->slug,
-        //     'who' => $this->user,
-        // ]);
     }
 }

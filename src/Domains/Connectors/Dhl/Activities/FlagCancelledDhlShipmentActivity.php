@@ -36,7 +36,12 @@ class FlagCancelledDhlShipmentActivity extends KanvasActivity implements Workflo
             app: $app,
             integration: IntegrationsEnum::DHL,
             additionalParams: $params,
-            integrationOperation: function (Model $order, AppInterface $app, mixed $integrationCompany, array $additionalParams): array {
+            integrationOperation: function (
+                Model $order,
+                AppInterface $app,
+                mixed $integrationCompany,
+                array $additionalParams
+            ): array {
                 if (($additionalParams['to_status'] ?? null) !== DeliveryOrderStatusEnum::CANCELLED->value) {
                     return ['order' => $order->getId(), 'status' => 'skipped', 'message' => 'Not a cancelled transition'];
                 }

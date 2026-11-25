@@ -91,10 +91,10 @@ class SyncCatalogTaxonomyFromBrushCrazyAction
 
         foreach ($types as $type) {
             $typeIds[(int) $type->id] = $this->upsertCategory(
-                self::categoryTypeSlug((int) $type->id),
-                (string) $type->name,
-                null,
-                self::isDeleted($type)
+                slug: self::categoryTypeSlug((int) $type->id),
+                name: (string) $type->name,
+                parentId: null,
+                isDeleted: self::isDeleted($type)
             )->getId();
         }
 
@@ -125,7 +125,12 @@ class SyncCatalogTaxonomyFromBrushCrazyAction
         $groupsRoot = null;
 
         foreach ($groups as $group) {
-            $groupsRoot ??= $this->upsertCategory(self::GROUPS_ROOT_SLUG, 'Groups', null, false);
+            $groupsRoot ??= $this->upsertCategory(
+                slug: self::GROUPS_ROOT_SLUG,
+                name: 'Groups',
+                parentId: null,
+                isDeleted: false
+            );
 
             $this->groups[(int) $group->id] = $this->upsertCategory(
                 self::groupSlug((int) $group->id),
@@ -225,8 +230,12 @@ class SyncCatalogTaxonomyFromBrushCrazyAction
         return 'bc-group-' . $bcGroupId;
     }
 
-    protected function upsertCategory(string $slug, string $name, ?int $parentId, bool $isDeleted): Categories
-    {
+    protected function upsertCategory(
+        string $slug,
+        string $name,
+        ?int $parentId,
+        bool $isDeleted
+    ): Categories {
         $category = $this->find($slug) ?? new Categories();
 
         $category->forceFill([

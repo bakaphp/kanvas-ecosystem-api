@@ -145,8 +145,10 @@ class PeoplesRepository
                 ]);
             }
         )
-        ->fromCompany($company)
-        ->fromApp($app)
+        // By id: given the model, fromCompany() widens to every company of the app under an app key,
+        // and the voice runtime resolves its callers with one.
+        ->fromCompany($company->getId())
+        ->fromApp($app->getId())
         ->notDeleted();
     }
 

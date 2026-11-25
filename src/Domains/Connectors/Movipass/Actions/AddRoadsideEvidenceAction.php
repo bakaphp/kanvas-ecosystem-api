@@ -43,9 +43,7 @@ class AddRoadsideEvidenceAction
     {
         $assistanceCase = $this->assistanceCaseFrom($this->order);
 
-        if ((int) ($assistanceCase['mechanic']['user_id'] ?? 0) !== $this->technician->getId()) {
-            throw new ValidationException('You are not assigned to this order');
-        }
+        $this->assertAssignedTo($assistanceCase, $this->technician);
 
         if (RoadsideCaseStateEnum::tryFrom((string) ($assistanceCase['state'] ?? ''))?->isTerminal()) {
             throw new ValidationException('The case is closed; evidence can no longer be added');

@@ -40,9 +40,7 @@ class CloseRoadsideServiceAction
         $assistanceCase = $this->assistanceCaseFrom($this->order);
         $reason = Str::trimToNull($this->reason);
 
-        if ((int) ($assistanceCase['mechanic']['user_id'] ?? 0) !== $this->technician->getId()) {
-            throw new ValidationException('You are not assigned to this order');
-        }
+        $this->assertAssignedTo($assistanceCase, $this->technician);
 
         if (! $this->resolved && $reason === null) {
             throw new ValidationException('A reason is required to close the service as not resolved');

@@ -522,11 +522,11 @@ class ProcessOrchestratorSignalJob extends ProcessWebhookJob
         array $extra = [],
     ): array {
         $this->emit(
-            "orchestrator.signal.{$status}",
-            $signal,
-            $decision,
-            null,
-            $extra,
+            eventType: "orchestrator.signal.{$status}",
+            signal: $signal,
+            decision: $decision,
+            entity: null,
+            extra: $extra,
         );
 
         $this->feedToInbox($signal, sprintf('%s: %s', $status, $decision->reason));

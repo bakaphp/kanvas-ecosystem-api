@@ -505,10 +505,10 @@ class SendMessageToLeadAction
 
         if ($connection === null) {
             return $this->failedSms(
-                null,
-                $cellphone,
-                $fullMessage,
-                'The company has no number connected to send texts from'
+                delivery: null,
+                cellphone: $cellphone,
+                body: $fullMessage,
+                error: 'The company has no number connected to send texts from'
             );
         }
 

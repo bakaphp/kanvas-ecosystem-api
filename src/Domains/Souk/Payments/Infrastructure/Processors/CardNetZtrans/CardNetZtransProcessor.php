@@ -171,8 +171,12 @@ final class CardNetZtransProcessor implements PaymentProcessorInterface, ThreeDS
     }
 
     #[Override]
-    public function capture(Payments $payment, Order $order, ?float $amount = null, array $context = []): CaptureResult
-    {
+    public function capture(
+        Payments $payment,
+        Order $order,
+        ?float $amount = null,
+        array $context = []
+    ): CaptureResult {
         if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
             return new CaptureResult(
                 success: true,
@@ -224,8 +228,12 @@ final class CardNetZtransProcessor implements PaymentProcessorInterface, ThreeDS
     }
 
     #[Override]
-    public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult
-    {
+    public function refund(
+        Payments $payment,
+        Order $order,
+        ?float $amount = null,
+        array $context = []
+    ): RefundResult {
         if ($payment->status !== PaymentStatusEnum::PAID->value) {
             return new RefundResult(success: false, message: 'Only paid payments can be refunded.', transactionId: '');
         }
@@ -365,11 +373,20 @@ final class CardNetZtransProcessor implements PaymentProcessorInterface, ThreeDS
             );
         }
 
-        return $this->runSale($payment, $order, $card, $status);
+        return $this->runSale(
+            $payment,
+            $order,
+            $card,
+            $status
+        );
     }
 
-    private function runSale(Payments $payment, Order $order, array $card, array $authentication): ThreeDSResult
-    {
+    private function runSale(
+        Payments $payment,
+        Order $order,
+        array $card,
+        array $authentication
+    ): ThreeDSResult {
         $useHold = (bool) $payment->getMetadata(self::META_USE_HOLD);
         $operation = $useHold ? 'checkin' : 'sale';
 

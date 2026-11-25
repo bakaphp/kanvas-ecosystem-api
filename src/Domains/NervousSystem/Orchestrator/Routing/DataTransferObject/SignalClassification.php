@@ -19,6 +19,6 @@ final readonly class SignalClassification
 
     public static function none(string $reason): self
     {
-        return new self(null, 0.0, $reason);
+        return new self(candidate: null, confidence: 0.0, reason: $reason);
     }
 }

@@ -118,7 +118,12 @@ class RecordVoiceTranscriptAction
                 $summary ?? $this->transcriptText($turns),
                 $turns,
             );
-            $this->file($message, $people, $lead, $user);
+            $this->file(
+                $message,
+                $people,
+                $lead,
+                $user
+            );
         }
 
         return [
@@ -207,8 +212,12 @@ class RecordVoiceTranscriptAction
         return $createMessage->execute();
     }
 
-    private function file(Message $message, People $people, ?Lead $lead, Users $user): void
-    {
+    private function file(
+        Message $message,
+        People $people,
+        ?Lead $lead,
+        Users $user
+    ): void {
         if ($lead !== null) {
             new LeadChannelService()->recordOnLeadAndPerson($message, $lead, $user);
 

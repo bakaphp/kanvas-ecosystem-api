@@ -44,7 +44,7 @@ final class RecordStatusCallbackAction
 
         $delivery = Delivery::query()
             ->fromApp($this->receiver->app)
-            ->fromCompany($this->receiver->company)
+            ->fromCompany((int) $this->receiver->companies_id)
             ->reportedBy(TwilioHandlers::slug(), $sid)
             ->first();
 

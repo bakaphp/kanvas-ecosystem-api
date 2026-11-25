@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Concerns;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideAdditionalChargeStatusEnum;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -23,6 +24,13 @@ trait InteractsWithAssistanceCase
         $metadata = $order->metadata ?? [];
 
         return $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
+    }
+
+    protected function assertAssignedTo(array $assistanceCase, Users $technician): void
+    {
+        if ((int) ($assistanceCase['mechanic']['user_id'] ?? 0) !== $technician->getId()) {
+            throw new ValidationException('You are not assigned to this order');
+        }
     }
 
     protected function saveAssistanceCase(Order $order, array $assistanceCase): void
