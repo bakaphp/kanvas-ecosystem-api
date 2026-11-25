@@ -110,12 +110,25 @@ class SendMessageToLeadAction
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
     protected bool $sentByHuman = false;
+    protected bool $agentSignature = false;
     protected ?CampaignRecipient $campaignRecipient = null;
     protected string $emailTemplate = self::DEFAULT_EMAIL_TEMPLATE;
 
     public function withSignatureOwner(?Users $user): self
     {
         $this->signatureOwner = $user;
+
+        return $this;
+    }
+
+    /**
+     * An internal assistant acts for its owner, so its email normally leaves the template's agent
+     * signature out. When it writes as the business's customer-facing agent instead ("send it as
+     * Sally"), that signature closes the email like any email the agent sends itself.
+     */
+    public function withAgentSignature(bool $agentSignature = true): self
+    {
+        $this->agentSignature = $agentSignature;
 
         return $this;
     }
@@ -193,8 +206,9 @@ class SendMessageToLeadAction
                 LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage(
                     $message,
                     $title,
-                    // Internal assistants act for the owner, not as the customer-facing persona.
-                    $signature && ! ($fromAgent?->conversesWithUser() ?? false),
+                    // Internal assistants act for the owner, not as the customer-facing persona, unless
+                    // this email was written as that persona.
+                    $signature && ($this->agentSignature || ! ($fromAgent?->conversesWithUser() ?? false)),
                     $to,
                     $cc,
                     $fromAgent,

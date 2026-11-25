@@ -37,9 +37,15 @@ trait SendsEmailToPeople
         ContactTypeEnum::SECONDARY_EMAIL->value,
     ];
 
-    protected function signatureOwner(): ?Users
+    /**
+     * Whose signature closes the email. An internal assistant writes either as the person it is talking
+     * with or as the business / its customer-facing persona, and only the model knows which one was
+     * asked for — so it says so per send (`sign_as_me`). The person's own signature never closes an
+     * email written in another name.
+     */
+    protected function signatureOwner(bool $signAsConversationHuman): ?Users
     {
-        if (! ($this->contextAgent()?->conversesWithUser() ?? false)) {
+        if (! $signAsConversationHuman || ! ($this->contextAgent()?->conversesWithUser() ?? false)) {
             return null;
         }
 
