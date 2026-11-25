@@ -1,3 +1,13 @@
+enum ScribePurchaseOrderStatus {
+    DRAFT @enum(value: "draft")
+    PENDING_APPROVAL @enum(value: "pending_approval")
+    APPROVED @enum(value: "approved")
+    SENT @enum(value: "sent")
+    PARTIALLY_RECEIVED @enum(value: "partially_received")
+    RECEIVED @enum(value: "received")
+    CANCELLED @enum(value: "cancelled")
+}
+
 type ScribePurchaseOrder {
     id: ID!
     uuid: String!
@@ -5,9 +15,16 @@ type ScribePurchaseOrder {
     order_number: String!
     vendor: Organization @belongsTo(relation: "vendor")
     vendor_code: String
+    "The status an ERP reports for a mirrored order; an order the company issues uses document_status."
     status: String
+    "Empty on an order mirrored from an ERP."
+    document_status: ScribePurchaseOrderStatus
     order_date: Date
+    expected_date: Date
     currency: String
+    notes: String
+    cancelled_at: DateTime
+    cancel_reason: String
     order_total: Money!
     source: String!
     external_id: String
@@ -39,6 +56,53 @@ type ScribePurchaseOrderLine {
     metadata: Mixed
 }
 
+input ScribePurchaseOrderLineInput {
+    description: String!
+    quantity: Float!
+    unit_cost: Float!
+    sku: String
+    inventory_variant_id: ID
+    expense_account_id: ID
+    subaccount_id: ID
+}
+
+input ScribePurchaseOrderInput {
+    vendor_id: ID!
+    currency: String!
+    order_date: Date
+    expected_date: Date
+    notes: String
+    lines: [ScribePurchaseOrderLineInput!]!
+}
+
+"Only what is sent changes; sending lines replaces all of them."
+input UpdateScribePurchaseOrderInput {
+    vendor_id: ID
+    currency: String
+    order_date: Date
+    expected_date: Date
+    notes: String
+    lines: [ScribePurchaseOrderLineInput!]
+}
+
+extend type Mutation @guard {
+    "Creates a draft purchase order numbered from the company's own sequence."
+    createScribePurchaseOrder(input: ScribePurchaseOrderInput!): ScribePurchaseOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@create"
+        )
+    "Edits a draft purchase order the company issued."
+    updateScribePurchaseOrder(id: ID!, input: UpdateScribePurchaseOrderInput!): ScribePurchaseOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@update"
+        )
+    "Cancels a purchase order the company issued, as long as no goods have arrived against it."
+    cancelScribePurchaseOrder(id: ID!, reason: String): ScribePurchaseOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@cancel"
+        )
+}
+
 extend type Query @guard {
     scribePurchaseOrders(
         where: _
@@ -47,6 +111,7 @@ extend type Query @guard {
                     "order_number"
                     "order_type"
                     "status"
+                    "document_status"
                     "currency"
                     "vendor_organization_id"
                     "vendor_code"
