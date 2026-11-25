@@ -7,10 +7,11 @@ namespace Kanvas\Souk\Payments\Events;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldRescue;
 use Illuminate\Foundation\Events\Dispatchable;
 use Override;
 
-class PaymentStatusChanged implements ShouldBroadcast
+class PaymentStatusChanged implements ShouldBroadcast, ShouldRescue
 {
     use Dispatchable;
     use InteractsWithSockets;

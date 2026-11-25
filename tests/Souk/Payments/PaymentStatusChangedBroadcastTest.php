@@ -7,6 +7,7 @@ namespace Tests\Souk\Payments;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Events\PaymentStatusChanged;
@@ -14,9 +15,12 @@ use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
+use Tests\Traits\FailsBroadcasts;
 
 final class PaymentStatusChangedBroadcastTest extends TestCase
 {
+    use FailsBroadcasts;
+
     public static function finalStatuses(): array
     {
         return [
@@ -82,6 +86,16 @@ final class PaymentStatusChangedBroadcastTest extends TestCase
         new PaymentObserver()->updated($payment);
 
         Event::assertNotDispatched(PaymentStatusChanged::class);
+    }
+
+    public function testABrokenBroadcastIsReportedAndNeverThrowsOutOfTheObserver(): void
+    {
+        Exceptions::fake();
+        $this->failBroadcastsNamed('payment.status_changed');
+
+        new PaymentObserver()->updated($this->paymentFor($this->order(), PaymentStatusEnum::PAID));
+
+        $this->assertBroadcastFailureReported();
     }
 
     public function testAPayableThatIsNotAnOrderDoesNotBroadcast(): void
