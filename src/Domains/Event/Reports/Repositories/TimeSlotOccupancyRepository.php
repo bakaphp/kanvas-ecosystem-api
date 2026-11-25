@@ -25,7 +25,7 @@ class TimeSlotOccupancyRepository
      * SUM per row, which is fine for a day and falls over on a month.
      *
      * @return array{
-     *     capacity:int, booked:int, admitted:int, occupancy_percentage:float, slots_count:int,
+     *     capacity:int, booked:int, admitted:int, admitted_qr:int, admitted_manual:int, occupancy_percentage:float, slots_count:int,
      *     byHour:array<int, TimeSlotOccupancyBucket>, byDay:array<int, TimeSlotOccupancyBucket>,
      *     peak:?TimeSlotOccupancyBucket, lowest:?TimeSlotOccupancyBucket,
      *     byArrivalHour:array<int, array{label:string, arrivals:int}>
@@ -61,12 +61,16 @@ class TimeSlotOccupancyRepository
                 'ts.initial_capacity',
                 DB::raw('COALESCE(SUM(ev.total_attendees), 0) as booked'),
                 DB::raw('COALESCE(SUM(CASE WHEN sc.id IS NULL THEN 0 ELSE ev.total_attendees END), 0) as admitted'),
+                DB::raw("COALESCE(SUM(CASE WHEN sc.source = 'qr' THEN ev.total_attendees ELSE 0 END), 0) as admitted_qr"),
+                DB::raw("COALESCE(SUM(CASE WHEN sc.source = 'manual' THEN ev.total_attendees ELSE 0 END), 0) as admitted_manual"),
             ])
             ->get();
 
         $totalCapacity = 0;
         $totalBooked = 0;
         $totalAdmitted = 0;
+        $totalAdmittedQr = 0;
+        $totalAdmittedManual = 0;
         $byHour = [];
         $byDay = [];
 
@@ -77,6 +81,8 @@ class TimeSlotOccupancyRepository
             $totalCapacity += $capacity;
             $totalBooked += $booked;
             $totalAdmitted += (int) $slot->admitted;
+            $totalAdmittedQr += (int) $slot->admitted_qr;
+            $totalAdmittedManual += (int) $slot->admitted_manual;
 
             // start_at is stored in UTC; the buckets have to read as venue wall clock or the
             // "peak hour" lands hours away from when players actually tee off.
@@ -96,6 +102,8 @@ class TimeSlotOccupancyRepository
             'capacity' => $totalCapacity,
             'booked' => $totalBooked,
             'admitted' => $totalAdmitted,
+            'admitted_qr' => $totalAdmittedQr,
+            'admitted_manual' => $totalAdmittedManual,
             'occupancy_percentage' => $totalCapacity > 0 ? round($totalBooked / $totalCapacity * 100, 2) : 0.0,
             'slots_count' => $slots->count(),
             'byHour' => $hourBuckets,

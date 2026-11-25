@@ -16,6 +16,7 @@ use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantPassScan;
 use Kanvas\Event\Passes\DataTransferObject\PassScanOutcome;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
+use Kanvas\Event\Passes\Enums\PassScanSourceEnum;
 use Kanvas\Event\Passes\Gates\PassScanDecisionGate;
 use Kanvas\Event\Passes\Services\PassAttemptLimiter;
 use Kanvas\Inventory\Products\Models\Products;
@@ -35,6 +36,8 @@ class ScanEventPassAction
         protected UserInterface $scanner,
         protected CompanyInterface $scannerCompany,
         protected Products $gateProduct,
+        protected PassScanSourceEnum $source = PassScanSourceEnum::QR,
+        protected ?Carbon $scannedAt = null,
     ) {
     }
 
@@ -82,7 +85,7 @@ class ScanEventPassAction
             return $this->reject(PassScanResultEnum::WRONG_RESOURCE, $pass);
         }
 
-        if (! $laterUse && ! Carbon::now()->betweenIncluded($timeSlot->start_at, $timeSlot->end_at)) {
+        if (! $laterUse && ! $this->moment()->betweenIncluded($timeSlot->start_at, $timeSlot->end_at)) {
             return $this->reject(PassScanResultEnum::OUTSIDE_WINDOW, $pass);
         }
 
@@ -143,7 +146,7 @@ class ScanEventPassAction
         ?int $decidedUse
     ): PassScanOutcome {
         $result = PassScanResultEnum::ADMITTED;
-        $scannedAt = Carbon::now();
+        $scannedAt = $this->moment();
         $admittedUse = null;
 
         try {
@@ -185,7 +188,7 @@ class ScanEventPassAction
                     ParticipantPass::query()
                         ->where('event_version_id', $booking->getId())
                         ->whereNull('used_date')
-                        ->update(['used_date' => Carbon::now()]);
+                        ->update(['used_date' => $this->moment()]);
                 }
             });
         } catch (UniqueConstraintViolationException) {
@@ -234,6 +237,11 @@ class ScanEventPassAction
         }
     }
 
+    private function moment(): Carbon
+    {
+        return $this->scannedAt ?? Carbon::now();
+    }
+
     private function isLaterUse(ParticipantPass $pass): bool
     {
         return ($pass->max_uses ?? 1) > 1 && $pass->use_count >= 1;
@@ -262,7 +270,8 @@ class ScanEventPassAction
             'result' => $result,
             'admitted_event_version_id' => $admittedBookingId,
             'use_number' => $useNumber,
-            'scanned_at' => Carbon::now(),
+            'source' => $this->source,
+            'scanned_at' => $this->moment(),
         ]);
     }
 
@@ -303,6 +312,7 @@ class ScanEventPassAction
         $guest = $pass->participant ?? $booking->participants()->first();
 
         return [
+            'reference' => $booking->reference,
             'plate' => $booking->metadata['vehiclePlate'] ?? null,
             'arrival_hour' => $booking->metadata['arrival_hour'] ?? null,
             'date' => $timeSlot->start_at->toDateString(),

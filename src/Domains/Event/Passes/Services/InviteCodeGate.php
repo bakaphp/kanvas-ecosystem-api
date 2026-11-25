@@ -9,17 +9,16 @@ use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\TimeSlots;
-use Kanvas\Event\Events\Services\ResourceTimezoneService;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Passes\Actions\FindPassByCodeAction;
 use Kanvas\Event\Passes\Actions\RedeemPassAction;
 use Kanvas\Event\Passes\DataTransferObject\EventAccess;
+use Kanvas\Event\Passes\DataTransferObject\InviteCodeCheck;
+use Kanvas\Event\Passes\Enums\InviteCodeCheckReasonEnum;
 use Kanvas\Exceptions\ValidationException;
 
 class InviteCodeGate
 {
-    private const string INVALID_CODE_MESSAGE = 'Invalid access code.';
-
     public function __construct(
         private readonly EventAccess $access,
         private readonly AppInterface $app,
@@ -30,23 +29,28 @@ class InviteCodeGate
 
     public function verify(?string $code, ?TimeSlots $timeSlot = null): ParticipantPass
     {
-        return $this->inspect($code, $timeSlot) ?? throw new ValidationException(self::INVALID_CODE_MESSAGE);
+        $check = $this->check($code, $timeSlot);
+
+        if (! $check->isValid()) {
+            throw new ValidationException($check->reason->message());
+        }
+
+        return $check->pass;
     }
 
-    public function inspect(?string $code, ?TimeSlots $timeSlot = null): ?ParticipantPass
+    public function check(?string $code, ?TimeSlots $timeSlot = null): InviteCodeCheck
     {
         $code = $this->requireCode($code);
         $this->limiter->assertNotLimited();
 
         $pass = new FindPassByCodeAction($this->app, $this->company, $code)->execute();
+        $reason = $this->reasonFor($pass, $timeSlot);
 
-        if (! $pass || ! $this->isUsableFor($pass, $timeSlot)) {
+        if ($reason !== InviteCodeCheckReasonEnum::VALID) {
             $this->limiter->recordFailure();
-
-            return null;
         }
 
-        return $pass;
+        return new InviteCodeCheck($reason, $pass);
     }
 
     public function redeem(?string $code, TimeSlots $timeSlot, EventVersion $booking): ParticipantPass
@@ -68,23 +72,22 @@ class InviteCodeGate
         }
     }
 
-    private function isUsableFor(ParticipantPass $pass, ?TimeSlots $timeSlot): bool
+    private function reasonFor(?ParticipantPass $pass, ?TimeSlots $timeSlot): InviteCodeCheckReasonEnum
     {
-        $version = $pass->eventVersion;
+        $version = $pass?->eventVersion;
 
-        if (! $version || (int) $version->event_id !== $this->access->eventId || ! $pass->isRedeemable()) {
-            return false;
-        }
+        $belongsToTheEvent = $version !== null
+            && (int) $version->event_id === $this->access->eventId
+            && $pass->isValid()
+            && ! $this->access->redeemWindowClosed()
+            && ($timeSlot === null || in_array($timeSlot->localDate(), $pass->allowedDays(), true));
 
-        return $timeSlot === null || $version->start_at?->toDateString() === $this->localDayOf($timeSlot);
-    }
-
-    private function localDayOf(TimeSlots $timeSlot): string
-    {
-        return $timeSlot->start_at
-            ->copy()
-            ->setTimezone(ResourceTimezoneService::resolve($timeSlot->resource))
-            ->toDateString();
+        return match (true) {
+            ! $belongsToTheEvent => InviteCodeCheckReasonEnum::INVALID,
+            $pass->remainingUses() < 1 => InviteCodeCheckReasonEnum::USED,
+            $timeSlot !== null && in_array($timeSlot->localDate(), $pass->bookedDays(), true) => InviteCodeCheckReasonEnum::USED_THIS_DAY,
+            default => InviteCodeCheckReasonEnum::VALID,
+        };
     }
 
     private function requireCode(?string $code): string

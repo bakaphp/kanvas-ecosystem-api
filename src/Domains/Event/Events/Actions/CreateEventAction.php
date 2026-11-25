@@ -431,6 +431,8 @@ class CreateEventAction
                 'vehicleBrand' => $this->metadata['vehicleBrand'] ?? null,
                 'vehicleColor' => $this->metadata['vehicleColor'] ?? null,
                 'terms_and_conditions' => $this->metadata['terms_and_conditions'] ?? null,
+                'pass_code' => $this->freeBooking ? $eventVersion->plainBookingPassCode() : null,
+                'reference' => $this->freeBooking ? $eventVersion->reference : null,
                 'variants_ids' => array_filter([
                     'parking_variant_id' => $eventVersion->event->resource?->getId(),
                     'vehicle_variant_id' => $vehicleVariantId !== null ? (int) $vehicleVariantId : null,

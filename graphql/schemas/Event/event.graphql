@@ -74,6 +74,7 @@ type EventVersion {
     timeSlot: TimeSlots @belongsTo(relation: "timeSlot")
     max_capacity: Int @method(name: "getMaxCapacity")
     pass_code: String @method(name: "getPassCode")
+    reference: String @method(name: "getVisibleReference")
     created_at: DateTime
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")

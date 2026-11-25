@@ -10,6 +10,7 @@ enum EventPassScanResultCode {
 }
 
 type ScannedBooking {
+    reference: String
     plate: String
     arrival_hour: String
     date: String
@@ -26,5 +27,14 @@ extend type Mutation @guard {
     scanEventPass(code: String!, product_id: ID!): EventPassScanResult!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassScanMutation@scan"
+        )
+
+    admitEventBooking(
+        product_id: ID!
+        reference: String!
+        admitted_at: DateTime
+    ): EventPassScanResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassScanMutation@admit"
         )
 }
