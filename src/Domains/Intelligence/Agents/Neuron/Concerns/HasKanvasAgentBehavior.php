@@ -55,6 +55,7 @@ use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Exceptions\ToolException;
+use NeuronAI\Exceptions\ToolRunsExceededException;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Tools\ProviderToolInterface;
 use NeuronAI\Tools\ToolCall;
@@ -745,13 +746,14 @@ trait HasKanvasAgentBehavior
      * provider answers the parse with an UnknownToolStub (RecoversUnknownToolCalls) so the response
      * loads, but ToolNode resolves the call against the agent's registry, where the stub is not, and
      * throws. Answering that throw with the same feedback is what lets the next round self-correct
-     * (KANVAS-ECOSYSTEM-675). Anything else returns null, so it propagates.
+     * (KANVAS-ECOSYSTEM-675). Anything else returns null, so it propagates. A spent run budget is a
+     * ToolException too, and answered here it would never stop the loop it was thrown to stop.
      */
     #[Override]
     protected function resolveToolErrorHandler(): ?callable
     {
         return function (Throwable $e, ToolCall $call): ?string {
-            if (! $e instanceof ToolException) {
+            if (! $e instanceof ToolException || $e instanceof ToolRunsExceededException) {
                 return null;
             }
 
