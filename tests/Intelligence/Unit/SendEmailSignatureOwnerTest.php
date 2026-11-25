@@ -20,9 +20,9 @@ final class SendEmailSignatureOwnerTest extends TestCaseUnit
         $bot = new Users();
         $human = new Users();
         $tool = new class () extends SendEmailTool {
-            public function owner(): ?Users
+            public function owner(bool $signAsMe = true): ?Users
             {
-                return $this->signatureOwner();
+                return $this->signatureOwner($signAsMe);
             }
         };
         $internal = Mockery::mock(Agent::class);
@@ -39,6 +39,8 @@ final class SendEmailSignatureOwnerTest extends TestCaseUnit
         $this->assertNull($tool->owner());
         $tool->forConversationHuman($human);
         $this->assertSame($human, $tool->owner());
+        // Written as the business or its persona ("send it as Sally"): the human's signature stays out.
+        $this->assertNull($tool->owner(false));
         $tool->withContext(
             new Apps(),
             new Companies(),
@@ -73,9 +75,9 @@ final class SendEmailSignatureOwnerTest extends TestCaseUnit
         $agent = Mockery::mock(Agent::class);
         $agent->shouldReceive('conversesWithUser')->andReturn(true);
         $tool = new class () extends SendEmailTool {
-            public function owner(): ?Users
+            public function owner(bool $signAsMe = true): ?Users
             {
-                return $this->signatureOwner();
+                return $this->signatureOwner($signAsMe);
             }
         };
         $tool->withContext(
