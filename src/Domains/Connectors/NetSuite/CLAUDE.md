@@ -8,9 +8,10 @@ triggers the import, and running it again is a resync.
 
 ## Pieces
 
-The import runs on the generic integration layer (`src/Domains/Workflow/Integrations/Imports/`: the
-`startIntegrationImport` mutation, run status, chunking, the per-record try/catch and counting). NetSuite
-only supplies what to list and how to import one record.
+The import runs on the generic integration layer (`src/Domains/Workflow/Integrations/Imports/CLAUDE.md`:
+the `integrationImport` mutation, `integrationImportStatus` and `integrationImportOptionChoices`, run
+status, chunking, the per-record try/catch and counting). NetSuite only supplies what to list and how to
+import one record. There is no NetSuite-specific import mutation or status query.
 
 | Piece | Where |
 |---|---|
@@ -85,16 +86,14 @@ Lists, then the generic job processes it in chunks of 100.
 | Input | Search |
 |---|---|
 | `saved_search_id` (or setting `NET_SUITE_PRODUCTS_SAVED_SEARCH_ID`) | That saved search. |
-| `location_ids`, no saved search | Basic search of active inventory items joined to those locations. One record per item even when several locations carry it. |
-| Neither | Every active inventory item. |
+| `location_ids` (required), no saved search | Basic search of active inventory items joined to those locations. One record per item even when several locations carry it. |
 
 Inventory items only: `getProductById()` reads that record type, so a kit or service item could never
 be pulled.
 
 **Per item** (`NetSuiteProductsImporter::importOne()`):
 
-1. **New:** `PullNetSuiteProductAction` creates it in the warehouse of the **first** chosen location (the
-   default one when none is chosen), and the refresh fills price, MAP, attributes and that location's
+1. **New:** `PullNetSuiteProductAction` creates it in the warehouse of the **first** chosen location, and the refresh fills price, MAP, attributes and that location's
    quantity.
 2. **Existing:** `PullNetSuiteProductPriceAction` refreshes price, MAP, attributes and the quantity of
    its first warehouse.
