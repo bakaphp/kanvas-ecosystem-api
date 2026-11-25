@@ -24,16 +24,6 @@ enum ImportEntityEnum: string
         };
     }
 
-    public function readsLocations(): bool
-    {
-        return $this !== self::CUSTOMERS;
-    }
-
-    public function statusKey(): string
-    {
-        return 'NET_SUITE_IMPORT_STATUS_' . strtoupper($this->value);
-    }
-
     /**
      * Saved search ids belong to the NetSuite account, and the account is configured on the app, so
      * the company setting overrides an app-wide one. Stock has no fallback: only a saved search joined

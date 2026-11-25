@@ -1,68 +1,3 @@
-enum NetSuiteImportEntity {
-    PRODUCTS @enum(value: "products")
-    CUSTOMERS @enum(value: "customers")
-    STOCK @enum(value: "stock")
-}
-
-enum NetSuiteImportState {
-    QUEUED @enum(value: "queued")
-    RUNNING @enum(value: "running")
-    COMPLETED @enum(value: "completed")
-    FAILED @enum(value: "failed")
-}
-
-input NetSuiteImportInput {
-    entity: NetSuiteImportEntity!
-    "Overrides the NET_SUITE_{PRODUCTS|CUSTOMERS|STOCK}_SAVED_SEARCH_ID setting. Without either, products and customers import every active record; stock requires one."
-    saved_search_id: ID
-    "STOCK only: create the stock row for SKUs a mapped warehouse does not carry yet."
-    create_missing: Boolean = false
-    "PRODUCTS only: import the items these NetSuite locations carry (see netsuiteLocations). Locations not yet in Kanvas get a warehouse first. The first one is where new products are created; choosing more than one queues a STOCK import when products finish, for the other locations' quantities."
-    location_ids: [ID!]
-}
-
-type NetSuiteImportError {
-    id: String!
-    error: String!
-}
-
-type NetSuiteImportStatus {
-    entity: NetSuiteImportEntity!
-    status: NetSuiteImportState!
-    saved_search_id: String
-    "The NetSuite locations a PRODUCTS import was asked to import from; empty otherwise."
-    location_ids: [String!]!
-    "Records found in NetSuite; null until the run starts, and for stock."
-    total: Int
-    processed: Int!
-    created: Int!
-    updated: Int!
-    "Customers already in Kanvas, left as they are."
-    skipped: Int!
-    failed: Int!
-    "The first 50 records that could not be imported."
-    errors: [NetSuiteImportError!]!
-    "STOCK: totals per outcome and the locations whose search failed. PRODUCTS from several locations: whether the follow-up STOCK import was queued ({stock: queued}) or why not ({stock: skipped, reason})."
-    summary: Mixed
-    error: String
-    queued_at: String
-    started_at: String
-    finished_at: String
-}
-
-type NetSuiteLocation {
-    id: ID!
-    name: String!
-    "NetSuite's location type without the leading underscore, e.g. warehouse; null when unset."
-    type: String
-    "NetSuite's \"Make Inventory Available\" flag."
-    inventory_available: Boolean!
-    "A warehouse-typed location with available inventory. Only a hint to pre-check in the picker: NetSuite flags transit and catch-all locations as available too."
-    suggested: Boolean!
-    "The Kanvas warehouse that mirrors this location; null until imported."
-    warehouse: Warehouse
-}
-
 input NetSuiteImportLocationsInput {
     "Mapped onto the company's existing default warehouse, where products already sit and new ones are created."
     default_location_id: ID!
@@ -71,19 +6,7 @@ input NetSuiteImportLocationsInput {
 }
 
 extend type Mutation @guardByAdmin {
-    "Queues a pull of one entity from NetSuite into the current company. Calling it again is a resync. PRODUCTS and STOCK need the locations imported first."
-    netsuiteImport(input: NetSuiteImportInput!): NetSuiteImportStatus!
-        @field(resolver: "App\\GraphQL\\Connector\\NetSuite\\Mutations\\NetSuiteImportMutation@import")
     "Maps the chosen NetSuite locations onto warehouses; returns the default warehouse first. Safe to run again."
     netsuiteImportLocations(input: NetSuiteImportLocationsInput!): [Warehouse!]!
         @field(resolver: "App\\GraphQL\\Connector\\NetSuite\\Mutations\\NetSuiteImportMutation@importLocations")
-}
-
-extend type Query @guardByAdmin {
-    "The last import of the entity for the current company; null when it was never imported."
-    netsuiteImportStatus(entity: NetSuiteImportEntity!): NetSuiteImportStatus
-        @field(resolver: "App\\GraphQL\\Connector\\NetSuite\\Queries\\NetSuiteImportQuery@status")
-    "The active locations of the connected NetSuite account, and which warehouse mirrors each."
-    netsuiteLocations: [NetSuiteLocation!]!
-        @field(resolver: "App\\GraphQL\\Connector\\NetSuite\\Queries\\NetSuiteImportQuery@locations")
 }

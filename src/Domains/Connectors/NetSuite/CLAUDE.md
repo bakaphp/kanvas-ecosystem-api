@@ -8,26 +8,42 @@ triggers the import, and running it again is a resync.
 
 ## Pieces
 
+The import runs on the generic integration layer (`src/Domains/Workflow/Integrations/Imports/`: the
+`startIntegrationImport` mutation, run status, chunking, the per-record try/catch and counting). NetSuite
+only supplies what to list and how to import one record.
+
 | Piece | Where |
 |---|---|
-| Schema | `graphql/schemas/Connector/netsuite.graphql` |
-| Resolvers | `app/GraphQL/Connector/NetSuite/` |
-| Products / customers / stock import | `Actions/ImportNetSuiteDataAction.php` |
+| What the integration offers (entities, labels, options) | `Handlers/NetSuiteHandler.php` (`importables()`) |
+| Customers / products (chunked) | `Importers/NetSuiteCustomersImporter.php`, `Importers/NetSuiteProductsImporter.php` |
+| Stock (one run) | `Importers/NetSuiteStockImporter.php` |
+| Saved-search resolution | `Enums/ImportEntityEnum.php` (`resolveSavedSearchId()`) |
 | Location → warehouse mapping | `Actions/ImportNetSuiteLocationsAction.php`, `Services/NetSuiteLocationWarehouseService.php` |
 | The account's locations, location join filter | `Services/NetSuiteLocationService.php` |
-| Chunked job | `Jobs/ImportNetSuiteDataJob.php` (queue `imports`) |
-| Import status | `Services/NetSuiteImportStatusService.php` |
 | SOAP search pagination | `Client::searchAll()` |
+| Schema (only `netsuiteImportLocations` is NetSuite's) | `graphql/schemas/Connector/netsuite.graphql`, `app/GraphQL/Connector/NetSuite/` |
 
-Paths relative to `src/Domains/Connectors/NetSuite/` except the first two.
+Paths relative to `src/Domains/Connectors/NetSuite/` except the last.
+
+Entities and options (`importables()`):
+
+| Entity | Options |
+|---|---|
+| `customers` | `saved_search_id` |
+| `products` | `location_ids` (required, choices: the account's active locations), `saved_search_id` |
+| `stock` | `saved_search_id`, `create_missing` |
+
+The location picker comes from the generic `choices` of the `location_ids` option (`suggested` per
+location, see below); there is no NetSuite-specific locations query.
 
 ## Per-company requirements
 
 - NetSuite connected. Credentials live on the **app** (`NET_SUITE_ACCOUNT_CONFIG`): every company of an
   app shares one NetSuite account.
 - Inventory set up (region and default warehouse). Without a default warehouse, mapping locations fails.
-- At least one mapped location for `PRODUCTS` and `STOCK`. The mutation checks it before queuing
-  (`NetSuiteLocationWarehouseService::assertMapped()`): with no location the price refresh has nothing
+- At least one mapped location for `PRODUCTS` and `STOCK`. The importer checks it before queuing
+  (`NetSuiteStockImporter::prepare()` via `NetSuiteLocationWarehouseService::assertMapped()`; products map
+  the chosen locations themselves): with no location the price refresh has nothing
   to read from, so every product would land at price 0 and count as failed.
 - A worker on the `imports` queue (present in all three `docker-compose` files).
 
@@ -39,7 +55,7 @@ import and quotes all read it from there.
 
 Two ways to map them, same rules (`ImportNetSuiteLocationsAction`):
 
-- **While importing products** with `location_ids` (`ensureMapped()`): the location the default warehouse
+- **While importing products** with `location_ids` (`ensureMapped()`, called by `NetSuiteProductsImporter::prepare()`): the location the default warehouse
   already mirrors stays there; on a company with none mapped, the **first one chosen** goes onto the
   default warehouse. The rest become new warehouses named after the location.
 - **On its own**, with `netsuiteImportLocations(default_location_id, location_ids)`: same, with an
@@ -56,13 +72,13 @@ Rules:
 - It also writes `NET_SUITE_DEFAULT_WAREHOUSE` on the company (the default location's id): the fallback
   the price refresh uses for a variant in an unmapped warehouse.
 
-`suggested` in `netsuiteLocations` is `type = warehouse` and "Make Inventory Available". It is only a
+`suggested` on a location choice is `type = warehouse` and "Make Inventory Available". It is only a
 hint: on the account tested, "In Transit", "Other" and "Amazon" are flagged as available inventory, and
 "Chicago" is a warehouse-typed location with no available inventory. The user decides.
 
 ## Products
 
-Lists, then processes in chunks of 100, one job per chunk queuing the next.
+Lists, then the generic job processes it in chunks of 100.
 
 **Which items:**
 
@@ -75,7 +91,7 @@ Lists, then processes in chunks of 100, one job per chunk queuing the next.
 Inventory items only: `getProductById()` reads that record type, so a kit or service item could never
 be pulled.
 
-**Per item** (`ImportNetSuiteDataAction::importProduct()`):
+**Per item** (`NetSuiteProductsImporter::importOne()`):
 
 1. **New:** `PullNetSuiteProductAction` creates it in the warehouse of the **first** chosen location (the
    default one when none is chosen), and the refresh fills price, MAP, attributes and that location's
@@ -85,11 +101,12 @@ be pulled.
 3. Either way, every chosen location's warehouse that does not carry the product gets a row at the same
    price and quantity 0 (`Concerns/ResolvesVariantWarehouse`, shared with the stock import). NetSuite
    prices an item, not a location.
-4. The other locations' quantities come from `STOCK`. With **2 or more** locations chosen, the last chunk
-   queues a `STOCK` import by itself; when it cannot (no stock saved search, or one already running) it
-   says so in `summary`.
+4. The other locations' quantities come from `STOCK`. With **2 or more** locations chosen, `completed()`
+   starts a `stock` import by itself (through `StartIntegrationImportAction`); when it cannot (no stock
+   saved search, or one already running) the run's `summary` says so.
 
-A failing item counts in `failed` and does not stop the rest. A soft-deleted product with a live variant
+A failing item counts in `failed` (the generic job catches what `importOne()` throws) and does not stop
+the rest. A soft-deleted product with a live variant
 goes through the pull, which restores it.
 
 ## Customers
@@ -106,14 +123,15 @@ list); set `NET_SUITE_CUSTOMERS_SAVED_SEARCH_ID` to a sensible filter before off
 
 `PullNetSuiteProductStockAction`: one advanced search per mapped warehouse (saved search + location join)
 returning `locationQuantityAvailable`, writing the quantity of every SKU already in Kanvas. Runs whole in
-one job; `summary` keeps the totals, not the per-SKU lists.
+one job (`NetSuiteStockImporter::run()`); `summary` keeps the totals, not the per-SKU lists.
 
 Needs a saved search: the input or `NET_SUITE_STOCK_SAVED_SEARCH_ID`. On the account tested **574** works
 and **576** (the historical default of `kanvas:netsuite-sync-stock`) returns no rows.
 
 ## Saved searches
 
-Resolution order (`ImportEntityEnum::resolveSavedSearchId()`):
+Resolution order (`ImportEntityEnum::resolveSavedSearchId()`, called from each importer's `prepare()`, so
+the resolved id is what the run stores):
 
 1. `saved_search_id` from the input.
 2. The **company** setting: `NET_SUITE_PRODUCTS_SAVED_SEARCH_ID`, `NET_SUITE_CUSTOMERS_SAVED_SEARCH_ID`,
@@ -125,14 +143,8 @@ Ids belong to each NetSuite account; they do not carry over between tenants.
 
 ## Status and concurrency
 
-- Stored per company and entity in the `NET_SUITE_IMPORT_STATUS_{ENTITY}` setting. Only one job writes it
-  at a time (each chunk queues the next), so there are no concurrent writers.
-- The run's id list lives in the cache (`netsuite-import-ids:{company}:{entity}`), not in the setting.
-- A `QUEUED`/`RUNNING` import blocks another of the same entity. One that stops reporting for more than
-  3 hours (`STALE_AFTER_HOURS`, a dead worker) stops blocking.
-- `errors` keeps the first 50.
-- The job has `tries = 1` and `timeout = 3600`; on failure `failed()` marks the status `FAILED` with the
-  message.
+Run status, the one-import-at-a-time guard, stale-run handling, the error cap and the job's `tries` and
+`timeout` belong to the generic layer: see `src/Domains/Workflow/Integrations/Imports/`.
 
 ## Measured duration
 
