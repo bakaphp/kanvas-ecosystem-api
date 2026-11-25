@@ -122,6 +122,7 @@ class TransitionOrderStateAction
             });
 
             if ($transitioned) {
+                $this->fulfillOnStatus();
                 $this->fireWorkflow($currentOrderStatus);
             }
 
@@ -184,6 +185,15 @@ class TransitionOrderStateAction
                 'unit_price' => (float) $item->unit_price_net_amount,
             ])->all(),
         ];
+    }
+
+    private function fulfillOnStatus(): void
+    {
+        if ($this->order->isFulfilled() || ! $this->order->orderType->fulfillsOnStatus($this->newOrderStatus->slug)) {
+            return;
+        }
+
+        $this->order->fulfill();
     }
 
     private function fireWorkflow($currentOrderStatus): void

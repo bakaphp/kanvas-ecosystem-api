@@ -13,7 +13,7 @@ class OrderNotification extends Notification
         Order $order,
         array $data,
     ) {
-        parent::__construct($order, $data);
+        parent::__construct($order, ['company' => $order->company] + $data);
         $this->setData($data);
     }
 }
