@@ -27,6 +27,7 @@ use OpenSSLAsymmetricKey;
 use OpenSSLCertificate;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 /**
  * Serial: the verifier reads APPLE_BUNDLE_ID and IAP_ALLOW_XCODE_STOREKIT_TESTING, which are app
@@ -36,6 +37,7 @@ use Tests\TestCase;
 class AppleSignedTransactionTest extends TestCase
 {
     use DatabaseTransactions;
+    use ManagesAppSettings;
 
     // A purchase files the suite's shared user as a CRM person; committed, it turns that user's email
     // into a company contact for every serial test after this one. Not inventory: CreateProductAction
@@ -52,20 +54,12 @@ class AppleSignedTransactionTest extends TestCase
     {
         parent::setUp();
 
-        $this->kanvasApp = app(Apps::class);
-        $this->kanvasApp->set(ConfigurationEnum::APPLE_BUNDLE_ID->value, self::BUNDLE_ID);
+        $this->rememberAppSettings(ConfigurationEnum::IAP_ALLOW_XCODE_STOREKIT_TESTING->value);
+        $this->kanvasApp = $this->setAppSettings([ConfigurationEnum::APPLE_BUNDLE_ID->value => self::BUNDLE_ID]);
         $this->kanvasApp->del(ConfigurationEnum::IAP_ALLOW_XCODE_STOREKIT_TESTING->value);
 
         $this->sku = 'signed_sub_' . uniqid();
         $this->originalTransactionId = 'signed_orig_' . uniqid();
-    }
-
-    protected function tearDown(): void
-    {
-        $this->kanvasApp->del(ConfigurationEnum::APPLE_BUNDLE_ID->value);
-        $this->kanvasApp->del(ConfigurationEnum::IAP_ALLOW_XCODE_STOREKIT_TESTING->value);
-
-        parent::tearDown();
     }
 
     public function testValidTransactionCreatesOrderAndActiveSubscription(): void

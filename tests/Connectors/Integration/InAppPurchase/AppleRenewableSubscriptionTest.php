@@ -22,10 +22,12 @@ use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Cashier\Subscription as CashierSubscription;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 class AppleRenewableSubscriptionTest extends TestCase
 {
     use DatabaseTransactions;
+    use ManagesAppSettings;
 
     // Same leak as AppleSignedTransactionTest: a purchase files the process's shared user as a CRM person.
     protected $connectionsToTransact = [null, 'crm', 'commerce'];
@@ -372,29 +374,24 @@ class AppleRenewableSubscriptionTest extends TestCase
     #[Group('serial')]
     public function testRenewableReceiptOfAnotherAppIsRejected(): void
     {
-        $app = app(Apps::class);
-        $app->set(ConfigurationEnum::APPLE_BUNDLE_ID->value, 'com.kanvas.receipt.test');
+        $this->setAppSettings([ConfigurationEnum::APPLE_BUNDLE_ID->value => 'com.kanvas.receipt.test']);
 
-        try {
-            $this->expectException(ValidationException::class);
-            $this->expectExceptionMessage('Apple payload belongs to another app');
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Apple payload belongs to another app');
 
-            $this->executeRenewable(
-                lineage: 6,
-                transactionId: 'renew_tx_6',
-                latestReceiptInfo: [
-                    $this->receiptInfo(
-                        lineage: 6,
-                        transactionId: 'renew_tx_6',
-                        purchasedAt: now()->subDay(),
-                        expiresAt: now()->addMonth()
-                    ),
-                ],
-                receiptBundleId: 'com.someone.else'
-            );
-        } finally {
-            $app->del(ConfigurationEnum::APPLE_BUNDLE_ID->value);
-        }
+        $this->executeRenewable(
+            lineage: 6,
+            transactionId: 'renew_tx_6',
+            latestReceiptInfo: [
+                $this->receiptInfo(
+                    lineage: 6,
+                    transactionId: 'renew_tx_6',
+                    purchasedAt: now()->subDay(),
+                    expiresAt: now()->addMonth()
+                ),
+            ],
+            receiptBundleId: 'com.someone.else'
+        );
     }
 
     public function testRenewableInvalidReceiptThrowsValidationException(): void

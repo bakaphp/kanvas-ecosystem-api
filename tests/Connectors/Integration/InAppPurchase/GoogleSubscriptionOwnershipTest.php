@@ -286,7 +286,12 @@ class GoogleSubscriptionOwnershipTest extends TestCase
         bool $waitForLock = true,
         ?Closure $whileCreating = null
     ): CreateOrderFromGoogleReceiptAction {
-        return new class ($receipt, $response, $waitForLock, $whileCreating) extends CreateOrderFromGoogleReceiptAction {
+        return new class (
+            $receipt,
+            $response,
+            $waitForLock,
+            $whileCreating
+        ) extends CreateOrderFromGoogleReceiptAction {
             public function __construct(
                 GooglePlayInAppPurchaseReceipt $googlePlayInAppPurchase,
                 private readonly SubscriptionPurchase $response,

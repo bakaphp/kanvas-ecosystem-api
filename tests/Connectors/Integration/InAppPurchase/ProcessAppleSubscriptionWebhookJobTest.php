@@ -19,6 +19,7 @@ use Kanvas\Workflow\Models\WorkflowAction;
 use Laravel\Cashier\Subscription as CashierSubscription;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 /**
  * Serial: the job reads APPLE_BUNDLE_ID, an app setting shared by every parallel process.
@@ -26,6 +27,8 @@ use Tests\TestCase;
 #[Group('serial')]
 class ProcessAppleSubscriptionWebhookJobTest extends TestCase
 {
+    use ManagesAppSettings;
+
     private const string BUNDLE_ID = 'com.test.app';
 
     private string $originalTransactionId;
@@ -36,14 +39,7 @@ class ProcessAppleSubscriptionWebhookJobTest extends TestCase
         parent::setUp();
         $this->originalTransactionId = 'apple_test_txn_' . uniqid();
         $this->verifierAnswers(true);
-        app(Apps::class)->set(ConfigurationEnum::APPLE_BUNDLE_ID->value, self::BUNDLE_ID);
-    }
-
-    protected function tearDown(): void
-    {
-        app(Apps::class)->del(ConfigurationEnum::APPLE_BUNDLE_ID->value);
-
-        parent::tearDown();
+        $this->setAppSettings([ConfigurationEnum::APPLE_BUNDLE_ID->value => self::BUNDLE_ID]);
     }
 
     public function testRejectsNotificationOfAnotherBundle(): void

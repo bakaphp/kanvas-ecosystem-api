@@ -37,6 +37,9 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
     {
         parent::setUp();
         $this->purchaseToken = 'google_test_token_' . uniqid();
+        // The app under test may hold a real Play service account, which would send every
+        // notification-path test to the Play API.
+        $this->withoutPlayAccount();
     }
 
     public function testHandleTestNotification(): void
@@ -242,13 +245,10 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
     public function testSignInClientConfigAloneKeepsNotificationPath(): void
     {
         $this->seedSubscription('active');
-        $this->bindPlayBilling(
-            fn (): never => throw new RuntimeException('Play must not be called without a payment account'),
-            [
-                ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value => ['type' => 'service_account'],
-                InAppPurchaseConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value => 'com.test.app',
-            ]
-        );
+        $this->withoutPlayAccount([
+            ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value => ['type' => 'service_account'],
+            InAppPurchaseConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value => 'com.test.app',
+        ]);
 
         $result = $this->dispatchWebhookJob($this->buildGooglePayload(notificationType: 3));
 
@@ -365,6 +365,14 @@ class ProcessGoogleSubscriptionWebhookJobTest extends TestCase
     private function failPlaySubscription(RuntimeException $exception): void
     {
         $this->bindPlayBilling(fn (): never => throw $exception);
+    }
+
+    private function withoutPlayAccount(array $settings = []): void
+    {
+        $this->bindPlayBilling(
+            fn (): never => throw new RuntimeException('Play must not be called without a payment account'),
+            $settings
+        );
     }
 
     private function bindPlayBilling(Closure $respond, array $settings = self::PLAY_SETTINGS): void

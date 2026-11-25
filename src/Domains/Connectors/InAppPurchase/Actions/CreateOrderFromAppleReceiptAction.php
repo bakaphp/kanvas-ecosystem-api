@@ -236,12 +236,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
     #[Override]
     protected function verifyReceipt(array $receipt): ReceiptResponse
     {
-        $sharedSecret = $this->app->get(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value);
-
-        if (empty($sharedSecret)) {
-            throw new ValidationException('No Apple Payment Shared Secret Configured');
-        }
-
+        $sharedSecret = $this->sharedSecret();
         $client = $this->appleClient();
         $verifier = new Verifier($client, $receipt['transactionReceipt'], $sharedSecret);
 
@@ -250,18 +245,24 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
     protected function verifyRenewableReceipt(array $receipt): ReceiptResponse
     {
-        $sharedSecret = $this->app->get(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value);
-
-        if (empty($sharedSecret)) {
-            throw new ValidationException('No Apple Payment Shared Secret Configured');
-        }
-
+        $sharedSecret = $this->sharedSecret();
         $client = $this->appleClient();
 
         return Subscription::appStore($client)
             ->receiptData($receipt['transactionReceipt'])
             ->password($sharedSecret)
             ->verifyRenewable($this->runInSandbox ? $client : null);
+    }
+
+    private function sharedSecret(): string
+    {
+        $sharedSecret = $this->app->get(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value);
+
+        if (empty($sharedSecret)) {
+            throw new ValidationException('No Apple Payment Shared Secret Configured');
+        }
+
+        return (string) $sharedSecret;
     }
 
     /**
