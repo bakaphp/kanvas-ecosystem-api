@@ -233,4 +233,17 @@ class IntegrationsCompany extends BaseModel
             ->where('is_active', 1)
             ->first();
     }
+
+    public static function getActiveByIntegrationName(
+        Companies $company,
+        AppInterface $app,
+        string $name
+    ): ?self {
+        return self::fromCompany($company)
+            ->fromApp($app)
+            ->where('is_active', 1)
+            ->whereHas('integration', fn ($query) => $query->where('name', $name))
+            ->orderBy('id')
+            ->first();
+    }
 }

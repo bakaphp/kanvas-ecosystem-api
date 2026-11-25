@@ -35,19 +35,15 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 | `Actions/PullOrganizationAction.php` / `PullPeopleAction.php` / `PullLeadAction.php` | same |
 | `Activities/Push{Lead,People,Organization}Activity.php` | same |
 | `app/Console/Commands/Connectors/*/…BackfillCommand.php` | same |
-| `Jobs/…BackfillImportJob.php` | same |
+| `Jobs/…BackfillImportJob.php` | same (Salesforce's is gone — see below) |
 
-The two backfill **jobs** are the strongest candidate to unify — the record loop, the
-processed/failed counters, the per-record `try/catch → report()` and the summary log line are
-byte-identical, differing only in the id key (`Id` vs `id`) and which `Pull*Action` each entity
-type maps to. A shared abstract job taking those two as template methods would collapse both.
+Salesforce's backfill job is gone: `kanvas:salesforce-backfill` now starts the generic integration
+import (`SalesforceOrganizationsImporter` / `SalesforcePeopleImporter`, run by
+`RunIntegrationImportJob`). Odoo's `OdooBackfillImportJob` is the remaining copy — migrate it onto
+the same layer rather than keeping a second record loop.
 
 The three `Push*Activity` classes are **not** worth unifying — the framework discovers one class
 per `#[WorkflowAction]` attribute, so that repetition is structural, not accidental.
-
-Deliberately left alone for now (2026-09-12): merging would mean editing the live Salesforce
-connector from an unrelated PR. Do it as its own change, with the Salesforce suite green, before
-a third CRM connector lands and makes it three copies.
 
 ## Hard rules specific to this tree
 
