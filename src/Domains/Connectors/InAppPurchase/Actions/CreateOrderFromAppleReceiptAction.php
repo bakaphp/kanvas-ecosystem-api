@@ -21,10 +21,8 @@ use Kanvas\Connectors\InAppPurchase\Services\AppleSignedTransactionVerifier;
 use Kanvas\Connectors\InAppPurchase\Services\StaleTransactionGuard;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
-use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Cashier\Subscription as CashierSubscription;
@@ -33,7 +31,6 @@ use Override;
 class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 {
     public const string CLIENT_BINDING = 'in-app-purchase.apple.client';
-    private const string DEFAULT_CURRENCY = 'USD';
     private const int OFFER_TYPE_INTRODUCTORY = 1;
     private const string OFFER_DISCOUNT_FREE_TRIAL = 'FREE_TRIAL';
     private const string TYPE_AUTO_RENEWABLE_SUBSCRIPTION = 'Auto-Renewable Subscription';
@@ -275,7 +272,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             return app(self::CLIENT_BINDING);
         }
 
-        return $this->runInSandbox ? ClientFactory::createSandbox() : ClientFactory::create();
+        return $this->runInSandbox ? ClientFactory::createForITunesSandbox() : ClientFactory::createForITunes();
     }
 
     private function executeProductFlow(): ModelsOrder
@@ -291,11 +288,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         $this->assertReceiptBelongsToApp($verifiedReceipt);
 
         $people = $this->createPeople();
-        $orderData = $this->createOrderData(
-            $receipt,
-            $people,
-            $verifiedReceipt->getReceipt()
-        );
+        $orderData = $this->createOrderData($receipt, $people, $verifiedReceipt->getReceipt());
 
         $order = new CreateOrderAction($orderData)->execute();
         $this->handleCustomFieldsOnOrder($order);
@@ -360,110 +353,75 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         ];
     }
 
-    private function createOrderData(
-        array $allReceiptData,
-        People $people,
-        ?Receipt $receipt,
-    ): Order {
-        if ($receipt === null) {
-            $exception = new ValidationException('Receipt validation failed: null receipt received');
-            report($exception);
+    private function createOrderData(array $allReceiptData, People $people, ?Receipt $receipt): Order
+    {
+        $purchase = $this->findPurchaseInReceipt($receipt, $allReceiptData['transactionId']);
 
-            throw $exception;
-        }
-
-        // Get in-app purchases with detailed validation
-        $inAppPurchases = $receipt->getInApp();
-
-        if (empty($inAppPurchases)) {
-            $exception = new ValidationException(
-                'No in-app purchases found in receipt. This appears to be an app download receipt only.'
-            );
-            report($exception);
-
-            throw $exception;
-        }
-
-        // Find the purchase that matches the transaction_id from the request
-        $requestedTransactionId = $allReceiptData['transactionId'];
-        $matchingPurchase = null;
-
-        foreach ($inAppPurchases as $purchase) {
-            if ($purchase->getTransactionId() === $requestedTransactionId) {
-                $matchingPurchase = $purchase;
-                if ($purchase->getCancellationDate() !== null) {
-                    throw new ValidationException('Transaction was cancelled or revoked by Apple.');
-                }
-
-                break;
-            }
-        }
-
-        if ($matchingPurchase === null) {
-            $exception = new ValidationException(
-                "Transaction {$requestedTransactionId} not found in receipt. The receipt may be stale or the transaction was not completed."
-            );
-            report($exception);
-
-            throw $exception;
-        }
-
-        $firstVariant = $this->getVariant($matchingPurchase->getProductId());
-        /** @var array<OrderItem> $orderItems */
-        $orderItems = [];
-
-        $orderItem = $this->createOrderItem(
-            $firstVariant,
-            $matchingPurchase->getQuantity()
-        );
-
-        $orderItems[] = $orderItem;
-
+        $orderItems = [
+            $this->createOrderItem($this->getVariant($purchase->getProductId()), $purchase->getQuantity()),
+        ];
         $this->processCustomFieldsVariants($orderItems);
+
         $allReceiptData['source'] = StoreProviderEnum::APPLE->value;
         $this->addMessageMetadataFromCustomFields($allReceiptData);
 
-        if (array_key_exists('custom_fields', $allReceiptData)) {
-            foreach ($allReceiptData['custom_fields'] as $key => $value) {
-                if ($key == 'message_id') {
-                    $message = Message::fromApp($this->app)
-                        ->where('id', $value)
-                        ->first();
+        return $this->createOrderDto($orderItems, $people, $allReceiptData);
+    }
 
-                    if (! $message) {
-                        continue;
-                    }
-                    $messageContent = $message->message;
-                    $allReceiptData['message']['users_id'] = $message->user->getId();
-                    $allReceiptData['message']['creator_display_name'] = $message->user->displayname ?? null;
-                    $allReceiptData['message']['creator_email'] = $message->user->email;
-                    $allReceiptData['message']['id'] = $message->getId();
-                    $allReceiptData['message']['user_subscription_tier'] = $message->getId();
-                    $allReceiptData['message']['prompt_title'] = $messageContent['title'] ?? $message->slug;
-                }
-            }
+    /**
+     * @throws ValidationException
+     */
+    private function findPurchaseInReceipt(?Receipt $receipt, string $transactionId): LatestReceiptInfo
+    {
+        if ($receipt === null) {
+            $this->reportAndFail('Receipt validation failed: null receipt received');
         }
 
-        return $this->createOrderDto(
-            $orderItems,
-            $people,
-            $allReceiptData
+        $inAppPurchases = $receipt->getInApp();
+
+        if (empty($inAppPurchases)) {
+            $this->reportAndFail(
+                'No in-app purchases found in receipt. This appears to be an app download receipt only.'
+            );
+        }
+
+        foreach ($inAppPurchases as $purchase) {
+            if ($purchase->getTransactionId() !== $transactionId) {
+                continue;
+            }
+
+            if ($purchase->getCancellationDate() !== null) {
+                throw new ValidationException('Transaction was cancelled or revoked by Apple.');
+            }
+
+            return $purchase;
+        }
+
+        $this->reportAndFail(
+            "Transaction {$transactionId} not found in receipt. The receipt may be stale or the transaction was not completed."
         );
     }
 
+    private function reportAndFail(string $message): never
+    {
+        $exception = new ValidationException($message);
+        report($exception);
+
+        throw $exception;
+    }
+
+    /**
+     * The requested transaction, else the newest of its lineage, else the newest of the product.
+     */
     private function resolveRenewableReceiptInfo(
         ReceiptResponse $receiptResponse,
         string $requestedTransactionId,
         ?string $requestedOriginalTransactionId,
         string $requestedProductId
     ): ?LatestReceiptInfo {
-        /** @var array<LatestReceiptInfo>|null $latestReceiptInfo */
-        $latestReceiptInfo = $receiptResponse->getLatestReceiptInfo();
+        /** @var array<LatestReceiptInfo> $latestReceiptInfo */
+        $latestReceiptInfo = $receiptResponse->getLatestReceiptInfo() ?? [];
         $storeProductId = $this->resolveStoreProductId($requestedProductId);
-
-        if ($latestReceiptInfo === null || $latestReceiptInfo === []) {
-            return null;
-        }
 
         foreach ($latestReceiptInfo as $receiptInfo) {
             if ($receiptInfo->getTransactionId() === $requestedTransactionId) {
@@ -471,43 +429,36 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             }
         }
 
-        if ($requestedOriginalTransactionId !== null && $requestedOriginalTransactionId !== '') {
-            $matchedByOriginal = array_values(array_filter(
+        $ofLineage = $requestedOriginalTransactionId !== null && $requestedOriginalTransactionId !== ''
+            ? $this->latestByPurchaseDate(
                 $latestReceiptInfo,
                 fn (LatestReceiptInfo $receiptInfo): bool
                     => $receiptInfo->getOriginalTransactionId() === $requestedOriginalTransactionId
-            ));
+            )
+            : null;
 
-            if ($matchedByOriginal !== []) {
-                return $this->getLatestByPurchaseDate($matchedByOriginal);
-            }
-        }
-
-        $matchedByProduct = array_values(array_filter(
+        return $ofLineage ?? $this->latestByPurchaseDate(
             $latestReceiptInfo,
             fn (LatestReceiptInfo $receiptInfo): bool => $receiptInfo->getProductId() === $storeProductId
-        ));
-
-        if ($matchedByProduct === []) {
-            return null;
-        }
-
-        return $this->getLatestByPurchaseDate($matchedByProduct);
+        );
     }
 
     /**
      * @param array<LatestReceiptInfo> $receiptInfos
+     * @param Closure(LatestReceiptInfo): bool $matches
      */
-    private function getLatestByPurchaseDate(array $receiptInfos): LatestReceiptInfo
+    private function latestByPurchaseDate(array $receiptInfos, Closure $matches): ?LatestReceiptInfo
     {
-        usort($receiptInfos, function (LatestReceiptInfo $a, LatestReceiptInfo $b): int {
+        $matching = array_values(array_filter($receiptInfos, $matches));
+
+        usort($matching, function (LatestReceiptInfo $a, LatestReceiptInfo $b): int {
             $aPurchaseDate = $a->getPurchaseDate()?->toCarbon()?->getTimestamp() ?? 0;
             $bPurchaseDate = $b->getPurchaseDate()?->toCarbon()?->getTimestamp() ?? 0;
 
             return $bPurchaseDate <=> $aPurchaseDate;
         });
 
-        return $receiptInfos[0];
+        return $matching[0] ?? null;
     }
 
     /**
