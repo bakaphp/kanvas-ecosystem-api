@@ -39,13 +39,15 @@ class VinSolutionLeadCreationWebhookJob extends ProcessWebhookJob
             $this->receiver->user
         );
 
-        $result = $pullLeadAction->execute(null, $leadId);
+        $result = $pullLeadAction->execute(leadId: $leadId, skipUnimportedServiceLeads: true);
 
         return [
             'success' => true,
             'lead_id' => $leadId,
             'processed_leads' => $result,
-            'message' => 'Lead processed successfully',
+            'message' => $result === []
+                ? 'No lead imported: not found in VinSolutions, or a service lead the company does not download'
+                : 'Lead processed successfully',
         ];
     }
 
