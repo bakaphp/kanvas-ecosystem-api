@@ -7,6 +7,7 @@ namespace Baka\Contracts;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Models\Integrations;
 
@@ -125,6 +126,17 @@ abstract class BaseIntegration
      * @return list<DefaultRule>
      */
     public function defaultRules(): array
+    {
+        return [];
+    }
+
+    /**
+     * What this integration can import on demand, by entity. Declared here so a connector never
+     * has to name itself in the generic import layer.
+     *
+     * @return list<Importable>
+     */
+    public function importables(): array
     {
         return [];
     }
