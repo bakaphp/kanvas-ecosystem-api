@@ -135,15 +135,26 @@ class SendOutlookEmailTool extends Tool implements RequiresSystemAgent
         $draftId = Str::trimToNull($draft_id);
 
         return $draftId === null
-            ? $this->draft($caller, $to, $subject, $body, $cc)
+            ? $this->draft(
+                $caller,
+                $to,
+                $subject,
+                $body,
+                $cc
+            )
             : $this->sendDraft($caller, $draftId);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function draft(Users $caller, ?string $to, ?string $subject, ?string $body, ?string $cc): array
-    {
+    private function draft(
+        Users $caller,
+        ?string $to,
+        ?string $subject,
+        ?string $body,
+        ?string $cc
+    ): array {
         $recipients = $this->addresses($to);
         $copies = $this->addresses($cc);
         $subject = Str::trimToNull($subject);
@@ -238,7 +249,12 @@ class SendOutlookEmailTool extends Tool implements RequiresSystemAgent
         }
 
         Cache::forget($key);
-        $this->recordOnPeople($contacts, $caller, $draft['subject'], $draft['body']);
+        $this->recordOnPeople(
+            $contacts,
+            $caller,
+            $draft['subject'],
+            $draft['body']
+        );
 
         return $this->ok(['sent' => true, 'to' => $draft['to'], 'cc' => $draft['cc'], 'subject' => $draft['subject']]);
     }
@@ -296,8 +312,12 @@ class SendOutlookEmailTool extends Tool implements RequiresSystemAgent
      *
      * @param list<Contact> $contacts
      */
-    private function recordOnPeople(array $contacts, Users $sender, string $subject, string $body): void
-    {
+    private function recordOnPeople(
+        array $contacts,
+        Users $sender,
+        string $subject,
+        string $body
+    ): void {
         foreach ($contacts as $contact) {
             try {
                 new PersistOutboundMessageAction(

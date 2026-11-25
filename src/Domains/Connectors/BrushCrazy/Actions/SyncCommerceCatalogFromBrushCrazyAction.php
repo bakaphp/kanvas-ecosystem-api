@@ -495,7 +495,12 @@ class SyncCommerceCatalogFromBrushCrazyAction
         $product->disableWorkflows();
 
         if ($isFeatured) {
-            $product->addTag(self::FEATURED_TAG, $this->app, $this->user, $this->context->company);
+            $product->addTag(
+                self::FEATURED_TAG,
+                $this->app,
+                $this->user,
+                $this->context->company
+            );
         } else {
             $product->removeTag(self::FEATURED_TAG);
         }

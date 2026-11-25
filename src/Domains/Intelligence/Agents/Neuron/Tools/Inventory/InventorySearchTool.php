@@ -75,7 +75,7 @@ class InventorySearchTool extends Tool
         // the voice runtime authenticates as its own app-key app, so without this
         // the tool searches the WRONG tenant's catalogue. withContext() (set by
         // RunVoiceAgentToolAction) hands us the agent's app; bind it explicitly so
-        // the search can't drift to the runtime's app. Restored by the caller.
+        // the search can't drift to the runtime's app.
         app()->instance(Apps::class, $this->app);
 
         try {

@@ -196,10 +196,7 @@ class RunTaskWorkerJob implements ShouldQueue
         }
 
         // A Kanvas step after a factory step was held for it (WakeAgentForTaskJob), so it starts here too.
-        $finished = $this->task->agent;
-        $heldForThis = $finished !== null && CodingChatSettingEnum::runsTaskInFactory($finished, $this->task->fullText());
-
-        if (! $heldForThis && ! CodingChatSettingEnum::runsTaskInFactory($agent, $next->fullText())) {
+        if (! $this->task->runsInFactory() && ! CodingChatSettingEnum::runsTaskInFactory($agent, $next->fullText())) {
             return;
         }
 

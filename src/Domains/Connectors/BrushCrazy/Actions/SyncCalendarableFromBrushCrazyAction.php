@@ -236,8 +236,9 @@ class SyncCalendarableFromBrushCrazyAction
 
     /**
      * A version's metadata is shared: the mirror writes its own keys, and the site writes others
-     * (`brushcrazy_booking`, the ticket variants a class sells). Replacing the whole column on every
-     * sync turned booking off for that class, so the mirror's keys are laid over what is there.
+     * (`brushcrazy_booking`, the ticket variants a class sells). Replacing the whole column would
+     * drop the site's keys and turn booking off for that class, so the mirror's keys are laid over
+     * what is there.
      *
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
