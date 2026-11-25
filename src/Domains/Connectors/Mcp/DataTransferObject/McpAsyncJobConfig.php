@@ -13,7 +13,9 @@ use Kanvas\Workflow\Models\Integrations;
  *     "run_session": {"status_tool": "get_session", "id_field": "session_id", "status_field": "status",
  *                     "done_statuses": ["idle", "stopped", "timed_out", "error"], "live_url_field": "live_url"}
  *
- * `id_field` names the job id in the start tool's result AND the status tool's argument.
+ * `id_field` names the job id in the start tool's result AND the status tool's argument, unless the
+ * vendor spells them differently (Pomerado answers `id` and `get_job` takes `job_id`): then
+ * `status_id_argument` names the argument.
  */
 final readonly class McpAsyncJobConfig
 {
@@ -32,6 +34,7 @@ final readonly class McpAsyncJobConfig
         public ?string $liveUrlField = null,
         public int $pollSeconds = self::DEFAULT_POLL_SECONDS,
         public int $timeoutSeconds = self::DEFAULT_TIMEOUT_SECONDS,
+        public ?string $statusIdArgument = null,
     ) {
     }
 
@@ -62,7 +65,16 @@ final readonly class McpAsyncJobConfig
             liveUrlField: Str::trimmedStringOrNull($block['live_url_field'] ?? null),
             pollSeconds: max(5, (int) ($block['poll_seconds'] ?? self::DEFAULT_POLL_SECONDS)),
             timeoutSeconds: max(60, (int) ($block['timeout_seconds'] ?? self::DEFAULT_TIMEOUT_SECONDS)),
+            statusIdArgument: Str::trimmedStringOrNull($block['status_id_argument'] ?? null),
         );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function statusArguments(string $jobId): array
+    {
+        return [$this->statusIdArgument ?? $this->idField => $jobId];
     }
 
     /**
