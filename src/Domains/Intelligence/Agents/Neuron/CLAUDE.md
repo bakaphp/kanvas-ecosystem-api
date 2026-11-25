@@ -373,6 +373,13 @@ messages alone, ending on the agent's previous reply, which Gemini refuses with 
 a model turn are not supported" (KANVAS-ECOSYSTEM-6TX, 6QX), and a recurring task fires with the same
 text, so every later firing resumes the same dead run. `DurableResumeOnRollupStoreTest`.
 
+A run that died on its tool budget is not resumed either. The engine counts the failed batch again from
+the state its step started with, so the resume throws the same `ToolRunsExceededException` without
+calling the model, on every job retry and, for a recurring task, on every later firing: the task never
+ran again (KANVAS-ECOSYSTEM-706, `list_nervous_system_plans`). `recoverInterruptedRun()` catches it and
+returns null, `chat()` sweeps the failed run and the turn starts over with its own budget.
+`DurableAgentRunTest::testARunThatSpentItsToolBudgetStartsOverInsteadOfResuming`.
+
 A second inbound on a thread whose run still holds its lease, two emails minutes apart on one AP
 mailbox, is refused with `RunInFlightException`. `RunNeuronChatAction::chatOnceTheThreadSettles()`
 waits for it, polling every 5 s for up to 150 s, and only then lets the exception through
@@ -470,7 +477,19 @@ turn dies with a `ProviderException` / `ToolException`:
    throws. `HasKanvasAgentBehavior::resolveToolErrorHandler()` answers that `ToolException` with the same
    `UnknownToolStub::response()` payload so the model can self-correct.
 
-Coverage: `tests/Intelligence/Agents/Providers/UnknownToolCallRecoveryTest.php` has one test per half.
+The recovery is bounded. A registry miss throws before the engine counts the call, so nothing stopped a
+model that never self-corrects: llama4-scout alternated `get_current_time` with a `nutrition_totals` it
+was never given until the real tool's budget ended the turn, 21 inferences in and under the real tool's
+name (KANVAS-ECOSYSTEM-70A). `BoundedToolNode::checkToolRuns()` counts the misses per name and throws
+`UnknownToolRunsExceededException` on the round after `MAX_UNKNOWN_TOOL_ROUNDS` (3). It counts rounds,
+not calls: five calls in one response were all made before the model was told anything, and ending the
+turn on them would take away the recovery above. The exception extends `ToolRunsExceededException`, so a
+durable run that died on it starts over like any spent budget, and the error handler lets every
+`ToolRunsExceededException` through: it is a `ToolException`, and answered as a miss it would never stop
+the loop.
+
+Coverage: `tests/Intelligence/Agents/Providers/UnknownToolCallRecoveryTest.php` has one test per half
+and two for the bound.
 
 ## Providers
 
