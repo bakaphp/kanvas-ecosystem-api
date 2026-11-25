@@ -363,14 +363,8 @@ final class ReceiveMessageAction
 
     private function isFiledUnderTheirNumber(People $person): bool
     {
-        if (Str::trimToNull($person->lastname) !== null) {
-            return false;
-        }
-
-        $isTheirNumber = Str::digitsOnly($person->firstname) !== ''
-            && preg_match('/\p{L}/u', (string) $person->firstname) !== 1;
-
-        return $isTheirNumber || $person->firstname === $this->inbound->from;
+        return Str::trimToNull($person->lastname) === null
+            && (Str::isPhoneLike($person->firstname) || $person->firstname === $this->inbound->from);
     }
 
     /**
