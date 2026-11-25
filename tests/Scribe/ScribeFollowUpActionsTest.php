@@ -231,7 +231,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_issue_standalone_credit_note_with_no_parent_debits_the_lines_own_accounts(): void
     {
-        $billable = $this->seedOrganization('Proshop');
+        $billable = $this->seedOrganization('Northwind');
         $controlAccountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $creditNote = new IssueCreditNoteAction(
@@ -250,7 +250,7 @@ class ScribeFollowUpActionsTest extends TestCase
                 ]),
                 currency: 'USD',
                 fx_rate_to_base: 1.0,
-                invoice_number: 'Proshop Superdays Sell-Out (22/05-07/06)',
+                invoice_number: 'Spring Sell-Out Rebate (22/05-07/06)',
                 issued_date: Carbon::parse('2026-06-20'),
             ),
             billable: $billable,
@@ -259,7 +259,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
         $this->assertSame(DocumentTypeEnum::CREDIT_NOTE, $creditNote->document_type);
         $this->assertNull($creditNote->parent_invoice_id);
-        $this->assertSame('Proshop Superdays Sell-Out (22/05-07/06)', $creditNote->invoice_number);
+        $this->assertSame('Spring Sell-Out Rebate (22/05-07/06)', $creditNote->invoice_number);
         $this->assertSame($billable->getId(), $creditNote->customer_organization_id);
         $this->assertEquals(300.0, (float) $creditNote->total_native);
 
