@@ -6,10 +6,14 @@ namespace Kanvas\Workflow\Integrations\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\BaseIntegration;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -110,6 +114,24 @@ class IntegrationsCompany extends BaseModel
         $this->saveOrFail();
 
         return $this->is_active;
+    }
+
+    public function isImportable(): bool
+    {
+        return $this->is_active && $this->status?->slug === StatusEnum::ACTIVE->value;
+    }
+
+    /**
+     * @return list<Importable>
+     */
+    public function importables(): array
+    {
+        return BaseIntegration::forIntegrationCompany($this, $this->app ?? app(Apps::class))?->importables() ?? [];
+    }
+
+    public function importableFor(string $entity): ?Importable
+    {
+        return array_find($this->importables(), fn (Importable $importable) => $importable->entity === $entity);
     }
 
     /**

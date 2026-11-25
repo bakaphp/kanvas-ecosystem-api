@@ -135,6 +135,7 @@ class IntegrationImport extends BaseModel
         return self::query()
             ->where('companies_id', $integrationCompany->companies_id)
             ->where('integrations_id', $integrationCompany->integrations_id)
-            ->where('entity', $entity);
+            ->where('entity', $entity)
+            ->notDeleted();
     }
 }
