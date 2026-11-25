@@ -7,10 +7,37 @@ namespace Kanvas\Connectors\Salesforce\Importers;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Salesforce\Actions\PullAllOrganizationsAction;
 use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Workflow\Integrations\Imports\Actions\StartIntegrationImportAction;
+use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Override;
 
 class SalesforceOrganizationsImporter extends SalesforceRecordsImporter
 {
+    /**
+     * People start only once every Account is in: PullPeopleAction links a Contact to its
+     * Organization only if that Organization already exists.
+     */
+    #[Override]
+    public function completed(IntegrationImport $run): ?array
+    {
+        if (($run->options['then_people'] ?? false) !== true) {
+            return null;
+        }
+
+        try {
+            new StartIntegrationImportAction(
+                integrationCompany: $this->integrationCompany,
+                user: $this->user,
+                entity: 'people'
+            )->execute();
+        } catch (ValidationException $e) {
+            return ['people' => 'skipped', 'reason' => $e->getMessage()];
+        }
+
+        return ['people' => 'queued'];
+    }
+
     #[Override]
     protected function pullAll(): array
     {

@@ -12,6 +12,8 @@ use Kanvas\Connectors\Salesforce\Importers\SalesforceOrganizationsImporter;
 use Kanvas\Connectors\Salesforce\Importers\SalesforcePeopleImporter;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
+use Kanvas\Workflow\Integrations\Imports\Enums\ImportOptionTypeEnum;
 use Override;
 
 class SalesforceHandler extends BaseIntegration
@@ -64,6 +66,13 @@ class SalesforceHandler extends BaseIntegration
                 entity: 'organizations',
                 label: 'Organizaciones',
                 importer: SalesforceOrganizationsImporter::class,
+                options: [
+                    new ImportOption(
+                        name: 'then_people',
+                        type: ImportOptionTypeEnum::BOOLEAN,
+                        label: 'Importar contactos al terminar',
+                    ),
+                ],
             ),
             new Importable(
                 entity: 'people',

@@ -15,9 +15,10 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 /**
  * Starts the generic integration import for a company's Salesforce Accounts and Contacts.
  *
- * Recommended (not enforced): run Account before Contact — `PullPeopleAction` links a Contact to
- * its Organization only if that Organization is already synced; running Contact first just skips
- * the link, it doesn't fail.
+ * Both objects start one Account run with `then_people`, and the Contact run is queued when it
+ * finishes: `PullPeopleAction` links a Contact to its Organization only if that Organization is
+ * already in, and a Contact run is refused while Accounts are still importing. One object starts
+ * just that run.
  *
  * This backfill does not deduplicate — it can create Organizations/People that already exist in
  * Kanvas under a different custom field. That is expected and handled by a later phase.
@@ -61,14 +62,24 @@ class SalesforceBackfillCommand extends Command
             return self::FAILURE;
         }
 
+        if ($company->user === null) {
+            $this->error("Company {$company->getId()} has no owner to run the import as.");
+
+            return self::FAILURE;
+        }
+
+        $runs = array_diff(['Account', 'Contact'], $objects) === []
+            ? ['Account' => ['then_people' => true]]
+            : array_fill_keys($objects, []);
         $failed = false;
 
-        foreach ($objects as $object) {
+        foreach ($runs as $object => $options) {
             try {
                 $run = new StartIntegrationImportAction(
                     $integrationCompany,
                     $company->user,
                     self::ENTITIES[$object],
+                    $options,
                 )->execute();
                 $this->line("Queued the {$object} import (run {$run->getId()}) for company {$company->name}");
             } catch (ValidationException $e) {

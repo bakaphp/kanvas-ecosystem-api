@@ -6,13 +6,18 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Salesforce\Importers\SalesforceOrganizationsImporter;
 use Kanvas\Connectors\Salesforce\Importers\SalesforcePeopleImporter;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Integrations\Imports\Actions\StartIntegrationImportAction;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
+use Kanvas\Workflow\Integrations\Imports\Enums\ImportOptionTypeEnum;
 use Kanvas\Workflow\Integrations\Imports\Enums\IntegrationImportStatusEnum;
 use Kanvas\Workflow\Integrations\Imports\Importers\IntegrationImporter;
 use Kanvas\Workflow\Integrations\Imports\Jobs\RunIntegrationImportJob;
@@ -47,13 +52,17 @@ final class SalesforceImportersTest extends TestCase
         $this->integrationCompany = $this->salesforceIntegrationFor($this->company);
     }
 
-    public function testTheHandlerOffersOrganizationsAndPeopleWithoutOptions(): void
+    public function testTheHandlerOffersOrganizationsThenPeople(): void
     {
         $importables = $this->integrationCompany->importables();
 
         $this->assertSame(['organizations', 'people'], array_column($importables, 'entity'));
         $this->assertSame(['Organizaciones', 'Contactos'], array_column($importables, 'label'));
-        $this->assertSame([[], []], array_column($importables, 'options'));
+        $this->assertEquals(
+            [new ImportOption(name: 'then_people', type: ImportOptionTypeEnum::BOOLEAN, label: 'Importar contactos al terminar')],
+            $importables[0]->options
+        );
+        $this->assertSame([], $importables[1]->options);
         $this->assertInstanceOf(
             SalesforceOrganizationsImporter::class,
             $this->integrationCompany->importerFor('organizations', $this->kanvasUser)
@@ -129,6 +138,56 @@ final class SalesforceImportersTest extends TestCase
         $this->assertNotNull($this->organization('001xx0000000001AAA'));
     }
 
+    public function testOrganizationsQueuePeopleWhenAskedTo(): void
+    {
+        Queue::fake();
+
+        $run = $this->runImport('organizations', [['Id' => '001xx0000000001AAA', 'Name' => 'Acme Corp']], ['then_people' => true]);
+
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->status);
+        $this->assertSame(['people' => 'queued'], $run->summary);
+        $people = IntegrationImport::latestFor($this->integrationCompany, 'people');
+        $this->assertSame(IntegrationImportStatusEnum::QUEUED, $people->status);
+        $this->assertSame($this->kanvasUser->getId(), $people->users_id);
+        Queue::assertPushed(RunIntegrationImportJob::class, fn (RunIntegrationImportJob $job) => $job->run->entity === 'people');
+    }
+
+    public function testOrganizationsLeavePeopleAloneByDefault(): void
+    {
+        Queue::fake();
+
+        $run = $this->runImport('organizations', [['Id' => '001xx0000000001AAA', 'Name' => 'Acme Corp']]);
+
+        $this->assertNull($run->summary);
+        $this->assertNull(IntegrationImport::latestFor($this->integrationCompany, 'people'));
+        Queue::assertNotPushed(RunIntegrationImportJob::class);
+    }
+
+    public function testOrganizationsReportWhyPeopleWereSkipped(): void
+    {
+        Queue::fake();
+        $this->makeRun('people');
+
+        $run = $this->runImport('organizations', [['Id' => '001xx0000000001AAA', 'Name' => 'Acme Corp']], ['then_people' => true]);
+
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->status);
+        $this->assertSame(
+            ['people' => 'skipped', 'reason' => 'A people import is already in progress for this integration.'],
+            $run->summary
+        );
+    }
+
+    public function testPeopleAreRefusedWhileOrganizationsAreImporting(): void
+    {
+        Queue::fake();
+        $this->makeRun('organizations');
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Organizations are still being imported for this integration. Import people when they finish.');
+
+        new StartIntegrationImportAction($this->integrationCompany, $this->kanvasUser, 'people')->execute();
+    }
+
     public function testARerunCountsExistingRecordsAsUpdated(): void
     {
         $records = [['Id' => '001xx0000000001AAA', 'Name' => 'Acme Corp']];
@@ -141,19 +200,9 @@ final class SalesforceImportersTest extends TestCase
         $this->assertSame('Acme Renamed', $this->organization('001xx0000000001AAA')->name);
     }
 
-    private function runImport(string $entity, array $records): IntegrationImport
+    private function runImport(string $entity, array $records, array $options = []): IntegrationImport
     {
-        $run = IntegrationImport::create([
-            'apps_id' => $this->integrationCompany->apps_id,
-            'companies_id' => $this->company->getId(),
-            'integrations_id' => $this->integrationCompany->integrations_id,
-            'integrations_companies_id' => $this->integrationCompany->getId(),
-            'users_id' => $this->kanvasUser->getId(),
-            'entity' => $entity,
-            'status' => IntegrationImportStatusEnum::QUEUED,
-            'options' => [],
-            'queued_at' => Carbon::now(),
-        ]);
+        $run = $this->makeRun($entity, $options);
         $importer = $entity === 'people'
             ? new class ($this->integrationCompany, $this->kanvasUser, $records) extends SalesforcePeopleImporter {
                 public function __construct(IntegrationsCompany $integrationCompany, Users $user, private readonly array $records)
@@ -194,6 +243,21 @@ final class SalesforceImportersTest extends TestCase
         }->handle();
 
         return $run->refresh();
+    }
+
+    private function makeRun(string $entity, array $options = []): IntegrationImport
+    {
+        return IntegrationImport::create([
+            'apps_id' => $this->integrationCompany->apps_id,
+            'companies_id' => $this->company->getId(),
+            'integrations_id' => $this->integrationCompany->integrations_id,
+            'integrations_companies_id' => $this->integrationCompany->getId(),
+            'users_id' => $this->kanvasUser->getId(),
+            'entity' => $entity,
+            'status' => IntegrationImportStatusEnum::QUEUED,
+            'options' => $options,
+            'queued_at' => Carbon::now(),
+        ]);
     }
 
     private function organization(string $salesforceId): ?Organization

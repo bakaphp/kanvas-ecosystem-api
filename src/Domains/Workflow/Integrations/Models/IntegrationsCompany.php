@@ -234,15 +234,20 @@ class IntegrationsCompany extends BaseModel
             ->first();
     }
 
+    /**
+     * Same reach as isManageableFrom(): a row with no recorded app still counts, but this app's own
+     * row wins over it.
+     */
     public static function getActiveByIntegrationName(
         Companies $company,
         AppInterface $app,
         string $name
     ): ?self {
         return self::fromCompany($company)
-            ->fromApp($app)
+            ->where(fn ($query) => $query->where('apps_id', $app->getId())->orWhereNull('apps_id'))
             ->where('is_active', 1)
             ->whereHas('integration', fn ($query) => $query->where('name', $name))
+            ->orderByRaw('apps_id IS NULL')
             ->orderBy('id')
             ->first();
     }
