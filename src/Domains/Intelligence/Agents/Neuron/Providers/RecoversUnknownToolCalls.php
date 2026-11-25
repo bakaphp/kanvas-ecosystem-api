@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
 use NeuronAI\Exceptions\ProviderException;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\Tools\ToolCall;
 use NeuronAI\Tools\ToolInterface;
 use Override;
 
@@ -43,6 +44,22 @@ trait RecoversUnknownToolCalls
         );
 
         return parent::setTools([...$tools, ...array_values($stubs)]);
+    }
+
+    /**
+     * The call record keeps the name the model sent, so a name no provider can declare is replaced
+     * here, before the record exists. A tool the agent holds is never renamed.
+     *
+     * @param array<string, mixed> $inputs
+     */
+    #[Override]
+    public function newToolCall(string $name, ?string $callId, array $inputs): ToolCall
+    {
+        if (! in_array($name, $this->availableToolNames(), true)) {
+            $name = UnknownToolStub::declarableName($name);
+        }
+
+        return parent::newToolCall($name, $callId, $inputs);
     }
 
     #[Override]
