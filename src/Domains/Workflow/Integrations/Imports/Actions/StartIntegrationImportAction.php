@@ -30,18 +30,9 @@ class StartIntegrationImportAction
 
     public function execute(): IntegrationImport
     {
-        $integrationName = (string) $this->integrationCompany->integration->name;
-
         $this->integrationCompany->assertImportable();
 
-        $importables = $this->integrationCompany->importables();
-        $importable = array_find($importables, fn (Importable $candidate) => $candidate->entity === $this->entity)
-            ?? throw new ValidationException(sprintf(
-                '%s cannot import %s. It can import: %s.',
-                $integrationName,
-                $this->entity,
-                implode(', ', array_map(fn (Importable $candidate) => $candidate->entity, $importables))
-            ));
+        $importable = $this->integrationCompany->importableOrFail($this->entity);
 
         $this->options = array_filter(
             $this->options,
@@ -110,9 +101,7 @@ class StartIntegrationImportAction
         }
 
         foreach ($declared as $name => $option) {
-            $value = $this->options[$name] ?? null;
-
-            if ($value === null || $value === []) {
+            if (! isset($this->options[$name])) {
                 if ($option->required) {
                     throw new ValidationException(sprintf('%s needs the option %s.', $this->entity, $name));
                 }
@@ -120,7 +109,7 @@ class StartIntegrationImportAction
                 continue;
             }
 
-            $this->assertType($option, $value);
+            $this->assertType($option, $this->options[$name]);
         }
     }
 

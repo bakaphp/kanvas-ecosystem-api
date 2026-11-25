@@ -17,5 +17,11 @@ abstract class ChunkedImporter extends IntegrationImporter
 
     abstract public function importOne(mixed $item, array $options): ImportOutcomeEnum;
 
-    abstract public function itemId(mixed $item): string;
+    /**
+     * Names a record in the error list. Fits items that are ids; override when items are records.
+     */
+    public function itemId(mixed $item): string
+    {
+        return (string) $item;
+    }
 }

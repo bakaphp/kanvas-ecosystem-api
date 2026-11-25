@@ -7,6 +7,7 @@ namespace App\GraphQL\Workflow\Queries\Integrations;
 use App\GraphQL\Workflow\Concerns\ResolvesImportableIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportChoice;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
 use Kanvas\Workflow\Integrations\Imports\Enums\ImportOptionTypeEnum;
 use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 
@@ -32,11 +33,11 @@ class IntegrationImportQuery
         $entity = $request['entity'];
         $option = $request['option'];
 
-        $importable = $integrationCompany->importableFor($entity)
-            ?? throw new ValidationException(sprintf('The integration does not import %s.', $entity));
+        $importable = $integrationCompany->importableOrFail($entity);
         $declared = array_find(
             $importable->options,
-            fn ($candidate) => $candidate->name === $option && $candidate->type === ImportOptionTypeEnum::CHOICES
+            fn (ImportOption $candidate) => $candidate->name === $option
+                && $candidate->type === ImportOptionTypeEnum::CHOICES
         ) ?? throw new ValidationException(sprintf('The option %s has no choices.', $option));
 
         return array_map(

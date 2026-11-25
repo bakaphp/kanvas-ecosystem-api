@@ -6,7 +6,9 @@ namespace Kanvas\Workflow\Integrations\Imports\Importers;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Integrations\Imports\Actions\StartIntegrationImportAction;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportChoice;
 use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
@@ -42,6 +44,26 @@ abstract class IntegrationImporter
     public function completed(IntegrationImport $run): ?array
     {
         return null;
+    }
+
+    /**
+     * Starts another entity's import from completed(): {entity: queued}, or {entity: skipped, reason}
+     * when the start is refused, so the finished run still reports what happened to its follow-up.
+     */
+    protected function startFollowUp(string $entity, array $options = []): array
+    {
+        try {
+            new StartIntegrationImportAction(
+                integrationCompany: $this->integrationCompany,
+                user: $this->user,
+                entity: $entity,
+                options: $options,
+            )->execute();
+        } catch (ValidationException $e) {
+            return [$entity => 'skipped', 'reason' => $e->getMessage()];
+        }
+
+        return [$entity => 'queued'];
     }
 
     /**

@@ -141,7 +141,24 @@ class IntegrationsCompany extends BaseModel
      */
     public function importables(): array
     {
-        return BaseIntegration::forIntegrationCompany($this, $this->app ?? app(Apps::class))?->importables() ?? [];
+        return BaseIntegration::forIntegrationCompany($this, $this->app ?? app(Apps::class))
+            ?->importables() ?? [];
+    }
+
+    /**
+     * The client sent the entity, so the refusal lists what it can send instead.
+     */
+    public function importableOrFail(string $entity): Importable
+    {
+        $importables = $this->importables();
+
+        return array_find($importables, fn (Importable $importable) => $importable->entity === $entity)
+            ?? throw new ValidationException(sprintf(
+                '%s cannot import %s. It can import: %s.',
+                $this->integration->name,
+                $entity,
+                implode(', ', array_map(fn (Importable $importable) => $importable->entity, $importables))
+            ));
     }
 
     /**
@@ -238,11 +255,8 @@ class IntegrationsCompany extends BaseModel
      * Same reach as isManageableFrom(): a row with no recorded app still counts, but this app's own
      * row wins over it.
      */
-    public static function getActiveByIntegrationName(
-        Companies $company,
-        AppInterface $app,
-        string $name
-    ): ?self {
+    public static function getActiveByIntegrationName(Companies $company, AppInterface $app, string $name): ?self
+    {
         return self::fromCompany($company)
             ->where(fn ($query) => $query->where('apps_id', $app->getId())->orWhereNull('apps_id'))
             ->where('is_active', 1)

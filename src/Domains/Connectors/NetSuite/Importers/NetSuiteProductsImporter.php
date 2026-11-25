@@ -20,7 +20,6 @@ use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Integrations\Imports\Actions\StartIntegrationImportAction;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportChoice;
 use Kanvas\Workflow\Integrations\Imports\Enums\ImportOutcomeEnum;
 use Kanvas\Workflow\Integrations\Imports\Importers\ChunkedImporter;
@@ -41,6 +40,8 @@ class NetSuiteProductsImporter extends ChunkedImporter
     protected NetSuiteLocationWarehouseService $locationMapping;
     protected NetSuiteLocationService $locationService;
     protected ImportNetSuiteLocationsAction $locationImport;
+
+    /** Read as properties by FindsNetSuiteVariant, which cannot call app()/company(). */
     protected Apps $app;
     protected Companies $company;
 
@@ -53,15 +54,13 @@ class NetSuiteProductsImporter extends ChunkedImporter
 
         $this->app = $this->app();
         $this->company = $this->company();
-        $app = $this->app;
-        $company = $this->company;
-        $this->productSearch = new NetSuiteProductSearchService($app, $company);
-        $this->productService = new NetSuiteProductService($app, $company);
-        $this->pullProduct = new PullNetSuiteProductAction($app, $company, $user);
-        $this->priceRefresh = new PullNetSuiteProductPriceAction($app, $company, $user);
-        $this->locationMapping = new NetSuiteLocationWarehouseService($app, $company);
-        $this->locationService = new NetSuiteLocationService($app, $company);
-        $this->locationImport = new ImportNetSuiteLocationsAction($app, $company, $user);
+        $this->productSearch = new NetSuiteProductSearchService($this->app, $this->company);
+        $this->productService = new NetSuiteProductService($this->app, $this->company);
+        $this->pullProduct = new PullNetSuiteProductAction($this->app, $this->company, $user);
+        $this->priceRefresh = new PullNetSuiteProductPriceAction($this->app, $this->company, $user);
+        $this->locationMapping = new NetSuiteLocationWarehouseService($this->app, $this->company);
+        $this->locationService = new NetSuiteLocationService($this->app, $this->company);
+        $this->locationImport = new ImportNetSuiteLocationsAction($this->app, $this->company, $user);
     }
 
     /**
@@ -148,12 +147,6 @@ class NetSuiteProductsImporter extends ChunkedImporter
         return $outcome;
     }
 
-    #[Override]
-    public function itemId(mixed $item): string
-    {
-        return (string) $item;
-    }
-
     /**
      * A product's refresh brings the quantity of the first chosen location only. The others come
      * from one stock search per location, far cheaper than a call per product and location.
@@ -165,17 +158,7 @@ class NetSuiteProductsImporter extends ChunkedImporter
             return null;
         }
 
-        try {
-            new StartIntegrationImportAction(
-                integrationCompany: $this->integrationCompany,
-                user: $this->user,
-                entity: 'stock'
-            )->execute();
-        } catch (ValidationException $e) {
-            return ['stock' => 'skipped', 'reason' => $e->getMessage()];
-        }
-
-        return ['stock' => 'queued'];
+        return $this->startFollowUp('stock');
     }
 
     /**

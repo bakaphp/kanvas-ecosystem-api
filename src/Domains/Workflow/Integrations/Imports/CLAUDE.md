@@ -82,8 +82,9 @@ class that does not extend `IntegrationImporter` is refused.
   `latestFor()` match `companies_id`, `integrations_id` and `entity`, so two rows of the same
   integration for one company share a lock and a status.
 - **Staleness.** A `queued`/`running` run whose `updated_at` is older than
-  `IntegrationImport::STALE_AFTER_HOURS` (3) stops blocking, because a worker killed mid-run never marks
-  it failed. Each chunk saves the row, so a live run keeps refreshing it.
+  `IntegrationImport::STALE_AFTER_HOURS` (3) stops blocking, because a worker killed mid-run leaves it
+  `running` until the queue gives up on its job (see below). Each chunk saves the row, so a live run keeps
+  refreshing it.
 - **Errors are capped at 50** (`MAX_ERRORS`); `failed` keeps counting past that.
 - **The error label** is `itemId($item)`. If `itemId()` itself throws (a malformed record), the label
   falls back to the position, `#<index>`, so that record fails alone and the run goes on.

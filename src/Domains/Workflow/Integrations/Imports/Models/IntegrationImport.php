@@ -92,8 +92,8 @@ class IntegrationImport extends BaseModel
     }
 
     /**
-     * A run that stopped reporting is not blocking anything: a worker killed mid-run never gets to
-     * mark it failed.
+     * A run that stopped reporting does not block a new one: a worker killed mid-run leaves it running
+     * until the queue gives up on its job, which can be long after nothing is happening.
      */
     public static function inProgressFor(IntegrationsCompany $integrationCompany, string $entity): ?self
     {

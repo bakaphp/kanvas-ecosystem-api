@@ -64,10 +64,4 @@ class NetSuiteCustomersImporter extends ChunkedImporter
             ? ImportOutcomeEnum::CREATED
             : ImportOutcomeEnum::SKIPPED;
     }
-
-    #[Override]
-    public function itemId(mixed $item): string
-    {
-        return (string) $item;
-    }
 }

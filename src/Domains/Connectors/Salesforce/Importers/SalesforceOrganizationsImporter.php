@@ -7,8 +7,6 @@ namespace Kanvas\Connectors\Salesforce\Importers;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Salesforce\Actions\PullAllOrganizationsAction;
 use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
-use Kanvas\Exceptions\ValidationException;
-use Kanvas\Workflow\Integrations\Imports\Actions\StartIntegrationImportAction;
 use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Override;
 
@@ -25,17 +23,7 @@ class SalesforceOrganizationsImporter extends SalesforceRecordsImporter
             return null;
         }
 
-        try {
-            new StartIntegrationImportAction(
-                integrationCompany: $this->integrationCompany,
-                user: $this->user,
-                entity: 'people'
-            )->execute();
-        } catch (ValidationException $e) {
-            return ['people' => 'skipped', 'reason' => $e->getMessage()];
-        }
-
-        return ['people' => 'queued'];
+        return $this->startFollowUp('people');
     }
 
     #[Override]
