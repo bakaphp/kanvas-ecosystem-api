@@ -71,6 +71,7 @@ class NetSuiteImportersTest extends TestCase
         $this->assertSame('Bodegas', $locations->label);
         $this->assertTrue($locations->required && $locations->multiple);
         $this->assertSame('saved_search_id', $products->options[1]->name);
+        $this->assertSame('Búsqueda guardada', $products->options[1]->label);
 
         $stock = $this->integrationCompany->importableFor('stock');
         $this->assertSame(['saved_search_id', 'create_missing'], array_column($stock->options, 'name'));

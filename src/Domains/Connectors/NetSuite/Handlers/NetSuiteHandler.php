@@ -59,7 +59,7 @@ class NetSuiteHandler extends BaseIntegration
         $savedSearch = new ImportOption(
             name: 'saved_search_id',
             type: ImportOptionTypeEnum::STRING,
-            label: 'Saved search',
+            label: 'Búsqueda guardada',
         );
 
         return [
