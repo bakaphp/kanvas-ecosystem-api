@@ -15,6 +15,7 @@ use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -28,6 +29,7 @@ use Throwable;
 class ListNervousSystemPlansTool extends Tool
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     private const int DEFAULT_LIMIT = 25;
 

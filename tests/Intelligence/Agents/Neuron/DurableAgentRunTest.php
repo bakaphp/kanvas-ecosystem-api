@@ -6,8 +6,15 @@ namespace Tests\Intelligence\Agents\Neuron;
 
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
+use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\ToolCallMessage;
+use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\ToolRunsExceededException;
+use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\Providers\ProviderResponse;
+use NeuronAI\Tools\ToolCall;
 use Override;
 use RuntimeException;
 use Tests\Stubs\Intelligence\DurableNeuronAgentStub;
@@ -20,11 +27,14 @@ use Tests\TestCase;
  */
 class DurableAgentRunTest extends TestCase
 {
+    public static bool $modelLoops = false;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         DurableNeuronAgentStub::reset();
+        self::$modelLoops = false;
     }
 
     public function testACrashedTurnResumesWithoutRepeatingItsWrite(): void
@@ -91,6 +101,63 @@ class DurableAgentRunTest extends TestCase
         $this->assertSame('Done: the item was created once.', $state?->getMessage()?->getContent());
         $this->assertSame(1, DurableNeuronAgentStub::$writes);
         $this->assertSocialPromptAppearsOnce();
+    }
+
+    /**
+     * A resume counts the failed batch again from the state its step started with, so a run that died
+     * on its tool budget dies on it at every retry, and a recurring task whose text never changes
+     * resumes that same run at every firing (KANVAS-ECOSYSTEM-706).
+     */
+    public function testARunThatSpentItsToolBudgetStartsOverInsteadOfResuming(): void
+    {
+        self::$modelLoops = true;
+
+        try {
+            $this->loopingAgent('thread-spent')->chat(new UserMessage('Create the item, please.'));
+            $this->fail('The first attempt must die on its tool budget');
+        } catch (ToolRunsExceededException) {
+        }
+
+        $spent = DurableNeuronAgentStub::$writes;
+        self::$modelLoops = false;
+
+        $retry = $this->loopingAgent('thread-spent');
+        $this->assertNull(
+            $retry->recoverInterruptedRun(new UserMessage('Create the item, please.')),
+            'A run that spent its tool budget is not resumed'
+        );
+
+        $state = $retry->chat(new UserMessage('Create the item, please.'));
+
+        $this->assertSame('Done: the item was created once.', $state->getMessage()?->getContent());
+        $this->assertSame($spent + 1, DurableNeuronAgentStub::$writes, 'The retry is a new turn with its own budget');
+    }
+
+    private function loopingAgent(string $thread): DurableNeuronAgentStub
+    {
+        $agent = new class () extends DurableNeuronAgentStub {
+            #[Override]
+            protected function provider(): AIProviderInterface
+            {
+                return new class () extends FakeNeuronProvider {
+                    #[Override]
+                    public function chat(Message ...$messages): ProviderResponse
+                    {
+                        if (DurableAgentRunTest::$modelLoops || ! end($messages) instanceof ToolResultMessage) {
+                            return $this->respond(new ToolCallMessage(
+                                null,
+                                [ToolCall::make('write_once', 'call-' . count($messages), ['item' => count($messages)])]
+                            ));
+                        }
+
+                        return $this->respond(new AssistantMessage('Done: the item was created once.'));
+                    }
+                };
+            }
+        };
+        $agent->setThreadId($thread);
+
+        return $agent;
     }
 
     private function assertSocialPromptAppearsOnce(): void
