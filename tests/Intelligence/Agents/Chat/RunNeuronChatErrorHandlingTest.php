@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Chat;
 
+use Aws\BedrockRuntime\Exception\BedrockRuntimeException;
+use Aws\Command;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -383,10 +386,10 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertStringNotContainsString('nutrition_totals', $response);
     }
 
-    /** Same fault, whichever provider reports it — 429 rate limit, 529 Anthropic overloaded, 5xx. */
+    /** Same fault, whichever provider reports it — 408 Bedrock timeout, 429 rate limit, 529 Anthropic overloaded, 5xx. */
     public function testEveryTransientProviderStatusReadsAsRetryable(): void
     {
-        foreach ([429, 500, 502, 503, 504, 529] as $status) {
+        foreach ([408, 429, 500, 502, 503, 504, 529] as $status) {
             $response = $this->runChatWithThrowingHandler($this->providerOverload($status));
 
             $this->assertStringContainsString(
@@ -404,6 +407,35 @@ class RunNeuronChatErrorHandlingTest extends TestCase
 
         $this->assertStringContainsString('I ran into a hiccup', $response);
         $this->assertStringNotContainsString('overloaded', $response);
+    }
+
+    /**
+     * KANVAS-ECOSYSTEM-707: an agent set to a model its AWS account had not been cleared for answered
+     * 200 turns with "try rephrasing". Nothing the person writes changes it; an admin has to.
+     */
+    public function testAModelTheAccountCannotUseIsExplainedAsASetupProblemAndStillReported(): void
+    {
+        $handler = Mockery::spy(ExceptionHandler::class);
+        $this->app->instance(ExceptionHandler::class, $handler);
+
+        $response = $this->runChatWithThrowingHandler($this->modelNotEnabledOnBedrock());
+
+        $this->assertStringContainsString('is not available', $response);
+        $this->assertStringContainsString('admin', $response);
+        $this->assertStringNotContainsString('rephrasing', $response);
+        $this->assertStringNotContainsString('overloaded', $response);
+        $this->assertStringNotContainsString('use case', strtolower($response));
+        $this->assertStringNotContainsString('anthropic', strtolower($response));
+        $handler->shouldHaveReceived('report')->once();
+    }
+
+    /** A 404 that is not Bedrock's can be a tool's own request; the model's setup is not to blame for it. */
+    public function testANotFoundFromAnythingButBedrockIsNotBlamedOnTheModelSetup(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->notFoundOutsideBedrock());
+
+        $this->assertStringContainsString('I ran into a hiccup', $response);
+        $this->assertStringNotContainsString('is not available', $response);
     }
 
     /** The detail still has to stay out of the channel — same rule as every other fallback here. */
@@ -442,6 +474,40 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         return new ProviderContentBlockedException(
             blockReason: 'PROHIBITED_CONTENT',
             message: 'Gemini blocked the request (PROHIBITED_CONTENT), model gemini-3.8-flash, prompt tokens 81316.',
+        );
+    }
+
+    private function modelNotEnabledOnBedrock(): BedrockRuntimeException
+    {
+        $url = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/global.anthropic.claude-sonnet-4-6/converse';
+        $body = '{"message":"Model use case details have not been submitted for this account. '
+            . 'Fill out the Anthropic use case details form before using the model."}';
+
+        $refused = new ClientException(
+            'Client error: `POST ' . $url . '` resulted in a `404 Not Found` response',
+            new Request('POST', $url),
+            new Response(404, [], $body),
+        );
+
+        return new BedrockRuntimeException(
+            'Error executing "Converse" on "' . $url . '"; AWS HTTP error: ResourceNotFoundException (client): ' . $body,
+            new Command('Converse'),
+            [
+                'response' => new Response(404, [], $body),
+                'code' => 'ResourceNotFoundException',
+            ],
+            $refused,
+        );
+    }
+
+    private function notFoundOutsideBedrock(): ClientException
+    {
+        $url = 'https://api.example-crm.test/v2/contacts/991';
+
+        return new ClientException(
+            sprintf('Client error: `GET %s` resulted in a `404 Not Found` response', $url),
+            new Request('GET', $url),
+            new Response(404, [], '{"error":"contact not found"}'),
         );
     }
 
