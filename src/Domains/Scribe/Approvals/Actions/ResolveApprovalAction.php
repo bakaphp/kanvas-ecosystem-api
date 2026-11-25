@@ -14,6 +14,8 @@ use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Invoices\Actions\IssueDraftCreditNoteAction;
+use Kanvas\Scribe\Invoices\Actions\IssueDraftDebitNoteAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
@@ -129,7 +131,11 @@ class ResolveApprovalAction
             throw new ValidationException("Customer for invoice {$invoice->getId()} no longer exists.");
         }
 
-        $invoice = new IssueInvoiceAction($invoice, $customer, $this->approver)->execute();
+        $invoice = match (true) {
+            $invoice->isCreditNote() => new IssueDraftCreditNoteAction($invoice, $this->approver)->execute(),
+            $invoice->isDebitNote() => new IssueDraftDebitNoteAction($invoice, $this->approver)->execute(),
+            default => new IssueInvoiceAction($invoice, $customer, $this->approver)->execute(),
+        };
 
         return [
             'target_type' => 'invoice',

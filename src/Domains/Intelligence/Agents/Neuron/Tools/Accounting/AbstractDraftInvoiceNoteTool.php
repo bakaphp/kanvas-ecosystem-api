@@ -195,7 +195,7 @@ abstract class AbstractDraftInvoiceNoteTool extends Tool
             ];
         }
 
-        $pending = $note->pendingApproval() !== null;
+        $pending = $note->document_status === InvoiceDocumentStatusEnum::DRAFT;
 
         return [
             'drafted' => true,
