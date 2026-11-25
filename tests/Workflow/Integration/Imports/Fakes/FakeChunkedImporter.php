@@ -52,6 +52,12 @@ final class FakeChunkedImporter extends ChunkedImporter
 
     public function completed(IntegrationImport $run): ?array
     {
+        FakeImportRegistry::$statusAtCompletion = $run->status;
+
+        if (FakeImportRegistry::$completedThrows !== null) {
+            throw new RuntimeException(FakeImportRegistry::$completedThrows);
+        }
+
         return FakeImportRegistry::$completed;
     }
 }

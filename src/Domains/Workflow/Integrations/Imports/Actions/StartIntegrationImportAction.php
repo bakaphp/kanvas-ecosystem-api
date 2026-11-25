@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Imports\Actions;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
@@ -63,30 +64,36 @@ class StartIntegrationImportAction
             10
         );
 
-        $run = $lock->block(5, function () use ($options) {
-            if (IntegrationImport::inProgressFor($this->integrationCompany, $this->entity) !== null) {
-                throw new ValidationException(sprintf(
-                    'A %s import is already in progress for this integration.',
-                    $this->entity
-                ));
-            }
+        try {
+            $run = $lock->block(5, function () use ($options) {
+                if (IntegrationImport::inProgressFor($this->integrationCompany, $this->entity) !== null) {
+                    throw $this->alreadyInProgress();
+                }
 
-            return IntegrationImport::create([
-                'apps_id' => $this->integrationCompany->apps_id ?? app(Apps::class)->getId(),
-                'companies_id' => $this->integrationCompany->companies_id,
-                'integrations_id' => $this->integrationCompany->integrations_id,
-                'integrations_companies_id' => $this->integrationCompany->getId(),
-                'users_id' => $this->user->getId(),
-                'entity' => $this->entity,
-                'status' => IntegrationImportStatusEnum::QUEUED,
-                'options' => $options,
-                'queued_at' => Carbon::now(),
-            ]);
-        });
+                return IntegrationImport::create([
+                    'apps_id' => $this->integrationCompany->apps_id ?? app(Apps::class)->getId(),
+                    'companies_id' => $this->integrationCompany->companies_id,
+                    'integrations_id' => $this->integrationCompany->integrations_id,
+                    'integrations_companies_id' => $this->integrationCompany->getId(),
+                    'users_id' => $this->user->getId(),
+                    'entity' => $this->entity,
+                    'status' => IntegrationImportStatusEnum::QUEUED,
+                    'options' => $options,
+                    'queued_at' => Carbon::now(),
+                ]);
+            });
+        } catch (LockTimeoutException) {
+            throw $this->alreadyInProgress();
+        }
 
         RunIntegrationImportJob::dispatch($run);
 
         return $run;
+    }
+
+    protected function alreadyInProgress(): ValidationException
+    {
+        return new ValidationException(sprintf('A %s import is already in progress for this integration.', $this->entity));
     }
 
     protected function validateOptions(Importable $importable): void

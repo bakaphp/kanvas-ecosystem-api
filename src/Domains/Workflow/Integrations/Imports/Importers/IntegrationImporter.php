@@ -37,7 +37,7 @@ abstract class IntegrationImporter
     }
 
     /**
-     * After the last chunk. A returned array becomes the run's summary.
+     * After the last chunk, with the run already completed. A returned array becomes its summary.
      */
     public function completed(IntegrationImport $run): ?array
     {

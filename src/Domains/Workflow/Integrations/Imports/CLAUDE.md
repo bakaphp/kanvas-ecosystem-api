@@ -5,8 +5,9 @@ into Kanvas. A connector declares what it can import and how to import one recor
 everything else (validation, concurrency, chunking, counting, status).
 
 References: NetSuite (`src/Domains/Connectors/NetSuite/Importers/`: chunked with a `choices` option, a
-single-run one, a follow-up import) and Salesforce (`src/Domains/Connectors/Salesforce/Importers/`: no
-options, used by both GraphQL and `kanvas:salesforce-backfill`).
+single-run one, a follow-up import) and Salesforce (`src/Domains/Connectors/Salesforce/Importers/`:
+organizations with an opt-in `then_people` follow-up, people refused while organizations run, used by
+both GraphQL and `kanvas:salesforce-backfill`).
 
 ## The contract
 
@@ -31,17 +32,25 @@ Hooks on both (`IntegrationImporter`), all optional:
   what the run stores in `options`.
 - `choices(string $option): list<ImportChoice>` backs `integrationImportOptionChoices`. Called when the
   selector opens, so it may call the external system.
-- `completed(IntegrationImport $run): ?array` runs after the last chunk of a chunked import. A returned
-  array becomes the run's `summary` (NetSuite products use it to start the follow-up stock import and
-  report `{stock: queued|skipped}`).
+- `completed(IntegrationImport $run): ?array` runs after the last chunk of a chunked import, once the
+  run is already `COMPLETED` (so a follow-up it starts is not blocked by this run). A returned array
+  becomes the run's `summary`: NetSuite products start the stock import and report
+  `{stock: queued|skipped}`, Salesforce organizations start people when `then_people` is set and report
+  `{people: queued|skipped}`. Catch the start's `ValidationException` and report it as `skipped`; any
+  other exception is `report()`ed by the job and the run stays `COMPLETED` with summary
+  `{follow_up_error: <message>}`, since the records are already in.
 
 `importOne()` **throws on a record it cannot import**. The job catches it, counts it in `failed`, keeps
 the message in `errors` and moves on. Do not catch inside `importOne()` to "be safe": a swallowed
 failure is invisible. Reserve a returned `SKIPPED` for records that are fine and deliberately left
 alone (an existing NetSuite customer).
 
-Items from `list()` are cached for 24 h between chunks, so they must serialise: ids or plain arrays,
-never models or clients.
+Items from `list()` are cached between chunks, so they must serialise: ids or plain arrays, never
+models or clients. The first job imports chunk 0 from memory and caches every later chunk of
+`CHUNK_SIZE` items under its own key, `integration-import-items:{run id}:{chunk number}`; the run's
+`total` says how many there are. A continuation reads only its own key and forgets it once processed,
+so no job unserialises the whole list. The keys live 24 h and each chunk refreshes the remaining ones,
+so a long run never outlives its records. A missing key fails the run with "lost its record list".
 
 ## Adding an importer to a connector
 
@@ -65,8 +74,13 @@ class that does not extend `IntegrationImporter` is refused.
 `summary`, `error` (why the whole run died), and the three timestamps.
 
 - **One run at a time per (company, integration, entity).** `StartIntegrationImportAction` takes a
-  short cache lock and checks `IntegrationImport::inProgressFor()` inside it; a second start is a
-  `ValidationException`. Two entities of the same integration may run together.
+  short cache lock and checks `IntegrationImport::inProgressFor()` inside it; a second start, or one
+  that times out waiting for the lock, is a `ValidationException`. Two entities of the same integration
+  may run together unless an importer's `prepare()` says otherwise (Salesforce people wait for
+  organizations).
+- **Run lookups are company + integration scoped, not app scoped.** `inProgressFor()` and
+  `latestFor()` match `companies_id`, `integrations_id` and `entity`, so two rows of the same
+  integration for one company share a lock and a status.
 - **Staleness.** A `queued`/`running` run whose `updated_at` is older than
   `IntegrationImport::STALE_AFTER_HOURS` (3) stops blocking, because a worker killed mid-run never marks
   it failed. Each chunk saves the row, so a live run keeps refreshing it.
@@ -77,9 +91,14 @@ class that does not extend `IntegrationImporter` is refused.
   the `imports` queue. They stay sequential because the counters are read-modify-write. The job calls
   `overwriteAppService($run->app)` first, as every app-scoped job must. If the cached list expired
   between chunks the run fails with "lost its record list"; starting again is safe because imports are
-  resyncs.
+  resyncs. Each continuation re-checks `isImportable()` first: if the integration was deactivated or
+  removed mid-run, the run fails with "The integration was disconnected during the import." and its
+  cached chunks are dropped.
 - `tries` is 1: a retried chunk would double-count. A job-level failure goes through `failed()` and
   marks the run `FAILED` with the exception message.
+- **A worker killed mid-chunk** never reaches `failed()` until the queue gives up on the job (its retry
+  window), so the run stays `RUNNING` until then and is marked `FAILED` after. There is no resume:
+  start the import again.
 
 ## GraphQL surface
 
@@ -95,9 +114,13 @@ Schema: `graphql/schemas/WorkFlow/integrationImports.graphql` and the `importabl
 
 Rules every entry point shares:
 
-- The row is loaded with `IntegrationsCompany::getManageable($id, $app)` and the user must belong to
-  the row's company (`ResolvesImportableIntegration`). A missing row, another app's row and a company
-  the user is not in all answer `Integration not found.`, so the response never says what exists.
+- The row is loaded with `IntegrationsCompany::getManageable($id, $app)` and the user must be a member
+  of the row's company (`ResolvesImportableIntegration`, through
+  `CompaniesRepository::userMemberOfCompany()`). Only the app owner skips membership; an admin does
+  not, because the admin role spans the app while the row belongs to one company. A missing row,
+  another app's row and a company the user is not in all answer `Integration not found.`, so the
+  response never says what exists.
+- `options` must be an object (`options must be an object.`).
 - The integration must be active (`is_active` and status `active`), else `This integration is not
   active.`. A connection whose `setup()` failed is stored as `failed` and cannot import.
 - `StartIntegrationImportAction` rejects an unknown entity (listing the valid ones), an undeclared

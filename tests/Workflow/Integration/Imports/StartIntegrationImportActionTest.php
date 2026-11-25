@@ -6,6 +6,7 @@ namespace Tests\Workflow\Integration\Imports;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
@@ -139,6 +140,27 @@ final class StartIntegrationImportActionTest extends TestCase
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    public function testAStartThatCannotGetTheLockIsRefusedAsInProgress(): void
+    {
+        $lock = Cache::lock(
+            sprintf(
+                'integration-import-start:%d:%d:plain',
+                $this->row->companies_id,
+                $this->row->integrations_id
+            ),
+            10
+        );
+        $this->assertTrue($lock->get());
+
+        try {
+            $this->assertRefused('A plain import is already in progress for this integration.', 'plain');
+        } finally {
+            $lock->release();
+        }
+
+        Queue::assertNotPushed(RunIntegrationImportJob::class);
     }
 
     public function testPrepareRunsBeforeQueuingAndItsOutputIsStored(): void

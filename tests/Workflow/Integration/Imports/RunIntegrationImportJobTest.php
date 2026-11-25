@@ -7,7 +7,9 @@ namespace Tests\Workflow\Integration\Imports;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Integrations\Imports\Enums\IntegrationImportStatusEnum;
 use Kanvas\Workflow\Integrations\Imports\Importers\IntegrationImporter;
@@ -140,13 +142,103 @@ final class RunIntegrationImportJobTest extends TestCase
 
     public function testAContinuationWhoseItemsExpiredFails(): void
     {
+        FakeImportRegistry::$items = range(1, 120);
         $run = $this->makeRun('chunky');
-        Cache::forget('integration-import-items:' . $run->getId());
+        $this->job($run)->handle();
+        Cache::forget('integration-import-items:' . $run->getId() . ':1');
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('lost its record list');
 
-        $this->job($run, 100)->handle();
+        $this->job($run->fresh(), 100)->handle();
+    }
+
+    public function testEachChunkReadsOnlyItsOwnKeyAndForgetsIt(): void
+    {
+        FakeImportRegistry::$items = range(1, 250);
+        $run = $this->makeRun('chunky');
+        $key = 'integration-import-items:' . $run->getId() . ':';
+
+        $this->job($run)->handle();
+
+        $this->assertFalse(Cache::has($key . '0'));
+        $this->assertSame(range(101, 200), Cache::get($key . '1'));
+        $this->assertSame(range(201, 250), Cache::get($key . '2'));
+
+        Cache::put($key . '2', [9001, 9002], now()->addHour());
+        $this->job($run->fresh(), 100)->handle();
+
+        $this->assertFalse(Cache::has($key . '1'));
+        $this->assertTrue(Cache::has($key . '2'));
+
+        $this->job($run->fresh(), 200)->handle();
+
+        $this->assertFalse(Cache::has($key . '2'));
+        $this->assertSame([...range(1, 200), 9001, 9002], FakeImportRegistry::$imported);
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->fresh()->status);
+    }
+
+    public function testCompletedRunsOnceTheRunIsFinished(): void
+    {
+        FakeImportRegistry::$items = [1];
+        $run = $this->makeRun('chunky');
+
+        $this->job($run)->handle();
+
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, FakeImportRegistry::$statusAtCompletion);
+    }
+
+    public function testAFollowUpFailureIsReportedAndTheRunStaysCompleted(): void
+    {
+        Exceptions::fake();
+        FakeImportRegistry::$items = [1, 2];
+        FakeImportRegistry::$completedThrows = 'stock lock exploded';
+        $run = $this->makeRun('chunky');
+
+        $this->job($run)->handle();
+
+        $run = $run->fresh();
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->status);
+        $this->assertSame(['follow_up_error' => 'stock lock exploded'], $run->summary);
+        $this->assertSame(2, $run->created);
+        Exceptions::assertReported(fn (RuntimeException $e) => $e->getMessage() === 'stock lock exploded');
+    }
+
+    public function testAContinuationStopsWhenTheIntegrationWasDisconnected(): void
+    {
+        FakeImportRegistry::$items = range(1, 120);
+        $run = $this->makeRun('chunky');
+        $this->job($run)->handle();
+        $this->row->is_active = false;
+        $this->row->save();
+
+        $this->job($run->fresh(), 100)->handle();
+
+        $run = $run->fresh();
+        $this->assertSame(IntegrationImportStatusEnum::FAILED, $run->status);
+        $this->assertSame('The integration was disconnected during the import.', $run->error);
+        $this->assertSame(100, $run->processed);
+        $this->assertFalse(Cache::has('integration-import-items:' . $run->getId() . ':1'));
+        Queue::assertPushed(RunIntegrationImportJob::class, 1);
+    }
+
+    public function testTheRealImporterIsResolvedAndTheRunsAppIsBound(): void
+    {
+        FakeImportRegistry::$items = [1, 2];
+        $run = $this->makeRun('chunky');
+        $otherApp = Apps::query()->where('id', '!=', $run->apps_id)->first();
+
+        if ($otherApp !== null) {
+            app()->instance(Apps::class, $otherApp);
+        }
+
+        new RunIntegrationImportJob($run)->handle();
+
+        $run = $run->fresh();
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->status);
+        $this->assertSame(2, $run->created);
+        $this->assertSame([1, 2], FakeImportRegistry::$imported);
+        $this->assertSame($run->apps_id, app(Apps::class)->getId());
     }
 
     private function makeRun(string $entity): IntegrationImport

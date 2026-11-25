@@ -63,10 +63,17 @@ class RunIntegrationImportJob implements ShouldQueue
             throw new RuntimeException('An importer must be a chunked or a single run importer.');
         }
 
-        $items = $this->offset === 0 ? $this->listItems($importer, $options) : $this->cachedItems();
+        if ($this->offset > 0 && ! $this->stillImportable()) {
+            $this->forgetItemsFrom($this->chunkNumber());
+            $this->run->fail('The integration was disconnected during the import.');
+
+            return;
+        }
+
+        $items = $this->offset === 0 ? $this->listItems($importer, $options) : $this->cachedChunk();
 
         $chunk = new ImportChunkResult();
-        foreach (array_slice($items, $this->offset, self::CHUNK_SIZE) as $index => $item) {
+        foreach ($items as $index => $item) {
             try {
                 $chunk->add($importer->importOne($item, $options));
             } catch (Throwable $e) {
@@ -75,16 +82,17 @@ class RunIntegrationImportJob implements ShouldQueue
         }
 
         $this->run->advance($chunk);
+        Cache::forget($this->chunkKey($this->chunkNumber()));
 
         $next = $this->offset + self::CHUNK_SIZE;
 
-        if ($next >= count($items)) {
-            $this->run->complete($importer->completed($this->run));
-            Cache::forget($this->cacheKey());
+        if ($next >= (int) $this->run->total) {
+            $this->complete($importer);
 
             return;
         }
 
+        $this->refreshItemsFrom($this->chunkNumber() + 1);
         dispatch(new self($this->run, $next));
     }
 
@@ -114,26 +122,91 @@ class RunIntegrationImportJob implements ShouldQueue
         }
     }
 
-    private function listItems(ChunkedImporter $importer, array $options): array
+    /**
+     * The run is marked finished before completed() runs, so a follow-up import it starts is not
+     * blocked by this one. A follow-up that blows up is reported, but the records are already in, so
+     * the run stays completed and says what went wrong.
+     */
+    private function complete(ChunkedImporter $importer): void
     {
-        $items = $importer->list($options);
+        $this->run->complete();
 
-        Cache::put($this->cacheKey(), $items, now()->addHours(self::ITEMS_TTL_HOURS));
-        $this->run->markRunning(count($items));
+        try {
+            $summary = $importer->completed($this->run);
+        } catch (Throwable $e) {
+            report($e);
+            $summary = ['follow_up_error' => $e->getMessage()];
+        }
 
-        return $items;
+        if ($summary !== null) {
+            $this->run->complete($summary);
+        }
     }
 
-    private function cachedItems(): array
+    private function stillImportable(): bool
     {
-        return Cache::get($this->cacheKey())
+        $integrationCompany = $this->run->integrationCompany;
+
+        return $integrationCompany !== null
+            && ! $integrationCompany->is_deleted
+            && $integrationCompany->isImportable();
+    }
+
+    /**
+     * Each chunk is cached under its own key so a continuation unserialises its 100 records, not the
+     * whole list. The first chunk is imported straight from memory and never cached.
+     */
+    private function listItems(ChunkedImporter $importer, array $options): array
+    {
+        $chunks = array_chunk($importer->list($options), self::CHUNK_SIZE);
+
+        foreach (array_slice($chunks, 1, preserve_keys: true) as $number => $chunk) {
+            Cache::put($this->chunkKey($number), $chunk, now()->addHours(self::ITEMS_TTL_HOURS));
+        }
+
+        $this->run->markRunning(array_sum(array_map('count', $chunks)));
+
+        return $chunks[0] ?? [];
+    }
+
+    private function cachedChunk(): array
+    {
+        return Cache::get($this->chunkKey($this->chunkNumber()))
             ?? throw new RuntimeException(
                 'The ' . $this->run->entity . ' import lost its record list. Start the import again.'
             );
     }
 
-    private function cacheKey(): string
+    /**
+     * The TTL runs from the last chunk, not from the listing, so a long run does not outlive its
+     * own records.
+     */
+    private function refreshItemsFrom(int $number): void
     {
-        return 'integration-import-items:' . $this->run->getId();
+        foreach (range($number, $this->lastChunkNumber()) as $remaining) {
+            Cache::touch($this->chunkKey($remaining), now()->addHours(self::ITEMS_TTL_HOURS));
+        }
+    }
+
+    private function forgetItemsFrom(int $number): void
+    {
+        foreach (range($number, max($number, $this->lastChunkNumber())) as $remaining) {
+            Cache::forget($this->chunkKey($remaining));
+        }
+    }
+
+    private function chunkNumber(): int
+    {
+        return intdiv($this->offset, self::CHUNK_SIZE);
+    }
+
+    private function lastChunkNumber(): int
+    {
+        return intdiv(max((int) $this->run->total - 1, 0), self::CHUNK_SIZE);
+    }
+
+    private function chunkKey(int $number): string
+    {
+        return 'integration-import-items:' . $this->run->getId() . ':' . $number;
     }
 }
