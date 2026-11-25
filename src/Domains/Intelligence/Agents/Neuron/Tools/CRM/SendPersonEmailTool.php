@@ -63,8 +63,18 @@ class SendPersonEmailTool extends Tool implements RequiresSystemAgent
                 description: 'The email body, written to the person in the first person on behalf of the business. '
                     . 'Markdown is supported (headings, bold, lists, links) and is rendered to HTML. '
                     . 'Do not add a greeting header image, a signature, or "Sent by AI" — the template handles branding. '
-                    . 'The sender’s enabled email signature is added automatically.',
+                    . 'The saved email signature of the person you are talking with is added only when sign_as_me is true.',
                 required: true,
+            ),
+            new ToolProperty(
+                name: 'sign_as_me',
+                type: PropertyType::BOOLEAN,
+                description: 'Whose email this is. true = it is written as the person you are '
+                    . 'talking with (they asked you to send it as them, in their name or voice): their own saved email '
+                    . 'signature closes it. false or omitted = it is written as the business or its customer-facing '
+                    . 'assistant (e.g. "send it as Sally"): their personal signature is NOT added. '
+                    . 'Never set it to true for an email written in someone else’s name.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'cc',
@@ -86,6 +96,7 @@ class SendPersonEmailTool extends Tool implements RequiresSystemAgent
         string $subject,
         string $body,
         ?string $cc = null,
+        bool $sign_as_me = false,
     ): array {
         $subject = trim($subject);
         $body = trim($body);
@@ -120,7 +131,7 @@ class SendPersonEmailTool extends Tool implements RequiresSystemAgent
                 message: $body,
                 subject: $subject,
                 fromAgent: $this->contextAgent(),
-                signatureOwner: $this->signatureOwner(),
+                signatureOwner: $this->signatureOwner($sign_as_me),
                 cc: $ccResult['accepted'],
             );
         } catch (Throwable $e) {
