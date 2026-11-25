@@ -84,6 +84,9 @@ class SyncEmailTemplateAction
                 'name' => EnumsEmailTemplateEnum::NEW_ORDER_STORE_OWNER->value,
                 'template' => File::get(resource_path('views/emails/newOrderStoreOwner.twig')),
             ], [
+                'name' => EnumsEmailTemplateEnum::PAYMENT_RECEIPT_AZUL->value,
+                'template' => File::get(resource_path('views/emails/paymentReceiptAzul.twig')),
+            ], [
                 'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD->value,
                 'template' => File::get(resource_path('views/emails/newLead.twig')),
             ], [

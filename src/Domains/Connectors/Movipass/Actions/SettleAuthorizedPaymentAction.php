@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Actions;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
+use Kanvas\Connectors\PasoRapido\Events\PasoRapidoRechargeProcessed;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\SendPaymentReceiptAction;
@@ -20,7 +21,7 @@ use Kanvas\Souk\Payments\Processors\ProcessorFactory;
 
 final class SettleAuthorizedPaymentAction
 {
-    public const string PROCESSOR = 'portal';
+    public const array PROCESSORS = ['portal', 'azul'];
 
     private readonly Order $order;
 
@@ -38,7 +39,7 @@ final class SettleAuthorizedPaymentAction
         }
 
         $processor = ProcessorFactory::make(
-            self::PROCESSOR,
+            $this->payment->processorName(),
             $this->order->app,
             $this->payment->company
         );
@@ -71,34 +72,62 @@ final class SettleAuthorizedPaymentAction
         ];
     }
 
+    public static function settles(Payments $payment): bool
+    {
+        return in_array($payment->processorName(), self::PROCESSORS, true);
+    }
+
     private function confirmWithPasoRapido(): ?array
     {
         if ($this->order->orderType?->name !== OrderTypeEnum::PASO_RAPIDO->value) {
             return null;
         }
 
-        return new CreatePasoRapidoOrderAction(
+        $confirmation = new CreatePasoRapidoOrderAction(
             app: $this->order->app,
             order: $this->order,
             pasoRapidoService: $this->pasoRapidoService,
+            bankTransaction: $this->payment->payment_intent_id,
         )->execute();
+
+        $recharged = $this->rechargeConfirmed($confirmation);
+
+        PasoRapidoRechargeProcessed::dispatch(
+            $this->order->getId(),
+            $this->order->uuid,
+            $recharged ? PasoRapidoRechargeProcessed::SUCCESS : PasoRapidoRechargeProcessed::FAILED,
+            (string) ($confirmation['message'] ?? '')
+        );
+
+        return $confirmation;
     }
 
     private function shouldCapture(?array $confirmation): bool
     {
-        $confirmed = $confirmation === null || ($confirmation['status'] ?? null) === 'success';
+        $confirmed = $confirmation === null || $this->rechargeConfirmed($confirmation);
         $flag = $this->order->fresh()->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value);
 
         $this->payment->addLog('capture_decision', [
             'order_id' => $this->order->id,
             'order_type' => $this->order->orderType?->name,
-            'intent_id' => $this->order->get(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value),
+            'processor' => $this->payment->processorName(),
+            'intent_id' => $this->payment->payment_intent_id,
             'paso_rapido_confirmed' => $confirmed,
             'should_capture' => $flag,
-            'will_capture' => $confirmed && (bool) $flag,
+            'will_capture' => $confirmed && $this->captureAllowed($flag),
         ]);
 
-        return $confirmed && (bool) $flag;
+        return $confirmed && $this->captureAllowed($flag);
+    }
+
+    private function rechargeConfirmed(array $confirmation): bool
+    {
+        return ($confirmation['status'] ?? null) === 'success';
+    }
+
+    private function captureAllowed(mixed $flag): bool
+    {
+        return $flag === null || (bool) $flag;
     }
 
     private function holdForCaptureRecovery(CaptureResult $capture): array

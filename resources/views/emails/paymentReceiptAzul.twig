@@ -1,0 +1,119 @@
+<tr>
+    <td style="padding-bottom: 20px; border-bottom: 1px solid #eaeaea; text-align: center;">
+        <p style="color: #333333; font-size: 18px; margin: 0; font-weight: bold;">Comprobante de pago</p>
+        <p style="color: #333333; font-size: 14px; margin: 8px 0 0 0; font-weight: bold;">{{ receipt.merchant.name }}</p>
+        {% if receipt.merchant.legal_name %}
+        <p style="color: #333333; font-size: 13px; margin: 2px 0 0 0;">{{ receipt.merchant.legal_name }}</p>
+        {% endif %}
+        {% if receipt.merchant.rnc %}
+        <p style="color: #333333; font-size: 13px; margin: 2px 0 0 0;">RNC: {{ receipt.merchant.rnc }}</p>
+        {% endif %}
+        {% if receipt.merchant.address %}
+        <p style="color: #666666; font-size: 13px; margin: 2px 0 0 0;">{{ receipt.merchant.address }}</p>
+        {% endif %}
+        <p style="color: #666666; font-size: 13px; margin: 2px 0 0 0;">
+            {{ receipt.merchant.email }}{% if receipt.merchant.email and receipt.merchant.phone %} · {% endif %}{{ receipt.merchant.phone }}
+        </p>
+    </td>
+</tr>
+
+<tr>
+    <td style="padding: 20px 0 10px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #333333;">
+            <tr>
+                <td style="padding: 4px 0;">Orden</td>
+                <td style="text-align: right;"><strong>#{{ receipt.order_number }}</strong></td>
+            </tr>
+            <tr>
+                <td style="padding: 4px 0;">Fecha</td>
+                <td style="text-align: right;">{{ receipt.date }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 4px 0;">Tipo de transacción</td>
+                <td style="text-align: right;">Venta</td>
+            </tr>
+            {% if receipt.order_data.vehiclePlate %}
+            <tr>
+                <td style="padding: 4px 0;">Placa</td>
+                <td style="text-align: right;">{{ receipt.order_data.vehiclePlate }}</td>
+            </tr>
+            {% endif %}
+            {% if receipt.order_data.vehicleBrand %}
+            <tr>
+                <td style="padding: 4px 0;">Vehículo</td>
+                <td style="text-align: right;">{{ receipt.order_data.vehicleBrand }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </td>
+</tr>
+
+<tr>
+    <td style="padding: 15px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align: left; padding: 10px; font-size: 14px; color: #333333; border-bottom: 1px solid #eaeaea;">Concepto</th>
+                    <th style="text-align: center; padding: 10px; font-size: 14px; color: #333333; border-bottom: 1px solid #eaeaea;">Cantidad</th>
+                    <th style="text-align: right; padding: 10px; font-size: 14px; color: #333333; border-bottom: 1px solid #eaeaea;">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in receipt.items %}
+                <tr>
+                    <td style="padding: 10px; font-size: 14px; color: #333333;">{{ item.name }}</td>
+                    <td style="text-align: center; padding: 10px; font-size: 14px; color: #333333;">{{ item.quantity }}</td>
+                    <td style="text-align: right; padding: 10px; font-size: 14px; color: #333333;">RD$ {{ item.total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </td>
+</tr>
+
+<tr>
+    <td style="padding-top: 5px;">
+        <table style="width: 100%; max-width: 320px; float: right; font-size: 14px; color: #333333;">
+            <tr>
+                <td style="padding: 5px 0;">ITBIS</td>
+                <td style="text-align: right;">{% if receipt.tax > 0 %}RD$ {{ receipt.tax|number_format(2) }}{% else %}Incluido{% endif %}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 0; font-weight: bold;">Total ({{ receipt.currency }})</td>
+                <td style="text-align: right; font-weight: bold;">RD$ {{ receipt.total }}</td>
+            </tr>
+        </table>
+    </td>
+</tr>
+
+<tr>
+    <td style="padding-top: 25px; border-top: 1px solid #eaeaea; font-size: 14px; color: #333333;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #333333;">
+            {% if receipt.card_brand or receipt.card_last_four %}
+            <tr>
+                <td style="padding: 4px 0;">Tarjeta</td>
+                <td style="text-align: right;">{{ receipt.card_brand }} ****{{ receipt.card_last_four }}</td>
+            </tr>
+            {% endif %}
+            {% if receipt.authorization_code %}
+            <tr>
+                <td style="padding: 4px 0;">Código de aprobación</td>
+                <td style="text-align: right;"><strong>{{ receipt.authorization_code }}</strong></td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td style="padding: 4px 0;">Moneda</td>
+                <td style="text-align: right;">RD$ (DOP)</td>
+            </tr>
+        </table>
+        <p style="color: #666666; font-size: 13px; margin: 15px 0 0 0; text-align: center;">
+            Procesado por AZUL con autenticación 3D Secure.
+        </p>
+        {% if receipt.merchant.email or receipt.merchant.phone %}
+        <p style="color: #666666; font-size: 13px; margin: 6px 0 0 0; text-align: center;">
+            ¿Dudas sobre este pago? Contáctanos:
+            {% if receipt.merchant.email %}{{ receipt.merchant.email }}{% endif %}{% if receipt.merchant.email and receipt.merchant.phone %} · {% endif %}{% if receipt.merchant.phone %}{{ receipt.merchant.phone }}{% endif %}
+        </p>
+        {% endif %}
+    </td>
+</tr>

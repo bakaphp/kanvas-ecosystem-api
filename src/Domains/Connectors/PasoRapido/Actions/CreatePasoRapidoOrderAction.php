@@ -22,6 +22,7 @@ class CreatePasoRapidoOrderAction
         protected Apps $app,
         protected Order $order,
         protected ?PasoRapidoService $pasoRapidoService = null,
+        protected ?string $bankTransaction = null,
     ) {
     }
 
@@ -80,8 +81,7 @@ class CreatePasoRapidoOrderAction
 
         try {
             $pasoRapidoService = $this->pasoRapidoService ?? new PasoRapidoService($this->app, $company);
-            $intentId = $this->order->get(EchoPayCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
-            $bankTransaction = explode(':', $intentId)[1];
+            $bankTransaction = $this->bankTransaction();
             $confirmPaymentResponse = $pasoRapidoService->confirmPayment(new PaymentConfirmData(
                 reference: $tag,
                 bankTransaction: $bankTransaction,
@@ -169,5 +169,13 @@ class CreatePasoRapidoOrderAction
         } catch (Throwable $e) {
             report($e);
         }
+    }
+
+    private function bankTransaction(): string
+    {
+        $bankTransaction = Str::trimToNull($this->bankTransaction)
+            ?? Str::trimToNull(explode(':', (string) $this->order->get(EchoPayCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value))[1] ?? null);
+
+        return $bankTransaction ?? throw new Exception('No bank transaction for the authorized card payment');
     }
 }
