@@ -8,6 +8,7 @@ final class FakeImportRegistry
 {
     public static array $items = [];
     public static array $failOn = [];
+    public static array $unlabelable = [];
     public static ?array $completed = null;
     public static array $imported = [];
 
@@ -15,6 +16,7 @@ final class FakeImportRegistry
     {
         self::$items = [];
         self::$failOn = [];
+        self::$unlabelable = [];
         self::$completed = null;
         self::$imported = [];
     }

@@ -86,6 +86,23 @@ final class RunIntegrationImportJobTest extends TestCase
         $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->status);
     }
 
+    public function testAnItemWhoseIdCannotBeReadFailsAloneUnderItsPosition(): void
+    {
+        FakeImportRegistry::$items = [1, 2, 3];
+        FakeImportRegistry::$failOn = [2];
+        FakeImportRegistry::$unlabelable = [2];
+        $run = $this->makeRun('chunky');
+
+        $this->job($run)->handle();
+
+        $run = $run->fresh();
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->status);
+        $this->assertSame(1, $run->failed);
+        $this->assertSame(2, $run->created);
+        $this->assertSame([['id' => '#1', 'error' => 'cannot import 2']], $run->errors);
+        $this->assertSame([1, 3], FakeImportRegistry::$imported);
+    }
+
     public function testAnEmptyListCompletesWithoutQueuing(): void
     {
         $run = $this->makeRun('chunky');

@@ -66,11 +66,11 @@ class RunIntegrationImportJob implements ShouldQueue
         $items = $this->offset === 0 ? $this->listItems($importer, $options) : $this->cachedItems();
 
         $chunk = new ImportChunkResult();
-        foreach (array_slice($items, $this->offset, self::CHUNK_SIZE) as $item) {
+        foreach (array_slice($items, $this->offset, self::CHUNK_SIZE) as $index => $item) {
             try {
                 $chunk->add($importer->importOne($item, $options));
             } catch (Throwable $e) {
-                $chunk->fail($importer->itemId($item), $e->getMessage());
+                $chunk->fail($this->labelFor($importer, $item, $this->offset + $index), $e->getMessage());
             }
         }
 
@@ -99,6 +99,19 @@ class RunIntegrationImportJob implements ShouldQueue
             $this->run->entity,
             Users::getById($this->run->users_id)
         );
+    }
+
+    /**
+     * A record too malformed to name must still fail alone, so an importer's itemId() is never
+     * allowed to take the run down with it.
+     */
+    private function labelFor(ChunkedImporter $importer, mixed $item, int $position): string
+    {
+        try {
+            return $importer->itemId($item);
+        } catch (Throwable) {
+            return '#' . $position;
+        }
     }
 
     private function listItems(ChunkedImporter $importer, array $options): array

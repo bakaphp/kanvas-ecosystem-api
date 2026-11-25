@@ -42,6 +42,6 @@ abstract class SalesforceRecordsImporter extends ChunkedImporter
     #[Override]
     public function itemId(mixed $item): string
     {
-        return (string) ($item['Id'] ?? '');
+        return is_array($item) && is_string($item['Id'] ?? null) ? $item['Id'] : '';
     }
 }

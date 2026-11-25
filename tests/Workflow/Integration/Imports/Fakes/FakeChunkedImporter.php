@@ -43,6 +43,10 @@ final class FakeChunkedImporter extends ChunkedImporter
 
     public function itemId(mixed $item): string
     {
+        if (in_array($item, FakeImportRegistry::$unlabelable, true)) {
+            throw new RuntimeException("no id for {$item}");
+        }
+
         return (string) $item;
     }
 

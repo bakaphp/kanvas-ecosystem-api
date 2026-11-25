@@ -19,6 +19,7 @@ use Kanvas\Workflow\Integrations\Imports\Jobs\RunIntegrationImportJob;
 use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Override;
+use stdClass;
 use Tests\Connectors\Integration\Salesforce\Concerns\CreatesSalesforceIntegration;
 use Tests\Connectors\Traits\HasThrowawayCompany;
 use Tests\TestCase;
@@ -111,6 +112,21 @@ final class SalesforceImportersTest extends TestCase
         $this->assertSame(1, $run->created);
         $this->assertSame(1, $run->failed);
         $this->assertStringContainsString('Salesforce record is missing an Id', json_encode($run->getErrors()));
+    }
+
+    public function testARecordWithAMalformedIdFailsAloneAndTheRestContinue(): void
+    {
+        $run = $this->runImport('organizations', [
+            ['Id' => new stdClass(), 'Name' => 'Broken Record'],
+            ['Id' => ['nested'], 'Name' => 'Broken Array'],
+            'not a record',
+            ['Id' => '001xx0000000001AAA', 'Name' => 'Acme Corp'],
+        ]);
+
+        $this->assertSame(IntegrationImportStatusEnum::COMPLETED, $run->status);
+        $this->assertSame(1, $run->created);
+        $this->assertSame(3, $run->failed);
+        $this->assertNotNull($this->organization('001xx0000000001AAA'));
     }
 
     public function testARerunCountsExistingRecordsAsUpdated(): void
