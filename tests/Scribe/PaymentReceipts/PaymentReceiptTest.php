@@ -36,7 +36,9 @@ final class PaymentReceiptTest extends ScribeTestCase
 
     protected function tearDown(): void
     {
-        $this->company->set(ConfigurationEnum::RECEIVED_BY->value, $this->originalReceivedBy);
+        $this->originalReceivedBy === null
+            ? $this->company->del(ConfigurationEnum::RECEIVED_BY->value)
+            : $this->company->set(ConfigurationEnum::RECEIVED_BY->value, $this->originalReceivedBy);
 
         parent::tearDown();
     }

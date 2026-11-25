@@ -108,7 +108,8 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   PDF is the `scribe-payment-receipt` Twig row (packaged fallback `resources/views/pdf/scribe-payment-receipt.twig`),
   labelled `RD$` / `US$` by currency. Per company: the name under "Recibido por" is the setting
   `payment-receipt-received-by`; the signature and seal are company files named `payment_receipt_signature` and
-  `payment_receipt_seal`, uploaded like the logo. The AR agent's `generate_payment_receipt` issues it right after
+  `payment_receipt_seal`; the admin mutation `configureScribePaymentReceipt` sets all three in one call (a field
+  left out stays, an empty name clears it) and `scribePaymentReceiptSettings` reads them. The AR agent's `generate_payment_receipt` issues it right after
   `apply_ar_payment`.
 - **A company's SOW layouts are named versions with a switchable default.** Company-level template rows
   `scribe-sow-{version}` (`CompanySowTemplateService`), the default a pointer in the company setting
