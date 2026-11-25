@@ -49,6 +49,14 @@ class IntegrationImport extends BaseModel
 
     protected $guarded = [];
 
+    protected $attributes = [
+        'processed' => 0,
+        'created' => 0,
+        'updated' => 0,
+        'skipped' => 0,
+        'failed' => 0,
+    ];
+
     protected function casts(): array
     {
         return [
@@ -66,6 +74,14 @@ class IntegrationImport extends BaseModel
     public function integrationCompany(): BelongsTo
     {
         return $this->belongsTo(IntegrationsCompany::class, 'integrations_companies_id');
+    }
+
+    /**
+     * @return list<array{id: string, error: string}>
+     */
+    public function getErrors(): array
+    {
+        return $this->errors ?? [];
     }
 
     public static function latestFor(IntegrationsCompany $integrationCompany, string $entity): ?self

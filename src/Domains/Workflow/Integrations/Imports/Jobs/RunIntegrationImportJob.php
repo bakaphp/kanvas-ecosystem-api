@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Imports\Jobs;
 
-use Baka\Support\AllowedClass;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -96,13 +95,10 @@ class RunIntegrationImportJob implements ShouldQueue
 
     protected function importer(): IntegrationImporter
     {
-        $integrationCompany = $this->run->integrationCompany;
-        $importable = $integrationCompany->importableFor($this->run->entity)
-            ?? throw new RuntimeException(sprintf('The integration no longer offers %s.', $this->run->entity));
-        $class = AllowedClass::resolve($importable->importer, IntegrationImporter::class)
-            ?? throw new RuntimeException(sprintf('%s is not an allowed importer.', $importable->importer));
-
-        return new $class($integrationCompany, Users::getById($this->run->users_id));
+        return $this->run->integrationCompany->importerFor(
+            $this->run->entity,
+            Users::getById($this->run->users_id)
+        );
     }
 
     private function listItems(ChunkedImporter $importer, array $options): array

@@ -7,16 +7,23 @@ namespace Kanvas\Workflow\Integrations\Models;
 use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\BaseIntegration;
+use Baka\Support\AllowedClass;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
+use Kanvas\Workflow\Integrations\Imports\Importers\IntegrationImporter;
+use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use RuntimeException;
 
 /**
  * @property int $id
@@ -129,9 +136,56 @@ class IntegrationsCompany extends BaseModel
         return BaseIntegration::forIntegrationCompany($this, $this->app ?? app(Apps::class))?->importables() ?? [];
     }
 
+    /**
+     * What the client needs to render the import screen. Declared in code, so it never calls the
+     * external system.
+     *
+     * @return list<array{entity: string, label: string, options: list<array{name: string, type: string, label: string, required: bool, multiple: bool}>, last_import: ?IntegrationImport}>
+     */
+    public function getImportables(): array
+    {
+        if (! $this->isImportable()) {
+            return [];
+        }
+
+        return array_map(fn (Importable $importable) => [
+            'entity' => $importable->entity,
+            'label' => $importable->label,
+            'options' => array_map(fn (ImportOption $option) => [
+                'name' => $option->name,
+                'type' => $option->type->value,
+                'label' => $option->label,
+                'required' => $option->required,
+                'multiple' => $option->multiple,
+            ], $importable->options),
+            'last_import' => IntegrationImport::latestFor($this, $importable->entity),
+        ], $this->importables());
+    }
+
+    public function importerFor(string $entity, Users $user): IntegrationImporter
+    {
+        $importable = $this->importableFor($entity)
+            ?? throw new RuntimeException(sprintf('The integration no longer offers %s.', $entity));
+        $class = AllowedClass::resolve($importable->importer, IntegrationImporter::class)
+            ?? throw new RuntimeException(sprintf('%s is not an allowed importer.', $importable->importer));
+
+        return new $class($this, $user);
+    }
+
     public function importableFor(string $entity): ?Importable
     {
         return array_find($this->importables(), fn (Importable $importable) => $importable->entity === $entity);
+    }
+
+    public static function getManageable(int $id, AppInterface $app): self
+    {
+        $integrationCompany = self::getById($id);
+
+        if (! $integrationCompany->isManageableFrom($app)) {
+            throw new ModelNotFoundException('Integration not found for this app.');
+        }
+
+        return $integrationCompany;
     }
 
     /**

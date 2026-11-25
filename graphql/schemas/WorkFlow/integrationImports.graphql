@@ -1,0 +1,73 @@
+type IntegrationImportable {
+    entity: String!
+    label: String!
+    options: [IntegrationImportOption!]!
+    last_import: IntegrationImportRun
+}
+
+type IntegrationImportOption {
+    name: String!
+    "choices, boolean or string"
+    type: String!
+    label: String!
+    required: Boolean!
+    "Only for choices: more than one value can be picked"
+    multiple: Boolean!
+}
+
+type IntegrationImportChoice {
+    value: String!
+    label: String!
+    suggested: Boolean!
+}
+
+type IntegrationImportError {
+    id: String!
+    error: String!
+}
+
+enum IntegrationImportState {
+    QUEUED @enum(value: "queued")
+    RUNNING @enum(value: "running")
+    COMPLETED @enum(value: "completed")
+    FAILED @enum(value: "failed")
+}
+
+type IntegrationImportRun {
+    entity: String!
+    status: IntegrationImportState!
+    options: Mixed
+    total: Int
+    processed: Int!
+    created: Int!
+    updated: Int!
+    skipped: Int!
+    failed: Int!
+    "At most 50"
+    errors: [IntegrationImportError!]! @method(name: "getErrors")
+    summary: Mixed
+    error: String
+    queued_at: DateTime
+    started_at: DateTime
+    finished_at: DateTime
+}
+
+extend type Query @guard {
+    "The last run of that entity, or null when it was never imported."
+    integrationImportStatus(integration_company_id: ID!, entity: String!): IntegrationImportRun
+        @field(resolver: "App\\GraphQL\\Workflow\\Queries\\Integrations\\IntegrationImportQuery@status")
+
+    "Asks the external system for the values of a choices option. Call it when the selector opens."
+    integrationImportOptionChoices(
+        integration_company_id: ID!
+        entity: String!
+        option: String!
+    ): [IntegrationImportChoice!]!
+        @field(resolver: "App\\GraphQL\\Workflow\\Queries\\Integrations\\IntegrationImportQuery@choices")
+}
+
+extend type Mutation @guard {
+    "Queues the import and answers with the run in QUEUED."
+    integrationImport(integration_company_id: ID!, entity: String!, options: Mixed): IntegrationImportRun!
+        @field(resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationImportMutation@import")
+}

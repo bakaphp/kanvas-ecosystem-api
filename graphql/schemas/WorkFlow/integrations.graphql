@@ -25,6 +25,8 @@ type IntegrationsCompanies {
     is_active: Boolean!
     "Opens the provider's consent screen for an OAuth integration (e.g. Microsoft). Null for the rest."
     oauth_url: String @method(name: "getOAuthUrl")
+    "What this integration can import, in the order to run a first import. Empty unless it is active."
+    importables: [IntegrationImportable!]! @method(name: "getImportables")
     updated_at: DateTime
 }
 

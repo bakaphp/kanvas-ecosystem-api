@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Imports\Actions;
 
-use Baka\Support\AllowedClass;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
@@ -14,11 +13,9 @@ use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
 use Kanvas\Workflow\Integrations\Imports\Enums\ImportOptionTypeEnum;
 use Kanvas\Workflow\Integrations\Imports\Enums\IntegrationImportStatusEnum;
-use Kanvas\Workflow\Integrations\Imports\Importers\IntegrationImporter;
 use Kanvas\Workflow\Integrations\Imports\Jobs\RunIntegrationImportJob;
 use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
-use RuntimeException;
 
 class StartIntegrationImportAction
 {
@@ -54,9 +51,9 @@ class StartIntegrationImportAction
 
         $this->validateOptions($importable);
 
-        $importerClass = AllowedClass::resolve($importable->importer, IntegrationImporter::class)
-            ?? throw new RuntimeException(sprintf('%s is not an allowed importer.', $importable->importer));
-        $options = new $importerClass($this->integrationCompany, $this->user)->prepare($this->options);
+        $options = $this->integrationCompany
+            ->importerFor($this->entity, $this->user)
+            ->prepare($this->options);
 
         $lock = Cache::lock(
             sprintf(
