@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Scribe\GraphQL;
+
+use Tests\Scribe\ScribeTestCase;
+use Tests\Traits\CreatesTestQuote;
+
+class SalesOrderGraphQLTest extends ScribeTestCase
+{
+    use CreatesTestQuote;
+
+    private const string REGISTER = '
+        mutation ($input: ScribeCustomerPoInput!) {
+            registerScribeCustomerPo(input: $input) {
+                id order_number document_status po_source currency order_total customer_po_number
+                customer { id }
+                lines { line_number description quantity unit_price line_total }
+            }
+        }';
+
+    public function test_an_order_goes_through_both_gates_through_the_api(): void
+    {
+        $customer = $this->seedTestOrganization('Graph Customer');
+        $quote = $this->createTestQuote($customer);
+
+        $registered = $this->graphQL(self::REGISTER, ['input' => [
+            'customer_id' => $customer->getId(),
+            'po_source' => 'CUSTOMER_PO',
+            'quote_id' => $quote->getId(),
+            'customer_po_number' => 'PO-7001',
+            'customer_po_date' => '2026-11-20',
+            'currency' => 'usd',
+            'incoterm' => 'FOB',
+            'signature_checklist' => ['authorized_signer' => true],
+            'lines' => [
+                ['description' => 'Pallet of rice', 'quantity' => 10, 'unit_price' => 20, 'sku' => 'RICE-1'],
+                ['description' => 'Pallet of beans', 'quantity' => 5, 'unit_price' => 30, 'sku' => 'BEAN-1'],
+            ],
+        ]])->assertSuccessful()->json('data.registerScribeCustomerPo');
+
+        $this->assertSame('RECEIVED', $registered['document_status']);
+        $this->assertSame('CUSTOMER_PO', $registered['po_source']);
+        $this->assertStringStartsWith('SO-', $registered['order_number']);
+        $this->assertSame((string) $customer->getId(), $registered['customer']['id']);
+
+        $id = $registered['id'];
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                reviewScribeSalesOrder(id: $id, agreement: { incoterm: "CIF" }) {
+                    differences { key po_value quote_value resolution }
+                }
+            }', ['id' => $id])
+            ->assertJsonPath('data.reviewScribeSalesOrder.differences.0.key', 'incoterm');
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                confirmScribeSalesOrder(id: $id, feasibility_confirmed: true) { id }
+            }', ['id' => $id])
+            ->assertGraphQLErrorMessage('Clarify every difference in writing before confirming. Still open: incoterm.');
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                resolveScribeSalesOrderDifference(id: $id, key: "incoterm", resolution: "Agreed to FOB by email") {
+                    differences { resolution }
+                }
+            }', ['id' => $id])
+            ->assertJsonPath('data.resolveScribeSalesOrderDifference.differences.0.resolution', 'Agreed to FOB by email');
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                confirmScribeSalesOrder(id: $id, feasibility_confirmed: true) { document_status confirmed_at }
+            }', ['id' => $id])
+            ->assertJsonPath('data.confirmScribeSalesOrder.document_status', 'CONFIRMED');
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                acceptScribeSalesOrder(id: $id, etd: "2026-12-10", eta: "2026-12-28") { document_status etd eta }
+            }', ['id' => $id])
+            ->assertJsonPath('data.acceptScribeSalesOrder.document_status', 'ACCEPTED')
+            ->assertJsonPath('data.acceptScribeSalesOrder.eta', '2026-12-28');
+
+        $this->graphQL('
+            query {
+                scribeSalesOrders(where: { column: DOCUMENT_STATUS, value: "accepted" }) { data { id } }
+            }')
+            ->assertSuccessful()
+            ->assertJsonFragment(['id' => $id]);
+    }
+
+    public function test_operations_can_return_a_confirmed_order_with_a_reason(): void
+    {
+        $customer = $this->seedTestOrganization('Returned Customer');
+        $quote = $this->createTestQuote($customer);
+        $id = $this->graphQL(self::REGISTER, ['input' => [
+            'customer_id' => $customer->getId(),
+            'po_source' => 'CUSTOMER_PO',
+            'quote_id' => $quote->getId(),
+            'customer_po_number' => 'PO-7002',
+            'customer_po_date' => '2026-11-20',
+            'currency' => 'USD',
+            'signature_checklist' => ['authorized_signer' => true],
+            'lines' => [
+                ['description' => 'Pallet of rice', 'quantity' => 10, 'unit_price' => 20, 'sku' => 'RICE-1'],
+                ['description' => 'Pallet of beans', 'quantity' => 5, 'unit_price' => 30, 'sku' => 'BEAN-1'],
+            ],
+        ]])->json('data.registerScribeCustomerPo.id');
+
+        $this->graphQL('mutation ($id: ID!) { reviewScribeSalesOrder(id: $id) { id } }', ['id' => $id])->assertSuccessful();
+        $this->graphQL('mutation ($id: ID!) { confirmScribeSalesOrder(id: $id, feasibility_confirmed: true) { id } }', ['id' => $id])
+            ->assertSuccessful();
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                returnScribeSalesOrder(id: $id, reason: "No container space") { document_status return_reason }
+            }', ['id' => $id])
+            ->assertJsonPath('data.returnScribeSalesOrder.document_status', 'RETURNED')
+            ->assertJsonPath('data.returnScribeSalesOrder.return_reason', 'No container space');
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                cancelScribeSalesOrder(id: $id, reason: "Customer withdrew") { document_status cancel_reason }
+            }', ['id' => $id])
+            ->assertJsonPath('data.cancelScribeSalesOrder.document_status', 'CANCELLED');
+    }
+}

@@ -11,11 +11,14 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AccountingDigestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachQuoteFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckRncTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
@@ -26,6 +29,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftDebitNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\EcfStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
@@ -38,13 +42,17 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListCustomerOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RegisterCustomerPoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResolvePoDifferenceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReviewCustomerPoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SaveSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendInvoiceTool;
@@ -184,6 +192,14 @@ class AccountsReceivableAgent extends SystemUserAgent
             new SendQuoteTool(),
             new AnswerQuoteTool(),
             new ConvertQuoteToInvoiceTool(),
+            new RegisterCustomerPoTool(),
+            new ReviewCustomerPoTool(),
+            new ResolvePoDifferenceTool(),
+            new ConfirmCustomerOrderTool(),
+            new AnswerCustomerOrderTool(),
+            new CancelCustomerOrderTool(),
+            new FindCustomerOrderTool(),
+            new ListCustomerOrdersTool(),
             new GenerateQuotePdfTool(),
             new GenerateInvoicePdfTool(),
             new AttachQuoteFileTool(),
@@ -323,6 +339,16 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'answer_quote (with accepted_outside_kanvas when it was never sent through Kanvas) and then convert. '
             . 'A quote with a SOW is never converted: accepting it bills its payment schedule. '
             . '"Look up quote #X" → find_quote, which gives you the quote_id the other quote tools need.',
+            '- A customer\'s purchase order, or a proforma they returned signed and stamped, becomes a customer order: '
+            . 'register_customer_po (find_customer and find_quote give you the ids and the quote number), then '
+            . 'review_customer_po against the quote. Every difference it lists has to be clarified with the customer in '
+            . 'writing: ask the person how it was clarified and record it with resolve_po_difference, never invent '
+            . 'the answer. confirm_customer_order needs the person to tell you Operations confirmed the order is '
+            . 'feasible. Operations\' answer is recorded with answer_customer_order (accept with firm etd and eta, or '
+            . 'return with the reason). "Where is customer order SO-12" / "what is waiting on Operations" → '
+            . 'find_customer_order, list_customer_orders (find_sales_order and list_open_sales_orders read the orders '
+            . 'synced from the ERP, which are a different thing). Never confirm, accept or cancel an order on your '
+            . 'own initiative.',
             '- "Send me the quote/invoice as a PDF" / "I need a copy to forward" → generate_quote_pdf or '
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
             . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '

@@ -1,0 +1,203 @@
+enum ScribeSalesOrderStatus {
+    RECEIVED @enum(value: "received")
+    CONFIRMED @enum(value: "confirmed")
+    ACCEPTED @enum(value: "accepted")
+    RETURNED @enum(value: "returned")
+    SHIPPED @enum(value: "shipped")
+    DELIVERED @enum(value: "delivered")
+    CLOSED @enum(value: "closed")
+    CANCELLED @enum(value: "cancelled")
+}
+
+"What the customer committed with: their own purchase order, or our proforma signed and stamped by them."
+enum ScribePoSource {
+    CUSTOMER_PO @enum(value: "customer_po")
+    SIGNED_PROFORMA @enum(value: "signed_proforma")
+}
+
+"One thing the order says differently from its quote or the agreed terms. It stays open until it has a resolution."
+type ScribePoDifference {
+    key: String!
+    field: String!
+    po_value: String
+    quote_value: String
+    "How it was clarified with the customer; empty while the difference is open."
+    resolution: String
+}
+
+type ScribeSalesOrderLine {
+    id: ID!
+    line_number: Int!
+    sku: String
+    description: String!
+    quantity: Float!
+    unit_price: Float!
+    line_total: Money!
+}
+
+type ScribeSalesOrder {
+    id: ID!
+    uuid: String!
+    order_number: String!
+    document_status: ScribeSalesOrderStatus!
+    po_source: ScribePoSource!
+    customer: Organization! @belongsTo(relation: "customer")
+    quote: ScribeQuote @belongsTo(relation: "quote")
+    customer_po_number: String
+    customer_po_date: Date
+    "Which validity checks on the customer's commitment are confirmed."
+    signature_checklist: Mixed
+    currency: String!
+    order_total: Money!
+    incoterm: String
+    consignee: String
+    payment_terms_days: Int
+    requested_date: Date
+    notes: String
+    "From the last review against the quote; empty until the order is reviewed."
+    differences: [ScribePoDifference!]! @method(name: "differences")
+    reviewed_at: DateTime
+    feasibility_confirmed_at: DateTime
+    etd: Date
+    eta: Date
+    received_at: DateTime!
+    confirmed_at: DateTime
+    accepted_at: DateTime
+    returned_at: DateTime
+    return_reason: String
+    cancelled_at: DateTime
+    cancel_reason: String
+    company: Company! @belongsTo(relation: "company")
+    lines: [ScribeSalesOrderLine!]! @hasMany(relation: "lines")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input ScribeSignatureChecklistInput {
+    authorized_signer: Boolean
+    legible_stamp_and_date: Boolean
+    matching_legal_name_and_tax_id: Boolean
+    all_pages_initialed: Boolean
+}
+
+input ScribeSalesOrderLineInput {
+    description: String!
+    quantity: Float!
+    unit_price: Float!
+    sku: String
+}
+
+"A signed proforma may leave out the lines, the currency and the number: they come from the quote."
+input ScribeCustomerPoInput {
+    customer_id: ID!
+    po_source: ScribePoSource!
+    quote_id: ID
+    customer_po_number: String
+    customer_po_date: Date
+    currency: String
+    lines: [ScribeSalesOrderLineInput!]
+    signature_checklist: ScribeSignatureChecklistInput
+    incoterm: String
+    consignee: String
+    payment_terms_days: Int
+    requested_date: Date
+    notes: String
+}
+
+"Only what is sent changes; sending lines replaces all of them."
+input UpdateScribeSalesOrderInput {
+    customer_po_number: String
+    customer_po_date: Date
+    currency: String
+    lines: [ScribeSalesOrderLineInput!]
+    signature_checklist: ScribeSignatureChecklistInput
+    incoterm: String
+    consignee: String
+    payment_terms_days: Int
+    requested_date: Date
+    notes: String
+}
+
+"The terms agreed with the customer, when the quote does not carry them."
+input ScribeSalesOrderAgreementInput {
+    incoterm: String
+    payment_terms_days: Int
+}
+
+extend type Query @guard {
+    scribeSalesOrders(
+        where: _
+            @whereConditions(
+                columns: [
+                    "order_number"
+                    "document_status"
+                    "po_source"
+                    "customer_po_number"
+                    "customer_organization_id"
+                    "currency"
+                    "etd"
+                    "eta"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "order_number"
+                    "order_total"
+                    "received_at"
+                    "confirmed_at"
+                    "accepted_at"
+                    "eta"
+                ]
+            )
+    ): [ScribeSalesOrder!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\SalesOrders\\Models\\SalesOrder"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guard {
+    "Registers what a customer committed to buy as a received sales order."
+    registerScribeCustomerPo(input: ScribeCustomerPoInput!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@register"
+        )
+    "Edits a received or returned order; editing voids the last review."
+    updateScribeSalesOrder(id: ID!, input: UpdateScribeSalesOrderInput!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@update"
+        )
+    "Compares the order with its quote and the agreed terms and records every difference."
+    reviewScribeSalesOrder(id: ID!, agreement: ScribeSalesOrderAgreementInput): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@review"
+        )
+    "Writes down how one difference of the review was clarified with the customer."
+    resolveScribeSalesOrderDifference(id: ID!, key: String!, resolution: String!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@resolveDifference"
+        )
+    "Gate 1: Commercial confirms the order. Needs a review with no open difference, a valid commitment and feasibility confirmed."
+    confirmScribeSalesOrder(id: ID!, feasibility_confirmed: Boolean!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@confirm"
+        )
+    "Gate 2: Operations accepts the confirmed order with firm departure and arrival dates."
+    acceptScribeSalesOrder(id: ID!, etd: Date!, eta: Date!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@accept"
+        )
+    "Gate 2: Operations returns the order to Commercial, with the reason."
+    returnScribeSalesOrder(id: ID!, reason: String!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@returnToCommercial"
+        )
+    "Cancels an order that has not shipped."
+    cancelScribeSalesOrder(id: ID!, reason: String): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@cancel"
+        )
+}
