@@ -127,7 +127,7 @@ class NetSuiteImportersTest extends TestCase
     public function testStockReportsTotalsWithoutThePerSkuLists(): void
     {
         $importer = $this->stock();
-        $this->replace($importer, 'stock', $this->fakeStock([
+        $stock = $this->fakeStock([
             'searchId' => '576',
             'processed' => 2,
             'created' => 1,
@@ -139,15 +139,29 @@ class NetSuiteImportersTest extends TestCase
                 ['warehouses_id' => 1, 'location_id' => '5', 'processed' => ['A', 'B'], 'not_found_in_kanvas' => ['C', 'D', 'E']],
                 ['warehouses_id' => 2, 'location_id' => '6', 'error' => 'Search failed'],
             ],
-        ]));
+        ]);
+        $this->replace($importer, 'stock', $stock);
 
-        $summary = $importer->run(['saved_search_id' => '576', 'create_missing' => true]);
+        $summary = $importer->run(['saved_search_id' => '574', 'create_missing' => true]);
+
+        $this->assertSame([['574', true]], $stock->calls);
 
         $this->assertSame(2, $summary['processed']);
         $this->assertSame(1, $summary['created']);
         $this->assertSame(3, $summary['not_found_in_kanvas']);
         $this->assertSame([['warehouses_id' => 2, 'location_id' => '6', 'error' => 'Search failed']], $summary['location_errors']);
         $this->assertArrayNotHasKey('locations', $summary);
+    }
+
+    public function testCreateMissingDefaultsToFalse(): void
+    {
+        $importer = $this->stock();
+        $stock = $this->fakeStock(['processed' => 0]);
+        $this->replace($importer, 'stock', $stock);
+
+        $importer->run(['saved_search_id' => '574']);
+
+        $this->assertSame([['574', false]], $stock->calls);
     }
 
     public function testStockWithNoMappedWarehouseIsRefused(): void
@@ -271,12 +285,16 @@ class NetSuiteImportersTest extends TestCase
     private function fakeStock(array $result): PullNetSuiteProductStockAction
     {
         return new class ($result) extends PullNetSuiteProductStockAction {
+            public array $calls = [];
+
             public function __construct(private array $result)
             {
             }
 
             public function execute(string|int $savedSearchID = 576, ?array $barcodeFilter = null, bool $createMissing = false): array
             {
+                $this->calls[] = [$savedSearchID, $createMissing];
+
                 return $this->result;
             }
         };
