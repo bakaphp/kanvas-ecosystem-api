@@ -76,7 +76,7 @@ class AppleSignedTransactionVerifier
      */
     private function isSignedByXcodeCertificate(JsonWebSignature $jws): bool
     {
-        if (! (bool) $this->app->get(ConfigurationEnum::IAP_ALLOW_XCODE_STOREKIT_TESTING->value)) {
+        if (! $this->app->getBool(ConfigurationEnum::IAP_ALLOW_XCODE_STOREKIT_TESTING->value)) {
             throw new ValidationException('Xcode StoreKit testing transactions are not accepted for this app');
         }
 

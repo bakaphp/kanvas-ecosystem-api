@@ -297,6 +297,17 @@ class AppleSignedTransactionTest extends TestCase
         new AppleSignedTransactionVerifier($this->kanvasApp)->verify($jws);
     }
 
+    public function testRejectsXcodeTransactionWhenTheOptInIsStoredAsNo(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::IAP_ALLOW_XCODE_STOREKIT_TESTING->value, 'no');
+        $jws = $this->selfSignedJws($this->xcodeClaims());
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Xcode StoreKit testing');
+
+        new AppleSignedTransactionVerifier($this->kanvasApp)->verify($jws);
+    }
+
     public function testAcceptsXcodeTransactionWhenTestingIsAllowed(): void
     {
         $this->kanvasApp->set(ConfigurationEnum::IAP_ALLOW_XCODE_STOREKIT_TESTING->value, 1);
