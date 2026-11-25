@@ -25,8 +25,9 @@ class MetaWhatsAppIntegrationService
         }
 
         return IntegrationsCompany::query()
-            ->fromApp($app)
-            ->fromCompany($company)
+            ->fromApp($app->getId())
+            // By id: given the model, fromCompany() widens to every company of the app under an app key.
+            ->fromCompany($company->getId())
             ->notDeleted()
             ->where('is_active', 1)
             ->whereHas('integration', fn (Builder $query) => $query->where('name', IntegrationsEnum::META_WHATSAPP->value))
