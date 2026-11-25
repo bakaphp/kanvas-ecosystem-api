@@ -77,7 +77,7 @@ class MarkAssistanceNotAuthorizedAction
 
         RefreshActiveAssistanceEvent::dispatch($this->order, (int) $this->order->users_id);
 
-        $this->notifySafely($this->user, new RoadsideAssistanceStatusNotification(
+        $this->notifySafely($this->resolveCaseUser($this->order->users_id), new RoadsideAssistanceStatusNotification(
             $this->order,
             'Service not available',
             sprintf(

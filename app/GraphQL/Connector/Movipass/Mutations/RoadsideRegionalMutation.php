@@ -23,7 +23,7 @@ use Kanvas\Connectors\Movipass\Enums\RoadsideTechnicianDeclineReasonEnum;
 use Kanvas\Connectors\Movipass\Jobs\SyncRoadsideRegionalEventJob;
 use Kanvas\Connectors\Movipass\Support\RoadsideProviderOutbox;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 /**
  * The Asistencia Regional surface: the technician's APK (offers, tracking, PIN, evidence, close) and
@@ -150,7 +150,9 @@ class RoadsideRegionalMutation
             order: $this->regionalRoadsideOrder($ctx->app, $input['order_id']),
             operator: $ctx->user,
             reason: (string) $input['reason'],
-            technician: isset($input['technician_id']) ? Users::getById((int) $input['technician_id']) : null,
+            technician: isset($input['technician_id'])
+                ? UsersRepository::getUserOfAppById((int) $input['technician_id'], $ctx->app)
+                : null,
             eligibleTechnicianIds: $input['eligible_technician_ids'] ?? null,
         )->execute();
     }

@@ -35,6 +35,12 @@ class StartRoadsideServiceWithPinAction
     public function execute(): void
     {
         $assistanceCase = $this->assistanceCaseFrom($this->order);
+
+        // The workflow path has no acting technician: it starts the case's own.
+        if ($this->technician !== null) {
+            $this->assertAssignedTo($assistanceCase, $this->technician);
+        }
+
         $attemptedAt = Carbon::now()->toISOString();
 
         try {

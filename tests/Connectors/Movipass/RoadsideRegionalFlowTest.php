@@ -205,6 +205,40 @@ final class RoadsideRegionalFlowTest extends TestCase
         $this->assertSame(MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(), $order->refresh()->orderStatus?->slug);
     }
 
+    public function testOnlyTheAssignedTechnicianCanSubmitThePin(): void
+    {
+        $order = $this->onSite();
+        $pin = (string) $order->get(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN->value);
+
+        try {
+            new StartRoadsideServiceWithPinAction($order, $pin, Users::factory()->create())->execute();
+            $this->fail('A user who is not on the case started it with the PIN.');
+        } catch (ValidationException $exception) {
+            $this->assertSame('You are not assigned to this order', $exception->getMessage());
+        }
+
+        $order->refresh();
+        $this->assertSame(MovipassOrderStatusEnum::ON_SITE->slug(), $order->orderStatus?->slug);
+        $this->assertArrayNotHasKey('pin_attempts', $order->metadata['assistance_case']);
+    }
+
+    public function testACabinDeclineTellsTheCustomerNotTheOperator(): void
+    {
+        $order = $this->createCase(intake: ['police_report_exists' => false], service: RoadsideServiceTypeEnum::ACCIDENT_TOW);
+        new DispatchRegionalRoadsideCaseAction($order)->execute();
+        $operator = Users::factory()->create();
+
+        new ResolveRoadsideCabinReviewAction(
+            $order->refresh(),
+            $operator,
+            approved: false,
+            reason: 'Outside the covered area'
+        )->execute();
+
+        Notification::assertSentTo($this->technician, RoadsideAssistanceStatusNotification::class);
+        Notification::assertNotSentTo($operator, RoadsideAssistanceStatusNotification::class);
+    }
+
     public function testTheStateMachineRefusesToStartWithoutAValidatedPinAndAuditsTheAttempt(): void
     {
         $order = $this->onSite();
