@@ -16,11 +16,16 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
+use Tests\Traits\CreatesFilesystemRecords;
 
 class EngagementTest extends TestCase
 {
+    use CreatesFilesystemRecords;
+
     public function testEngagementByFilter()
     {
         //todo add test
@@ -974,29 +979,167 @@ class EngagementTest extends TestCase
         $this->assertEquals($manager->getId(), $response->json('data.continueLeadEngagement.user.id'));
     }
 
+    public function testSubmittedGetDocsAttachesTheUploadedFilesToTheLead(): void
+    {
+        $rep = auth()->user();
+        [$leadId, $peopleId] = $this->createLeadWithGetDocs($rep);
+        $paystub = $this->createFilesystemRecord('paystub.pdf');
+        $w2 = $this->createFilesystemRecord('w2.pdf');
+
+        $response = $this->continueEngagement(
+            $this->getDocsInput($leadId, $peopleId, [1 => [$paystub, $w2]]),
+            []
+        );
+
+        $this->assertNotNull($response->json('data.continueLeadEngagement.id'));
+        $this->assertEqualsCanonicalizing(
+            ['paystub.pdf', 'w2.pdf'],
+            $this->attachedFieldNames(Lead::getById($leadId, app(Apps::class)))
+        );
+    }
+
+    public function testSubmittedGetDocsWithAFileFromAnotherCompanyIsRefused(): void
+    {
+        $rep = auth()->user();
+        [$leadId, $peopleId] = $this->createLeadWithGetDocs($rep);
+        $own = $this->createFilesystemRecord('own.pdf');
+        $foreign = $this->createFilesystemRecord('foreign.pdf', companyOffset: 100000);
+
+        $response = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                continueLeadEngagement(input: $input) { id }
+            }
+        ', ['input' => $this->getDocsInput($leadId, $peopleId, [1 => [$own, $foreign]])]);
+
+        $this->assertNotEmpty($response->json('errors'));
+        $this->assertNull($response->json('data.continueLeadEngagement'));
+        $this->assertSame([], $this->attachedFieldNames(Lead::getById($leadId, app(Apps::class))));
+    }
+
+    public function testOpenedGetDocsDoesNotAttachAnything(): void
+    {
+        $rep = auth()->user();
+        [$leadId, $peopleId] = $this->createLeadWithGetDocs($rep);
+        $file = $this->createFilesystemRecord('paystub.pdf');
+
+        $input = $this->getDocsInput($leadId, $peopleId, [1 => [$file]]);
+        $input['status'] = 'opened';
+
+        $this->continueEngagement($input, []);
+
+        $this->assertSame([], $this->attachedFieldNames(Lead::getById($leadId, app(Apps::class))));
+    }
+
+    /**
+     * @param array<int, Filesystem[]> $documents document type id => files
+     *
+     * @return array<string, mixed>
+     */
+    private function getDocsInput(int|string $leadId, int|string $peopleId, array $documents): array
+    {
+        $data = [];
+
+        foreach ($documents as $typeId => $files) {
+            $data[$typeId] = [
+                'type' => ['id' => $typeId, 'name' => 'Document ' . $typeId],
+                'files' => array_map(
+                    fn (Filesystem $file): array => ['uuid' => $file->uuid, 'name' => $file->name],
+                    $files
+                ),
+            ];
+        }
+
+        return [
+            'lead_id' => $leadId,
+            'people_id' => $peopleId,
+            'request_id' => fake()->uuid(),
+            'source' => 'api',
+            'status' => 'submitted',
+            'action' => 'get-docs',
+            'data' => $data,
+        ];
+    }
+
     /**
      * @return array{0: int|string, 1: int|string}
      */
     private function createLeadWithCreditApp(Users $rep): array
     {
-        $lead = $this->createLeadAndGetResponse();
+        return $this->createLeadWithAction($rep, [
+            'id' => 7,
+            'name' => 'credit-app',
+            'description' => 'Credit App',
+            'title' => 'Credit App',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'apply for financing',
+            'reasonEs' => 'apply for financing',
+            'form_fields' => '{"personal":{"type":"object","required":1}}',
+            'form_config' => '{"require_credit-app_signature":true}',
+        ]);
+    }
+
+    /**
+     * @return array{0: int|string, 1: int|string}
+     */
+    private function createLeadWithGetDocs(Users $rep): array
+    {
+        return $this->createLeadWithAction($rep, [
+            'id' => 8,
+            'name' => 'get-docs',
+            'description' => 'Get Docs',
+            'title' => 'Get Docs',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'upload your documents',
+            'reasonEs' => 'upload your documents',
+            'form_fields' => '{"documents":{"type":"object","required":1}}',
+            'form_config' => '{}',
+        ], $this->leadInputWithoutFiles());
+    }
+
+    /**
+     * The default lead fixture downloads a PDF and stores it, which needs S3; these tests only care
+     * about the files the submission brings.
+     *
+     * @return array<string, mixed>
+     */
+    private function leadInputWithoutFiles(): array
+    {
+        return [
+            'branch_id' => auth()->user()->getCurrentBranch()->getId(),
+            'title' => fake()->title(),
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+            ],
+            'custom_fields' => [],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $action
+     * @param array<string, mixed> $leadInput
+     *
+     * @return array{0: int|string, 1: int|string}
+     */
+    private function createLeadWithAction(Users $rep, array $action, array $leadInput = []): array
+    {
+        $lead = $this->createLeadAndGetResponse($leadInput);
 
         new Setup(
             app(Apps::class),
             $rep,
             $rep->getCurrentCompany(),
-            [[
-                'id' => 7,
-                'name' => 'credit-app',
-                'description' => 'Credit App',
-                'title' => 'Credit App',
-                'enable' => true,
-                'icon' => '',
-                'reasonEn' => 'apply for financing',
-                'reasonEs' => 'apply for financing',
-                'form_fields' => '{"personal":{"type":"object","required":1}}',
-                'form_config' => '{"require_credit-app_signature":true}',
-            ]]
+            [$action]
         )->run();
 
         return [$lead['data']['createLead']['id'], $lead['data']['createLead']['people']['id']];
