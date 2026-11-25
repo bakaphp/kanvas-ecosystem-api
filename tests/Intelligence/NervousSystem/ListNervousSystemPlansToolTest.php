@@ -12,9 +12,11 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Tests\Intelligence\NervousSystem\Concerns\BuildsProjectBoard;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class ListNervousSystemPlansToolTest extends TestCase
 {
+    use AssertsToolRunKeys;
     use BuildsProjectBoard;
     use DatabaseTransactions;
 
@@ -135,5 +137,15 @@ class ListNervousSystemPlansToolTest extends TestCase
         $bad = $tool(status: 'not_a_status');
         $this->assertSame('error', $bad['status']);
         $this->assertStringContainsString('Unknown plan status', $bad['message']);
+    }
+
+    /**
+     * A board report is one call per filter and per project (unassigned, blocked, overdue, awaiting
+     * approval), so eleven distinct calls in a turn are ordinary work: on one budget per tool name they
+     * killed the turn (KANVAS-ECOSYSTEM-706).
+     */
+    public function testEachFilterCombinationHasItsOwnRunBudget(): void
+    {
+        $this->assertRunKeyFollowsInputs(new ListNervousSystemPlansTool());
     }
 }

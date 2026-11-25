@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Agent\Events\AgentStartEvent;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Exceptions\ToolRunsExceededException;
 use NeuronAI\Workflow\Events\Event;
 use NeuronAI\Workflow\Executor\ExecutionRequest;
 use NeuronAI\Workflow\Persistence\InMemoryPersistence;
@@ -108,6 +109,16 @@ trait RunsDurably
             $state = $this->run(
                 ExecutionRequest::start($this->getStartEvent(), $run->runId, recoverFailed: true)
             );
+        } catch (ToolRunsExceededException $e) {
+            // The engine counts the failed batch again from the state its step started with, so a run
+            // that spent its tool budget dies on it again at every resume (KANVAS-ECOSYSTEM-706).
+            Log::warning('Durable agent run spent its tool budget; starting the turn over', [
+                'thread_id' => $this->getThreadId(),
+                'run_id' => $run->runId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         } finally {
             $transcript?->resumeInterruptedTurn(false);
         }
