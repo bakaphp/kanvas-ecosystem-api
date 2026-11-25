@@ -82,7 +82,7 @@ class FollowMcpAsyncJobAction
     {
         $content = new McpConnectionService($this->job->agent, $this->job->integration, $this->transport)
             ->connector()
-            ->callRemoteTool($config->statusTool, [$config->idField => $this->job->external_id]);
+            ->callRemoteTool($config->statusTool, $config->statusArguments($this->job->external_id));
 
         return McpToolResult::json($content)
             ?? throw new McpFetchException(sprintf('`%s` did not answer with a JSON status.', $config->statusTool));
