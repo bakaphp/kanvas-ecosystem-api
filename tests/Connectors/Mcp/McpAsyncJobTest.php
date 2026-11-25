@@ -18,6 +18,8 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Enums\McpAsyncJobStatusEnum;
 use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
 use Kanvas\Workflow\Models\Integrations;
+use NeuronAI\MCP\McpTransportInterface;
+use NeuronAI\Testing\FakeMcpTransport;
 use NeuronAI\Tools\ToolOutput;
 use Tests\Stubs\Connectors\Mcp\FakeMcpServer;
 
@@ -177,6 +179,29 @@ final class McpAsyncJobTest extends McpTestCase
         $this->assertSame('running', $job->external_status);
         $this->assertSame(self::LIVE_URL, $job->live_url);
         Queue::assertNotPushed(ResumeAgentFromMcpAsyncJob::class);
+    }
+
+    public function testTheStatusToolIsAskedByItsOwnArgumentNameWhenTheServerRowNamesOne(): void
+    {
+        $integration = $this->makeIntegration([
+            'async_jobs' => ['createJiraIssue' => [...$this->jobBlock(), 'status_id_argument' => 'job_id']],
+        ]);
+        $job = $this->runningJob($this->makeAgent(), $integration);
+        $transport = FakeMcpServer::handshakeThenCalls($this->sessionPayload('running'));
+
+        new FollowMcpAsyncJobAction($job, $transport)->execute();
+
+        $this->assertSame(['job_id' => 's-1'], $this->statusCallArguments($transport));
+    }
+
+    public function testTheStatusToolIsAskedByTheIdFieldWhenNoArgumentIsNamed(): void
+    {
+        [$agent, $integration] = $this->asyncServer();
+        $transport = FakeMcpServer::handshakeThenCalls($this->sessionPayload('running'));
+
+        new FollowMcpAsyncJobAction($this->runningJob($agent, $integration), $transport)->execute();
+
+        $this->assertSame(['session_id' => 's-1'], $this->statusCallArguments($transport));
     }
 
     public function testTheLiveUrlIsKeptAfterTheVendorClearsIt(): void
@@ -408,6 +433,24 @@ final class McpAsyncJobTest extends McpTestCase
             externalId: 's-1',
             sessionUuid: $sessionUuid,
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function statusCallArguments(McpTransportInterface $transport): array
+    {
+        $this->assertInstanceOf(FakeMcpTransport::class, $transport);
+
+        $calls = array_values(array_filter(
+            $transport->getSent(),
+            fn (array $message): bool => ($message['method'] ?? '') === 'tools/call'
+        ));
+
+        $this->assertCount(1, $calls);
+        $this->assertSame('searchJiraIssuesUsingJql', $calls[0]['params']['name']);
+
+        return $calls[0]['params']['arguments'];
     }
 
     private function onlyJobFor(Agent $agent): McpAsyncJob
