@@ -43,7 +43,7 @@ enum ConfigurationEnum: string
      */
     public static function skipsCrmServiceLead(Companies $company, ?string $leadTypeName): bool
     {
-        return strtolower(trim((string) $leadTypeName)) === 'service'
+        return in_array(strtolower(trim((string) $leadTypeName)), ['service', 'services'], true)
             && ! $company->getBool(self::CRM_DOWNLOAD_SERVICE_LEADS->value);
     }
 }

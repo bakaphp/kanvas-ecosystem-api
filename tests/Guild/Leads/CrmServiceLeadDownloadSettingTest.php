@@ -35,6 +35,8 @@ final class CrmServiceLeadDownloadSettingTest extends TestCase
         $this->assertTrue(ConfigurationEnum::skipsCrmServiceLead($this->company, 'SERVICE'));
         $this->assertTrue(ConfigurationEnum::skipsCrmServiceLead($this->company, 'Service'));
         $this->assertTrue(ConfigurationEnum::skipsCrmServiceLead($this->company, ' service '));
+        $this->assertTrue(ConfigurationEnum::skipsCrmServiceLead($this->company, 'Services'));
+        $this->assertTrue(ConfigurationEnum::skipsCrmServiceLead($this->company, 'SERVICES'));
     }
 
     public function testEveryOtherLeadTypeIsDownloadedWithTheSettingOff(): void
