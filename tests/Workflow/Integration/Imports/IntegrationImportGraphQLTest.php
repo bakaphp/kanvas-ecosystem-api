@@ -192,6 +192,40 @@ final class IntegrationImportGraphQLTest extends TestCase
             ->assertJsonPath('errors.0.message', 'Integration not found.');
     }
 
+    public function testAnAdminOfAnotherCompanyIsNotFound(): void
+    {
+        $row = $this->createIntegrationRows();
+        $admin = $this->createUser();
+        $this->assertTrue($admin->isAdmin());
+        $this->assertFalse($admin->isAppOwner());
+
+        $this->actingAs($admin, 'api');
+
+        $this->importMutation($row, 'plain')
+            ->assertJsonPath('errors.0.message', 'Integration not found.');
+        $this->choicesQuery($row, 'region_ids')
+            ->assertJsonPath('errors.0.message', 'Integration not found.');
+        $this->graphQL('
+            query($id: ID!) {
+                integrationImportStatus(integration_company_id: $id, entity: "plain") { entity }
+            }
+        ', ['id' => $row->getId()])
+            ->assertJsonPath('errors.0.message', 'Integration not found.');
+    }
+
+    public function testOptionsThatAreNotAnObjectAreRefused(): void
+    {
+        $row = $this->createIntegrationRows();
+        $this->moveToCurrentCompany($row);
+
+        $this->graphQL('
+            mutation($id: ID!, $options: Mixed) {
+                integrationImport(integration_company_id: $id, entity: "plain", options: $options) { entity }
+            }
+        ', ['id' => $row->getId(), 'options' => 'yes'])
+            ->assertJsonPath('errors.0.message', 'options must be an object.');
+    }
+
     public function testChoicesAreRefusedWhenTheIntegrationIsNotActive(): void
     {
         $row = $this->createIntegrationRows(statusSlug: 'failed');

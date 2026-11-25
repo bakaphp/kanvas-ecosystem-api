@@ -71,11 +71,22 @@ class CompaniesRepository
      */
     public static function userAssociatedToCompany(Companies $company, Users $user): UsersAssociatedCompanies
     {
-        if ($user->isAppOwner()) {
+        if ($user->isAdmin()) {
             return new UsersAssociatedCompanies();
         }
 
-        if ($user->isAdmin()) {
+        return self::userMemberOfCompany($company, $user);
+    }
+
+    /**
+     * Membership without the admin shortcut: an admin's role spans the app, not one company. Only the
+     * app owner skips the check.
+     *
+     * @throws ExceptionsModelNotFoundException
+     */
+    public static function userMemberOfCompany(Companies $company, Users $user): UsersAssociatedCompanies
+    {
+        if ($user->isAppOwner()) {
             return new UsersAssociatedCompanies();
         }
 
