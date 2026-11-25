@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\StatusEnum;
@@ -126,6 +127,13 @@ class IntegrationsCompany extends BaseModel
     public function isImportable(): bool
     {
         return $this->is_active && $this->status?->slug === StatusEnum::ACTIVE->value;
+    }
+
+    public function assertImportable(): void
+    {
+        if (! $this->isImportable()) {
+            throw new ValidationException('This integration is not active.');
+        }
     }
 
     /**

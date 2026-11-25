@@ -31,9 +31,7 @@ class StartIntegrationImportAction
     {
         $integrationName = (string) $this->integrationCompany->integration->name;
 
-        if (! $this->integrationCompany->isImportable()) {
-            throw new ValidationException('This integration is not active.');
-        }
+        $this->integrationCompany->assertImportable();
 
         $importables = $this->integrationCompany->importables();
         $importable = array_find($importables, fn (Importable $candidate) => $candidate->entity === $this->entity)

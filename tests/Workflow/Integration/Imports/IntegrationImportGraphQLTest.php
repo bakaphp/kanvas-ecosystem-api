@@ -6,9 +6,12 @@ namespace Tests\Workflow\Integration\Imports;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Integrations\Imports\Enums\IntegrationImportStatusEnum;
 use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Silber\Bouncer\BouncerFacade as Bouncer;
+use Silber\Bouncer\Database\Models as BouncerModels;
 use Tests\Connectors\Traits\HasThrowawayCompany;
 use Tests\TestCase;
 
@@ -166,6 +169,36 @@ final class IntegrationImportGraphQLTest extends TestCase
             ->assertJsonPath('errors.0.message', 'Integration not found.');
         $this->choicesQuery($row, 'region_ids')
             ->assertJsonPath('errors.0.message', 'Integration not found.');
+    }
+
+    public function testAnotherCompanysIntegrationIsNotFound(): void
+    {
+        $row = $this->createIntegrationRows();
+        $admin = auth()->user();
+        $outsider = $this->createUser();
+        BouncerModels::query('assigned_roles')
+            ->where('entity_id', $outsider->getId())
+            ->where('entity_type', new Users()->getMorphClass())
+            ->delete();
+        Bouncer::refresh();
+        $this->assertFalse($outsider->isAdmin());
+        $this->assertNotSame($admin->getId(), $outsider->getId());
+
+        $this->actingAs($outsider, 'api');
+
+        $this->importMutation($row, 'plain')
+            ->assertJsonPath('errors.0.message', 'Integration not found.');
+        $this->choicesQuery($row, 'region_ids')
+            ->assertJsonPath('errors.0.message', 'Integration not found.');
+    }
+
+    public function testChoicesAreRefusedWhenTheIntegrationIsNotActive(): void
+    {
+        $row = $this->createIntegrationRows(statusSlug: 'failed');
+        $this->moveToCurrentCompany($row);
+
+        $this->choicesQuery($row, 'region_ids')
+            ->assertJsonPath('errors.0.message', 'This integration is not active.');
     }
 
     public function testAMissingIntegrationIsNotFound(): void

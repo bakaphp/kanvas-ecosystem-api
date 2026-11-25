@@ -28,6 +28,7 @@ class IntegrationImportQuery
     public function choices(mixed $rootValue, array $request): array
     {
         $integrationCompany = $this->importableIntegration((int) $request['integration_company_id']);
+        $integrationCompany->assertImportable();
         $entity = $request['entity'];
         $option = $request['option'];
 
