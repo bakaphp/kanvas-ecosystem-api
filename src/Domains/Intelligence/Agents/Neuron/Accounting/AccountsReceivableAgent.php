@@ -30,6 +30,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GeneratePaymentReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
@@ -186,6 +187,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ConvertQuoteToInvoiceTool(),
             new GenerateQuotePdfTool(),
             new GenerateInvoicePdfTool(),
+            new GeneratePaymentReceiptTool(),
             new AttachQuoteFileTool(),
             new GenerateQuoteSowTool(),
             new GetQuoteSowTool(),
@@ -358,6 +360,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, a payment reference and the '
             . 'method they named (wire, ach, check, cash, card).',
+            '- Once apply_ar_payment succeeds, the payment is confirmed: call generate_payment_receipt with the '
+            . 'payment_id it returned, passing the customer\'s bank, the cheque or transfer number and its date only '
+            . 'when the payment or remittance names them, and give the person the receipt number and a link with '
+            . 'get_file_link. One receipt covers every invoice a payment paid, and asking again returns the same one.',
             '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
             . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
             . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '

@@ -41,19 +41,22 @@ class DocumentNumberAllocatorService
      *
      * @param string|null $defaultPrefix Used only if the sequence row doesn't exist yet (first-time allocation
      *                                    for this company+type pair). Subsequent calls reuse the row's stored prefix.
+     * @param int|null    $defaultPadding Zero-pads the number to this many digits; used like $defaultPrefix, on creation only.
      */
     public function allocate(
         int $appsId,
         int $companiesId,
         DocumentTypeEnum $documentType,
         ?string $defaultPrefix = null,
+        ?int $defaultPadding = null,
     ): string {
-        return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $documentType, $defaultPrefix): string {
+        return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $documentType, $defaultPrefix, $defaultPadding): string {
             $sequence = $this->lockOrCreateSequence(
                 $appsId,
                 $companiesId,
                 $documentType,
-                $defaultPrefix
+                $defaultPrefix,
+                $defaultPadding
             );
 
             $this->assertCanAllocate($sequence);
@@ -220,6 +223,7 @@ class DocumentNumberAllocatorService
         int $companiesId,
         DocumentTypeEnum $documentType,
         ?string $defaultPrefix,
+        ?int $defaultPadding,
     ): DocumentSequence {
         $sequence = $this->sequenceQuery($appsId, $companiesId, $documentType)->lockForUpdate()->first();
 
@@ -238,6 +242,7 @@ class DocumentNumberAllocatorService
         $sequence->companies_id = $companiesId;
         $sequence->document_type = $documentType;
         $sequence->prefix = $defaultPrefix ?? '';
+        $sequence->padding = $defaultPadding;
         $sequence->next_value = 1;
         $sequence->save();
 
