@@ -37,16 +37,27 @@ class FollowLeadOnMessageAction
             return null;
         }
 
-        // Old data can hold a person filed under another company; that must not undo the lead follow.
+        $this->followPerson();
+
+        return $follow;
+    }
+
+    /**
+     * Best effort: this runs after the message is already sent, so nothing here may fail the caller.
+     */
+    private function followPerson(): void
+    {
+        if (! $this->lead->people instanceof People) {
+            return;
+        }
+
         try {
-            if ($this->lead->people instanceof People) {
-                $this->follow($this->lead->people);
-            }
+            $this->follow($this->lead->people);
+        } catch (ModelNotFoundException) {
+            // Old data can hold a person filed under another company, which the sender is no member of.
         } catch (Throwable $e) {
             report($e);
         }
-
-        return $follow;
     }
 
     private function follow(Lead|People $entity): UsersFollows
