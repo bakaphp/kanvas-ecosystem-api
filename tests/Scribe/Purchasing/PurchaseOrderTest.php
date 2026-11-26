@@ -6,7 +6,6 @@ namespace Tests\Scribe\Purchasing;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Purchasing\Actions\CancelPurchaseOrderAction;
-use Kanvas\Scribe\Purchasing\Actions\CreatePurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Actions\UpdatePurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\DataTransferObject\PurchaseOrder as PurchaseOrderData;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
@@ -14,9 +13,12 @@ use Kanvas\Scribe\Purchasing\Exceptions\InvalidPurchaseOrderTransitionException;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderStateMachineService;
 use Tests\Scribe\ScribeTestCase;
+use Tests\Traits\CreatesTestPurchaseOrder;
 
 class PurchaseOrderTest extends ScribeTestCase
 {
+    use CreatesTestPurchaseOrder;
+
     public function test_an_order_starts_as_a_numbered_draft_with_its_total_from_the_lines(): void
     {
         $order = $this->createOrder([
@@ -144,21 +146,7 @@ class PurchaseOrderTest extends ScribeTestCase
      */
     private function createOrder(?array $lines = null, ?string $notes = null): PurchaseOrder
     {
-        $vendor = $this->seedTestOrganization('Test Vendor');
-
-        return new CreatePurchaseOrderAction(
-            PurchaseOrderData::fromMultiple(
-                $this->kanvasApp,
-                static::$cachedUser,
-                $this->company,
-                [
-                    'vendor_id' => $vendor->getId(),
-                    'currency' => 'USD',
-                    'notes' => $notes,
-                    'lines' => $lines ?? [['description' => 'Default item', 'quantity' => 1, 'unit_cost' => 10]],
-                ]
-            )
-        )->execute();
+        return $this->createPurchaseOrderFor($this->seedTestOrganization('Test Vendor'), $lines, $notes);
     }
 
     /**

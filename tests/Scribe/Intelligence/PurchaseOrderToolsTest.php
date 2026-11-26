@@ -7,14 +7,24 @@ namespace Tests\Scribe\Intelligence;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreatePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GeneratePurchaseOrderPdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendPurchaseOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitPurchaseOrderForApprovalTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdatePurchaseOrderTool;
+use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
+use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
+use Kanvas\Scribe\Purchasing\Services\PurchaseOrderPdfService;
+use Tests\Scribe\Approvals\Concerns\SeedsBillApprovals;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
+use Tests\Traits\CreatesTestPurchaseOrder;
 
 class PurchaseOrderToolsTest extends ScribeTestCase
 {
     use AssertsToolRunKeys;
+    use CreatesTestPurchaseOrder;
+    use SeedsBillApprovals;
 
     public function test_the_agent_drafts_edits_and_cancels_an_order(): void
     {
@@ -112,6 +122,62 @@ class PurchaseOrderToolsTest extends ScribeTestCase
         $this->assertRunKeyFollowsInputs(new CreatePurchaseOrderTool());
         $this->assertRunKeyFollowsInputs(new UpdatePurchaseOrderTool());
         $this->assertRunKeyFollowsInputs(new CancelPurchaseOrderTool());
+        $this->assertRunKeyFollowsInputs(new SubmitPurchaseOrderForApprovalTool());
+        $this->assertRunKeyFollowsInputs(new SendPurchaseOrderTool());
+        $this->assertRunKeyFollowsInputs(new GeneratePurchaseOrderPdfTool());
+    }
+
+    public function test_the_agent_submits_an_order_to_the_vendors_approver_only_when_a_policy_exists(): void
+    {
+        $vendor = $this->seedTestOrganization('Submit Tool Vendor');
+        $order = $this->createPurchaseOrderFor($vendor);
+        $tool = new SubmitPurchaseOrderForApprovalTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $refused = $tool->__invoke(order_number: $order->order_number);
+        $this->assertFalse($refused['submitted']);
+        $this->assertStringContainsString('no approval policy', $refused['message']);
+
+        $approver = $this->linkApprover($vendor, 'po-tool-approver');
+        $this->seedPolicy(PurchaseOrder::class, 'approve_purchase_order', 'vendor', ApprovePurchaseOrderHandler::class);
+
+        $submitted = $tool->__invoke(order_number: $order->order_number);
+        $this->assertTrue($submitted['submitted']);
+        $this->assertSame('pending_approval', $submitted['document_status']);
+        $this->assertSame([$approver->email], $submitted['approvers']);
+    }
+
+    public function test_an_order_that_is_not_approved_is_not_sent(): void
+    {
+        $order = $this->createPurchaseOrderFor($this->seedTestOrganization('Send Tool Vendor'));
+
+        $result = new SendPurchaseOrderTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(order_number: $order->order_number, to: ['purchasing@vendor.example.test']);
+
+        $this->assertFalse($result['sent']);
+        $this->assertSame('send_failed', $result['reason']);
+        $this->assertSame('purchase_order_not_found', $this->sendTool()->__invoke(order_number: 'PO-999999999', to: [])['reason']);
+    }
+
+    public function test_the_agent_renders_the_order_as_a_pdf(): void
+    {
+        $this->skipWithoutPdfBinary();
+
+        $order = $this->createPurchaseOrderFor($this->seedTestOrganization('Pdf Tool Vendor'));
+
+        $result = new GeneratePurchaseOrderPdfTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(order_number: $order->order_number);
+
+        $this->assertTrue($result['generated']);
+        $this->assertSame('purchase-order-' . $order->order_number . '.pdf', $result['file_name']);
+        $this->assertNotNull($order->fresh()->getFileByName(PurchaseOrderPdfService::FIELD_NAME));
+    }
+
+    private function sendTool(): SendPurchaseOrderTool
+    {
+        return new SendPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
     }
 
     private function createTool(): CreatePurchaseOrderTool

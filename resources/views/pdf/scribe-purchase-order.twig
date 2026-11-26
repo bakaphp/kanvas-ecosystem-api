@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #222; margin: 0; padding: 32px; }
+        h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: 0.5px; }
+        .muted { color: #666; }
+        .parties { width: 100%; margin: 24px 0; border-collapse: collapse; }
+        .parties td { vertical-align: top; width: 50%; padding-right: 16px; }
+        .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 4px; }
+        table.lines { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        table.lines th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 2px solid #222; padding: 6px 4px; }
+        table.lines td { padding: 7px 4px; border-bottom: 1px solid #ddd; }
+        .num { text-align: right; }
+        .total { margin-top: 14px; text-align: right; font-size: 15px; font-weight: bold; }
+        .notes { margin-top: 24px; padding: 10px 12px; background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>Purchase order {{ number }}</h1>
+    <div class="muted">
+        Date {{ order_date }}{% if expected_date %} &middot; Expected {{ expected_date }}{% endif %}
+    </div>
+
+    <table class="parties">
+        <tr>
+            <td>
+                <div class="label">From</div>
+                <strong>{{ issuer.name }}</strong><br>
+                {% if issuer.address %}{{ issuer.address }}<br>{% endif %}
+                {% if issuer.email %}{{ issuer.email }}<br>{% endif %}
+                {% if issuer.phone %}{{ issuer.phone }}{% endif %}
+            </td>
+            <td>
+                <div class="label">To</div>
+                <strong>{{ vendor.name }}</strong><br>
+                {% if vendor.address %}{{ vendor.address }}{% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <table class="lines">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th class="num">Quantity</th>
+                <th class="num">Unit cost ({{ currency }})</th>
+                <th class="num">Total ({{ currency }})</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in lines %}
+            <tr>
+                <td>{{ line.number }}</td>
+                <td>{{ line.description }}{% if line.sku %}<br><span class="muted">{{ line.sku }}</span>{% endif %}</td>
+                <td class="num">{{ line.quantity }}</td>
+                <td class="num">{{ line.unit_cost }}</td>
+                <td class="num">{{ line.total }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="total">Total {{ currency }} {{ total }}</div>
+
+    {% if notes %}
+    <div class="notes"><div class="label">Notes</div>{{ notes }}</div>
+    {% endif %}
+</body>
+</html>

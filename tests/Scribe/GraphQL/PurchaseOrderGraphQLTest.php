@@ -4,11 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\GraphQL;
 
+use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
+use Kanvas\Scribe\Purchasing\Services\PurchaseOrderPdfService;
+use Tests\Scribe\Approvals\Concerns\SeedsBillApprovals;
 use Tests\Scribe\ScribeTestCase;
+use Tests\Traits\CreatesTestPurchaseOrder;
 
 class PurchaseOrderGraphQLTest extends ScribeTestCase
 {
+    use CreatesTestPurchaseOrder;
+    use SeedsBillApprovals;
+
     private const string CREATE = '
         mutation ($input: ScribePurchaseOrderInput!) {
             createScribePurchaseOrder(input: $input) {
@@ -79,6 +88,69 @@ class PurchaseOrderGraphQLTest extends ScribeTestCase
                 updateScribePurchaseOrder(id: $id, input: { notes: "Late change" }) { id }
             }', ['id' => $id])
             ->assertGraphQLErrorMessage('Purchase order ' . $this->orderNumber($id) . ' is cancelled: only a draft can be edited.');
+    }
+
+    public function test_an_order_is_submitted_approved_or_rejected_by_the_vendors_approver_through_the_api(): void
+    {
+        $vendor = $this->seedTestOrganization('Approval Graph Vendor');
+        new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
+        $this->seedPolicy(PurchaseOrder::class, 'approve_purchase_order', 'vendor', ApprovePurchaseOrderHandler::class);
+
+        $approvedId = $this->submittedOrderId($vendor);
+        $this->graphQL('
+            mutation ($id: ID!) {
+                approveScribePurchaseOrder(id: $id) { document_status approved_at }
+            }', ['id' => $approvedId])
+            ->assertJsonPath('data.approveScribePurchaseOrder.document_status', 'APPROVED')
+            ->assertJsonPath('data.approveScribePurchaseOrder.approved_at', fn (?string $at): bool => $at !== null);
+
+        $rejectedId = $this->submittedOrderId($vendor);
+        $this->graphQL('
+            mutation ($id: ID!) {
+                rejectScribePurchaseOrder(id: $id, reason: "Wrong vendor") { document_status notes }
+            }', ['id' => $rejectedId])
+            ->assertJsonPath('data.rejectScribePurchaseOrder.document_status', 'DRAFT')
+            ->assertJsonPath('data.rejectScribePurchaseOrder.notes', 'Rejected: Wrong vendor');
+    }
+
+    public function test_an_order_without_an_approval_policy_cannot_be_submitted_through_the_api(): void
+    {
+        $vendor = $this->seedTestOrganization('No Policy Graph Vendor');
+        $order = $this->createPurchaseOrderFor($vendor);
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                submitScribePurchaseOrderForApproval(id: $id) { id }
+            }', ['id' => (string) $order->getId()])
+            ->assertGraphQLErrorMessage('This company has no approval policy for purchase orders, so there is nobody to approve it. Seed the approval policies first.');
+    }
+
+    public function test_the_order_renders_as_a_pdf_attached_to_it(): void
+    {
+        $this->skipWithoutPdfBinary();
+
+        $order = $this->createPurchaseOrderFor($this->seedTestOrganization('Pdf Graph Vendor'));
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                generateScribePurchaseOrderPdf(id: $id) { name }
+            }', ['id' => (string) $order->getId()])
+            ->assertJsonPath('data.generateScribePurchaseOrderPdf.name', 'purchase-order-' . $order->order_number . '.pdf');
+
+        $this->assertNotNull($order->fresh()->getFileByName(PurchaseOrderPdfService::FIELD_NAME));
+    }
+
+    private function submittedOrderId(Organization $vendor): string
+    {
+        $order = $this->createPurchaseOrderFor($vendor);
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                submitScribePurchaseOrderForApproval(id: $id) { document_status }
+            }', ['id' => (string) $order->getId()])
+            ->assertJsonPath('data.submitScribePurchaseOrderForApproval.document_status', 'PENDING_APPROVAL');
+
+        return (string) $order->getId();
     }
 
     private function orderNumber(string $id): string

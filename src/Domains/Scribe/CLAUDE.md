@@ -126,8 +126,17 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   number from its own `purchase_order` sequence (`PO-` prefix). `Create/Update/CancelPurchaseOrderAction` only touch
   orders where `isIssuedByCompany()`; editing is draft-only and replaces the lines as a whole. The AP agent drives them
   with `create_purchase_order`, `update_purchase_order` and `cancel_purchase_order`; GraphQL is
-  `createScribePurchaseOrder`, `updateScribePurchaseOrder` and `cancelScribePurchaseOrder`. Approving, sending and
-  receiving are the next layers; the status graph already has their states.
+  `createScribePurchaseOrder`, `updateScribePurchaseOrder` and `cancelScribePurchaseOrder`. Approval runs on the
+  generic approvals engine: `SubmitPurchaseOrderForApprovalAction` opens an `approve_purchase_order` request with the
+  vendor's approvers (it refuses when the company has no policy, which `SeedScribeApprovalPoliciesAction` now seeds
+  with `ApprovePurchaseOrderHandler`: approving moves the order to approved, rejecting back to draft, and an expired
+  request returns it to draft). `SendPurchaseOrderAction` renders the PDF (`PurchaseOrderPdfService`, the
+  `scribe-purchase-order` Twig row with a packaged fallback), emails it to the given addresses through the company's
+  SMTP settings, and only then marks the order sent; a sent order can be sent again. Tools
+  `submit_purchase_order_for_approval`, `send_purchase_order` and `generate_purchase_order_pdf` (approving is the
+  existing `approve_pending_item`); GraphQL `submitScribePurchaseOrderForApproval`, `approveScribePurchaseOrder`,
+  `rejectScribePurchaseOrder`, `sendScribePurchaseOrder` and `generateScribePurchaseOrderPdf`. Receiving is the next
+  layer; the status graph already has its states.
 - **Regional compliance** (NCF for DR, CFDI for MX, NFE for BR, …) lives in a single `regional_compliance` JSON column on invoices/bills/quotes/sales_receipts, validated by per-country validator services in `Scribe/Regional/Validators/{Country}/{Code}Validator`. NOT custom fields (those are tenant-choice extensions); NOT dedicated DR-only columns (schema bloat).
 - **Electronic invoicing state is NOT in that JSON.** `regional_compliance.do_ecf` holds only the pre-issuance
   choices (`EcfCompliance::draftSettings()`: type, export, purchase order, withholding, foreign payment). From

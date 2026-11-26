@@ -12,6 +12,10 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Contracts\DescribesApprovalDetailsInterface;
+use Kanvas\Approvals\Contracts\ReactsToApprovalExpiryInterface;
+use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
@@ -34,6 +38,9 @@ use Override;
  * @property PurchaseOrderStatusEnum|null $document_status
  * @property Carbon|null $order_date
  * @property Carbon|null $expected_date
+ * @property Carbon|null $approved_at
+ * @property Carbon|null $sent_at
+ * @property string|null $sent_to
  * @property string|null $currency
  * @property string|null $notes
  * @property string $order_total
@@ -46,8 +53,9 @@ use Override;
  * @property bool $is_deleted
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class PurchaseOrder extends BaseModel
+class PurchaseOrder extends BaseModel implements DescribesApprovalDetailsInterface, ReactsToApprovalExpiryInterface
 {
+    use HasApprovals;
     use HasLightHouseCache;
     use UuidTrait;
 
@@ -58,6 +66,8 @@ class PurchaseOrder extends BaseModel
         'document_status' => PurchaseOrderStatusEnum::class,
         'order_date' => 'date',
         'expected_date' => 'date',
+        'approved_at' => 'datetime',
+        'sent_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'order_total' => 'decimal:4',
         'is_deleted' => 'boolean',
@@ -70,6 +80,37 @@ class PurchaseOrder extends BaseModel
     public function isIssuedByCompany(): bool
     {
         return $this->source === self::SOURCE_KANVAS && $this->document_status !== null;
+    }
+
+    /**
+     * @return array{party: ?string, amount: ?float, currency: ?string, due_date: ?string}
+     */
+    #[Override]
+    public function approvalDetails(): array
+    {
+        return [
+            'party' => $this->vendor?->name,
+            'amount' => (float) $this->order_total,
+            'currency' => $this->currency,
+            'due_date' => $this->expected_date?->toDateString(),
+        ];
+    }
+
+    /**
+     * An order whose approval expired with no decision goes back to draft, with a note saying why.
+     */
+    #[Override]
+    public function approvalExpired(ApprovalRequest $request): void
+    {
+        if ($this->document_status !== PurchaseOrderStatusEnum::PENDING_APPROVAL) {
+            return;
+        }
+
+        $this->document_status = PurchaseOrderStatusEnum::DRAFT;
+        $this->notes = trim(
+            ($this->notes ?? '') . "\nApproval request #{$request->getId()} expired with no decision; back in draft."
+        );
+        $this->saveOrFail();
     }
 
     public function lines(): HasMany
