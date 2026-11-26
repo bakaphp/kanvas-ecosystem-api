@@ -1,0 +1,24 @@
+<div style="font-family: Arial, sans-serif; color: #263238; max-width: 640px; font-size: 14px; line-height: 1.5;">
+    <p>Hi {{ user.firstname }} {{ user.lastname }},</p>
+
+    <p style="margin-bottom: 0;">
+        This lead wants to talk with you:
+        <strong>{{ lead_name }}{% if company_name %} from {{ company_name }}{% endif %}</strong>
+    </p>
+
+    {% if conversation_summary %}
+        <p style="margin: 12px 0 0; color: #4a90e2;">
+            <strong>Conversation Summary:</strong><br>
+            {{ conversation_summary }}
+        </p>
+    {% endif %}
+
+    <p style="margin: 20px 0 0; color: #667085;">
+        If you weren’t expecting this notification, you can safely ignore this email.
+    </p>
+
+    <p style="margin: 20px 0; color: #667085;">
+        Thanks,<br>
+        {{ app.name }}
+    </p>
+</div>

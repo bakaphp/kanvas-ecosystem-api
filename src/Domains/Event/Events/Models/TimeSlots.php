@@ -8,9 +8,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
+use Kanvas\Event\Events\Services\ResourceTimezoneService;
 use Kanvas\Event\Models\BaseModel;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class TimeSlots extends BaseModel implements ReadableAtLocation
 {
@@ -42,7 +46,7 @@ class TimeSlots extends BaseModel implements ReadableAtLocation
 
     public function resource(): MorphTo
     {
-        return $this->morphTo('resources');
+        return $this->morphTo('resource', 'resources_type', 'resources_id');
     }
 
     public function scheduleRule(): BelongsTo
@@ -72,6 +76,39 @@ class TimeSlots extends BaseModel implements ReadableAtLocation
     public function hasStarted(): bool
     {
         return $this->start_at !== null && $this->start_at->isPast();
+    }
+
+    public function localDate(): string
+    {
+        return $this->start_at
+            ->copy()
+            ->setTimezone(ResourceTimezoneService::resolve($this->resource))
+            ->toDateString();
+    }
+
+    public function scopeOnLocalDay(Builder $query, string $day, string $timezone): Builder
+    {
+        return $query->whereBetween($this->qualifyColumn('start_at'), [
+            Carbon::parse($day, $timezone)->startOfDay()->utc(),
+            Carbon::parse($day, $timezone)->endOfDay()->utc(),
+        ]);
+    }
+
+    public function scopeForProduct(Builder $query, Products $product): Builder
+    {
+        return $query->where(
+            fn (Builder $resource) => $resource
+                ->where(
+                    fn (Builder $own) => $own
+                        ->where('resources_type', $product->getMorphClass())
+                        ->where('resources_id', $product->getId())
+                )
+                ->orWhere(
+                    fn (Builder $variant) => $variant
+                        ->where('resources_type', new Variants()->getMorphClass())
+                        ->whereIn('resources_id', $product->variants()->pluck('id'))
+                )
+        );
     }
 
     public function scopeUpcoming(Builder $query): Builder

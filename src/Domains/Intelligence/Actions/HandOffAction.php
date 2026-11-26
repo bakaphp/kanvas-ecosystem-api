@@ -15,6 +15,7 @@ use Kanvas\Guild\Leads\Models\LeadHandOffNotification;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\HandOffTemplateEnum;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
@@ -26,7 +27,6 @@ class HandOffAction
     private const string DEFAULT_MANAGER_ROLE = 'Manager';
     private const string SERVICE_MANAGER_ROLE = 'ServiceManager';
     private const string HANDOFF_NOTIFICATIONS_ROLE = 'HandoffNotifications';
-    private const string DEFAULT_TEMPLATE_NAME = 'lead_handoff';
     private const string SERVICE_LEAD_TYPE_NAME = 'Service';
     private const string LEGACY_DEDUP_FIELD = 'handoff_dedup';
     private const string MAX_NOTIFICATIONS_SETTING = 'ai_handoff_max_notifications';
@@ -146,7 +146,7 @@ class HandOffAction
     ): HandOffNotification {
         $notification = new HandOffNotification(
             lead: $this->lead,
-            templateName: $this->params['template_name'] ?? self::DEFAULT_TEMPLATE_NAME,
+            templateName: $this->params['template_name'] ?? HandOffTemplateEnum::EMAIL->value,
             data: [
                 'lead' => $this->lead,
                 'agent' => $leadOwner,
@@ -185,18 +185,17 @@ class HandOffAction
         }
 
         if ($handOffType === HandOffTypeEnum::COMPLIANCE_INTERNAL) {
-            $notification->setTemplateName('lead_handoff_compliance_handoff');
+            $notification->setTemplateName(HandOffTemplateEnum::COMPLIANCE_EMAIL->value);
             $notification->setSubject('Lead Compliance Handoff Notification - ' . $this->lead->people->name);
-            $notification->setPushTemplateName('lead_handoff_compliance_push_notification');
-            $notification->setSmsTemplateName('lead_handoff_compliance_sms_notification');
-            $notification->setDatabaseTemplateName('lead_handoff_compliance_sms_notification');
+            $notification->setPushTemplateName(HandOffTemplateEnum::COMPLIANCE_PUSH->value);
+            $notification->setSmsTemplateName(HandOffTemplateEnum::COMPLIANCE_SMS->value);
 
             if ($companyComplianceHandOffOnlyPush && ! $companyHandOffOnlySms && ! $companyHandOffOnlyMail) {
                 $notification->setChannelOnlyPush();
             }
         }
 
-        $notification->setDatabaseTemplateName('lead_handoff_db');
+        $notification->setDatabaseTemplateName(HandOffTemplateEnum::DATABASE->value);
     }
 
     protected function handOffManagers(Users $leadOwner, string $handOffUserRole): Collection

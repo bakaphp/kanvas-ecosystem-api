@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Purchasing\Exceptions\InvalidPurchaseOrderTransitionException;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder as PurchaseOrderModel;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Data;
@@ -48,8 +49,8 @@ class PurchaseOrder extends Data
             vendor: Organization::getByIdFromCompanyApp((int) $data['vendor_id'], $company, $app),
             currency: strtoupper((string) $data['currency']),
             lines: self::linesFrom($data['lines']),
-            order_date: isset($data['order_date']) ? Carbon::parse((string) $data['order_date']) : null,
-            expected_date: isset($data['expected_date']) ? Carbon::parse((string) $data['expected_date']) : null,
+            order_date: self::dateFrom($data['order_date'] ?? null),
+            expected_date: self::dateFrom($data['expected_date'] ?? null),
             notes: Str::trimToNull($data['notes'] ?? null),
         );
     }
@@ -66,6 +67,11 @@ class PurchaseOrder extends Data
         CompanyInterface $company,
         array $changes,
     ): self {
+        // A mirrored order may have no linked vendor, which this DTO cannot hold; refuse it before building.
+        if (! $order->isIssuedByCompany()) {
+            throw InvalidPurchaseOrderTransitionException::notIssuedByCompany($order, 'edited');
+        }
+
         return new self(
             app: $app,
             company: $company,
@@ -85,10 +91,17 @@ class PurchaseOrder extends Data
                     expense_account_id: $line->expense_account_id,
                     subaccount_id: $line->subaccount_id,
                 ))->all(),
-            order_date: isset($changes['order_date']) ? Carbon::parse((string) $changes['order_date']) : $order->order_date,
-            expected_date: isset($changes['expected_date']) ? Carbon::parse((string) $changes['expected_date']) : $order->expected_date,
+            order_date: self::dateFrom($changes['order_date'] ?? null) ?? $order->order_date,
+            expected_date: array_key_exists('expected_date', $changes)
+                ? self::dateFrom($changes['expected_date'])
+                : $order->expected_date,
             notes: array_key_exists('notes', $changes) ? Str::trimToNull($changes['notes']) : $order->notes,
         );
+    }
+
+    private static function dateFrom(mixed $value): ?Carbon
+    {
+        return $value === null ? null : Carbon::parse((string) $value);
     }
 
     /**

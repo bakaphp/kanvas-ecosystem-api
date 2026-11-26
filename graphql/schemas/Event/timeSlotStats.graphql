@@ -17,6 +17,8 @@ type TimeSlotStats {
     capacity: Int!
     booked: Int!
     admitted: Int!
+    admitted_qr: Int!
+    admitted_manual: Int!
     occupancy_percentage: Float!
     slots_count: Int!
     byHour: [TimeSlotOccupancyBucket!]!

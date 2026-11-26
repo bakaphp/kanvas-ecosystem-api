@@ -11,11 +11,18 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AccountingDigestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachQuoteFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckCustomerCreditTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckRncTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckShippingDocumentsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CloseCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmDeliveryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
@@ -26,29 +33,40 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftDebitNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\EcfStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetCollectionPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetExchangeRateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListCustomerOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListPaymentTermsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MarkDocumentsPackageSentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\OrderKpisTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordShipmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RegisterCustomerPoTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReleaseShippingDocumentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResolvePoDifferenceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReviewCustomerPoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SaveSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetCustomerCreditLimitTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetDefaultSowTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
@@ -184,6 +202,24 @@ class AccountsReceivableAgent extends SystemUserAgent
             new SendQuoteTool(),
             new AnswerQuoteTool(),
             new ConvertQuoteToInvoiceTool(),
+            new RegisterCustomerPoTool(),
+            new ReviewCustomerPoTool(),
+            new ResolvePoDifferenceTool(),
+            new ConfirmCustomerOrderTool(),
+            new AnswerCustomerOrderTool(),
+            new CancelCustomerOrderTool(),
+            new FindCustomerOrderTool(),
+            new ListCustomerOrdersTool(),
+            new CheckShippingDocumentsTool(),
+            new RecordShipmentTool(),
+            new MarkDocumentsPackageSentTool(),
+            new ConfirmDeliveryTool(),
+            new CloseCustomerOrderTool(),
+            new GetCollectionPlanTool(),
+            new SetCustomerCreditLimitTool(),
+            new CheckCustomerCreditTool(),
+            new ReleaseShippingDocumentsTool(),
+            new OrderKpisTool(),
             new GenerateQuotePdfTool(),
             new GenerateInvoicePdfTool(),
             new AttachQuoteFileTool(),
@@ -323,6 +359,28 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'answer_quote (with accepted_outside_kanvas when it was never sent through Kanvas) and then convert. '
             . 'A quote with a SOW is never converted: accepting it bills its payment schedule. '
             . '"Look up quote #X" → find_quote, which gives you the quote_id the other quote tools need.',
+            '- A customer\'s purchase order, or a proforma they returned signed and stamped, becomes a customer order: '
+            . 'register_customer_po (find_customer and find_quote give you the ids and the quote number), then '
+            . 'review_customer_po against the quote. Every difference it lists has to be clarified with the customer in '
+            . 'writing: ask the person how it was clarified and record it with resolve_po_difference, never invent '
+            . 'the answer. confirm_customer_order needs the person to tell you Operations confirmed the order is '
+            . 'feasible. Operations\' answer is recorded with answer_customer_order (accept with firm etd and eta, or '
+            . 'return with the reason). "Where is customer order SO-12" / "what is waiting on Operations" → '
+            . 'find_customer_order, list_customer_orders (find_sales_order and list_open_sales_orders read the orders '
+            . 'synced from the ERP, which are a different thing). Never confirm, accept or cancel an order on your '
+            . 'own initiative.',
+            '- Shipping a customer order: before the bill of lading, check_shipping_documents cross-checks the order, '
+            . 'the commercial invoice, the packing list and the draft BL; clarify each difference with '
+            . 'resolve_po_difference (source documents), then record_shipment once the person says the BL was issued. '
+            . 'The invoice then falls due the payment term after the BL date, not the invoice date: say so, and read '
+            . 'get_collection_plan for the follow-up. mark_documents_package_sent only records that the package went out. '
+            . 'confirm_delivery needs the proof-of-delivery reference; close_customer_order needs the invoice paid.',
+            '- Credit: check_customer_credit reads where a customer stands (limit, open invoices, committed orders, '
+            . 'overdue, on hold). set_customer_credit_limit only when the person states the limit: never infer one. '
+            . 'confirm_customer_order is refused when the order does not fit in the limit or the customer is on hold, and '
+            . 'release_shipping_documents (gate 3) when the customer has an overdue invoice or is over the limit: give '
+            . 'the person the reason and do not look for another way around it. If a rate is missing, say which pair. '
+            . '"How are we doing on orders" / the order-to-cash targets → order_kpis with a period.',
             '- "Send me the quote/invoice as a PDF" / "I need a copy to forward" → generate_quote_pdf or '
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
             . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '
@@ -358,11 +416,13 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, a payment reference and the '
             . 'method they named (wire, ach, check, cash, card).',
-            '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
-            . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
-            . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '
-            . 'amount each.',
-            '- A Credit Request Form (CNR) is an Excel file, not a PDF — Sales emails it, typically with a '
+            '- "Issue a standalone credit memo for customer X" (e.g. a rebate) → create_ar_credit_memo, '
+            . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference for the '
+            . 'request, and one or more lines with an amount each; a line takes a GL account number only when the '
+            . 'request names one, otherwise the default revenue account applies. To credit one specific invoice '
+            . 'use draft_credit_note instead.',
+            '- Only when this company has a Credit Request Form (CNR) format configured: it is an Excel file, '
+            . 'not a PDF — Sales emails it, typically with a '
             . 'manager\'s approval already given in the same email/thread. One email can carry MORE THAN ONE '
             . 'CNR attachment, and each one is a SEPARATE credit memo — process each file independently, never '
             . 'combine them into one. When you get one, either from a Gmail email '
@@ -373,6 +433,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'evidenced by the request email itself) — process it straight through: '
             . '(1) extract_credit_request_form(filesystem_id) for EACH attached form, giving you customer_name, '
             . 'request_reference_no, and lines (already shaped for create_ar_credit_memo\'s own lines param). '
+            . 'If it reports no_form_format_configured, stop this flow and credit the invoice with draft_credit_note. '
             . '(2) create_ar_credit_memo with that customer_name, invoice_number: the request_reference_no, '
             . 'lines verbatim from step 1, and notes: any accounting-relevant context from the EMAIL BODY that '
             . 'the form itself doesn\'t capture — e.g. why no VAT applies, or an approval statement from the '

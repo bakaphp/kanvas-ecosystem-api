@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Actions;
 
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Social\Channels\Models\Channel;
@@ -29,6 +30,7 @@ abstract class RecordEntityNoteAction
      *                               is private, so an audit note stays out of the feed); pass a value to override
      *                               it for this one note.
      * @param  string  $messageTypeVerb  Give a note kind its own verb when readers must filter it out of (or find it in) the activity.
+     * @param  list<Filesystem>  $files  Files already stored, attached to the note as they are.
      */
     public function execute(
         string $body,
@@ -37,7 +39,8 @@ abstract class RecordEntityNoteAction
         bool $fromIa = true,
         ?bool $isPublic = null,
         string $messageTypeVerb = 'system',
-        ?string $slug = null
+        ?string $slug = null,
+        array $files = []
     ): ?Message {
         try {
             $entity = $this->entity();
@@ -77,6 +80,10 @@ abstract class RecordEntityNoteAction
                 SystemModulesRepository::getByModelName($entity::class, $entity->app),
                 $entity->getId(),
             )->execute();
+
+            foreach ($files as $file) {
+                $note->addFile($file, $file->name);
+            }
 
             $channel->addMessage($note);
             $note->addTag($tag);

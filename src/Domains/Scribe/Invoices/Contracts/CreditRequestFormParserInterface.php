@@ -9,8 +9,8 @@ namespace Kanvas\Scribe\Invoices\Contracts;
  *
  * Every client's Sales team uses its own document — different fields, different layout — so there is
  * no single universal shape here. Each client's own parser lives under its own Connectors/{Client}/
- * module (e.g. Kanvas\Connectors\Nzxt\Services\CreditRequestFormParserService) and implements this
- * contract; the agent tool depends only on the interface, never a specific client's parser.
+ * module, implements this contract and is registered in config('scribe.credit_request_form_parsers');
+ * the agent tool depends only on the interface, never a specific client's parser.
  */
 interface CreditRequestFormParserInterface
 {

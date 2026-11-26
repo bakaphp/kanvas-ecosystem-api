@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DescribesPurchaseOrderLines;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\DescribesPurchaseOrderLines;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Purchasing\Actions\CreatePurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\DataTransferObject\PurchaseOrder as PurchaseOrderData;
@@ -42,7 +42,7 @@ class CreatePurchaseOrderTool extends Tool
         return [
             new ToolProperty(
                 name: 'vendor_organization_id',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'The Kanvas organization id of the vendor (find_vendor returns it).',
                 required: true,
             ),
@@ -80,23 +80,9 @@ class CreatePurchaseOrderTool extends Tool
         ?string $expected_date = null,
         ?string $notes = null,
     ): array {
-        $vendorExists = Organization::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->whereKey($vendor_organization_id)
-            ->exists();
-
-        if (! $vendorExists) {
-            return [
-                'created' => false,
-                'reason' => 'vendor_not_found',
-                'message' => "No vendor with organization id {$vendor_organization_id} for this company.",
-            ];
-        }
-
         try {
             $order = new CreatePurchaseOrderAction(
-                PurchaseOrderData::fromMultiple(
+                PurchaseOrderData::from(
                     $this->app,
                     $this->user,
                     $this->company,
@@ -109,6 +95,13 @@ class CreatePurchaseOrderTool extends Tool
                     ]
                 )
             )->execute();
+        } catch (ModelNotFoundException) {
+            // The vendor is the only record the DTO looks up.
+            return [
+                'created' => false,
+                'reason' => 'vendor_not_found',
+                'message' => "No vendor with organization id {$vendor_organization_id} for this company.",
+            ];
         } catch (Throwable $e) {
             return [
                 'created' => false,

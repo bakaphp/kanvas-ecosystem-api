@@ -19,8 +19,8 @@ use Override;
 
 /**
  * Looks up ONE purchase order by its number — full header + every line with quantities and GL
- * coding. This is the "pull up PO #X" lookup (vs list_open_purchase_orders which enumerates). Reads
- * synced data; if the PO isn't in Kanvas it reports that (it may not have been synced yet).
+ * coding. This is the "pull up PO #X" lookup (vs list_open_purchase_orders which enumerates). Covers
+ * orders mirrored from an ERP and orders the company issued.
  */
 #[AgentTool(name: 'Find Purchase Order', category: 'accounting')]
 class FindPurchaseOrderTool extends Tool
@@ -33,8 +33,8 @@ class FindPurchaseOrderTool extends Tool
 
     protected ?string $description = 'Look up a single purchase order by its number and return the full detail: vendor, '
         . 'status, total, and every line (sku, ordered/open/received quantity, unit cost, GL account + '
-        . 'subaccount). Use this when the user names a specific PO number. Returns found=false when the '
-        . 'PO is not in the synced data.';
+        . 'subaccount). Use this when the user names a specific PO number, whether the company issued it or '
+        . 'it came from an external system. Returns found=false when no purchase order has that number.';
 
     /**
      * @return array<int, ToolProperty>

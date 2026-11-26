@@ -35,8 +35,6 @@ class SeedMovipassGlobalRegionsCommand extends Command
             'settings' => [
                 'language' => 'es-AR',
                 'flag' => '🇦🇷',
-                'payment_gateways' => ['payway'],
-                'default_payment_gateway' => 'payway',
                 'timezone' => 'America/Argentina/Buenos_Aires',
             ],
         ],
@@ -51,8 +49,6 @@ class SeedMovipassGlobalRegionsCommand extends Command
             'settings' => [
                 'language' => 'es-SV',
                 'flag' => '🇸🇻',
-                'payment_gateways' => ['stripe'],
-                'default_payment_gateway' => 'stripe',
                 'timezone' => 'America/El_Salvador',
             ],
         ],
@@ -67,8 +63,6 @@ class SeedMovipassGlobalRegionsCommand extends Command
             'settings' => [
                 'language' => 'es-PR',
                 'flag' => '🇵🇷',
-                'payment_gateways' => ['stripe'],
-                'default_payment_gateway' => 'stripe',
                 'timezone' => 'America/Puerto_Rico',
             ],
         ],
@@ -77,8 +71,6 @@ class SeedMovipassGlobalRegionsCommand extends Command
     private const DR_SETTINGS = [
         'language' => 'es-DO',
         'flag' => '🇩🇴',
-        'payment_gateways' => ['azul'],
-        'default_payment_gateway' => 'azul',
         'timezone' => 'America/Santo_Domingo',
     ];
 
@@ -102,7 +94,7 @@ class SeedMovipassGlobalRegionsCommand extends Command
         $drRegion->short_slug = 'DO';
         $drRegion->slug = 'dominican-republic';
         $drRegion->is_default = 1;
-        $drRegion->settings = self::DR_SETTINGS;
+        $drRegion->settings = array_merge($drRegion->settings ?? [], self::DR_SETTINGS);
         $drRegion->lat = self::DR_LAT;
         $drRegion->lng = self::DR_LNG;
         $drRegion->save();
@@ -130,7 +122,7 @@ class SeedMovipassGlobalRegionsCommand extends Command
                 ],
             );
 
-            $region->settings = $regionData['settings'];
+            $region->settings = array_merge($region->settings ?? [], $regionData['settings']);
             $region->lat = $regionData['lat'];
             $region->lng = $regionData['lng'];
             $region->save();

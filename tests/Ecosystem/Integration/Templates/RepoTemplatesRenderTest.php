@@ -259,6 +259,53 @@ final class RepoTemplatesRenderTest extends TestCase
         $this->assertSame('Done, see "plan"', $payload['message']);
     }
 
+    public function testHandOffTemplatesSayWhoAskedForAPerson(): void
+    {
+        $context = [
+            'app' => app(Apps::class),
+            'user' => auth()->user(),
+            'lead_name' => 'Ana "Nita" Lopez',
+            'company_name' => 'Acme Motors',
+            'conversation_summary' => 'Wants a quote for two bathrooms.',
+        ];
+
+        foreach (['emails/leadHandOff.twig', 'emails/leadHandOffCompliance.twig'] as $template) {
+            $email = $this->render($template, $context);
+
+            $this->assertStringContainsString('Ana &quot;Nita&quot; Lopez from Acme Motors', $email, $template);
+            $this->assertStringContainsString('Wants a quote for two bathrooms.', $email, $template);
+            $this->assertStringNotContainsString(
+                'Conversation Summary',
+                $this->render($template, ['conversation_summary' => ''] + $context)
+            );
+        }
+
+        foreach (['push/lead-handoff.twig', 'push/lead-handoff-compliance.twig'] as $template) {
+            $push = json_decode($this->render($template, $context), true, flags: JSON_THROW_ON_ERROR);
+
+            $this->assertStringStartsWith('Ana "Nita" Lopez ', $push['message'], $template);
+            $this->assertNotSame('', $push['title'], $template);
+        }
+
+        $inApp = $this->render('push/lead-handoff-db.twig', $context);
+        $this->assertStringContainsString('Lopez wants to talk with you', $inApp);
+        $this->assertSame("A lead wants to talk with you.\n", $this->render('push/lead-handoff-sms.twig', []));
+    }
+
+    /**
+     * A text goes to the carrier as rendered, so an escaped name would arrive as `O&#039;Brien`.
+     */
+    public function testHandOffTextsCarryNamesAsWritten(): void
+    {
+        $context = ['lead_name' => "Sean O'Brien", 'company_name' => 'A&B Motors'];
+
+        foreach (['push/lead-handoff-sms.twig', 'push/lead-handoff-compliance-sms.twig'] as $template) {
+            $text = $this->render($template, $context);
+
+            $this->assertStringStartsWith("Sean O'Brien from A&B Motors ", $text, $template);
+        }
+    }
+
     private function render(string $template, array $context): string
     {
         return TemplateSandbox::renderHtml(file_get_contents(resource_path('views/' . $template)), $context);

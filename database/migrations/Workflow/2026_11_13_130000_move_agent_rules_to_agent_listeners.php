@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * What a rule ran per company now listens for the event itself: the new-lead reach-out, the AI
@@ -32,6 +34,7 @@ return new class () extends Migration {
 
     public function up(): void
     {
+        $this->addReachOutConfigColumn();
         $this->moveReachOutToAgents();
         $this->removeSteps($this->actionIds(self::TRIGGER_INTELLIGENCE), ruleType: 'trigger-ai');
 
@@ -43,6 +46,25 @@ return new class () extends Migration {
     public function down(): void
     {
         // The removed activity classes no longer exist; there is nothing to restore the rows for.
+    }
+
+    /**
+     * `migrate-all-kanvas` runs the Workflow migrations before the Intelligence ones, so the column
+     * this writes is not there yet on a database that is being upgraded. The Intelligence migration
+     * that owns the column skips it when it already exists. A fresh database has no agents table at
+     * this point and no rule to move either.
+     */
+    private function addReachOutConfigColumn(): void
+    {
+        $schema = Schema::connection('intelligence');
+
+        if (! $schema->hasTable('agents') || $schema->hasColumn('agents', 'reach_out_config')) {
+            return;
+        }
+
+        $schema->table('agents', function (Blueprint $table): void {
+            $table->json('reach_out_config')->nullable();
+        });
     }
 
     private function moveReachOutToAgents(): void

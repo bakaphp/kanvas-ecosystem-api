@@ -1,11 +1,79 @@
+enum InviteCodeCheckReason {
+    VALID @enum(value: "valid")
+    INVALID @enum(value: "invalid")
+    USED @enum(value: "used")
+    FULL @enum(value: "full")
+}
+
 type InviteCodeCheck {
     valid: Boolean!
-    time_slot: TimeSlots
+    reason: InviteCodeCheckReason!
+    remaining_uses: Int!
+    time_slots: [TimeSlots!]!
 }
 
 extend type Query @guard {
     verifyInviteCode(product_id: ID!, code: String!): InviteCodeCheck!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Booking\\InviteCodeQuery@verify"
+        )
+}
+
+enum EventInviteCodeStatus {
+    AVAILABLE @enum(value: "available")
+    REDEEMED @enum(value: "redeemed")
+    REVOKED @enum(value: "revoked")
+}
+
+type EventInviteCode {
+    code: String! @method(name: "plainCode")
+    uses: Int! @rename(attribute: "max_uses")
+    remaining_uses: Int! @method(name: "remainingUses")
+    status: EventInviteCodeStatus! @method(name: "inviteStatus")
+    created_at: DateTime
+}
+
+input GenerateEventInviteCodesInput {
+    event_id: ID!
+    quantity: Int!
+    uses: Int = 1
+    prefix: String
+}
+
+type GenerateEventInviteCodesResponse {
+    queued: Int!
+    message: String!
+}
+
+type EventInviteDayBookings {
+    date: String!
+    bookings: Int!
+}
+
+type EventInviteStats {
+    codes_issued: Int!
+    uses_issued: Int!
+    uses_redeemed: Int!
+    days: [EventInviteDayBookings!]!
+}
+
+extend type Mutation @guardByAdmin {
+    generateEventInviteCodes(
+        input: GenerateEventInviteCodesInput!
+    ): GenerateEventInviteCodesResponse!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventInviteCodeMutation@generate"
+        )
+}
+
+extend type Query @guardByAdmin {
+    eventInviteCodes(
+        event_id: ID!
+        status: EventInviteCodeStatus
+    ): [EventInviteCode!]!
+        @paginate(
+            defaultCount: 100
+            maxCount: 1000
+            builder: "App\\GraphQL\\Event\\Builders\\Passes\\EventInviteCodeBuilder@getInviteCodes"
         )
 }

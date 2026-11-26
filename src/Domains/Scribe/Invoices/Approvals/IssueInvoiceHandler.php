@@ -48,11 +48,7 @@ class IssueInvoiceHandler implements ApprovalHandlerInterface
 
         $this->assertUnchanged($request, $invoice);
 
-        $invoice = match (true) {
-            $invoice->isCreditNote() => new IssueDraftCreditNoteAction($invoice, $actor)->execute(),
-            $invoice->isDebitNote() => new IssueDraftDebitNoteAction($invoice, $actor)->execute(),
-            default => new IssueInvoiceAction($invoice, $invoice->customer, $actor)->execute(),
-        };
+        $invoice = self::issue($invoice, $actor);
 
         return [
             'target_type' => $invoice->document_type->value,
@@ -61,6 +57,19 @@ class IssueInvoiceHandler implements ApprovalHandlerInterface
             'encf' => EcfCompliance::number($invoice),
             ...$this->sourceFields($invoice),
         ];
+    }
+
+    /**
+     * The one dispatch from a draft's document type to the action that issues it. The legacy queue
+     * (ResolveApprovalAction) calls it too, so both engines issue a note as a note.
+     */
+    public static function issue(Invoice $invoice, UserInterface $actor): Invoice
+    {
+        return match (true) {
+            $invoice->isCreditNote() => new IssueDraftCreditNoteAction($invoice, $actor)->execute(),
+            $invoice->isDebitNote() => new IssueDraftDebitNoteAction($invoice, $actor)->execute(),
+            default => new IssueInvoiceAction($invoice, $invoice->customer, $actor)->execute(),
+        };
     }
 
     private function assertUnchanged(ApprovalRequest $request, Invoice $invoice): void

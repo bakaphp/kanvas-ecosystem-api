@@ -72,6 +72,16 @@ class PurchaseOrderGraphQLTest extends ScribeTestCase
             }')
             ->assertSuccessful()
             ->assertJsonFragment(['id' => $created['id']]);
+
+        $this->graphQL('
+            query ($number: Mixed) {
+                scribePurchaseOrders(
+                    where: { column: ORDER_NUMBER, value: $number }
+                    orderBy: [{ column: EXPECTED_DATE, order: ASC }]
+                ) { data { id } }
+            }', ['number' => $created['order_number']])
+            ->assertSuccessful()
+            ->assertJsonFragment(['id' => $created['id']]);
     }
 
     public function test_a_cancelled_order_cannot_be_edited(): void

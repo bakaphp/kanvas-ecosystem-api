@@ -199,6 +199,12 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::PARKING_MANAGER,
                 MovipassRolesEnum::PARKING_OPERATOR,
             ],
+            'view-event-reports' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::EVENT_VIEWER,
+            ],
             'admin-reverse-transition' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,

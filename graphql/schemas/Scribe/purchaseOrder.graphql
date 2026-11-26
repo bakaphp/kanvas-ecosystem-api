@@ -206,6 +206,7 @@ extend type Query @guard {
                     "vendor_organization_id"
                     "vendor_code"
                     "order_date"
+                    "expected_date"
                     "source"
                 ]
             )
@@ -215,6 +216,7 @@ extend type Query @guard {
                     "id"
                     "order_number"
                     "order_date"
+                    "expected_date"
                     "order_total"
                     "created_at"
                 ]

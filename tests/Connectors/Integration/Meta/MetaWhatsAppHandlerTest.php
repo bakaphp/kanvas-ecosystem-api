@@ -10,9 +10,12 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
+use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Connectors\Meta\Client;
 use Kanvas\Connectors\Meta\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
+use Kanvas\Connectors\Meta\MetaInbound;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
@@ -504,7 +507,10 @@ final class MetaWhatsAppHandlerTest extends TestCase
         }
     }
 
-    public function testInboundWhatsAppIsAnsweredWithoutWaiting(): void
+    /**
+     * A window of 0 makes every line its own turn: two lines typed three seconds apart get two answers.
+     */
+    public function testSetupGivesInboundWhatsAppAWindowThatJoinsAFlurry(): void
     {
         $this->fakeMeta();
         $handler = $this->handler([
@@ -516,8 +522,30 @@ final class MetaWhatsAppHandlerTest extends TestCase
         $handler->setup();
 
         $policy = BurstPolicy::fromCompanySettings($handler->company, 'meta_whatsapp', []);
-        $this->assertSame(0, $policy->closeIdleSeconds);
-        $this->assertSame(0, $policy->jitterSeconds);
+        $this->assertSame(10, $policy->chainIdleSeconds);
+        $this->assertSame(10, $policy->closeIdleSeconds);
+        $this->assertSame(3, $policy->jitterSeconds);
+    }
+
+    public function testACompanyWithNoWindowSetGetsTheSameOne(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $company->del(ConfigurationEnum::BURST_IDLE_SECONDS->value);
+        $company->del(ConfigurationEnum::BURST_JITTER_SECONDS->value);
+
+        $policy = new MetaInbound()->burstPolicy(
+            new InboundMessage(
+                provider: 'meta',
+                channel: ChannelTypeEnum::WHATSAPP,
+                inboundIdentity: '+18095550100',
+                from: '+18095550123',
+            ),
+            $company
+        );
+
+        $this->assertSame(MetaInbound::DEFAULT_BURST_IDLE_SECONDS, $policy->chainIdleSeconds);
+        $this->assertSame(MetaInbound::DEFAULT_BURST_JITTER_SECONDS, $policy->jitterSeconds);
+        $this->assertSame(['whatsapp:18095550123'], $policy->correlationKeys);
     }
 
     public function testABurstWindowTheCompanyChoseIsLeftAlone(): void
@@ -533,7 +561,7 @@ final class MetaWhatsAppHandlerTest extends TestCase
         $handler->setup();
 
         $this->assertSame(45, (int) $handler->company->get(ConfigurationEnum::BURST_IDLE_SECONDS->value));
-        $this->assertSame(0, (int) $handler->company->get(ConfigurationEnum::BURST_JITTER_SECONDS->value));
+        $this->assertSame(3, (int) $handler->company->get(ConfigurationEnum::BURST_JITTER_SECONDS->value));
     }
 
     public function testTeardownRemovesEverySetting(): void
