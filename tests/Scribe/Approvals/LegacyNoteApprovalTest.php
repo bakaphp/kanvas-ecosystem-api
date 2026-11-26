@@ -31,9 +31,12 @@ final class LegacyNoteApprovalTest extends ScribeTestCase
         $this->assertSame(InvoiceDocumentStatusEnum::DRAFT->value, $draft['status']);
         $this->assertStringContainsString('waiting for a person', $draft['next']);
 
+        $note = Invoice::query()->findOrFail($draft['note_id']);
+        $this->assertTrue($note->pendingLegacyApprovals()->exists(), 'This test must run on the legacy queue.');
+
         $this->approve((int) $draft['note_id']);
 
-        $note = Invoice::query()->findOrFail($draft['note_id']);
+        $note->refresh();
         $this->assertSame(DocumentTypeEnum::CREDIT_NOTE, $note->document_type);
         $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $note->document_status);
         $this->assertStringStartsWith('CRN', $note->invoice_number);
@@ -60,6 +63,21 @@ final class LegacyNoteApprovalTest extends ScribeTestCase
         $this->assertStringStartsWith('DBN', $note->invoice_number);
         $this->assertSame(50.0, (float) $note->balance_due_native);
         $this->assertSame(1000.0, (float) $invoice->fresh()->balance_due_native);
+    }
+
+    public function test_a_second_draft_is_refused_and_reports_the_first_as_waiting_for_approval(): void
+    {
+        $invoice = $this->invoiceWithApprover();
+        $tool = new DraftCreditNoteTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        $lines = [['description' => 'Price adjustment', 'unit_price' => 200]];
+
+        $first = $tool->__invoke(invoice_id: $invoice->getId(), lines: $lines, reason: 'Agreed discount');
+        $second = $tool->__invoke(invoice_id: $invoice->getId(), lines: $lines, reason: 'Agreed discount');
+
+        $this->assertFalse($second['drafted']);
+        $this->assertSame('draft_already_waiting', $second['reason']);
+        $this->assertSame($first['note_id'], $second['note_id']);
+        $this->assertTrue($second['pending_approval']);
     }
 
     private function invoiceWithApprover(): Invoice
