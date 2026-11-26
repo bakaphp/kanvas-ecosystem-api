@@ -539,7 +539,12 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 );
             }
 
-            $profile = $this->paymentProfile($customerId, $token);
+            try {
+                $profile = $this->paymentProfile($customerId, $token);
+            } catch (CardNetException $e) {
+                report($e);
+                $profile = null;
+            }
 
             return new TokenizeResult(
                 success: true,
@@ -606,44 +611,82 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         }
 
         try {
-            $response = $this->service->activatePaymentProfile($customerId, $token, $activationCode);
-
-            $paymentProfileId = (int) ($response['PaymentProfileId'] ?? 0);
-
-            $metadata = $paymentMethod->metadata ?? [];
-            $metadata[CustomFieldEnum::REQUIRES_ACTIVATION->value] = false;
-
-            if ($paymentProfileId > 0) {
-                $metadata[CustomFieldEnum::PAYMENT_PROFILE_ID->value] = $paymentProfileId;
-            }
-
-            $paymentMethod->update(['metadata' => $metadata]);
-
-            return new ActivateResult(
-                success: true,
-                message: 'Payment method activated successfully.',
-                raw: $response,
-            );
+            $customer = $this->service->activatePaymentProfile($customerId, $token, $activationCode);
         } catch (CardNetException $e) {
+            $this->disableWhenRemovedFromCardNet($paymentMethod, $customerId, $token);
+
+            return $this->activationFailed($e);
+        }
+
+        try {
+            $profile = $this->paymentProfile($customerId, $token, $customer['PaymentProfiles'] ?? null);
+        } catch (CardNetException $e) {
+            return $this->activationFailed($e);
+        }
+
+        if ($profile === null) {
+            $this->disable($paymentMethod);
+
             return new ActivateResult(
                 success: false,
-                message: $e->getMessage(),
-                raw: $e->responseBody,
+                message: 'CardNet no longer has this card. Add it again.',
             );
+        }
+
+        if (($profile['Enabled'] ?? false) !== true) {
+            return new ActivateResult(
+                success: false,
+                message: 'CardNet did not activate this card.',
+                raw: $profile,
+            );
+        }
+
+        $metadata = $paymentMethod->metadata ?? [];
+        $metadata[CustomFieldEnum::REQUIRES_ACTIVATION->value] = false;
+        $metadata[CustomFieldEnum::PAYMENT_PROFILE_ID->value] = $profile['PaymentProfileId'] ?? null;
+        $paymentMethod->update(['metadata' => $metadata]);
+
+        return new ActivateResult(
+            success: true,
+            message: 'Payment method activated successfully.',
+            raw: $profile,
+        );
+    }
+
+    private function activationFailed(CardNetException $e): ActivateResult
+    {
+        return new ActivateResult(
+            success: false,
+            message: $e->getMessage(),
+            raw: $e->responseBody,
+        );
+    }
+
+    private function paymentProfile(int $customerId, string $token, ?array $profiles = null): ?array
+    {
+        $profiles ??= $this->service->getCustomer($customerId)['PaymentProfiles'] ?? [];
+
+        return collect($profiles)->firstWhere('Token', $token);
+    }
+
+    private function disableWhenRemovedFromCardNet(PaymentMethods $paymentMethod, int $customerId, string $token): void
+    {
+        try {
+            $profile = $this->paymentProfile($customerId, $token);
+        } catch (CardNetException) {
+            return;
+        }
+
+        if ($profile === null) {
+            $this->disable($paymentMethod);
         }
     }
 
-    private function paymentProfile(int $customerId, string $token): ?array
+    private function disable(PaymentMethods $paymentMethod): void
     {
-        try {
-            $profiles = $this->service->getCustomer($customerId)['PaymentProfiles'] ?? [];
-        } catch (CardNetException $e) {
-            report($e);
-
-            return null;
-        }
-
-        return collect($profiles)->firstWhere('Token', $token);
+        $metadata = $paymentMethod->metadata ?? [];
+        $metadata[CustomFieldEnum::DISABLED->value] = true;
+        $paymentMethod->update(['metadata' => $metadata]);
     }
 
     private function getOrCreateCustomerId(UserInterface $user, array $cardDetails): int
