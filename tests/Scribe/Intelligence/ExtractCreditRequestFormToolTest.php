@@ -7,6 +7,7 @@ namespace Tests\Scribe\Intelligence;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Scribe\Invoices\Stubs\FakeCreditRequestFormParser;
 use Tests\Scribe\ScribeTestCase;
 
 #[Group('serial')]
@@ -44,7 +45,8 @@ final class ExtractCreditRequestFormToolTest extends ScribeTestCase
 
     public function test_reports_a_missing_file_once_a_format_is_configured(): void
     {
-        $this->kanvasApp->set(ConfigurationEnum::CREDIT_REQUEST_FORM_CLIENT->value, 'nzxt');
+        config(['scribe.credit_request_form_parsers' => ['fake-format' => FakeCreditRequestFormParser::class]]);
+        $this->kanvasApp->set(ConfigurationEnum::CREDIT_REQUEST_FORM_CLIENT->value, 'fake-format');
 
         $result = new ExtractCreditRequestFormTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
