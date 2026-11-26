@@ -17,6 +17,7 @@ enum DocumentTypeEnum: string
     case VENDOR_CREDIT = 'vendor_credit';
     case SALES_RECEIPT = 'sales_receipt';
     case PAYMENT_RECEIPT = 'payment_receipt';
+    case PURCHASE_ORDER = 'purchase_order';
     case EXPENSE = 'expense';
     case JOURNAL_ENTRY = 'journal_entry';
 
