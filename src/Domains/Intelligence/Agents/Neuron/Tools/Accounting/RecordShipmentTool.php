@@ -20,9 +20,11 @@ class RecordShipmentTool extends AbstractCustomerOrderTool
     protected string $name = 'record_shipment';
 
     protected ?string $description = 'Records the bill of lading of an accepted customer order once its shipping documents '
-        . 'were cross-checked and every difference clarified. The order ships, and the invoice falls due the order\'s '
+        . 'were cross-checked, every difference clarified and its invoice issued: goods ship against a final invoice, '
+        . 'so a draft is refused and has to be issued first. The order ships, and the invoice falls due the order\'s '
         . 'payment term after the bill of lading date (not after the invoice date). Returns the due date, when the '
-        . 'documents package is due and the collection plan. Use it only when the person says the bill of lading was issued.';
+        . 'documents package is due and the collection plan. An invoice edited after the check has to go through '
+        . 'check_shipping_documents again first. Use it only when the person says the bill of lading was issued.';
 
     /**
      * @return array<int, ToolProperty|ArrayProperty>

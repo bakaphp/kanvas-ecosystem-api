@@ -12,6 +12,7 @@ type ProductType {
         )
     companies: Company @belongsTo(relation: "company")
     is_published: Boolean
+    exclude_from_receipt: Boolean
     total_products: Int! @method(name: "getTotalProducts")
     products_attributes: [Attributes!]! @method(name: "getProductsAttributes")
     variants_attributes: [Attributes!]! @method(name: "getVariantsAttributes")
@@ -25,6 +26,7 @@ input ProductTypeInput {
     products_attributes: [ProductTypeAttributesInput!]
     variants_attributes: [ProductTypeAttributesInput!]
     is_published: Boolean
+    exclude_from_receipt: Boolean
 }
 
 input ProductTypeUpdateInput {
@@ -32,6 +34,7 @@ input ProductTypeUpdateInput {
     description: String
     weight: Int
     is_published: Boolean
+    exclude_from_receipt: Boolean
     products_attributes: [ProductTypeAttributesInput!]
     variants_attributes: [ProductTypeAttributesInput!]
 }

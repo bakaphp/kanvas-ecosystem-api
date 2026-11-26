@@ -51,6 +51,8 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
 
     public const string FULFILL_ON_STATUS = 'fulfill_on_status';
 
+    public const string PROCESSOR_USE_HOLD = 'processor_use_hold';
+
     protected $table = 'order_types';
     protected $guarded = [];
 
@@ -79,6 +81,11 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
         $statuses = $this->config[$configKey] ?? [];
 
         return is_array($statuses) && in_array($slug, $statuses, true);
+    }
+
+    public function forcesProcessorHold(): bool
+    {
+        return (bool) ($this->config[self::PROCESSOR_USE_HOLD] ?? false);
     }
 
     public function allowedPaymentProcessors(): ?array

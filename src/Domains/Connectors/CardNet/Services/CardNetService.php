@@ -59,6 +59,17 @@ class CardNetService
             ],
         );
 
+        $error = $response['Errors'][0] ?? null;
+
+        if ($error !== null) {
+            throw new CardNetException(
+                trim(($error['ErrorCode'] ?? '') . ' ' . ($error['Message'] ?? '')),
+                0,
+                null,
+                $response,
+            );
+        }
+
         return $response['Response'] ?? $response;
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Scribe\Purchasing;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Purchasing\Actions\CancelPurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Actions\UpdatePurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\DataTransferObject\PurchaseOrder as PurchaseOrderData;
@@ -151,6 +152,72 @@ class PurchaseOrderTest extends ScribeTestCase
         $this->expectException(InvalidPurchaseOrderTransitionException::class);
 
         new CancelPurchaseOrderAction($order)->execute();
+    }
+
+    public function test_a_line_cannot_name_another_companys_gl_account(): void
+    {
+        $foreign = Account::query()->fromApp($this->kanvasApp)->fromCompany($this->company)->first()->replicate();
+        $foreign->companies_id = $this->company->getId() + 987654;
+        $foreign->account_number = 'FOREIGN-' . uniqid();
+        $foreign->is_system = false;
+        $foreign->save();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('expense account that does not exist for this company');
+
+        $this->createOrder([[
+            'description' => 'Untrusted account id',
+            'quantity' => 1,
+            'unit_cost' => 5,
+            'expense_account_id' => $foreign->getId(),
+        ]]);
+    }
+
+    public function test_a_line_keeps_the_companys_own_gl_account(): void
+    {
+        $own = Account::query()->fromApp($this->kanvasApp)->fromCompany($this->company)->first();
+
+        $order = $this->createOrder([[
+            'description' => 'Own account id',
+            'quantity' => 1,
+            'unit_cost' => 5,
+            'expense_account_id' => $own->getId(),
+        ]]);
+
+        $this->assertSame($own->getId(), (int) $order->lines->first()->expense_account_id);
+    }
+
+    public function test_a_draft_cancelled_elsewhere_cannot_be_edited_from_a_stale_copy(): void
+    {
+        $order = $this->createOrder();
+        $stale = $order->fresh();
+        new CancelPurchaseOrderAction($order)->execute();
+
+        $this->expectException(InvalidPurchaseOrderTransitionException::class);
+        $this->expectExceptionMessage('only a draft can be edited');
+
+        $this->update($stale, ['notes' => 'Replaced after cancellation']);
+    }
+
+    public function test_a_notes_only_edit_from_a_stale_copy_keeps_newer_lines(): void
+    {
+        $order = $this->createOrder();
+        $stale = $order->fresh();
+        $notesOnly = PurchaseOrderData::forUpdate(
+            $stale,
+            $this->kanvasApp,
+            static::$cachedUser,
+            $this->company,
+            ['notes' => 'Notes only']
+        );
+        $this->update($order, ['lines' => [['description' => 'Corrected', 'quantity' => 1, 'unit_cost' => 50]]]);
+        $lineIds = $order->lines()->pluck('id')->all();
+
+        $updated = new UpdatePurchaseOrderAction($stale, $notesOnly)->execute();
+
+        $this->assertSame('50.0000', $updated->order_total);
+        $this->assertSame('Notes only', $updated->notes);
+        $this->assertSame($lineIds, $updated->lines->pluck('id')->all());
     }
 
     public function test_the_lifecycle_only_moves_forward(): void

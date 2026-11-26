@@ -43,7 +43,7 @@ class OrderKpiService
         $end = $to->copy()->endOfDay();
         $days = [$start->toDateString(), $end->toDateString()];
 
-        // Only orders with an event in the period: every indicator below counts one of these three dates.
+        // Only orders with an event in the period: every indicator below counts one of these four dates.
         $orders = SalesOrder::query()
             ->fromApp($app)
             ->fromCompany($company)
@@ -59,13 +59,23 @@ class OrderKpiService
                                 ->orWhereBetween('delivered_on', $days)
                         )
                     )
+                    ->orWhereHas(
+                        'invoice',
+                        static fn ($invoice) => $invoice->whereBetween('paid_at', [$start, $end])
+                    )
             )
             ->with(['shipment', 'invoice'])
             ->get();
 
         $confirmed = $orders->filter(fn (SalesOrder $order): bool => $this->within($order->confirmed_at, $from, $to));
-        $answered = $confirmed->filter(
-            static fn (SalesOrder $order): bool => $order->accepted_at !== null || $order->returned_at !== null
+        $isAnswered = static fn (SalesOrder $order): bool => $order->accepted_at !== null
+            || $order->returned_at !== null;
+        $answered = $confirmed->filter($isAnswered);
+        // An order still waiting past the window has already missed it, so it counts against the target now
+        // instead of dropping out until someone answers.
+        $dueForAnswer = $confirmed->filter(
+            static fn (SalesOrder $order): bool => $isAnswered($order)
+                || $order->confirmed_at->diffInHours(Carbon::now()) > self::ACCEPTANCE_HOURS
         );
         $shipped = $orders->filter(
             fn (SalesOrder $order): bool => $this->within($order->shipment?->bl_date, $from, $to)
@@ -73,9 +83,10 @@ class OrderKpiService
         $delivered = $orders->filter(
             fn (SalesOrder $order): bool => $this->within($order->shipment?->delivered_on, $from, $to)
         );
-        $paid = $shipped->filter(
-            static fn (SalesOrder $order): bool => $order->invoice?->document_status === InvoiceDocumentStatusEnum::PAID
-                && $order->invoice->paid_at !== null
+        $paid = $orders->filter(
+            fn (SalesOrder $order): bool => $order->shipment !== null
+                && $order->invoice?->document_status === InvoiceDocumentStatusEnum::PAID
+                && $this->within($order->invoice->paid_at, $from, $to)
         );
 
         return [
@@ -84,9 +95,9 @@ class OrderKpiService
                 'Orders accepted within 72 hours of being confirmed',
                 95.0,
                 'min',
-                $answered->filter(static fn (SalesOrder $order): bool => $order->accepted_at !== null
+                $dueForAnswer->filter(static fn (SalesOrder $order): bool => $order->accepted_at !== null
                     && $order->confirmed_at->diffInHours($order->accepted_at) <= self::ACCEPTANCE_HOURS),
-                $answered
+                $dueForAnswer
             ),
             $this->percentage(
                 'returned_at_gate_2',

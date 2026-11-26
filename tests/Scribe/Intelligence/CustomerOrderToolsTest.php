@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelCustomerOrderTool;
@@ -23,6 +24,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReleaseShippingDocumentsT
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResolvePoDifferenceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReviewCustomerPoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetCustomerCreditLimitTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateCustomerOrderTool;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use NeuronAI\Tools\Tool;
 use Tests\Scribe\ScribeTestCase;
@@ -321,10 +323,41 @@ class CustomerOrderToolsTest extends ScribeTestCase
         $this->assertSame('invalid_period', $garbage['reason']);
     }
 
+    public function test_the_agent_corrects_a_returned_order_and_it_goes_back_to_review(): void
+    {
+        [$customer, $quote] = $this->customerWithQuote();
+        $orderNumber = $this->register($customer, $quote)['order_number'];
+        $this->tool(ReviewCustomerPoTool::class)->__invoke(order_number: $orderNumber);
+        $this->tool(ConfirmCustomerOrderTool::class)->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
+        $returned = $this->tool(AnswerCustomerOrderTool::class)->__invoke(
+            order_number: $orderNumber,
+            decision: 'return',
+            reason: 'No container space',
+        );
+        $this->assertStringContainsString('update_customer_order', $returned['next']);
+
+        $corrected = $this->tool(UpdateCustomerOrderTool::class)->__invoke(
+            order_number: $orderNumber,
+            requested_date: '2027-01-20',
+            notes: 'Customer accepted a later date',
+        );
+
+        $this->assertTrue($corrected['updated']);
+        $this->assertSame('received', $corrected['document_status']);
+        $this->assertStringContainsString('review_customer_po', $corrected['next']);
+
+        $unknownQuote = $this->tool(UpdateCustomerOrderTool::class)->__invoke(
+            order_number: $orderNumber,
+            quote_number: 'NO-SUCH-QUOTE',
+        );
+        $this->assertSame('quote_not_found', $unknownQuote['reason']);
+    }
+
     public function test_the_sales_order_tools_key_their_run_budget_by_inputs(): void
     {
         foreach ([
             RegisterCustomerPoTool::class,
+            UpdateCustomerOrderTool::class,
             ReviewCustomerPoTool::class,
             ResolvePoDifferenceTool::class,
             CheckShippingDocumentsTool::class,
@@ -343,6 +376,32 @@ class CustomerOrderToolsTest extends ScribeTestCase
         ] as $tool) {
             $this->assertRunKeyFollowsInputs(new $tool());
         }
+    }
+
+    public function test_listing_orders_loads_shipments_together(): void
+    {
+        $customer = $this->seedTestOrganization('Batch Shipped Customer');
+        $first = $this->createShippedSalesOrder($customer);
+        $second = $this->createReviewedSalesOrder($customer);
+        $connection = DB::connection('accounting');
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+
+        try {
+            $result = $this->tool(ListCustomerOrdersTool::class)->__invoke(customer_organization_id: $customer->getId());
+            $queries = $connection->getQueryLog();
+        } finally {
+            $connection->disableQueryLog();
+        }
+
+        $listed = collect($result['sales_orders'])->keyBy('order_number');
+        $this->assertSame(2, $result['count']);
+        $this->assertSame($first->shipment->bl_number, $listed[$first->order_number]['shipment']['bl_number']);
+        $this->assertNull($listed[$second->order_number]['shipment']);
+        $this->assertCount(1, array_filter(
+            $queries,
+            static fn (array $query): bool => str_contains($query['query'], 'from `sales_order_shipments`')
+        ));
     }
 
     /**

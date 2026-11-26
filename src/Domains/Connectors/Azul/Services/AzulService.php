@@ -221,7 +221,7 @@ class AzulService
         $response = $this->client->post($payload, $finalizeUrl);
         $result = AzulPaymentResponse::fromAzulResponse($response);
 
-        if (! $result->isApproved()) {
+        if (! $result->isApproved() && ! (empty($cRes) && $result->is3DSChallenge())) {
             throw new AzulException(
                 $result->responseMessage ?: $result->errorDescription ?: '3DS challenge finalization failed',
                 0,

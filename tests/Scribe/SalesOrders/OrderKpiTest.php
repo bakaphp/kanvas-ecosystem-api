@@ -77,6 +77,48 @@ class OrderKpiTest extends ScribeTestCase
         $this->assertSame([null], array_unique(array_column($kpis, 'met')));
     }
 
+    public function test_collections_count_in_the_period_they_were_paid(): void
+    {
+        $order = $this->createShippedSalesOrder($this->seedTestOrganization('December Shipment Customer'));
+        $order->invoice->forceFill([
+            'document_status' => InvoiceDocumentStatusEnum::PAID,
+            'paid_at' => Carbon::parse('2027-01-05'),
+        ])->save();
+
+        $january = collect(new OrderKpiService()->report(
+            $this->kanvasApp,
+            $this->company,
+            Carbon::parse('2027-01-01'),
+            Carbon::parse('2027-01-31')
+        ))->keyBy('key');
+
+        $this->assertSame(1, $january['collected_on_time']['denominator']);
+        $this->assertSame(0, $january['shipped_on_time']['denominator']);
+    }
+
+    public function test_an_order_still_waiting_past_72_hours_counts_against_acceptance(): void
+    {
+        $customer = $this->seedTestOrganization('Acceptance Backlog Customer');
+        $accepted = $this->createAcceptedSalesOrder($customer);
+        $accepted->forceFill([
+            'confirmed_at' => Carbon::now()->subDays(5),
+            'accepted_at' => Carbon::now()->subDays(5)->addHours(10),
+        ])->save();
+        $waiting = new ConfirmSalesOrderAction($this->createReviewedSalesOrder($customer), true)->execute();
+        $waiting->forceFill(['confirmed_at' => Carbon::now()->subDays(5)])->save();
+        $fresh = new ConfirmSalesOrderAction($this->createReviewedSalesOrder($customer), true)->execute();
+        $fresh->forceFill(['confirmed_at' => Carbon::now()->subHours(2)])->save();
+
+        $kpis = collect(new OrderKpiService()->report(
+            $this->kanvasApp,
+            $this->company,
+            Carbon::today()->subDays(7),
+            Carbon::today()
+        ))->keyBy('key');
+
+        $this->assertSame([1, 2, 50.0, false], $this->read($kpis['acceptance_within_72h']));
+    }
+
     public function test_another_companys_orders_are_not_counted(): void
     {
         SalesOrder::create([

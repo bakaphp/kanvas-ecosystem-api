@@ -8,7 +8,10 @@ use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\FxRates\Models\FxRate;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\SalesOrders\Actions\CheckShippingDocumentsAction;
 use Kanvas\Scribe\SalesOrders\Actions\ConfirmSalesOrderAction;
+use Kanvas\Scribe\SalesOrders\Actions\RecordShipmentAction;
 use Kanvas\Scribe\SalesOrders\Actions\ReleaseDocumentsAction;
 use Kanvas\Scribe\SalesOrders\Actions\SetCustomerCreditLimitAction;
 use Kanvas\Scribe\SalesOrders\Credit\CustomerCreditService;
@@ -16,6 +19,7 @@ use Kanvas\Scribe\SalesOrders\Credit\CustomerCreditStatus;
 use Kanvas\Scribe\SalesOrders\Enums\CreditConfigurationEnum;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
+use Kanvas\Scribe\SalesOrders\Services\SalesOrderCollectionPlanService;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\CreatesTestSalesOrder;
@@ -105,7 +109,7 @@ class CreditTest extends ScribeTestCase
     public function test_a_customer_with_an_invoice_overdue_past_the_hold_days_gets_no_new_order_confirmed(): void
     {
         $customer = $this->seedTestOrganization('Overdue Customer');
-        $this->issueTestInvoice($customer, 100.0, dueDate: Carbon::today()->subDays(90)->toDateString());
+        $this->overdueInvoice($customer, termStartedDaysAgo: 140, overdueDays: 90);
         $order = $this->createReviewedSalesOrder($customer);
 
         $status = $this->creditOf($customer);
@@ -121,8 +125,8 @@ class CreditTest extends ScribeTestCase
     public function test_the_company_can_move_the_hold_threshold(): void
     {
         $customer = $this->seedTestOrganization('Patient Customer');
-        $this->issueTestInvoice($customer, 100.0, dueDate: Carbon::today()->subDays(90)->toDateString());
-        $this->company->set(CreditConfigurationEnum::CREDIT_HOLD_DAYS->value, '120');
+        $this->overdueInvoice($customer, termStartedDaysAgo: 140, overdueDays: 90);
+        $this->company->set(CreditConfigurationEnum::CREDIT_HOLD_DAYS->value, '150');
 
         $this->assertFalse($this->creditOf($customer)->onHold);
     }
@@ -136,6 +140,97 @@ class CreditTest extends ScribeTestCase
 
         $this->assertTrue($this->creditOf($late)->onHold);
         $this->assertFalse($this->creditOf($clean)->onHold);
+    }
+
+    public function test_an_invoice_that_is_not_overdue_never_holds_the_customer(): void
+    {
+        $customer = $this->seedTestOrganization('Long Term Customer');
+        $invoice = $this->issueTestInvoice($customer, 100.0, dueDate: Carbon::today()->addDays(10)->toDateString());
+        $invoice->forceFill(['issued_date' => Carbon::today()->subDays(140)])->save();
+
+        $this->assertFalse($this->creditOf($customer)->onHold);
+    }
+
+    public function test_the_hold_starts_on_the_day_the_collection_plan_names(): void
+    {
+        $customer = $this->seedTestOrganization('Plan Hold Customer');
+        $order = $this->createShippedSalesOrder($customer);
+        $plan = collect(new SalesOrderCollectionPlanService()->plan($order->shipment));
+        $holdStep = $plan->firstWhere('owner', 'Gates 1 and 3');
+
+        $this->assertSame(CustomerCreditService::DEFAULT_HOLD_DAYS, $holdStep['day']);
+
+        Carbon::setTestNow(Carbon::parse($holdStep['date'])->subDay());
+        $this->assertFalse($this->creditOf($customer)->onHold);
+
+        Carbon::setTestNow(Carbon::parse($holdStep['date']));
+        $this->assertTrue($this->creditOf($customer)->onHold);
+    }
+
+    public function test_a_long_payment_term_is_held_only_once_it_is_overdue(): void
+    {
+        $customer = $this->seedTestOrganization('Long Term Shipped Customer');
+        $order = $this->createAcceptedSalesOrder($customer, 120);
+        $order = new CheckShippingDocumentsAction(
+            $order,
+            $this->issueInvoiceWithLines($customer, [
+                ['quantity' => 10, 'unit_price' => 20],
+                ['quantity' => 5, 'unit_price' => 30],
+            ]),
+            [['quantity' => 10], ['quantity' => 5]],
+            ['total_quantity' => 15]
+        )->execute();
+        $shipment = new RecordShipmentAction(
+            order: $order,
+            blNumber: 'BL-LONG-TERM',
+            blDate: Carbon::parse('2026-12-10'),
+            user: static::$cachedUser,
+        )->execute();
+        $holdStep = collect(new SalesOrderCollectionPlanService()->plan($shipment))->firstWhere('owner', 'Gates 1 and 3');
+
+        $this->assertSame(121, $holdStep['day']);
+
+        Carbon::setTestNow(Carbon::parse($holdStep['date'])->subDay());
+        $this->assertFalse($this->creditOf($customer)->onHold);
+
+        Carbon::setTestNow(Carbon::parse($holdStep['date']));
+        $this->assertTrue($this->creditOf($customer)->onHold);
+    }
+
+    public function test_a_second_confirmation_for_the_customer_waits_for_the_first(): void
+    {
+        $customer = $this->customerWithLimit(600);
+        $order = $this->createReviewedSalesOrder($customer);
+        $credit = new CustomerCreditService(decisionWaitSeconds: 0);
+
+        try {
+            $credit->oneDecisionAtATime(
+                $customer,
+                fn () => new ConfirmSalesOrderAction($order, feasibilityConfirmed: true, credit: $credit)->execute()
+            );
+            $this->fail('A confirmation should not run while another one holds the customer.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('being confirmed right now', $e->getMessage());
+        }
+
+        $confirmed = new ConfirmSalesOrderAction($order, feasibilityConfirmed: true, credit: $credit)->execute();
+        $this->assertSame(SalesOrderStatusEnum::CONFIRMED, $confirmed->document_status);
+    }
+
+    public function test_a_draft_invoice_does_not_take_the_order_out_of_the_exposure(): void
+    {
+        $customer = $this->customerWithLimit(600);
+        $order = $this->createAcceptedSalesOrder($customer);
+        $this->assertSame(250.0, $this->creditOf($customer)->available());
+
+        new CheckShippingDocumentsAction(
+            $order,
+            $this->draftInvoiceFor($order),
+            [['quantity' => 10], ['quantity' => 5]],
+            ['total_quantity' => 15]
+        )->execute();
+
+        $this->assertSame(250.0, $this->creditOf($customer)->available());
     }
 
     public function test_another_companys_orders_are_not_counted_in_the_exposure(): void
@@ -248,6 +343,21 @@ class CreditTest extends ScribeTestCase
         new SetCustomerCreditLimitAction($customer, $amount, $currency)->execute();
 
         return $customer;
+    }
+
+    /**
+     * The ledger only takes an issue date inside the open period, so the start of the term is moved back afterwards.
+     */
+    private function overdueInvoice(Organization $customer, int $termStartedDaysAgo, int $overdueDays): Invoice
+    {
+        $invoice = $this->issueTestInvoice(
+            $customer,
+            100.0,
+            dueDate: Carbon::today()->subDays($overdueDays)->toDateString()
+        );
+        $invoice->forceFill(['issued_date' => Carbon::today()->subDays($termStartedDaysAgo)])->save();
+
+        return $invoice;
     }
 
     private function foreignConfirmedOrder(Organization $customer): SalesOrder

@@ -6,10 +6,9 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Scribe\Quotes\Models\Quote;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\DescribesSalesOrderFields;
 use Kanvas\Scribe\SalesOrders\Actions\RegisterCustomerPoAction;
 use Kanvas\Scribe\SalesOrders\DataTransferObject\SalesOrder as SalesOrderData;
-use Kanvas\Scribe\SalesOrders\Services\SalesOrderValidityService;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
@@ -21,6 +20,8 @@ use Throwable;
 #[AgentTool(name: 'Register Customer PO', category: 'accounting')]
 class RegisterCustomerPoTool extends AbstractCustomerOrderTool
 {
+    use DescribesSalesOrderFields;
+
     protected string $name = 'register_customer_po';
 
     protected ?string $description = 'Registers what a customer committed to buy as a sales order with its own SO number: '
@@ -56,121 +57,9 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
                     . 'signed proforma.',
                 required: false,
             ),
-            new ToolProperty(
-                name: 'customer_po_number',
-                type: PropertyType::STRING,
-                description: 'The number on the customer\'s purchase order. Required for customer_po.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'customer_po_date',
-                type: PropertyType::STRING,
-                description: 'The date on the customer\'s purchase order, as YYYY-MM-DD. Required for customer_po.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'currency',
-                type: PropertyType::STRING,
-                description: 'Three-letter currency code. Taken from the quote when left out.',
-                required: false,
-            ),
-            new ArrayProperty(
-                name: 'lines',
-                description: 'The lines exactly as the customer\'s PO lists them. A signed proforma may leave this '
-                    . 'out: the quote\'s lines are used.',
-                required: false,
-                items: new ObjectProperty(
-                    name: 'line',
-                    description: 'A single order line.',
-                    properties: [
-                        new ToolProperty(
-                            name: 'description',
-                            type: PropertyType::STRING,
-                            description: 'The product.',
-                            required: true,
-                        ),
-                        new ToolProperty(
-                            name: 'quantity',
-                            type: PropertyType::NUMBER,
-                            description: 'Quantity ordered. Above zero.',
-                            required: true,
-                        ),
-                        new ToolProperty(
-                            name: 'unit_price',
-                            type: PropertyType::NUMBER,
-                            description: 'Price of one unit in the order currency.',
-                            required: true,
-                        ),
-                        new ToolProperty(
-                            name: 'sku',
-                            type: PropertyType::STRING,
-                            description: 'The item code, when there is one.',
-                            required: false,
-                        ),
-                    ],
-                ),
-            ),
-            new ToolProperty(
-                name: 'incoterm',
-                type: PropertyType::STRING,
-                description: 'The Incoterm on the customer\'s order, e.g. FOB or CIF.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'consignee',
-                type: PropertyType::STRING,
-                description: 'Who the goods are consigned to.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'payment_terms_days',
-                type: PropertyType::INTEGER,
-                description: 'Payment term in days on the customer\'s order, e.g. 50.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'requested_date',
-                type: PropertyType::STRING,
-                description: 'The date the customer requires the goods, as YYYY-MM-DD.',
-                required: false,
-            ),
-            new ObjectProperty(
-                name: 'signature_checklist',
-                description: 'Which validity checks on the customer\'s commitment are confirmed. Mark only what was '
-                    . 'actually checked on the document.',
-                required: false,
-                properties: [
-                    new ToolProperty(
-                        name: SalesOrderValidityService::AUTHORIZED_SIGNER,
-                        type: PropertyType::BOOLEAN,
-                        description: 'Signed by an authorized representative (legal representative or with power of attorney).',
-                        required: false,
-                    ),
-                    new ToolProperty(
-                        name: SalesOrderValidityService::STAMP_AND_DATE,
-                        type: PropertyType::BOOLEAN,
-                        description: 'Legible stamp and date.',
-                        required: false,
-                    ),
-                    new ToolProperty(
-                        name: SalesOrderValidityService::MATCHING_LEGAL_IDENTITY,
-                        type: PropertyType::BOOLEAN,
-                        description: 'Legal name and tax id identical to the proforma.',
-                        required: false,
-                    ),
-                    new ToolProperty(
-                        name: SalesOrderValidityService::ALL_PAGES_INITIALED,
-                        type: PropertyType::BOOLEAN,
-                        description: 'Every page initialed, with no crossings-out or handwritten changes to the terms.',
-                        required: false,
-                    ),
-                ],
-            ),
-            new ToolProperty(
-                name: 'notes',
-                type: PropertyType::STRING,
-                description: 'Anything the team should know about this order.',
-                required: false,
+            ...$this->salesOrderFieldProperties(
+                'The lines exactly as the customer\'s PO lists them. A signed proforma may leave this out: the '
+                . 'quote\'s lines are used.'
             ),
         ];
     }
@@ -196,19 +85,10 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
         ?array $signature_checklist = null,
         ?string $notes = null,
     ): array {
-        $quote = $quote_number === null ? null : $this->findTenantRecordOrNotFound(
-            Quote::class,
-            'quote_number',
-            $quote_number,
-            'quote'
-        );
+        $quote = $this->quoteByNumber($quote_number, 'registered');
 
         if (is_array($quote)) {
-            return [
-                'registered' => false,
-                'reason' => 'quote_not_found',
-                'message' => "No quote numbered {$quote_number} for this company.",
-            ];
+            return $quote;
         }
 
         try {
@@ -235,7 +115,6 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
                 )
             )->execute();
         } catch (ModelNotFoundException) {
-            // The quote was found above, so the customer is the only lookup left in the DTO.
             return [
                 'registered' => false,
                 'reason' => 'customer_not_found',

@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\SalesOrders\Actions;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
 use Kanvas\Scribe\SalesOrders\Services\SalesOrderStateMachineService;
@@ -17,6 +18,8 @@ use Kanvas\Scribe\SalesOrders\Services\SalesOrderStateMachineService;
  */
 class ReturnSalesOrderAction
 {
+    use LocksDocumentRow;
+
     public function __construct(
         protected readonly SalesOrder $order,
         protected readonly string $reason,
@@ -26,16 +29,18 @@ class ReturnSalesOrderAction
 
     public function execute(): SalesOrder
     {
-        $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::RETURNED);
+        return $this->withRowLocked($this->order, function (): SalesOrder {
+            $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::RETURNED);
 
-        $reason = Str::trimToNull($this->reason)
-            ?? throw new ValidationException('Say why Operations cannot accept the order.');
+            $reason = Str::trimToNull($this->reason)
+                ?? throw new ValidationException('Say why Operations cannot accept the order.');
 
-        $this->order->document_status = SalesOrderStatusEnum::RETURNED;
-        $this->order->return_reason = $reason;
-        $this->order->returned_at = Carbon::now();
-        $this->order->saveOrFail();
+            $this->order->document_status = SalesOrderStatusEnum::RETURNED;
+            $this->order->return_reason = $reason;
+            $this->order->returned_at = Carbon::now();
+            $this->order->saveOrFail();
 
-        return $this->order;
+            return $this->order;
+        });
     }
 }
