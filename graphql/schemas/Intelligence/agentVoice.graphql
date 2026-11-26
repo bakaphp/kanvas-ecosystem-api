@@ -61,6 +61,8 @@ type VoiceAgentTool {
     description: String
     "JSON Schema for the tool's arguments: { type, properties, required }."
     parameters: Mixed
+    "True for tools with no side effects: the runtime runs them in the background while the agent keeps talking. False means a write (the agent waits; repeats are deduplicated)."
+    read_only: Boolean!
 }
 
 "The voice agent's company Twilio account, for the runtime to place and end that company's calls."
@@ -137,4 +139,24 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallerMutation@capture"
         )
+    "Data plane: file a finished call as one `voice` message on the caller's person and active lead: the summary as its content, the turns in its `transcript`. Voice runtime only (X-Voice-Runtime-Token). Re-sending a call saves nothing twice."
+    recordVoiceTranscript(
+        agent_uuid: String!
+        phone: String!
+        call_sid: String!
+        direction: String
+        turns: [VoiceTranscriptTurnInput!]!
+        "The call's summary, with its [voice <direction> <time> UTC, <outcome>] header. Without it the transcript is the content."
+        summary: String
+    ): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallerMutation@recordTranscript"
+        )
+}
+
+"One line of a call, in order."
+input VoiceTranscriptTurnInput {
+    "customer or agent"
+    role: String!
+    text: String!
 }

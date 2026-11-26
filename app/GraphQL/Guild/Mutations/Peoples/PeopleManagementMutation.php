@@ -10,7 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
-use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
+use Kanvas\Guild\Customers\Actions\Communication\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;

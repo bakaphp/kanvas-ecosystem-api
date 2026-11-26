@@ -7,7 +7,6 @@ namespace Tests\Intelligence\Agents\Tools;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -29,13 +28,16 @@ final class SendEmailToolSignAsMeTest extends TestCase
     use DatabaseTransactions;
     use MakesAgents;
 
+    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'intelligence', 'workflow'];
+
     private ?Users $signed = null;
 
     protected function tearDown(): void
     {
         // Settings are written to Redis as well, which the transaction does not roll back.
         if ($this->signed !== null) {
-            Redis::del($this->signed->getSettingsRedisPrimaryKey());
+            $this->signed->del(UserEmailSignature::companySettingKey($this->signed->getCurrentCompany()));
+            $this->signed->del(UserEmailSignature::SETTING);
         }
 
         parent::tearDown();
@@ -49,7 +51,7 @@ final class SendEmailToolSignAsMeTest extends TestCase
         return [
             'written as the person talking' => [true, true],
             'written as the business persona' => [false, false],
-            'not stated' => [null, false],
+            'left null' => [null, false],
         ];
     }
 
@@ -63,15 +65,20 @@ final class SendEmailToolSignAsMeTest extends TestCase
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $lead->people->addEmail('prospect-' . $lead->getId() . '@example.com');
 
-        $tool = new SendEmailTool()
-            ->withContext($app, $company, $human, $this->makeSigningAgent($company))
-            ->forConversationHuman($human);
-
-        $arguments = ['lead_id' => $lead->getId(), 'subject' => 'Following up', 'body' => 'Still interested?'];
-        if ($signAsMe !== null) {
-            $arguments['sign_as_me'] = $signAsMe;
-        }
-        $result = $tool->__invoke(...$arguments);
+        $result = new SendEmailTool()
+            ->withContext(
+                $app,
+                $company,
+                $human,
+                $this->makeSigningAgent($company)
+            )
+            ->forConversationHuman($human)
+            ->__invoke(
+                lead_id: $lead->getId(),
+                subject: 'Following up',
+                body: 'Still interested?',
+                sign_as_me: $signAsMe,
+            );
 
         $this->assertSame('success', $result['status'], json_encode($result));
         $data = $this->assertSignature($signed);
@@ -89,15 +96,20 @@ final class SendEmailToolSignAsMeTest extends TestCase
         $person = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $person->addEmail('contact-' . $person->getId() . '@example.com');
 
-        $tool = new SendPersonEmailTool()
-            ->withContext($app, $company, $human, $this->makeSigningAgent($company))
-            ->forConversationHuman($human);
-
-        $arguments = ['person_id' => $person->getId(), 'subject' => 'Following up', 'body' => 'Still interested?'];
-        if ($signAsMe !== null) {
-            $arguments['sign_as_me'] = $signAsMe;
-        }
-        $result = $tool->__invoke(...$arguments);
+        $result = new SendPersonEmailTool()
+            ->withContext(
+                $app,
+                $company,
+                $human,
+                $this->makeSigningAgent($company)
+            )
+            ->forConversationHuman($human)
+            ->__invoke(
+                person_id: $person->getId(),
+                subject: 'Following up',
+                body: 'Still interested?',
+                sign_as_me: $signAsMe,
+            );
 
         $this->assertTrue($result['success'] ?? false, json_encode($result));
         $this->assertSignature($signed);

@@ -5,36 +5,30 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadConversationTranscriptService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\VoiceCallerLookupService;
 use Kanvas\Intelligence\Leads\Services\ContactHistoryService;
 use Throwable;
 
 use function Sentry\captureException;
 
 /**
- * Resolve the Lead behind a phone number and assemble a compact context an
- * OUTBOUND voice agent can use — so the agent knows who it's calling and their
- * recent history instead of just a number.
+ * Who is behind a phone number and what we know about them, as a compact context the voice agent
+ * opens the call with: the lead (or the bare contact) plus the shared contact history, so the
+ * agent knows how and when we last talked, on any channel.
  *
- * Reuses Kanvas's own resolution (PeoplesRepository::getByPhoneNumber +
- * LeadsRepository::getPeopleActiveLead) and the shared contact history, so the agent
- * knows how and when we last talked, on any channel. Scoped to the agent's company/app.
- *
- * Best-effort: returns null (no context) rather than throwing, so a placing
- * call is never blocked by a lookup miss. The `summary` is a short, bounded,
- * natural-language block suitable to hand the LLM as call context.
+ * Best-effort: returns null rather than throwing, so a call is never blocked by a lookup miss.
+ * The `summary` is a short, bounded block to hand the LLM as call context.
  */
 class BuildVoiceAgentLeadContextAction
 {
     // Keep the payload small enough to ride along as a Twilio <Stream> parameter.
-    private const CONTEXT_INFO_MAX = 800;
+    private const int CONTEXT_INFO_MAX = 800;
     private const int RECENT_MESSAGES = 6;
     private const int RECENT_MESSAGES_MAX = 600;
     private const int MESSAGE_MAX = 160;
@@ -70,39 +64,24 @@ class BuildVoiceAgentLeadContextAction
     }
 
     /**
-     * Resolve the person behind the number and their current lead (if any).
+     * The person behind the number, with their active lead or else their last one.
      *
      * @return array{0: People|null, 1: Lead|null}
      */
     private function resolve(): array
     {
-        $company = $this->agent->companies_id > 0
-            ? Companies::find($this->agent->companies_id)
+        $company = $this->agent->company;
+        $person = $company !== null
+            ? VoiceCallerLookupService::find($this->agent->app, $company, $this->phone)
             : null;
-        if ($company === null) {
+        if ($person === null) {
             return [null, null];
         }
 
-        $people = PeoplesRepository::getByPhoneNumber(
-            app: $this->agent->app,
-            company: $company,
-            phoneNumbers: $this->phoneVariants(),
-        )->get();
-        if ($people->isEmpty()) {
-            return [null, null];
-        }
-
-        // Prefer a person with an active lead; else the first person's last lead.
-        foreach ($people as $person) {
-            $lead = LeadsRepository::getPeopleActiveLead($person);
-            if ($lead !== null) {
-                return [$person, $lead];
-            }
-        }
-
-        $first = $people->first();
-
-        return [$first, LeadsRepository::getPeopleLastLead($first)];
+        return [
+            $person,
+            LeadsRepository::getPeopleActiveLead($person) ?? LeadsRepository::getPeopleLastLead($person),
+        ];
     }
 
     /**
@@ -214,33 +193,11 @@ class BuildVoiceAgentLeadContextAction
         return $text !== '' ? mb_substr($text, 0, self::CONTEXT_INFO_MAX) : null;
     }
 
-    /**
-     * A real name for the person, or null. createPeopleFromPhone stores the phone
-     * number as firstname, so a phone-only "name" is treated as unknown.
-     */
     private function peopleName(People $person): ?string
     {
         $name = trim(($person->firstname ?? '') . ' ' . ($person->lastname ?? ''));
-        if ($name === '' || preg_match('/^[\d\s+()\-]+$/', $name) === 1) {
-            return null;
-        }
 
-        return $name;
-    }
-
-    /**
-     * The number variants to feed getByPhoneNumber — the local (normalized) form
-     * and the country-code form. Mirrors the shared pattern used elsewhere for
-     * this exact lookup (see ProcessTwilioWebhookJob::processContactFromMessage).
-     *
-     * @return array<int, string>
-     */
-    private function phoneVariants(): array
-    {
-        return array_values(array_unique(array_filter([
-            Str::normalizePhoneNumber($this->phone),
-            str_replace('+', '', $this->phone),
-        ])));
+        return VoiceCallerLookupService::isPlaceholderName($name) ? null : $name;
     }
 
     /**

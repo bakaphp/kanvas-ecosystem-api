@@ -264,6 +264,19 @@ class OneDriveClientTest extends TestCase
         $this->assertReason(OneDriveErrorReasonEnum::PERMISSION_MISSING, fn () => $this->client()->listFolder(null));
     }
 
+    public function test_a_refusal_keeps_what_graph_said(): void
+    {
+        Http::fake(['*' => Http::response(['error' => ['code' => 'accessDenied', 'message' => 'Access denied']], 403)]);
+
+        try {
+            $this->client()->listFolder(null);
+            $this->fail('OneDriveException was not thrown');
+        } catch (OneDriveException $e) {
+            $this->assertSame(OneDriveErrorReasonEnum::PERMISSION_MISSING, $e->reason);
+            $this->assertStringContainsString('HTTP 403: accessDenied Access denied', $e->getMessage());
+        }
+    }
+
     public function test_locked_maps_to_file_locked(): void
     {
         Http::fake(['*' => Http::response(['error' => [

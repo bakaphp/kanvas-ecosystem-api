@@ -12,6 +12,7 @@ use Kanvas\Communication\Connections\Models\CleanupTask;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\SharedRegistration;
 use Kanvas\Communication\Connections\Services\SharedRegistry;
+use Kanvas\Communication\Contracts\Concerns\HasProvisionerDefaults;
 use Kanvas\Communication\Contracts\Provisioner;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use RuntimeException;
@@ -23,6 +24,8 @@ use RuntimeException;
  */
 final class FakeProvisioner implements Provisioner
 {
+    use HasProvisionerDefaults;
+
     /** @var array<string, string> account key or service sid → the inbound URL the vendor holds */
     public array $vendor = [];
 
@@ -50,14 +53,11 @@ final class FakeProvisioner implements Provisioner
         return $this->probeError;
     }
 
-    public function legacyReceiverJobs(): array
+    public function retireLegacy(Connection $connection): array
     {
-        return [];
-    }
+        $this->calls[] = 'retire-legacy:' . $connection->account_key;
 
-    public function autoReply(): ?array
-    {
-        return ['channel_slug_pattern' => '/^fake-/', 'legacy_responder' => null];
+        return [];
     }
 
     public function registerInbound(Connection $connection, string $inboundUrl): InboundRegistration
@@ -129,10 +129,5 @@ final class FakeProvisioner implements Provisioner
         unset($this->vendor[$registration->resource_key]);
 
         return CleanupTaskStatusEnum::DONE;
-    }
-
-    public function legacySelection(IntegrationsCompany $integrationCompany): array
-    {
-        return [];
     }
 }

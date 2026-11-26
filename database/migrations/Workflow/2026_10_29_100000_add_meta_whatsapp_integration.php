@@ -15,7 +15,7 @@ return new class () extends Migration {
     protected $connection = 'workflow';
 
     private const string NAME = 'meta_whatsapp';
-    private const string HANDLER = 'Kanvas\\Communication\\Channels\\WhatsApp\\Providers\\Meta\\Handlers\\MetaWhatsAppHandler';
+    private const string HANDLER = 'Kanvas\\Connectors\\Meta\\Handlers\\MetaWhatsAppHandler';
 
     public function up(): void
     {

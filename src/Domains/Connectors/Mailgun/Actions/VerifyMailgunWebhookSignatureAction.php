@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
+use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 
 class VerifyMailgunWebhookSignatureAction
 {
@@ -21,13 +23,31 @@ class VerifyMailgunWebhookSignatureAction
     ) {
     }
 
+    /**
+     * Mailgun signs a route forward with top-level form fields and a domain event with a nested
+     * `signature` object; one receiver can take either.
+     */
+    public static function forRequest(Request $request, ReceiverWebhook $receiver): self
+    {
+        $nested = $request->input('signature');
+        $signature = is_array($nested) ? $nested : $request->only(['token', 'timestamp', 'signature']);
+
+        return new self(
+            $receiver->app,
+            $receiver->company,
+            (string) ($signature['token'] ?? ''),
+            (string) ($signature['timestamp'] ?? ''),
+            (string) ($signature['signature'] ?? ''),
+        );
+    }
+
     public function execute(): bool
     {
         if ($this->token === '' || $this->timestamp === '' || $this->signature === '') {
             return false;
         }
 
-        $signingKey = $this->resolveSigningKey();
+        $signingKey = ConfigurationEnum::signingKeyFor($this->app, $this->company);
 
         if ($signingKey === '') {
             return false;
@@ -40,14 +60,5 @@ class VerifyMailgunWebhookSignatureAction
         $expected = hash_hmac('sha256', $this->timestamp . $this->token, $signingKey);
 
         return hash_equals($expected, $this->signature);
-    }
-
-    private function resolveSigningKey(): string
-    {
-        $key = ConfigurationEnum::WEBHOOK_SIGNING_KEY->value;
-        $appKey = (string) $this->app->get($key);
-        $companyKey = (string) $this->company->get($key);
-
-        return $appKey !== '' ? $appKey : $companyKey;
     }
 }

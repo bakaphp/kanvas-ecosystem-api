@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Jobs\EnsureCommunicationSetupJob;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\SharedRegistration;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
@@ -70,7 +72,15 @@ final class ReleaseUnusedRegistrationsAction
             ->whereDoesntHave('liveDependents')
             ->get();
 
-        return $candidates->sum(fn (SharedRegistration $registration): int => (int) $this->release($registration, waitForDeliveries: true));
+        return $candidates->sum(function (SharedRegistration $registration): int {
+            // Setup holds the registration: it is looked at again on the next sweep, and the rest
+            // of this one still runs.
+            try {
+                return (int) $this->release($registration, waitForDeliveries: true);
+            } catch (LockTimeoutException) {
+                return 0;
+            }
+        });
     }
 
     private function release(SharedRegistration $registration, bool $waitForDeliveries): bool
@@ -138,10 +148,34 @@ final class ReleaseUnusedRegistrationsAction
             }
 
             $receiver->forceFill(['is_active' => false])->saveOrFail();
+            $this->handOverSharedRegistrations($receiver);
             $deactivated++;
         }
 
         return $deactivated;
+    }
+
+    /**
+     * A vendor resource several companies share (one webhook per sending domain) may still point at
+     * the receiver that was just switched off. A company that still depends on it runs its setup
+     * now, which moves the resource onto its own receiver, so nothing the vendor reports in between
+     * is refused.
+     */
+    private function handOverSharedRegistrations(ReceiverWebhook $receiver): void
+    {
+        $registrations = SharedRegistration::query()
+            ->where('status', SharedRegistration::ACTIVE)
+            ->where('registered_value', $receiver->getUrl())
+            ->get();
+
+        foreach ($registrations as $registration) {
+            $dependent = $registration->liveDependents()->latest('id')->first();
+            $connection = Connection::query()->find($dependent?->connection_id);
+
+            if ($connection?->integrationCompany !== null) {
+                EnsureCommunicationSetupJob::dispatch($connection->app, $connection->integrationCompany);
+            }
+        }
     }
 
     /**

@@ -42,7 +42,7 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessElevenLabsWebhookJob
         $normalizedPhone = Str::normalizePhoneNumber($phone);
         $currentDate = now($company->get('timezone') ?? $company->timezone ?? 'UTC')->toDateTimeString();
 
-        $people = $this->findPeopleByPhone($normalizedPhone, $phone);
+        $people = $this->findPeopleByPhone($phone);
 
         if (! $people) {
             return [

@@ -28,6 +28,12 @@ trait KanvasCompanyScopesTrait
             return CompanyScope::applyToQuery($query, $table . 'companies_id', $company);
         }
 
+        // An id names one company and nothing else: it is never widened by an app key, and never
+        // swapped for the logged-in user's company (there is none in a queue worker).
+        if (is_int($company) || (is_string($company) && ctype_digit($company))) {
+            return $query->where($table . 'companies_id', (int) $company);
+        }
+
         $company = $company instanceof Companies ? $company : LocationContext::companyToScope($this);
 
         if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {

@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
+use Kanvas\Inventory\Products\Models\Products;
 use Laravel\Scout\Builder;
 use Mockery;
 use NeuronAI\Tools\TrackByInputs;
+use Override;
+use RuntimeException;
 use Tests\TestCase;
+use Throwable;
 
 final class NeuronInventorySearchToolTest extends TestCase
 {
@@ -102,6 +107,75 @@ final class NeuronInventorySearchToolTest extends TestCase
         $this->assertSame($firstKey, $tool->getRunKey());
     }
 
+    public function testFallsBackToTheNestedCompanyFilterOnCollectionsWithoutCompaniesId(): void
+    {
+        $user = auth()->user();
+        $tool = new ScriptedInventorySearchTool([
+            new RuntimeException('Could not find a filter field named `companies_id` in the schema.'),
+            new EloquentCollection(),
+        ]);
+        $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+
+        $result = $tool('BMW 760i');
+
+        $this->assertSame('no_matches', $result['status']);
+        $this->assertSame(['companies_id', 'company.id'], array_column($tool->calls, 'tenantField'));
+    }
+
+    public function testSchemaFallbacksCombineAndApplyOnce(): void
+    {
+        $user = auth()->user();
+        $tool = new ScriptedInventorySearchTool([
+            new RuntimeException('Could not find a filter field named `companies_id` in the schema.'),
+            new RuntimeException('Could not find a field named `translations.name` in the schema.'),
+            new RuntimeException('Could not find a filter field named `company.id` in the schema.'),
+        ]);
+        $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+
+        $result = $tool('BMW 760i');
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame(
+            [
+                ['companies_id', 'name,description,translations.name,translations.description'],
+                ['company.id', 'name,description,translations.name,translations.description'],
+                ['company.id', 'name,description'],
+            ],
+            array_map(fn (array $call) => [$call['tenantField'], $call['queryBy']], $tool->calls),
+        );
+    }
+
+    public function testSearchFailureIsSpeakableAndHidesEngineInternals(): void
+    {
+        $user = auth()->user();
+        $tool = new ScriptedInventorySearchTool([
+            new RuntimeException('Typesense 404: Could not find a filter field named `apps_id` in the schema.'),
+        ]);
+        $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+
+        $result = $tool('BMW 760i');
+
+        $this->assertSame('error', $result['status']);
+        $this->assertNotEmpty($result['message']);
+        $this->assertStringNotContainsString('apps_id', $result['message']);
+        $this->assertStringNotContainsString('Typesense', $result['message']);
+        $this->assertCount(1, $tool->calls, 'an unknown failure is not retried');
+    }
+
+    public function testDropsProductsOfAnotherCompany(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $foreign = new Products();
+        $foreign->forceFill(['id' => 1, 'companies_id' => $company->getId() + 1]);
+        $tool = new ScriptedInventorySearchTool([new EloquentCollection([$foreign])]);
+        $tool->withContext(app(Apps::class), $company, $user);
+
+        $result = $tool('BMW 760i');
+
+        $this->assertSame('no_matches', $result['status']);
+    }
+
     private function tool(): TestableInventorySearchTool
     {
         return new TestableInventorySearchTool();
@@ -146,5 +220,42 @@ final class TestableInventorySearchTool extends InventorySearchTool
     public function exposeNoMatchesResponse(string $productName): array
     {
         return $this->noMatchesResponse($productName);
+    }
+}
+
+/**
+ * Answers each search with the next scripted outcome — an exception the engine would throw, or
+ * the rows it would return — and records the fields each attempt used.
+ */
+final class ScriptedInventorySearchTool extends InventorySearchTool
+{
+    /** @var list<array{queryBy: string, tenantField: string}> */
+    public array $calls = [];
+
+    /**
+     * @param list<Throwable|EloquentCollection> $outcomes
+     */
+    public function __construct(private array $outcomes)
+    {
+    }
+
+    #[Override]
+    protected function searchQuery(
+        string $productName,
+        string $queryBy = 'name,description,translations.name,translations.description',
+        string $tenantField = 'companies_id',
+    ): Builder {
+        $this->calls[] = ['queryBy' => $queryBy, 'tenantField' => $tenantField];
+        $outcome = array_shift($this->outcomes);
+
+        $builder = Mockery::mock(Builder::class);
+        $builder->shouldReceive('take')->andReturnSelf();
+        if ($outcome instanceof Throwable) {
+            $builder->shouldReceive('get')->andThrow($outcome);
+        } else {
+            $builder->shouldReceive('get')->andReturn($outcome);
+        }
+
+        return $builder;
     }
 }

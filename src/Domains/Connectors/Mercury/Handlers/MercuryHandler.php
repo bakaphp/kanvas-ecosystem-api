@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Mercury\Actions\RegisterMercuryWebhookAction;
 use Kanvas\Connectors\Mercury\DataTransferObject\Mercury as MercuryDto;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;

@@ -35,7 +35,12 @@ enum ConfigurationEnum: string
     case DAILY_LEADS_DIGEST_COMBINED = 'guild_daily_leads_digest_combined';
     case DAILY_LEADS_DIGEST_SUMMARY_FIELDS = 'guild_daily_leads_digest_summary_fields';
     case AGENT_EMAIL_CC_ALLOWED_DOMAINS = 'guild_agent_email_cc_allowed_domains';
+    case EMAIL_THREAD_SUBJECT = 'title_email_follow_up';
     case CRM_DOWNLOAD_SERVICE_LEADS = 'guild_crm_download_service_leads';
+
+    // App settings named when Twilio was the only carrier; the keys stay so saved values still apply.
+    case SMS_MEDIA_BATCH_SIZE = 'twilio-mms-batch-size';
+    case SMS_MEDIA_MAX_TOTAL = 'twilio-mms-max-total-media';
 
     /**
      * A dealer CRM files service-department visits as leads of type SERVICE (VinSolutions) or

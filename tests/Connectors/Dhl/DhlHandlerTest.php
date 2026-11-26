@@ -13,11 +13,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\DataTransferObject\Dhl;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Dhl\Handlers\DhlHandler;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\Integrations;
 use Tests\Connectors\Traits\HasDhlConfiguration;
@@ -55,7 +55,7 @@ final class DhlHandlerTest extends TestCase
         $this->assertTrue($this->company->isSecret(ConfigurationEnum::PASSWORD->value));
         $this->assertSame('SD', $this->company->get(ConfigurationEnum::SIGNATURE_SERVICE->value));
         $this->assertSame('DO', $this->company->get(ConfigurationEnum::ORIGIN->value)['country_code']);
-        $this->assertNotNull(OrderStatusEnum::VERIFYING->forApp(app(Apps::class)), 'Connecting DHL creates the delivery order type');
+        $this->assertNotNull(DeliveryOrderStatusEnum::VERIFYING->forApp(app(Apps::class)), 'Connecting DHL creates the delivery order type');
 
         Http::assertSent(fn (Request $request): bool => $request->url() === self::DHL_HOST . '/rates'
             && $request->hasHeader('x-version', ConfigurationEnum::API_VERSION)

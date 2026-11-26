@@ -26,7 +26,7 @@ use function Sentry\captureException;
 class PlaceVoiceTestCallAction
 {
     // E.164: leading +, first digit 1-9, up to 15 digits total.
-    private const E164 = '/^\+[1-9]\d{6,14}$/';
+    private const string E164 = '/^\+[1-9]\d{6,14}$/';
 
     public function __construct(
         private readonly Agent $agent,
@@ -46,20 +46,17 @@ class PlaceVoiceTestCallAction
             );
         }
 
-        $url = VoiceRuntimeConfig::url();
-        $token = VoiceRuntimeConfig::apiToken();
-
-        if ($url === '' || $token === '') {
+        if (! VoiceRuntimeConfig::isConfigured()) {
             throw new ValidationException(
                 'The voice runtime is not configured. Set VOICE_RUNTIME_URL and VOICE_RUNTIME_API_TOKEN in the environment.'
             );
         }
 
         try {
-            $response = Http::withToken($token)
+            $response = Http::withToken(VoiceRuntimeConfig::apiToken())
                 ->acceptJson()
                 ->timeout(20)
-                ->post(rtrim($url, '/') . '/outbound', [
+                ->post(VoiceRuntimeConfig::url() . '/outbound', [
                     'to' => $this->toNumber,
                     // The runtime requires a tenant id; the company uuid keeps the
                     // call attributable without leaking internal ids.

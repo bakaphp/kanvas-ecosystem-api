@@ -13,6 +13,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingQuestionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
@@ -35,6 +40,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlans
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartAppKickoffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryReleaseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\StartFactoryTicketTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
@@ -431,6 +439,9 @@ class ProjectManagerAgent extends SystemUserAgent
 
         $core = $this->addToolContext([
             new ReadMessageContentTool(),
+            // Organization meetings are routed to the PM (MeetingAgentEnum::ORGANIZATION).
+            new AddOrganizationNoteTool(),
+            new ReadOrganizationActivityTool(),
             new ListProjectsTool(),
             new ListAssignedWorkTool(),
             new ListNervousSystemPlansTool(),
@@ -463,6 +474,20 @@ class ProjectManagerAgent extends SystemUserAgent
             new ListWorkflowOptionsTool(),
             new ListCompanyWorkflowsTool(),
         ]);
+
+        // Only a company with a factory has stages to start.
+        if ($this->companyHasFactory()) {
+            array_push($core, ...$this->addToolContext([
+                new StartAppKickoffTool($this->session),
+                new StartFactoryTicketTool($this->session),
+                new StartFactoryReleaseTool($this->session),
+            ]));
+            // A factory step that stops on a permission or a question is asked in this conversation; the
+            // check tool is where both answer tools read the ids from.
+            $core[] = new CheckHarnessCodingJobTool($agent);
+            $core[] = new AnswerHarnessCodingPermissionTool($agent, onlyRelays: true);
+            $core[] = new AnswerHarnessCodingQuestionTool($agent);
+        }
 
         $core[] = new CapabilityLookupTool($agent);
         $core[] = new ReportCapabilityGapTool($agent, $requestingHuman, $this->session);

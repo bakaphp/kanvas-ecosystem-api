@@ -117,7 +117,8 @@ final class CalendarableMapperTest extends TestCase
     public function testCapacityLandsOnTheKeyKanvasReads(): void
     {
         $this->assertSame(24, $this->map(CalendarableTypeEnum::LESSON)['version']['metadata']['max_capacity']);
-        $this->assertSame(0, $this->map(CalendarableTypeEnum::LESSON, ['occupancy' => null])['version']['metadata']['max_capacity']);
+        $this->assertNull($this->map(CalendarableTypeEnum::LESSON, ['occupancy' => null])['version']['metadata']['max_capacity']);
+        $this->assertNull($this->map(CalendarableTypeEnum::LESSON, ['occupancy' => 0])['version']['metadata']['max_capacity']);
     }
 
     /** A private-event gate password must never be copied into Kanvas, only its existence. */

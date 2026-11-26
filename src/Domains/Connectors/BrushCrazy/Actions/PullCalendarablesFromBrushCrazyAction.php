@@ -14,6 +14,7 @@ use Kanvas\Connectors\BrushCrazy\Enums\CalendarableTypeEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
 use Kanvas\Event\Events\Models\EventVersion;
 use Throwable;
@@ -87,6 +88,8 @@ class PullCalendarablesFromBrushCrazyAction
                     if ($onProgress !== null) {
                         $onProgress($morph, $rows->count());
                     }
+
+                    ImportPace::pauseBetweenChunks();
                 }
             );
         }

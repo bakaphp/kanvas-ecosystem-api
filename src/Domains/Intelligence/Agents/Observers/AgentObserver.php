@@ -9,6 +9,8 @@ use Kanvas\Intelligence\Agents\Actions\ReconcileAgentKanvasModulesAction;
 use Kanvas\Intelligence\Agents\Actions\RecordAgentVersionAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\NervousSystem\Orchestrator\Routing\Actions\EnsureMeetingAgentSettingAction;
+use Kanvas\NervousSystem\Orchestrator\Routing\Enums\MeetingAgentEnum;
 use Throwable;
 
 class AgentObserver
@@ -76,6 +78,10 @@ class AgentObserver
 
     public function updated(Agent $agent): void
     {
+        if ($agent->wasChanged(['is_deleted', 'is_active'])) {
+            $this->ensureMeetingAgentSetting($agent);
+        }
+
         if (! $agent->wasChanged(Agent::PROMPT_FIELDS)) {
             return;
         }
@@ -105,6 +111,31 @@ class AgentObserver
     {
         $this->appendIdToSlug($agent);
         $this->reconcileKanvasModules($agent);
+        $this->ensureMeetingAgentSetting($agent);
+    }
+
+    public function deleted(Agent $agent): void
+    {
+        $this->ensureMeetingAgentSetting($agent);
+    }
+
+    /**
+     * The company's first Sales Manager / PM agent becomes the one that works its routed meetings.
+     * The handler is queried rather than read through `$agent->type`: loading the relation here would
+     * leave it cached on the instance, stale for a caller that changes agent_type_id next.
+     */
+    private function ensureMeetingAgentSetting(Agent $agent): void
+    {
+        $role = MeetingAgentEnum::forHandler($agent->type()->value('handler'));
+        if ($role === null || $agent->companies_id <= 0 || $agent->company === null) {
+            return;
+        }
+
+        try {
+            new EnsureMeetingAgentSettingAction($agent->app, $agent->company, $role)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

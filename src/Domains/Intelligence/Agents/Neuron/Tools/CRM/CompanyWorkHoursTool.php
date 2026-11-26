@@ -14,7 +14,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Yasumi\Yasumi;
 
-#[AgentTool(name: 'Company Work Hours', category: 'crm')]
+#[AgentTool(name: 'Company Work Hours', category: 'crm', readOnly: true)]
 class CompanyWorkHoursTool extends Tool
 {
     protected string $name = 'get_company_work_hours';

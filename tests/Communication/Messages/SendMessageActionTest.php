@@ -6,6 +6,7 @@ namespace Tests\Communication\Messages;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\DataTransferObject\TransportResult;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
@@ -13,6 +14,8 @@ use Kanvas\Communication\Messages\Jobs\DispatchDeliveryJob;
 use Kanvas\Communication\Messages\Models\Request;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Social\Messages\Models\Message;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
 
@@ -21,7 +24,7 @@ final class SendMessageActionTest extends TestCase
     use BuildsCommunicationFixtures;
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social'];
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
     public function testTheRequestIsARowBeforeAnyProviderIsCalled(): void
     {
@@ -62,6 +65,42 @@ final class SendMessageActionTest extends TestCase
         $this->assertSame('accepted', $operation->status());
         $this->assertCount(1, $transport->sent);
         $this->assertNull($operation->request->sender);
+    }
+
+    /**
+     * Who spoke is on the request and on the message the ledger files for it.
+     */
+    public function testTheFiledMessageSaysWhoSpoke(): void
+    {
+        $this->useFakeProvider();
+        $this->defaultSmsConnection();
+        $agent = Agent::factory()
+            ->withAppId($this->currentApp()->getId())
+            ->withCompanyId($this->currentCompany()->getId())
+            ->create();
+
+        $byAgent = $this->communication()->send(
+            $this->personWithCellphone('+18095550131'),
+            'Your quote is ready',
+            channels: ['sms'],
+            from: Sender::agent($agent)
+        );
+        $byUser = $this->communication()->send(
+            $this->personWithCellphone('+18095550132'),
+            'Calling you in five',
+            channels: ['sms'],
+            from: Sender::user(auth()->user())
+        );
+
+        $agentMessage = Message::query()->findOrFail($byAgent->delivery(ChannelTypeEnum::SMS)->message_id);
+        $userMessage = Message::query()->findOrFail($byUser->delivery(ChannelTypeEnum::SMS)->message_id);
+
+        $this->assertTrue($agentMessage->message['from_ia']);
+        $this->assertSame($agent->getId(), $agentMessage->message['agent_id']);
+        $this->assertNull($byAgent->request->users_id);
+        $this->assertFalse($userMessage->message['from_ia']);
+        $this->assertSame(auth()->user()->getId(), (int) $byUser->request->users_id);
+        $this->assertSame(auth()->user()->getId(), (int) $userMessage->users_id);
     }
 
     public function testIdempotencyKeyDedupes(): void

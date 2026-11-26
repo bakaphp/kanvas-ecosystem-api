@@ -6,10 +6,10 @@ namespace Kanvas\Intelligence\Knowledge\DataTransferObject;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
+use Kanvas\Intelligence\Knowledge\Actions\IndexAgentDocumentsAction;
 use Kanvas\Intelligence\Knowledge\Research\Actions\ResearchCompanyWebsiteAction;
 use Kanvas\Intelligence\Knowledge\Services\CompanyKnowledgeService;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
-use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 
 final readonly class KnowledgeScope
 {
@@ -30,7 +30,7 @@ final readonly class KnowledgeScope
      * documents plus these company ones; another agent's files are reached only through a tool.
      */
     public const array DOCUMENT_SOURCE_TYPES = [
-        IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+        IndexAgentDocumentsAction::SOURCE_TYPE,
         CompanyKnowledgeService::SOURCE_TYPE_DOCUMENT,
         CompanyKnowledgeService::SOURCE_TYPE_URL,
         ResearchCompanyWebsiteAction::SOURCE_TYPE,

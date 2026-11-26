@@ -12,8 +12,8 @@ use Kanvas\Companies\Models\Companies;
 
 /**
  * Routes by the identity the vendor delivered to, through its claim — never by which receiver the
- * payload arrived at. Filing stays with the provider's job, which knows its payload; this decides
- * which workspace and connection the conversation is on and whether an automatic answer may go out.
+ * payload arrived at. This decides which workspace and connection the conversation is on and whether
+ * an automatic answer may go out; filing is ReceiveMessageAction's.
  *
  * $company is the workspace the receiver serves, or null for an app-wide receiver, which serves
  * every workspace of the app and so takes the workspace from the claim.
@@ -29,7 +29,11 @@ final class RouteInboundMessageAction
 
     public function execute(): InboundRoute
     {
-        $claim = InboundClaim::forIdentity($this->inbound->provider, $this->inbound->channel, $this->inbound->inboundIdentity);
+        $claim = InboundClaim::forIdentity(
+            $this->inbound->provider,
+            $this->inbound->channel,
+            $this->inbound->inboundIdentity
+        );
 
         if ($claim !== null && $this->serves($claim)) {
             return new InboundRoute(

@@ -48,9 +48,15 @@ final readonly class Operation
         $deliveries = $this->deliveries();
 
         $inFlight = $deliveries->contains(
-            fn (Delivery $delivery): bool => in_array($delivery->status, [DeliveryStatusEnum::PENDING, DeliveryStatusEnum::SENDING], true)
+            fn (Delivery $delivery): bool => in_array(
+                $delivery->status,
+                [DeliveryStatusEnum::PENDING, DeliveryStatusEnum::SENDING],
+                true
+            )
         );
-        $reached = $deliveries->filter(fn (Delivery $delivery): bool => $delivery->status->reachedTheProvider())->count();
+        $reached = $deliveries
+            ->filter(fn (Delivery $delivery): bool => $delivery->status->reachedTheProvider())
+            ->count();
 
         return match (true) {
             $inFlight => 'pending',
@@ -58,17 +64,6 @@ final readonly class Operation
             $reached === $deliveries->count() => 'accepted',
             default => 'partial',
         };
-    }
-
-    public function retry(ChannelTypeEnum $channel): self
-    {
-        $delivery = $this->delivery($channel);
-
-        if ($delivery !== null) {
-            new RetryDeliveryAction($delivery)->execute();
-        }
-
-        return $this;
     }
 
     /**

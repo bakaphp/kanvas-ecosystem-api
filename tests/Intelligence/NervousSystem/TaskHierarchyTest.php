@@ -153,6 +153,21 @@ class TaskHierarchyTest extends TestCase
         $this->assertStringContainsString('another plan', $crossPlan['error']);
     }
 
+    public function test_the_add_task_tool_reads_a_zero_parent_as_no_parent(): void
+    {
+        $plan = $this->makePlan();
+        $tool = new AddNervousSystemTaskTool()->withContext(
+            app(Apps::class),
+            static::$cachedUser->getCurrentCompany(),
+            static::$cachedUser,
+        );
+
+        $added = $tool(plan_id: $plan->getId(), title: 'Score the idea', parent_task_id: 0);
+
+        $this->assertArrayNotHasKey('error', $added);
+        $this->assertNull(Task::query()->findOrFail($added['task_id'])->parent_task_id);
+    }
+
     private function sessionFor(string $namespace, int $entityId, Plan $plan): Session
     {
         return Session::create([

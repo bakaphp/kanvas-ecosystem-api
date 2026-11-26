@@ -9,7 +9,10 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Jobs\WakeAgentInSessionJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
 use Kanvas\NervousSystem\Orchestrator\Routing\Approval\ProjectRoutingApprovalHandler;
 use Kanvas\NervousSystem\Orchestrator\Webhooks\ProcessOrchestratorSignalJob;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
@@ -26,13 +29,15 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Laravel\Ai\StructuredAnonymousAgent;
+use Tests\Intelligence\NervousSystem\Orchestrator\Concerns\MakesMeetingRoutingFixtures;
 use Tests\TestCase;
 
 class ProcessOrchestratorSignalJobTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesMeetingRoutingFixtures;
 
-    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'hr', 'intelligence', 'social', 'workflow'];
 
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
@@ -145,8 +150,8 @@ class ProcessOrchestratorSignalJobTest extends TestCase
                 ['title' => 'Acme launch', 'content' => 'Acme rollout ships Friday; design owns the banner.'],
                 ['title' => 'Beta pricing', 'content' => 'Beta pricing tiers need finance sign-off next week.'],
             ]],
-            ['project_id' => (int) $acme->id, 'confidence' => 0.9, 'reason' => 'Acme topic'],
-            ['project_id' => (int) $beta->id, 'confidence' => 0.9, 'reason' => 'Beta topic'],
+            ['candidate' => 'project:' . $acme->id, 'confidence' => 0.9, 'reason' => 'Acme topic'],
+            ['candidate' => 'project:' . $beta->id, 'confidence' => 0.9, 'reason' => 'Beta topic'],
         ]);
 
         // Content must clear the segmenter's min-length gate.
@@ -188,7 +193,7 @@ class ProcessOrchestratorSignalJobTest extends TestCase
         $receiver = $this->orchestratorReceiver($app, $company, $user, ['signal_source' => 'read_ai']);
 
         StructuredAnonymousAgent::fake([[
-            'project_id' => (int) $acme->id,
+            'candidate' => 'project:' . $acme->id,
             'confidence' => 0.9,
             'reason' => 'Acme',
         ]]);
@@ -213,7 +218,7 @@ class ProcessOrchestratorSignalJobTest extends TestCase
 
         // No member overlap → classifier runs; it decides no project fits.
         StructuredAnonymousAgent::fake([[
-            'project_id' => 0,
+            'candidate' => 'none',
             'confidence' => 0.0,
             'reason' => 'Internal FYI, no project.',
         ]]);
@@ -285,7 +290,7 @@ class ProcessOrchestratorSignalJobTest extends TestCase
 
         // No member overlap → classifier runs; mid-confidence → APPROVAL suggesting $target.
         StructuredAnonymousAgent::fake([[
-            'project_id' => (int) $target->id,
+            'candidate' => 'project:' . $target->id,
             'confidence' => 0.55,
             'reason' => 'probably Acme',
         ]]);
@@ -329,5 +334,139 @@ class ProcessOrchestratorSignalJobTest extends TestCase
         $result = new ProcessOrchestratorSignalJob($this->callFor($receiver, ['session_id' => 'x', 'title' => 'Empty']))->execute();
 
         $this->assertSame('ignored', $result['status']);
+    }
+
+    /**
+     * @param list<string> $emails
+     *
+     * @return array<string, mixed>
+     */
+    private function meetingPayload(array $emails): array
+    {
+        return [
+            'session_id' => 'sess_' . Str::random(10),
+            'trigger' => 'meeting_end',
+            'title' => 'Pricing call',
+            'participants' => array_map(static fn (string $email): array => ['name' => 'X', 'email' => $email], $emails),
+            'transcript' => ['speaker_blocks' => [['speaker' => ['name' => 'Buyer'], 'words' => 'We want the pro plan.']]],
+        ];
+    }
+
+    public function testALeadMeetingIsRoutedToTheSalesManager(): void
+    {
+        Bus::fake([WakeAgentInSessionJob::class, WakeAgentForProjectJob::class]);
+
+        $company = $this->freshCompany();
+        $staff = Users::factory()->create(['email' => $this->uniqueEmail('ourco-test.io')]);
+        $this->employee($company, $staff);
+        $salesManager = $this->agentOfType($company, SalesManagerAgent::class);
+        $buyer = $this->uniqueEmail();
+        $lead = $this->lead($company, $this->person($company, $buyer));
+
+        $receiver = $this->orchestratorReceiver(
+            app(Apps::class),
+            $company,
+            $this->testUser(),
+            [
+                'signal_source' => 'read_ai',
+                'destinations' => ['lead', 'organization', 'project'],
+            ],
+        );
+
+        // No LLM fake — the staff attendee is filtered out and the buyer's one open lead forwards alone.
+        $result = new ProcessOrchestratorSignalJob($this->callFor($receiver, $this->meetingPayload([$staff->email, $buyer])))->execute();
+
+        $this->assertSame('routed', $result['status']);
+        $this->assertSame($lead->getId(), $result['lead_id']);
+        $this->assertSame($salesManager->getId(), $result['agent_id']);
+        Bus::assertDispatched(WakeAgentInSessionJob::class);
+
+        $this->assertDatabaseHas('nervous_system_events', [
+            'event_type' => 'orchestrator.signal.routed',
+            'source_entity_type' => Lead::class,
+            'source_entity_id' => $lead->getId(),
+        ], 'intelligence');
+    }
+
+    public function testALeadMeetingWithNoSalesManagerIsOnlyLogged(): void
+    {
+        Bus::fake([WakeAgentInSessionJob::class]);
+
+        $company = $this->freshCompany();
+        $buyer = $this->uniqueEmail();
+        $lead = $this->lead($company, $this->person($company, $buyer));
+
+        $receiver = $this->orchestratorReceiver(
+            app(Apps::class),
+            $company,
+            $this->testUser(),
+            [
+                'signal_source' => 'read_ai',
+                'destinations' => ['lead'],
+            ],
+        );
+
+        $result = new ProcessOrchestratorSignalJob($this->callFor($receiver, $this->meetingPayload([$buyer])))->execute();
+
+        $this->assertSame('skipped', $result['status']);
+        Bus::assertNotDispatched(WakeAgentInSessionJob::class);
+        $this->assertDatabaseHas('nervous_system_events', [
+            'event_type' => 'orchestrator.signal.skipped',
+            'source_entity_id' => $lead->getId(),
+        ], 'intelligence');
+    }
+
+    public function testAnInternalMeetingWithNoConfidentProjectIsDroppedNotTriaged(): void
+    {
+        $company = $this->freshCompany();
+        $staff = Users::factory()->create(['email' => $this->uniqueEmail('ourco-test.io')]);
+        $this->employee($company, $staff);
+        $project = $this->makeProject(
+            app(Apps::class),
+            $company,
+            $this->testUser(),
+            'Website',
+        );
+
+        StructuredAnonymousAgent::fake([[
+            'candidate' => 'project:' . $project->id,
+            'confidence' => 0.2,
+            'reason' => 'Weak guess.',
+        ]]);
+
+        $receiver = $this->orchestratorReceiver(
+            app(Apps::class),
+            $company,
+            $this->testUser(),
+            [
+                'signal_source' => 'read_ai',
+                'destinations' => ['lead', 'organization', 'project'],
+            ],
+        );
+
+        $result = new ProcessOrchestratorSignalJob($this->callFor($receiver, $this->meetingPayload([$staff->email])))->execute();
+
+        $this->assertSame('dropped', $result['status']);
+        $this->assertSame('Internal meeting, no project match.', $result['reason']);
+    }
+
+    public function testAProjectsOnlyReceiverNeverRoutesToALead(): void
+    {
+        $company = $this->freshCompany();
+        $buyer = $this->uniqueEmail();
+        $this->agentOfType($company, SalesManagerAgent::class);
+        $this->lead($company, $this->person($company, $buyer));
+
+        $receiver = $this->orchestratorReceiver(
+            app(Apps::class),
+            $company,
+            $this->testUser(),
+            ['signal_source' => 'read_ai'],
+        );
+
+        $result = new ProcessOrchestratorSignalJob($this->callFor($receiver, $this->meetingPayload([$buyer])))->execute();
+
+        $this->assertSame('dropped', $result['status']);
+        $this->assertArrayNotHasKey('lead_id', $result);
     }
 }

@@ -56,7 +56,7 @@ final class VoiceAgentDefaultVoiceTest extends TestCase
             ->withCompanyId($this->company->getId())
             ->create(['voice_config' => ['phone_number' => null]]);
 
-        $spec = new VoiceAgentSpecService($agent, $this->testApp)->compile();
+        $spec = new VoiceAgentSpecService($agent)->compile();
 
         $this->assertSame('en', $spec['language']);
         $this->assertSame('en', $spec['models']['stt']['language']);
@@ -80,6 +80,6 @@ final class VoiceAgentDefaultVoiceTest extends TestCase
             ->withCompanyId($this->company->getId())
             ->create(['voice_config' => $voiceConfig ?: ['phone_number' => null]]);
 
-        return new VoiceAgentSpecService($agent, $this->testApp)->compile()['models']['tts']['voice_id'];
+        return new VoiceAgentSpecService($agent)->compile()['models']['tts']['voice_id'];
     }
 }

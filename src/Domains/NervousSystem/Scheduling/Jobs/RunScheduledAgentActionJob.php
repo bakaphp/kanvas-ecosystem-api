@@ -292,24 +292,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
             }
         }
 
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->action->apps_id,
-                'companies_id' => $this->action->companies_id,
-                'entity_namespace' => ScheduledAction::class,
-                'entity_id' => $this->action->getKey(),
-                'agents_id' => $agent->getId(),
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
-                'channel_id' => null,
-                'content' => '',
-                'user' => [],
-            ],
-        );
-
-        return $session;
+        return Session::firstOrCreateForEntity($this->action, extraKey: ['agents_id' => $agent->getId()]);
     }
 
     /**

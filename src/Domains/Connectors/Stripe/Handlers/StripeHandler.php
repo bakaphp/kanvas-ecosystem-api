@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Enums\IntegrationsEnum;

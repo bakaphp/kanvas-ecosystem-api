@@ -5,28 +5,41 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\BrushCrazy\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\ScalarCoercionTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Client;
+use Kanvas\Connectors\BrushCrazy\Concerns\SyncsAttachedPhotos;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\SaleLineKindEnum;
+use Kanvas\Connectors\BrushCrazy\Mappers\PaintingMapper;
 use Kanvas\Connectors\BrushCrazy\Mappers\ProductMapper;
 use Kanvas\Connectors\BrushCrazy\Support\IdMapRepository;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
+use Kanvas\Connectors\BrushCrazy\Support\PaintingRelations;
 use Kanvas\Connectors\BrushCrazy\Support\StudioContext;
+use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use RuntimeException;
 
 /**
- * The Inventory side of the sales import: every Souk OrderItem needs a variant, so this gives each
- * studio company one Product + Variant per BrushCrazy product it actually sold, plus one generic
- * line per SaleLineKindEnum for the sale items that have no product (class seats, gift cards,
- * deposits, tips, ...).
+ * The studio's whole catalog: one Product + Variant per BrushCrazy product the studio stocks
+ * (`inventory_items`), prices (`product_settings`) or ever sold, plus one generic line per
+ * SaleLineKindEnum for the sale items that have no product (class seats, gift cards, deposits,
+ * tips, ...). Each product is linked to its category and its group from the taxonomy action, and
+ * its warehouse row carries the studio's stock count and cost.
  *
  * BrushCrazy products are global; here each studio gets its own copy, priced at that studio's
  * `product_settings` override. Resolution is by external id (BRUSHCRAZY_PRODUCT_ID on the Product,
@@ -38,12 +51,27 @@ use RuntimeException;
  */
 class SyncCommerceCatalogFromBrushCrazyAction
 {
+    use ScalarCoercionTrait;
+    use SyncsAttachedPhotos;
+
     /** BrushCrazy morph aliases this action mirrors. */
-    public const array MORPHS = [self::PRODUCT_MORPH, self::PRODUCT_SETTING_MORPH];
+    public const array MORPHS = [
+        self::PRODUCT_MORPH,
+        self::PRODUCT_SETTING_MORPH,
+        self::INVENTORY_ITEM_MORPH,
+        ...SyncCatalogTaxonomyFromBrushCrazyAction::MORPHS,
+    ];
 
     public const string PRODUCT_MORPH = 'product';
 
     public const string PRODUCT_SETTING_MORPH = 'product-setting';
+
+    public const string INVENTORY_ITEM_MORPH = 'inventory-item';
+
+    public const string FEATURED_TAG = 'featured';
+
+    /** Bump when the write path changes what it writes, so the next pass rewrites every product. */
+    private const int FINGERPRINT_VERSION = 1;
 
     protected IdMapRepository $idMaps;
 
@@ -56,6 +84,13 @@ class SyncCommerceCatalogFromBrushCrazyAction
 
     protected bool $warehouseResolved = false;
 
+    protected ?Channels $channel = null;
+
+    protected bool $channelResolved = false;
+
+    /** @var array<int, Products> products whose channel price changed in this call, keyed by id */
+    protected array $pricedProducts = [];
+
     /** @var array<int, bool> products already looked up at the source and not found there */
     protected array $missingProducts = [];
 
@@ -65,61 +100,78 @@ class SyncCommerceCatalogFromBrushCrazyAction
         protected StudioContext $context,
         ?IdMapRepository $idMaps = null,
         protected ?Client $client = null,
+        protected ?SyncCatalogTaxonomyFromBrushCrazyAction $taxonomy = null,
     ) {
         $this->idMaps = $idMaps ?? new IdMapRepository();
     }
 
     /**
-     * @return array{products: int, lines: int}
+     * @return array{products: int, lines: int, category_types: int, categories: int, groups: int}
      */
     public function execute(): array
     {
         $this->region();
 
+        $taxonomy = $this->taxonomy()->execute();
+
+        $studioId = $this->context->bcStudioId;
+
         $productIds = $this->client()->table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
-            ->where('sales.studio_id', $this->context->bcStudioId)
+            ->where('sales.studio_id', $studioId)
             ->whereNotNull('sale_items.product_id')
             ->distinct()
             ->pluck('sale_items.product_id')
+            ->merge($this->studioProductIds('inventory_items'))
+            ->merge($this->studioProductIds('product_settings'))
             ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
             ->all();
 
         $synced = 0;
 
         foreach (array_chunk($productIds, 500) as $chunk) {
             $synced += $this->syncProducts($chunk);
+            ImportPace::pauseBetweenChunks();
         }
 
         foreach (SaleLineKindEnum::cases() as $kind) {
             $this->genericVariant($kind);
         }
 
-        return ['products' => $synced, 'lines' => count(SaleLineKindEnum::cases())];
+        return ['products' => $synced, 'lines' => count(SaleLineKindEnum::cases())] + $taxonomy;
     }
 
     /**
-     * The webhook entry point for `product` and `product-setting` pointers. Only products this
-     * studio already carries are refreshed; one it has never sold arrives with its first sale,
-     * through variantFor(). Returns the webhook result counter the pointer belongs to.
+     * The webhook entry point for catalog pointers. A `product` pointer is a broadcast (products are
+     * global), so it only refreshes a product this studio already carries; `product-setting` and
+     * `inventory-item` belong to one studio and bring the product in even when it is new there.
+     * Returns the webhook result counter the pointer belongs to.
      */
     public function fromPointer(string $morph, int $entityId): string
     {
-        if ($morph === self::PRODUCT_SETTING_MORPH) {
-            $setting = $this->client()
-                ->table('product_settings')
+        if (in_array($morph, SyncCatalogTaxonomyFromBrushCrazyAction::MORPHS, true)) {
+            return $this->taxonomy()->fromPointer($morph, $entityId);
+        }
+
+        if ($morph === self::PRODUCT_SETTING_MORPH || $morph === self::INVENTORY_ITEM_MORPH) {
+            $row = $this->client()
+                ->table($morph === self::PRODUCT_SETTING_MORPH ? 'product_settings' : 'inventory_items')
                 ->where('id', $entityId)
                 ->first(['product_id', 'studio_id']);
 
-            if ($setting === null || $setting->product_id === null) {
+            if ($row === null || $row->product_id === null) {
                 return SyncSaleFromBrushCrazyAction::MISSING;
             }
 
-            if ((int) $setting->studio_id !== $this->context->bcStudioId) {
+            if ((int) $row->studio_id !== $this->context->bcStudioId) {
                 return SyncSaleFromBrushCrazyAction::MISROUTED;
             }
 
-            $entityId = (int) $setting->product_id;
+            return $this->syncProducts([(int) $row->product_id]) > 0
+                ? SyncSaleFromBrushCrazyAction::SYNCED
+                : SyncSaleFromBrushCrazyAction::MISSING;
         }
 
         $known = $this->idMaps->loadFor(
@@ -160,7 +212,54 @@ class SyncCommerceCatalogFromBrushCrazyAction
             ->keyBy('product_id')
             ->all();
 
-        return $this->syncProductRows($products, $settings);
+        // Ordered by id so keyBy keeps the newest live row when a studio has duplicates.
+        $inventory = $this->client()->table('inventory_items')
+            ->where('studio_id', $this->context->bcStudioId)
+            ->whereIn('product_id', $bcProductIds)
+            ->whereNull('deleted_at')
+            ->orderBy('id')
+            ->get(['id', 'product_id', 'quantity', 'cost'])
+            ->keyBy('product_id')
+            ->all();
+
+        $featured = $this->client()->table('studio_products')
+            ->where('studio_id', $this->context->bcStudioId)
+            ->whereIn('product_id', $bcProductIds)
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $this->syncProductRows(
+            $products,
+            $settings,
+            $inventory,
+            $this->productPhotos($bcProductIds),
+            $featured
+        );
+    }
+
+    /**
+     * Null without a media base url, which leaves every product's photos as they are.
+     *
+     * @param  array<int, int>  $bcProductIds
+     * @return array<int, array{media_id: int, url: string}>|null  BrushCrazy product id => photo
+     */
+    protected function productPhotos(array $bcProductIds): ?array
+    {
+        $mediaBaseUrl = self::mediaBaseUrlOf($this->app);
+
+        if ($mediaBaseUrl === null) {
+            return null;
+        }
+
+        $photos = [];
+        $media = PaintingRelations::mediaQuery($this->client(), [self::PRODUCT_MORPH => $bcProductIds])->get()->all();
+
+        foreach (PaintingMapper::photos($media, $mediaBaseUrl) as $key => $photo) {
+            $photos[(int) substr($key, strlen(self::PRODUCT_MORPH) + 1)] = $photo;
+        }
+
+        return $photos;
     }
 
     /**
@@ -168,9 +267,17 @@ class SyncCommerceCatalogFromBrushCrazyAction
      *
      * @param  iterable<object>  $products
      * @param  array<int|string, object>  $settingsByProductId  this studio's product_settings
+     * @param  array<int|string, object>  $inventoryByProductId  this studio's inventory_items
+     * @param  array<int, array{media_id: int, url: string}>|null  $photosByProductId  null leaves photos alone
+     * @param  array<int, int>|null  $featuredProductIds  this studio's studio_products; null leaves the tag alone
      */
-    public function syncProductRows(iterable $products, array $settingsByProductId = []): int
-    {
+    public function syncProductRows(
+        iterable $products,
+        array $settingsByProductId = [],
+        array $inventoryByProductId = [],
+        ?array $photosByProductId = null,
+        ?array $featuredProductIds = null
+    ): int {
         $rows = [];
 
         foreach ($products as $product) {
@@ -187,10 +294,43 @@ class SyncCommerceCatalogFromBrushCrazyAction
             CustomFieldEnum::BRUSHCRAZY_PRODUCT_ID,
             array_keys($rows),
         );
+        $fingerprints = $this->idMaps->loadReverse(
+            $this->context->companyId(),
+            Products::class,
+            CustomFieldEnum::BRUSHCRAZY_SYNC_FINGERPRINT,
+            array_values($knownProducts),
+        );
+
+        $synced = [];
 
         foreach ($rows as $bcProductId => $row) {
-            $mapped = ProductMapper::map($row, $settingsByProductId[$bcProductId] ?? null);
             $knownProductId = $knownProducts[(string) $bcProductId] ?? null;
+            $categoryIds = array_values(array_filter([
+                $this->taxonomy()->categoryIdFor($this->intOrNull($row->category_id ?? null)),
+                $this->taxonomy()->groupCategoryIdFor($this->intOrNull($row->group_id ?? null)),
+            ]));
+            $fingerprint = self::fingerprint([
+                $row,
+                $settingsByProductId[$bcProductId] ?? null,
+                $inventoryByProductId[$bcProductId] ?? null,
+                $photosByProductId === null ? 'photos-untouched' : ($photosByProductId[$bcProductId] ?? null),
+                $featuredProductIds === null ? 'featured-untouched' : in_array($bcProductId, $featuredProductIds, true),
+                $categoryIds,
+            ]);
+
+            // Unchanged at the source since the last write: the ~10 reads and writes below would
+            // all come back equal. Every full pass (catalog, then sales) walks the whole catalog.
+            if ($knownProductId !== null
+                && ($fingerprints[(int) $knownProductId] ?? null) === $fingerprint
+                && isset($this->variants()[SaleLineKindEnum::productLookupKey($bcProductId)])) {
+                continue;
+            }
+
+            $mapped = ProductMapper::map(
+                $row,
+                $settingsByProductId[$bcProductId] ?? null,
+                $inventoryByProductId[$bcProductId] ?? null,
+            );
 
             $product = $this->writeQuietly(
                 Products::class,
@@ -204,15 +344,55 @@ class SyncCommerceCatalogFromBrushCrazyAction
                 $product->set(CustomFieldEnum::BRUSHCRAZY_PRODUCT_ID->value, $bcProductId);
             }
 
+            if ($photosByProductId !== null) {
+                $this->syncPhotos(
+                    $product,
+                    isset($photosByProductId[$bcProductId]) ? [PaintingMapper::PHOTO_FIELD => $photosByProductId[$bcProductId]] : []
+                );
+            }
+
+            if ($featuredProductIds !== null) {
+                $this->syncFeatured($product, in_array($bcProductId, $featuredProductIds, true));
+            }
+
+            $this->syncCategories($product, $categoryIds);
+
             $this->upsertVariant(
                 SaleLineKindEnum::productLookupKey($bcProductId),
                 $product,
                 $mapped['variant'],
-                $mapped['price']
+                $mapped['price'],
+                $mapped['stock']
             );
+
+            // Last: a write that failed above leaves the old fingerprint, so the next pass retries.
+            $product->disableWorkflows();
+            $product->set(CustomFieldEnum::BRUSHCRAZY_SYNC_FINGERPRINT->value, $fingerprint);
+
+            $synced[] = $product;
         }
 
+        // After the variants: the search document is built from the channel prices written above.
+        ImportPace::indexChanged($synced, array_values($this->pricedProducts));
+
+        foreach ($this->pricedProducts as $product) {
+            $product->clearLightHouseCache(withKanvasConfiguration: false);
+        }
+
+        $this->pricedProducts = [];
+
         return count($rows);
+    }
+
+    /**
+     * Everything one product's write is built from: its source rows (each carries its own
+     * `updated_at`), whether its photo and featured flag are being synced, and its category ids.
+     *
+     * @param  array<int, mixed>  $inputs
+     */
+    public static function fingerprint(array $inputs): string
+    {
+        return self::FINGERPRINT_VERSION . ':' . md5((string) json_encode($inputs));
     }
 
     /**
@@ -304,13 +484,91 @@ class SyncCommerceCatalogFromBrushCrazyAction
     }
 
     /**
+     * A studio's `studio_products` are its homepage's featured products; the shop reads them by tag.
+     */
+    protected function syncFeatured(Products $product, bool $isFeatured): void
+    {
+        if ($product->hasTag([self::FEATURED_TAG]) === $isFeatured) {
+            return;
+        }
+
+        $product->disableWorkflows();
+
+        if ($isFeatured) {
+            $product->addTag(
+                self::FEATURED_TAG,
+                $this->app,
+                $this->user,
+                $this->context->company
+            );
+        } else {
+            $product->removeTag(self::FEATURED_TAG);
+        }
+    }
+
+    /**
+     * The product's links to BrushCrazy categories (its category and its group) end up exactly
+     * $categoryIds: a link the source dropped is removed, a missing one added. Links to categories
+     * made in Kanvas are left alone.
+     *
+     * Removed, not soft-deleted: Products::categories() does not filter the pivot's is_deleted, so a
+     * soft-deleted link keeps the product listed under its old category on the storefront.
+     *
+     * @param  array<int, int>  $categoryIds
+     */
+    protected function syncCategories(Products $product, array $categoryIds): void
+    {
+        $links = ProductsCategories::withTrashed()
+            ->where('products_id', $product->getId())
+            ->whereIn(
+                'categories_id',
+                Categories::withTrashed()
+                    ->where('apps_id', $this->app->getId())
+                    ->where('companies_id', $this->context->companyId())
+                    ->where(fn ($query) => $query->where('slug', 'like', 'bc-category-%')->orWhere('slug', 'like', 'bc-group-%'))
+                    ->select('id')
+            )
+            ->get();
+
+        $stale = [];
+
+        foreach ($links as $link) {
+            if (! in_array((int) $link->categories_id, $categoryIds, true)) {
+                $stale[] = (int) $link->categories_id;
+            } elseif ($link->is_deleted) {
+                $link->is_deleted = false;
+                $link->saveQuietly();
+            }
+        }
+
+        if ($stale !== []) {
+            ProductsCategories::withTrashed()
+                ->where('products_id', $product->getId())
+                ->whereIn('categories_id', $stale)
+                ->toBase()
+                ->delete();
+        }
+
+        $linked = array_diff($links->map(fn ($link) => (int) $link->categories_id)->all(), $stale);
+
+        foreach (array_diff($categoryIds, $linked) as $categoryId) {
+            $link = new ProductsCategories();
+            $link->products_id = $product->getId();
+            $link->categories_id = $categoryId;
+            $link->saveQuietly();
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
+     * @param  array{quantity: int, cost: float}|null  $stock  the studio's inventory row, if it has one
      */
     protected function upsertVariant(
         string $lookupKey,
         Products $product,
         array $attributes,
-        float $price
+        float $price,
+        ?array $stock = null
     ): Variants {
         $knownVariant = $this->variants()[$lookupKey] ?? null;
 
@@ -329,25 +587,93 @@ class SyncCommerceCatalogFromBrushCrazyAction
         $warehouse = $this->warehouse();
 
         if ($warehouse !== null) {
-            $stock = VariantsWarehouses::withTrashed()->firstOrNew([
+            $warehouseRow = VariantsWarehouses::withTrashed()->firstOrNew([
                 'products_variants_id' => $variant->getId(),
                 'warehouses_id' => $warehouse->getId(),
             ]);
 
-            // quantity lost its column default in a later migration; a re-sync must not reset stock.
-            if (! $stock->exists) {
-                $stock->quantity = 0;
+            // BrushCrazy's count wins when the studio stocks the product. Without one, a re-sync keeps
+            // what is there (quantity lost its column default in a later migration).
+            if ($stock !== null) {
+                $warehouseRow->quantity = $stock['quantity'];
+                $warehouseRow->cost = $stock['cost'];
+            } elseif (! $warehouseRow->exists) {
+                $warehouseRow->quantity = 0;
             }
 
-            $stock->fill([
+            $warehouseRow->fill([
                 'price' => $price,
                 'sku' => $variant->sku,
                 'position' => 0,
             ]);
-            $stock->saveQuietly();
+
+            if (! $warehouseRow->exists || $warehouseRow->isDirty()) {
+                $warehouseRow->saveQuietly();
+            }
+
+            $this->publishToChannel(
+                $product,
+                $variant,
+                $warehouseRow,
+                $price
+            );
         }
 
         return $this->variants[$lookupKey] = $variant;
+    }
+
+    /**
+     * The storefront, the cart and Souk's order lines all price a variant from its default-channel
+     * row, not the warehouse one. Written only when it changed: AddVariantToChannelAction records a
+     * price-history row on every call. An unpublished product (the generic sale lines) gets an
+     * unpublished row, so the action never republishes it.
+     */
+    protected function publishToChannel(
+        Products $product,
+        Variants $variant,
+        VariantsWarehouses $warehouseRow,
+        float $price
+    ): void {
+        $channel = $this->channel();
+
+        if ($channel === null) {
+            return;
+        }
+
+        $isPublished = (bool) $product->is_published && $price > 0;
+
+        $current = VariantsChannels::withTrashed()
+            ->where('product_variants_warehouse_id', $warehouseRow->getId())
+            ->where('channels_id', $channel->getId())
+            ->first();
+
+        if ($current !== null
+            && ! $current->is_deleted
+            && (bool) $current->is_published === $isPublished
+            && round((float) $current->price, 2) === round($price, 2)) {
+            return;
+        }
+
+        new AddVariantToChannelAction(
+            $warehouseRow,
+            $channel,
+            new VariantChannel(price: $price, is_published: $isPublished),
+        )->execute();
+
+        $this->pricedProducts[$product->getId()] = $product;
+        $variant->clearLightHouseCache(withKanvasConfiguration: false);
+    }
+
+    protected function channel(): ?Channels
+    {
+        if (! $this->channelResolved) {
+            $this->region();
+            $channel = Channels::getDefault($this->context->company, $this->app);
+            $this->channel = $channel instanceof Channels ? $channel : null;
+            $this->channelResolved = true;
+        }
+
+        return $this->channel;
     }
 
     /**
@@ -445,5 +771,27 @@ class SyncCommerceCatalogFromBrushCrazyAction
     protected function client(): Client
     {
         return $this->client ??= new Client($this->app);
+    }
+
+    /**
+     * Soft-deleted rows included: a product the studio stopped stocking is still its product.
+     */
+    protected function studioProductIds(string $table): Collection
+    {
+        return $this->client()->table($table)
+            ->where('studio_id', $this->context->bcStudioId)
+            ->whereNotNull('product_id')
+            ->distinct()
+            ->pluck('product_id');
+    }
+
+    protected function taxonomy(): SyncCatalogTaxonomyFromBrushCrazyAction
+    {
+        return $this->taxonomy ??= new SyncCatalogTaxonomyFromBrushCrazyAction(
+            $this->app,
+            $this->user,
+            $this->context,
+            $this->client,
+        );
     }
 }

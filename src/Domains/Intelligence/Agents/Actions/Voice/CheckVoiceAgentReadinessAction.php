@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\Twilio\Actions\DescribeCompanyTwilioAction;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
+use Kanvas\Connectors\Twilio\Services\CompanyPhoneNumbersService;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Enums\ReadinessStatusEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -69,9 +69,9 @@ class CheckVoiceAgentReadinessAction
         return new DescribeCompanyTwilioAction($this->agent->company);
     }
 
-    protected function phoneNumbers(): ListCompanyPhoneNumbersAction
+    protected function phoneNumbers(): CompanyPhoneNumbersService
     {
-        return new ListCompanyPhoneNumbersAction($this->agent->company);
+        return new CompanyPhoneNumbersService($this->agent->company);
     }
 
     private function runtime(): array
@@ -148,7 +148,7 @@ class CheckVoiceAgentReadinessAction
 
     private function prompt(): array
     {
-        if (new VoiceAgentSpecService($this->agent, $this->agent->app)->systemInstruction() === '') {
+        if (new VoiceAgentSpecService($this->agent)->systemInstruction() === '') {
             return $this->error('prompt', 'The agent has no instructions, so it doesn\'t know who it is on a call.', 'edit_prompt');
         }
 

@@ -5,28 +5,43 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\InAppPurchase;
 
 use Carbon\Carbon;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
+use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Cashier\Subscription as CashierSubscription;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 class AppleRenewableSubscriptionTest extends TestCase
 {
+    use DatabaseTransactions;
+    use ManagesAppSettings;
+
+    // Same leak as AppleSignedTransactionTest: a purchase files the process's shared user as a CRM person.
+    protected $connectionsToTransact = [null, 'crm', 'commerce'];
+
+    private string $runId;
+
     protected function setUp(): void
     {
         parent::setUp();
         if (getenv('GITHUB_ACTIONS')) {
             $this->markTestSkipped('InAppPurchase integration tests are skipped in CI');
         }
+
+        $this->runId = uniqid();
     }
 
     public function testCreateRenewableSubscriptionOrderAndPersistSubscription(): void
@@ -43,7 +58,7 @@ class AppleRenewableSubscriptionTest extends TestCase
             'status' => 0,
             'environment' => 'Sandbox',
             'latest_receipt_info' => [[
-                'original_transaction_id' => 'original_tx_1',
+                'original_transaction_id' => $this->originalTransactionId(1),
                 'product_id' => 'sub_monthly_001',
                 'quantity' => 1,
                 'transaction_id' => 'renew_tx_1',
@@ -65,7 +80,7 @@ class AppleRenewableSubscriptionTest extends TestCase
                 receipt: 'renewable-receipt',
                 transaction_date: now()->getTimestampMs(),
                 is_renewable_subscription: true,
-                original_transaction_id: 'original_tx_1'
+                original_transaction_id: $this->originalTransactionId(1)
             ),
             $response
         );
@@ -73,7 +88,10 @@ class AppleRenewableSubscriptionTest extends TestCase
         $order = $action->execute();
 
         $this->assertEquals('renew_tx_1', $order->metadata['apple_subscription']['transaction_id']);
-        $this->assertEquals('original_tx_1', $order->metadata['apple_subscription']['original_transaction_id']);
+        $this->assertEquals(
+            $this->originalTransactionId(1),
+            $order->metadata['apple_subscription']['original_transaction_id']
+        );
         $this->assertTrue($order->hasTag(['iap-subscription']));
 
         $appsStripeCustomer = AppsStripeCustomer::where('apps_id', $app->getId())
@@ -83,11 +101,11 @@ class AppleRenewableSubscriptionTest extends TestCase
             ->first();
 
         $this->assertNotNull($appsStripeCustomer);
-        $this->assertEquals('original_tx_1', $appsStripeCustomer->stripe_id);
+        $this->assertEquals($this->originalTransactionId(1), $appsStripeCustomer->stripe_id);
         $this->assertEquals($order->getId(), (int) ($appsStripeCustomer->config['order_id'] ?? 0));
 
         $subscription = CashierSubscription::where('apps_stripe_customer_id', $appsStripeCustomer->getId())
-            ->where('stripe_id', 'original_tx_1')
+            ->where('stripe_id', $this->originalTransactionId(1))
             ->first();
 
         $this->assertNotNull($subscription);
@@ -110,7 +128,7 @@ class AppleRenewableSubscriptionTest extends TestCase
             'status' => 0,
             'environment' => 'Sandbox',
             'latest_receipt_info' => [[
-                'original_transaction_id' => 'original_tx_2',
+                'original_transaction_id' => $this->originalTransactionId(2),
                 'product_id' => 'sub_monthly_002',
                 'quantity' => 1,
                 'transaction_id' => 'renew_tx_2',
@@ -131,7 +149,7 @@ class AppleRenewableSubscriptionTest extends TestCase
             receipt: 'renewable-receipt',
             transaction_date: now()->getTimestampMs(),
             is_renewable_subscription: true,
-            original_transaction_id: 'original_tx_2'
+            original_transaction_id: $this->originalTransactionId(2)
         );
 
         $orderA = $this->mockedRenewableAction($dto, $response)->execute();
@@ -161,7 +179,7 @@ class AppleRenewableSubscriptionTest extends TestCase
             'status' => 0,
             'environment' => 'Sandbox',
             'latest_receipt_info' => [[
-                'original_transaction_id' => 'original_tx_3',
+                'original_transaction_id' => $this->originalTransactionId(3),
                 'product_id' => 'sub_monthly_003',
                 'quantity' => 1,
                 'transaction_id' => 'renew_tx_3_a',
@@ -176,7 +194,7 @@ class AppleRenewableSubscriptionTest extends TestCase
             'status' => 0,
             'environment' => 'Sandbox',
             'latest_receipt_info' => [[
-                'original_transaction_id' => 'original_tx_3',
+                'original_transaction_id' => $this->originalTransactionId(3),
                 'product_id' => 'sub_monthly_003',
                 'quantity' => 1,
                 'transaction_id' => 'renew_tx_3_a',
@@ -185,7 +203,7 @@ class AppleRenewableSubscriptionTest extends TestCase
                 'is_trial_period' => 'false',
                 'is_in_intro_offer_period' => 'false',
             ], [
-                'original_transaction_id' => 'original_tx_3',
+                'original_transaction_id' => $this->originalTransactionId(3),
                 'product_id' => 'sub_monthly_003',
                 'quantity' => 1,
                 'transaction_id' => 'renew_tx_3_b',
@@ -207,7 +225,7 @@ class AppleRenewableSubscriptionTest extends TestCase
                 receipt: 'renewable-receipt',
                 transaction_date: now()->subDays(2)->getTimestampMs(),
                 is_renewable_subscription: true,
-                original_transaction_id: 'original_tx_3'
+                original_transaction_id: $this->originalTransactionId(3)
             ),
             $firstResponse
         )->execute();
@@ -223,7 +241,7 @@ class AppleRenewableSubscriptionTest extends TestCase
                 receipt: 'renewable-receipt',
                 transaction_date: now()->subHour()->getTimestampMs(),
                 is_renewable_subscription: true,
-                original_transaction_id: 'original_tx_3'
+                original_transaction_id: $this->originalTransactionId(3)
             ),
             $secondResponse
         )->execute();
@@ -238,11 +256,142 @@ class AppleRenewableSubscriptionTest extends TestCase
             ->firstOrFail();
 
         $subscription = CashierSubscription::where('apps_stripe_customer_id', $appsStripeCustomer->getId())
-            ->where('stripe_id', 'original_tx_3')
+            ->where('stripe_id', $this->originalTransactionId(3))
             ->firstOrFail();
 
         $this->assertEquals('sub_monthly_003', $subscription->stripe_price);
         $this->assertTrue(Carbon::parse((string) $subscription->ends_at)->isAfter(now()->addMonth()));
+    }
+
+    public function testRefundedReceiptEndsAccessAtTheCancellationDate(): void
+    {
+        $cancelledAt = now()->subHour();
+
+        $this->executeRenewable(5, 'refund_tx_5', [
+            $this->receiptInfo(
+                lineage: 5,
+                transactionId: 'refund_tx_5',
+                purchasedAt: now()->subDays(2),
+                expiresAt: now()->addMonth()
+            )
+                + ['cancellation_date_ms' => $cancelledAt->getTimestampMs()],
+        ]);
+
+        $subscription = $this->findSubscription(5);
+        $this->assertEquals('canceled', $subscription->stripe_status);
+        $this->assertEquals($cancelledAt->getTimestamp(), $subscription->ends_at->getTimestamp());
+        $this->assertNull($subscription->trial_ends_at);
+        $this->assertFalse($subscription->active());
+        $this->assertFalse($subscription->valid());
+    }
+
+    public function testOnlyAPurchaseAfterTheRefundReactivatesTheSubscription(): void
+    {
+        $refunded = $this->receiptInfo(
+            lineage: 6,
+            transactionId: 'refund_tx_6_a',
+            purchasedAt: now()->subDays(3),
+            expiresAt: now()->addMonth()
+        )
+            + ['cancellation_date_ms' => now()->subDay()->getTimestampMs()];
+
+        $refundedOrder = $this->executeRenewable(6, 'refund_tx_6_a', [$refunded]);
+
+        $boughtBeforeRefund = $this->receiptInfo(
+            lineage: 6,
+            transactionId: 'refund_tx_6_b',
+            purchasedAt: now()->subDays(2),
+            expiresAt: now()->addMonths(2)
+        );
+        $replayed = $this->executeRenewable(6, 'refund_tx_6_b', [$refunded, $boughtBeforeRefund]);
+
+        $this->assertEquals($refundedOrder->getId(), $replayed->getId());
+        $this->assertEquals('canceled', $this->findSubscription(6)->stripe_status);
+
+        $boughtAfterRefund = $this->receiptInfo(
+            lineage: 6,
+            transactionId: 'refund_tx_6_c',
+            purchasedAt: now()->subMinute(),
+            expiresAt: now()->addMonth()
+        );
+        $resubscribed = $this->executeRenewable(6, 'refund_tx_6_c', [$refunded, $boughtAfterRefund]);
+
+        $this->assertNotEquals($refundedOrder->getId(), $resubscribed->getId());
+        $subscription = $this->findSubscription(6);
+        $this->assertEquals('active', $subscription->stripe_status);
+        $this->assertTrue($subscription->active());
+    }
+
+    public function testReceiptTransactionWithoutExpiryIsRefused(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new Setup($app, $user, $company)->run();
+        $region = Regions::fromApp($app)->fromCompany($company)->firstOrFail();
+
+        $this->createProduct(
+            app: $app,
+            company: $company,
+            user: $user,
+            sku: 'sub_monthly_005'
+        );
+
+        $response = ReceiptResponse::fromArray([
+            'status' => 0,
+            'environment' => 'Sandbox',
+            'latest_receipt_info' => [[
+                'original_transaction_id' => $this->originalTransactionId(5),
+                'product_id' => 'sub_monthly_005',
+                'quantity' => 1,
+                'transaction_id' => 'renew_tx_5',
+                'purchase_date_ms' => now()->subDay()->getTimestampMs(),
+            ]],
+        ]);
+
+        $action = $this->mockedRenewableAction(
+            new AppleInAppPurchaseReceipt(
+                app: $app,
+                company: $company,
+                user: $user,
+                region: $region,
+                product_id: 'sub_monthly_005',
+                transaction_id: 'renew_tx_5',
+                receipt: 'renewable-receipt',
+                transaction_date: now()->getTimestampMs(),
+                is_renewable_subscription: true,
+                original_transaction_id: $this->originalTransactionId(5)
+            ),
+            $response
+        );
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('has no expiry');
+
+        $action->execute();
+    }
+
+    #[Group('serial')]
+    public function testRenewableReceiptOfAnotherAppIsRejected(): void
+    {
+        $this->setAppSettings([ConfigurationEnum::APPLE_BUNDLE_ID->value => 'com.kanvas.receipt.test']);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Apple payload belongs to another app');
+
+        $this->executeRenewable(
+            lineage: 6,
+            transactionId: 'renew_tx_6',
+            latestReceiptInfo: [
+                $this->receiptInfo(
+                    lineage: 6,
+                    transactionId: 'renew_tx_6',
+                    purchasedAt: now()->subDay(),
+                    expiresAt: now()->addMonth()
+                ),
+            ],
+            receiptBundleId: 'com.someone.else'
+        );
     }
 
     public function testRenewableInvalidReceiptThrowsValidationException(): void
@@ -274,10 +423,86 @@ class AppleRenewableSubscriptionTest extends TestCase
                 receipt: 'renewable-receipt',
                 transaction_date: now()->getTimestampMs(),
                 is_renewable_subscription: true,
-                original_transaction_id: 'original_tx_4'
+                original_transaction_id: $this->originalTransactionId(4)
             ),
             $invalidResponse
         )->execute();
+    }
+
+    /**
+     * @param list<array<string, mixed>> $latestReceiptInfo
+     */
+    private function executeRenewable(
+        int $lineage,
+        string $transactionId,
+        array $latestReceiptInfo,
+        ?string $receiptBundleId = null
+    ): Order {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new Setup($app, $user, $company)->run();
+
+        if (! Variants::query()->where('sku', $this->lineageSku($lineage))->exists()) {
+            $this->createProduct(
+                app: $app,
+                company: $company,
+                user: $user,
+                sku: $this->lineageSku($lineage)
+            );
+        }
+
+        return $this->mockedRenewableAction(
+            new AppleInAppPurchaseReceipt(
+                app: $app,
+                company: $company,
+                user: $user,
+                region: Regions::fromApp($app)->fromCompany($company)->firstOrFail(),
+                product_id: $this->lineageSku($lineage),
+                transaction_id: $transactionId,
+                receipt: 'renewable-receipt',
+                transaction_date: now()->getTimestampMs(),
+                is_renewable_subscription: true,
+                original_transaction_id: $this->originalTransactionId($lineage)
+            ),
+            ReceiptResponse::fromArray([
+                'status' => 0,
+                'environment' => 'Sandbox',
+                'receipt' => ['bundle_id' => $receiptBundleId],
+                'latest_receipt_info' => $latestReceiptInfo,
+            ])
+        )->execute();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function receiptInfo(
+        int $lineage,
+        string $transactionId,
+        Carbon $purchasedAt,
+        Carbon $expiresAt
+    ): array {
+        return [
+            'original_transaction_id' => $this->originalTransactionId($lineage),
+            'product_id' => $this->lineageSku($lineage),
+            'quantity' => 1,
+            'transaction_id' => $transactionId,
+            'purchase_date_ms' => $purchasedAt->getTimestampMs(),
+            'expires_date_ms' => $expiresAt->getTimestampMs(),
+            'is_trial_period' => 'false',
+            'is_in_intro_offer_period' => 'false',
+        ];
+    }
+
+    private function lineageSku(int $lineage): string
+    {
+        return 'sub_lineage_' . $lineage . '_' . $this->runId;
+    }
+
+    private function findSubscription(int $lineage): CashierSubscription
+    {
+        return CashierSubscription::where('stripe_id', $this->originalTransactionId($lineage))->firstOrFail();
     }
 
     private function createProduct(Apps $app, mixed $company, mixed $user, string $sku): void
@@ -315,5 +540,10 @@ class AppleRenewableSubscriptionTest extends TestCase
                 return $this->response;
             }
         };
+    }
+
+    private function originalTransactionId(int $number): string
+    {
+        return 'original_tx_' . $number . '_' . $this->runId;
     }
 }

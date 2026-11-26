@@ -55,11 +55,17 @@ class ClearChannelMessagesActionTest extends TestCaseUnit
         $channel->messagesRelation = $messagesRelation;
         $channel->last_message_id = 55;
 
+        $manager = app('db');
         DB::shouldReceive('connection->transaction')
             ->once()
             ->andReturnUsing(fn (callable $callback): bool => $callback());
 
-        $result = new ClearChannelMessagesAction($channel)->execute();
+        try {
+            $result = new ClearChannelMessagesAction($channel)->execute();
+        } finally {
+            // Laravel's teardown disconnects through app('db'); it has to find the real manager there.
+            DB::swap($manager);
+        }
 
         $this->assertTrue($result);
         $this->assertTrue($channel->saveCalled);

@@ -6,20 +6,22 @@ namespace Kanvas\Connectors\WaSender\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Communication\Connections\Actions\RetireConnectionAction;
+use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
+use Kanvas\Connectors\WaSender\Handlers\WaSenderHandler;
 use Kanvas\Connectors\WaSender\Services\SessionService;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Rules\Models\Rule;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Throwable;
 
 /**
- * Disconnect an agent's WhatsApp connection. The agent owns it, so the session id / receiver id are
- * read off the agent (set by ConnectWhatsAppSessionAction).
+ * Disconnect an agent's WhatsApp connection. The agent owns it, so the session id is read off the
+ * agent (set by ConnectWhatsAppSessionAction).
  *
  * - pause (remove = false): unlink WhatsApp; the session + QR-reconnect stay.
- * - remove (remove = true): delete the WaSender session AND tear down our routing (receiver + rule)
- *   and clear the agent's connection fields, so nothing keeps firing after removal.
+ * - remove (remove = true): delete the WaSender session, retire the number's connection and clear
+ *   the agent's connection fields, so nothing is sent from or answered on it after removal.
  */
 class DisconnectWhatsAppSessionAction
 {
@@ -54,42 +56,56 @@ class DisconnectWhatsAppSessionAction
             report($e);
         }
 
-        $this->deactivateReceiver();
-        $this->deactivateRule();
+        // Before the connection is retired: an agent that still declares the number keeps it listed,
+        // and a listed account that was retired is never provisioned again.
         $this->clearAgentConnection();
+        $this->retireConnection($sessionId);
 
         return true;
     }
 
-    private function deactivateReceiver(): void
+    /**
+     * The number is gone, so the connection is: retired, and no longer selected on the integration
+     * or the receiver, or the next setup pass would bring it back. The receiver itself stays (it is
+     * the company's, and a new session links to the same one), and so does its secret: without one
+     * it would take unsigned calls.
+     */
+    private function retireConnection(int $sessionId): void
     {
-        $receiverId = (int) $this->agent->get(ConnectionFieldEnum::RECEIVER_ID->value);
-        if ($receiverId <= 0) {
+        $connection = WaSenderHandler::connectionFor($this->app, $this->company);
+
+        // Another agent's session is the live one: removing this agent's must not take it down.
+        if ($connection === null || ! $this->serves($connection, $sessionId)) {
             return;
         }
 
-        $receiver = ReceiverWebhook::find($receiverId);
+        $receiver = WaSenderHandler::receiverFor($connection->app, $connection->company);
+
         if ($receiver !== null) {
-            $receiver->is_active = false;
+            $receiver->configuration = array_diff_key($receiver->configuration ?? [], array_flip(['agent_id', 'session_id']));
             $receiver->saveOrFail();
         }
-    }
 
-    private function deactivateRule(): void
-    {
-        $rule = Rule::query()
-            ->where('name', ConnectWhatsAppSessionAction::RULE_NAME)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->first();
+        $integrationCompany = IntegrationsCompany::query()->find($connection->integrations_company_id);
 
-        if ($rule === null) {
-            return;
+        if ($integrationCompany !== null) {
+            $integrationCompany->config = array_diff_key(
+                $integrationCompany->config ?? [],
+                array_flip(['phone_number', 'agent_id', 'session_id'])
+            ) ?: null;
+            $integrationCompany->saveOrFail();
         }
 
-        $rule->getRulesConditions()->update(['is_deleted' => 1]);
-        $rule->workflowActivities()->update(['is_deleted' => 1]);
-        $rule->softDelete();
+        new RetireConnectionAction($connection, 'session_removed')->execute();
+    }
+
+    private function serves(Connection $connection, int $sessionId): bool
+    {
+        $connectionSession = (int) ($connection->config['session_id'] ?? 0);
+
+        return $connectionSession === 0
+            ? $connection->agent()?->is($this->agent) !== false
+            : $connectionSession === $sessionId;
     }
 
     private function clearAgentConnection(): void

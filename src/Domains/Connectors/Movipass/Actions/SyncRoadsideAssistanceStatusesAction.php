@@ -1,0 +1,246 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Movipass\Actions;
+
+use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Support\RoadsideAssistanceStatusMap;
+use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
+use Kanvas\Souk\Orders\Models\OrderTypes;
+
+/**
+ * Makes the roadside order type match RoadsideAssistanceStatusMap, however many times it runs.
+ *
+ * Not CreateOrderStatusesAction: its firstOrCreate goes through the soft-delete scope, so a deleted
+ * status or transition is created a second time, and an existing status never picks up a changed
+ * is_default / is_final / sequence. Rows are restored and soft-deleted here, never hard-deleted,
+ * because order history points at their ids.
+ *
+ * Every app with roadside assistance shares this order type, so an existing status keeps its name
+ * (the legacy setup stored "Request_submitted"; clients may show it), and a transition the map does
+ * not list is only reported unless $prune: one added by hand would otherwise vanish, and
+ * transitionToStatus() then silently leaves the order where it was.
+ */
+class SyncRoadsideAssistanceStatusesAction
+{
+    private array $summary = [
+        'statuses_created' => 0,
+        'statuses_updated' => 0,
+        'statuses_restored' => 0,
+        'transitions_created' => 0,
+        'transitions_restored' => 0,
+        'transitions_removed' => 0,
+        'duplicate_statuses' => [],
+        'unlisted_transitions' => [],
+    ];
+
+    public function __construct(
+        private readonly AppInterface $app,
+        private readonly bool $prune = false,
+    ) {
+    }
+
+    /**
+     * @return array<string, int|array<int, string>>
+     */
+    public function execute(): array
+    {
+        DB::connection('commerce')->transaction(function () {
+            $definition = RoadsideAssistanceStatusMap::definition();
+            $orderType = $this->syncOrderType();
+
+            $statuses = [];
+            $sequence = 1;
+            foreach ($definition as $key => $config) {
+                $statuses[$key] = $this->syncStatus(
+                    $orderType,
+                    $key,
+                    $config,
+                    $sequence++
+                );
+            }
+
+            $this->syncTransitions($orderType, $definition, $statuses);
+
+            $orderType->updateQuietly(['total_statuses' => count($statuses)]);
+        });
+
+        return $this->summary;
+    }
+
+    private function syncOrderType(): OrderTypes
+    {
+        $orderType = OrderTypes::withTrashed()
+            ->where('apps_id', $this->app->getId())
+            ->where('name', OrderTypeEnum::ROADSIDE_ASSISTANCE->value)
+            ->orderBy('id')
+            ->first();
+
+        if ($orderType === null) {
+            return OrderTypes::create([
+                'apps_id' => $this->app->getId(),
+                'companies_id' => 0,
+                'name' => OrderTypeEnum::ROADSIDE_ASSISTANCE->value,
+                'is_default' => false,
+            ]);
+        }
+
+        if ($this->isDeleted($orderType)) {
+            $this->setDeleted($orderType, false);
+        }
+
+        return $orderType;
+    }
+
+    private function syncStatus(
+        OrderTypes $orderType,
+        string $key,
+        array $config,
+        int $sequence
+    ): OrderStatus {
+        $slug = Str::slug($key);
+        $attributes = [
+            'is_default' => (int) ($config['is_default'] ?? false),
+            'is_final' => (int) ($config['is_final'] ?? false),
+            'sequence' => $sequence,
+        ];
+
+        $matches = OrderStatus::withTrashed()
+            ->where('apps_id', $this->app->getId())
+            ->where('order_types_id', $orderType->getId())
+            ->where('slug', $slug)
+            ->orderBy('is_deleted')
+            ->orderBy('id')
+            ->get();
+
+        // Earlier runs could duplicate a slug. Orders point at those ids, so they are reported for a
+        // manual merge instead of being deleted here.
+        if ($matches->reject(fn (OrderStatus $match) => $this->isDeleted($match))->count() > 1) {
+            $this->summary['duplicate_statuses'][] = $slug;
+        }
+
+        $status = $matches->first();
+
+        if ($status === null) {
+            $this->summary['statuses_created']++;
+
+            return OrderStatus::create([
+                ...$attributes,
+                'name' => $config['name'],
+                'apps_id' => $this->app->getId(),
+                'companies_id' => 0,
+                'order_types_id' => $orderType->getId(),
+                'slug' => $slug,
+            ]);
+        }
+
+        $restored = $this->isDeleted($status);
+
+        if ($restored) {
+            $this->setDeleted($status, false);
+            $this->summary['statuses_restored']++;
+        }
+
+        $status->fill($attributes);
+
+        if ($status->isDirty()) {
+            if (! $restored) {
+                $this->summary['statuses_updated']++;
+            }
+            $status->saveQuietly();
+        }
+
+        return $status;
+    }
+
+    /**
+     * @param array<string, OrderStatus> $statuses
+     */
+    private function syncTransitions(OrderTypes $orderType, array $definition, array $statuses): void
+    {
+        $wanted = [];
+        foreach ($definition as $from => $config) {
+            foreach ($config['transitions'] ?? [] as $to) {
+                $wanted[$statuses[$from]->getId() . ':' . $statuses[$to]->getId()] = [$statuses[$from], $statuses[$to]];
+            }
+        }
+
+        $existing = OrderStatusTransitions::withTrashed()
+            ->where('order_types_id', $orderType->getId())
+            ->orderBy('is_deleted')
+            ->orderBy('id')
+            ->get();
+
+        $kept = [];
+        foreach ($existing as $transition) {
+            $pair = $transition->from_status_id . ':' . $transition->to_status_id;
+            $isActive = ! $this->isDeleted($transition);
+            $unlisted = ! isset($wanted[$pair]);
+
+            if ($unlisted && $isActive && ! $this->prune) {
+                $this->summary['unlisted_transitions'][] = $transition->name ?: $pair;
+
+                continue;
+            }
+
+            if ($unlisted || isset($kept[$pair])) {
+                if ($isActive) {
+                    $this->setDeleted($transition, true);
+                    $this->summary['transitions_removed']++;
+                }
+
+                continue;
+            }
+
+            $kept[$pair] = true;
+
+            if (! $isActive) {
+                $this->setDeleted($transition, false);
+                $this->summary['transitions_restored']++;
+            }
+        }
+
+        foreach ($wanted as $pair => [$from, $to]) {
+            if (isset($kept[$pair])) {
+                continue;
+            }
+
+            OrderStatusTransitions::create([
+                'order_types_id' => $orderType->getId(),
+                'from_status_id' => $from->getId(),
+                'to_status_id' => $to->getId(),
+                'name' => $from->name . ' to ' . $to->name,
+                'companies_id' => 0,
+            ]);
+            $this->summary['transitions_created']++;
+        }
+    }
+
+    /**
+     * `is_deleted` is SoftDeletes' DELETED_AT on these Souk models and they do not cast it, so
+     * Eloquent reads 0 as a 1970 date and writes a date string into the int column. Read the raw
+     * value and write through the query builder, which skips the cast.
+     */
+    private function isDeleted(Model $model): bool
+    {
+        return (int) $model->getRawOriginal('is_deleted') !== 0;
+    }
+
+    private function setDeleted(Model $model, bool $deleted): void
+    {
+        $model->newQueryWithoutScopes()
+            ->whereKey($model->getKey())
+            ->update(['is_deleted' => (int) $deleted]);
+
+        $model->setRawAttributes(
+            [...$model->getAttributes(), 'is_deleted' => (int) $deleted],
+            sync: true
+        );
+    }
+}

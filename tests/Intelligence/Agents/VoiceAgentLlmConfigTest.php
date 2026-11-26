@@ -121,7 +121,7 @@ final class VoiceAgentLlmConfigTest extends TestCase
      */
     private function callLlm(Agent $agent): array
     {
-        return new VoiceAgentSpecService($agent, $this->testApp)->compile()['models']['llm'];
+        return new VoiceAgentSpecService($agent)->compile()['models']['llm'];
     }
 
     private function agent(?array $voiceConfig = null): Agent

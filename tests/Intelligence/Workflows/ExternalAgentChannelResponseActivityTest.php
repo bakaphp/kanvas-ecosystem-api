@@ -7,8 +7,9 @@ namespace Tests\Intelligence\Workflows;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\DeliverConversationMessageAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Workflows\ExternalAgentChannelResponseActivity;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -17,29 +18,32 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
-use Override;
+use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Connectors\Traits\HasIntegrationCompany;
-use Tests\Connectors\Traits\RefusesLeadSms;
 use Tests\TestCase;
+use Tests\Workflow\Support\WatchesWorkflowEvents;
 
 /**
- * Locks the gating behavior of ExternalAgentChannelResponseActivity: only messages flagged
- * from_ia / from_orchestrator are delivered, and a from-phone is required only for the
- * phone-based channels (SMS / WhatsApp), never for email.
+ * Only messages flagged from_ia / from_orchestrator are delivered, and they leave the way a
+ * person's reply does: on the company's connection for the medium, with no number to name.
  */
 class ExternalAgentChannelResponseActivityTest extends TestCase
 {
+    use BuildsCommunicationFixtures;
     use DatabaseTransactions;
     use HasIntegrationCompany;
-    use RefusesLeadSms;
+    use WatchesWorkflowEvents;
+
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
     private const string FROM_PHONE = '+19998887777';
-    private const string CUSTOMER_PHONE = '+15551234567';
+    private const string CUSTOMER_PHONE = '+18095550802';
 
     public function testRejectsMessageWithOnlyOneExternalAiFlag(): void
     {
@@ -51,7 +55,12 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             fromOrchestrator: false,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message, 'from' => self::FROM_PHONE],
@@ -60,8 +69,11 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
         $this->assertStringContainsString('not from an external AI', $result['message'] ?? '');
     }
 
-    public function testRequiresFromPhoneForSms(): void
+    public function testATextLeavesOnTheCompanysConnectionWithNoNumberNamed(): void
     {
+        $transport = $this->useFakeProvider();
+        $this->defaultSmsConnection(number: '+18095550801');
+        $aiTrigger = $this->watchWorkflowEvent(WorkflowEnum::TRIGGER_AI->value, Lead::class);
         [$app, $channel, $message] = $this->makeChannelMessage(
             verb: 'sms',
             content: 'Orchestrator says hi',
@@ -69,34 +81,59 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             fromOrchestrator: true,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message],
         );
 
-        $this->assertStringContainsString('From phone number is required for sms', $result['message'] ?? '');
+        $this->assertStringContainsString('Message sent to lead via sms', $result['message'] ?? '');
+        $this->assertCount(1, $transport->sent);
+        $this->assertStringContainsString(
+            SmsOptOutNoticeService::NOTICE,
+            $transport->sent[0]['text'],
+            'the first text of a conversation carries the opt-out clause whoever wrote it'
+        );
+        $this->assertTrue((bool) $message->fresh()->is_un_response);
+        $this->assertCount(0, $this->firedWith($aiTrigger), 'another AI writing does not take the lead over');
     }
 
-    public function testEmailDoesNotRequireFromPhone(): void
+    public function testATextTheCompanyCannotSendIsNotedAndAnswersNothing(): void
     {
+        $transport = $this->useFakeProvider();
         [$app, $channel, $message] = $this->makeChannelMessage(
-            verb: 'email',
-            content: 'Orchestrator email body',
+            verb: 'sms',
+            content: 'Orchestrator says hi',
             fromIa: true,
             fromOrchestrator: true,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message],
         );
 
-        // Email bypasses the phone gate — whatever the downstream send does, it must never be
-        // rejected for a missing from-phone.
-        $combined = ($result['message'] ?? '') . ($result['error'] ?? '');
-        $this->assertStringNotContainsString('From phone number is required', $combined);
+        $this->assertStringContainsString('no sms connection', $result['message'] ?? '');
+        $this->assertSame([], $transport->sent);
+        $this->assertFalse((bool) $message->fresh()->is_un_response);
+        $this->assertTrue(
+            MessagesRepository::getLatestMessagesByLead($channel->entityData(), 20)->contains(
+                fn (Message $note): bool => $note->tags()
+                    ->where('name', DeliverConversationMessageAction::NOT_DELIVERED_TAG)
+                    ->exists()
+            )
+        );
     }
 
     public function testRejectsEmptyContentAndNoFiles(): void
@@ -108,51 +145,18 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
             fromOrchestrator: true,
         );
 
-        $result = new ExternalAgentChannelResponseActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
+        $result = new ExternalAgentChannelResponseActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $app,
             ['message' => $message, 'from' => self::FROM_PHONE],
         );
 
         $this->assertStringContainsString('content and files are both empty', $result['message'] ?? '');
-    }
-
-    public function testARefusedTextFailsTheActivityAndMarksTheMessageFailed(): void
-    {
-        [$app, $channel, $message] = $this->makeChannelMessage(
-            verb: 'sms',
-            content: 'Orchestrator says hi',
-            fromIa: true,
-            fromOrchestrator: true,
-        );
-
-        $reason = 'Lead cellphone number ' . self::CUSTOMER_PHONE . ' has line type landline; '
-            . 'our policy only allows SMS to mobile and VoIP numbers';
-        $activity = new class (
-            0,
-            now()->toDateTimeString(),
-            StoredWorkflow::make(),
-            []
-        ) extends ExternalAgentChannelResponseActivity {
-            public SendMessageToLeadAction $fakeSender;
-
-            #[Override]
-            protected function sender(Lead $lead): SendMessageToLeadAction
-            {
-                return $this->fakeSender;
-            }
-        };
-        $activity->fakeSender = $this->smsRefusingSender($message->preferredEntity(Lead::class), $reason);
-
-        $result = $activity->execute($channel, $app, ['message' => $message, 'from' => self::FROM_PHONE]);
-
-        $this->assertSame(StatusEnum::FAILED, $activity->workflowStatus());
-        $this->assertSame('Message not sent to lead via sms: ' . $reason, $result['message']);
-
-        $message->refresh();
-        $this->assertSame('failed', $message->message['delivery']['status'] ?? null);
-        $this->assertSame($reason, $message->message['delivery']['error_message'] ?? null);
-        $this->assertFalse((bool) $message->is_un_response);
     }
 
     /**

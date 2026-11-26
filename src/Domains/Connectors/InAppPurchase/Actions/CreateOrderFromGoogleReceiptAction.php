@@ -4,19 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\InAppPurchase\Actions;
 
-use Carbon\Carbon;
-use Imdhemy\GooglePlay\ClientFactory;
+use Imdhemy\GooglePlay\Domain\Purchase\Entity\SubscriptionPurchase;
+use Imdhemy\GooglePlay\Domain\Purchase\Subscription\SubscriptionState;
 use Imdhemy\GooglePlay\Products\ProductPurchase;
-use Imdhemy\GooglePlay\Subscriptions\SubscriptionPurchase;
-use Imdhemy\Purchases\Facades\Product;
-use Imdhemy\Purchases\Facades\Subscription;
-use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\GooglePlayInAppPurchaseReceipt;
-use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
+use Kanvas\Connectors\InAppPurchase\Enums\StoreProviderEnum;
+use Kanvas\Connectors\InAppPurchase\Services\GooglePlayBillingService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -85,9 +81,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
 
     private function executeRenewableSubscriptionFlow(): ModelsOrder
     {
-        $resolvedSku = $this->resolveGooglePlaySku(
-            $this->googlePlayInAppPurchase->product_id
-        );
+        $resolvedSku = $this->resolveStoreProductId($this->googlePlayInAppPurchase->product_id);
 
         $receipt = [
             'productId' => $resolvedSku,
@@ -98,20 +92,47 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
 
         $verifiedReceipt = $this->verifyRenewableReceipt($receipt);
 
-        if ($verifiedReceipt->getPaymentState() === SubscriptionPurchase::PAYMENT_STATE_PENDING && ! app()->runningUnitTests()) {
+        if ($verifiedReceipt->subscriptionState === SubscriptionState::PENDING) {
             throw new ValidationException('Subscription receipt is in pending state');
         }
 
-        $resolvedOrderId = $verifiedReceipt->getOrderId() ?? $receipt['orderId'];
+        // Validated before any order exists: a token for another product, or a state without expiry, would
+        // otherwise fail in upsertGoogleSubscription after creating one.
+        GooglePlayBillingService::expiryOf($verifiedReceipt, $resolvedSku);
+
+        $resolvedOrderId = $this->resolveOrderId($receipt, $verifiedReceipt);
         if (empty($resolvedOrderId)) {
             throw new ValidationException('Google subscription order id is missing');
         }
 
+        return $this->withStorePurchaseLock(
+            $receipt['purchaseToken'],
+            fn (): ModelsOrder => $this->findOrCreateGoogleSubscriptionOrder($receipt, $verifiedReceipt, $resolvedOrderId)
+        );
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function findOrCreateGoogleSubscriptionOrder(
+        array $receipt,
+        SubscriptionPurchase $verifiedReceipt,
+        string $resolvedOrderId
+    ): ModelsOrder {
+        $subscription = $this->findOwnedCashierSubscription($receipt['purchaseToken']);
+
         $existingOrder = $this->findExistingOrderByGoogleSubscriptionOrderId($resolvedOrderId);
         if ($existingOrder instanceof ModelsOrder) {
-            $this->tagOrderAsIapSubscription($existingOrder);
-
-            return $existingOrder;
+            return $this->reuseExistingSubscriptionOrder(
+                $existingOrder,
+                $subscription,
+                fn () => $this->upsertGoogleSubscription(
+                    $receipt,
+                    $verifiedReceipt,
+                    $existingOrder,
+                    null
+                )
+            );
         }
 
         $people = $this->createPeople();
@@ -119,7 +140,12 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         $order = new CreateOrderAction($orderData)->execute();
 
         $this->handleCustomFieldsOnOrder($order);
-        $this->upsertGoogleSubscription($receipt, $verifiedReceipt, $order);
+        $this->upsertGoogleSubscription(
+            $receipt,
+            $verifiedReceipt,
+            $order,
+            $subscription
+        );
         $this->tagOrderAsIapSubscription($order);
 
         return $order;
@@ -134,32 +160,23 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
     #[Override]
     protected function verifyReceipt(array $receipt): ProductPurchase
     {
-        $googlePaymentConfig = $this->app->get(ConfigurationEnum::GOOGLE_PAYMENT_CLIENT_CONFIG->value) ?? $this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value);
-        $googlePackageName = $this->app->get(EnumsConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value);
-        if (empty($googlePaymentConfig) && empty($googlePackageName)) {
-            throw new ValidationException('Google client config is missing');
-        }
-
-        $client = ClientFactory::createWithJsonKey($googlePaymentConfig);
-
-        return Product::googlePlay($client)->packageName($googlePackageName)->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
+        return $this->billing()->getProduct($receipt['productId'], $receipt['purchaseToken']);
     }
 
     protected function verifyRenewableReceipt(array $receipt): SubscriptionPurchase
     {
-        $googlePaymentConfig = $this->app->get(ConfigurationEnum::GOOGLE_PAYMENT_CLIENT_CONFIG->value) ?? $this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value);
-        $googlePackageName = $this->app->get(EnumsConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value);
-        if (empty($googlePaymentConfig) && empty($googlePackageName)) {
-            throw new ValidationException('Google client config is missing');
-        }
+        return $this->billing()->getSubscription($receipt['purchaseToken']);
+    }
 
-        $client = ClientFactory::createWithJsonKey($googlePaymentConfig);
+    private function resolveOrderId(array $receipt, SubscriptionPurchase $purchase): ?string
+    {
+        return GooglePlayBillingService::lineItemOf($purchase, $receipt['productId'])->latestSuccessfulOrderId
+            ?? $receipt['orderId'];
+    }
 
-        return Subscription::googlePlay($client)
-            ->packageName($googlePackageName)
-            ->id($receipt['productId'])
-            ->token($receipt['purchaseToken'])
-            ->get();
+    private function billing(): GooglePlayBillingService
+    {
+        return app(GooglePlayBillingService::class, ['app' => $this->app]);
     }
 
     private function createOrderData(array $allReceiptData, People $people): Order
@@ -176,7 +193,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         $orderItems[] = $orderItem;
 
         $this->processCustomFieldsVariants($orderItems);
-        $allReceiptData['source'] = 'google_play';
+        $allReceiptData['source'] = StoreProviderEnum::GOOGLE_PLAY->value;
 
         return $this->createOrderDto($orderItems, $people, $allReceiptData);
     }
@@ -196,16 +213,17 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         );
 
         $this->processCustomFieldsVariants($orderItems);
-        $allReceiptData['source'] = 'google_play';
+        $allReceiptData['source'] = StoreProviderEnum::GOOGLE_PLAY->value;
+        $lineItem = GooglePlayBillingService::lineItemOf($receipt, $allReceiptData['productId']);
         $allReceiptData['google_subscription'] = [
-            'order_id' => $receipt->getOrderId() ?? $allReceiptData['orderId'],
+            'order_id' => $this->resolveOrderId($allReceiptData, $receipt),
             'purchase_token' => $allReceiptData['purchaseToken'],
-            'linked_purchase_token' => $receipt->getLinkedPurchaseToken(),
+            'linked_purchase_token' => $receipt->linkedPurchaseToken,
             'product_id' => $allReceiptData['productId'],
-            'expiry_time' => $receipt->getExpiryTime()?->carbon?->toDateTimeString(),
-            'payment_state' => $receipt->getPaymentState(),
-            'acknowledgement_state' => $receipt->getAcknowledgementState(),
-            'auto_renewing' => $receipt->isAutoRenewing(),
+            'expiry_time' => $lineItem->expiresAt?->format('Y-m-d H:i:s'),
+            'subscription_state' => $receipt->subscriptionState->value,
+            'acknowledgement_state' => $receipt->acknowledgementState->value,
+            'auto_renewing' => (bool) $lineItem->autoRenewingPlan?->autoRenewEnabled,
         ];
         $this->addMessageMetadataFromCustomFields($allReceiptData);
 
@@ -215,7 +233,8 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
     private function upsertGoogleSubscription(
         array $receipt,
         SubscriptionPurchase $subscriptionPurchase,
-        ModelsOrder $order
+        ModelsOrder $order,
+        ?CashierSubscription $subscription
     ): void {
         $subscriptionExternalId = $receipt['purchaseToken'];
 
@@ -224,71 +243,25 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
                 'apps_id' => $this->app->getId(),
                 'companies_id' => 0,
                 'users_id' => $this->user->getId(),
-                'provider' => 'google_play',
+                'provider' => StoreProviderEnum::GOOGLE_PLAY->value,
             ],
             [
                 'stripe_id' => $subscriptionExternalId,
                 'config' => [
                     'product_id' => $receipt['productId'],
-                    'latest_order_id' => $subscriptionPurchase->getOrderId(),
+                    'latest_order_id' => $this->resolveOrderId($receipt, $subscriptionPurchase),
                     'order_id' => $order->getId(),
                 ],
             ]
         );
 
-        $subscription = $this->findCashierSubscription(
-            $appsStripeCustomer->getId(),
-            $subscriptionExternalId
-        ) ?? new CashierSubscription();
-
+        $subscription ??= new CashierSubscription();
         $subscription->apps_stripe_customer_id = $appsStripeCustomer->getId();
-        $subscription->type = 'google_play:' . $receipt['productId'];
+        $subscription->type = StoreProviderEnum::GOOGLE_PLAY->value . ':' . $receipt['productId'];
         $subscription->stripe_id = $subscriptionExternalId;
         $subscription->stripe_price = $receipt['productId'];
-        $subscription->stripe_status = $this->resolveGoogleSubscriptionStatus($subscriptionPurchase);
         $subscription->quantity = 1;
-        $subscription->ends_at = $subscriptionPurchase->getExpiryTime()?->carbon;
-        $subscription->trial_ends_at = $subscriptionPurchase->getPaymentState() === SubscriptionPurchase::PAYMENT_STATE_FREE_TRIAL
-            ? $subscriptionPurchase->getExpiryTime()?->carbon
-            : null;
+        GooglePlayBillingService::applyPurchaseState($subscription, $subscriptionPurchase, $receipt['productId']);
         $subscription->saveOrFail();
-    }
-
-    /**
-     * If product_id is numeric (a Kanvas variant ID), resolve it to the variant's SKU
-     * for use with Google Play's API. Otherwise use it as-is (already a Google Play SKU).
-     */
-    private function resolveGooglePlaySku(string $productId): string
-    {
-        if (ctype_digit($productId)) {
-            /** @var Variants $variant */
-            $variant = Variants::getByIdFromCompanyApp(
-                (int) $productId,
-                $this->company,
-                $this->app
-            );
-
-            return $variant->sku;
-        }
-
-        return $productId;
-    }
-
-    private function resolveGoogleSubscriptionStatus(SubscriptionPurchase $subscriptionPurchase): string
-    {
-        if ($subscriptionPurchase->getCancellation() !== null) {
-            return 'canceled';
-        }
-
-        $expiry = $subscriptionPurchase->getExpiryTime()?->carbon;
-        if ($expiry instanceof Carbon && $expiry->isPast()) {
-            return 'expired';
-        }
-
-        if ($subscriptionPurchase->getPaymentState() === SubscriptionPurchase::PAYMENT_STATE_PENDING) {
-            return 'pending';
-        }
-
-        return 'active';
     }
 }

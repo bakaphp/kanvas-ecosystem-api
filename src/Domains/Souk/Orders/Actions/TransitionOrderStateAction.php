@@ -12,6 +12,7 @@ use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use RuntimeException;
 
 class TransitionOrderStateAction
 {
@@ -51,6 +52,18 @@ class TransitionOrderStateAction
             }
 
             throw new Exception("The status {$this->newOrderStatus->name} is not a valid transition from {$currentOrderStatus->name}");
+        }
+
+        if ($this->order->orderType->capturesOnStatus($this->newOrderStatus->slug)) {
+            try {
+                new CaptureOrderPaymentsOnTransitionAction($this->order)->execute();
+            } catch (RuntimeException $e) {
+                if ($processQuietly) {
+                    return ['status' => 'error', 'message' => $e->getMessage()];
+                }
+
+                throw $e;
+            }
         }
 
         try {
@@ -109,6 +122,7 @@ class TransitionOrderStateAction
             });
 
             if ($transitioned) {
+                $this->fulfillOnStatus();
                 $this->fireWorkflow($currentOrderStatus);
             }
 
@@ -173,6 +187,15 @@ class TransitionOrderStateAction
         ];
     }
 
+    private function fulfillOnStatus(): void
+    {
+        if ($this->order->isFulfilled() || ! $this->order->orderType->fulfillsOnStatus($this->newOrderStatus->slug)) {
+            return;
+        }
+
+        $this->order->fulfill();
+    }
+
     private function fireWorkflow($currentOrderStatus): void
     {
         $this->order->fireWorkflow(
@@ -185,20 +208,5 @@ class TransitionOrderStateAction
                 'who' => $this->user,
             ]
         );
-
-        // $activity = new TookanOrderStatusActivity(
-        //     0,
-        //     now()->toDateTimeString(),
-        //     StoredWorkflow::make(),
-        //     []
-        // );
-
-        // $result = $activity->execute($this->order, $this->order->app, [
-        //     'currentEventTypeName' =>  WorkflowEnum::STATUS_TRANSITION->value,
-        //     'app' => $this->order->app,
-        //     'from_status' => $currentOrderStatus?->slug ?? null,
-        //     'to_status' => $this->newOrderStatus->slug,
-        //     'who' => $this->user,
-        // ]);
     }
 }

@@ -8,7 +8,6 @@ use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Brex\PullBrexCommand;
 use App\Console\Commands\Connectors\BrushCrazy\Schedules\BrushCrazySchedule;
-use App\Console\Commands\Connectors\Dhl\AlertUnverifiedOrdersCommand;
 use App\Console\Commands\Connectors\Dhl\PollDhlTrackingCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -38,9 +37,11 @@ use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
 use App\Console\Commands\Search\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
+use App\Console\Commands\Souk\AlertUnverifiedDeliveryOrdersCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\CheckoutReconcileCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
+use App\Console\Commands\Workflow\PruneIntegrationHistoryCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Kanvas\Apps\Models\AppKeySource;
@@ -77,12 +78,16 @@ class Kernel extends ConsoleKernel
         // never one statement.
         $schedule->command('model:prune', ['--model' => [StoredWorkflow::class]])->dailyAt('03:30')
             ->withoutOverlapping(1380)->onOneServer();
+        // Every workflow run that fails or is skipped leaves a history row; without this the table only
+        // grows. Time-boxed per run, so it finishes before the business day and never overlaps.
+        $schedule->command(PruneIntegrationHistoryCommand::class)->dailyAt('04:00')
+            ->withoutOverlapping(60)->onOneServer();
         $schedule->command('model:prune', ['--model' => [AppKeySource::class]])->dailyAt('03:45')
             ->withoutOverlapping(120)->onOneServer();
         $schedule->command(KanvasAppKeyAlertPendingSourcesCommand::class)->everyTenMinutes()
             ->withoutOverlapping(20)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
-        $schedule->command(AlertUnverifiedOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
+        $schedule->command(AlertUnverifiedDeliveryOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(PollDhlTrackingCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();

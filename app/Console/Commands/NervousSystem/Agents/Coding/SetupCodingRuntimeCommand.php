@@ -33,7 +33,7 @@ class SetupCodingRuntimeCommand extends Command
         {--app= : App id to configure}
         {--machine= : Agent machine id that will run the coding runtime}
         {--runtime= : container (one Docker container per agent) or host (one native opencode process per agent, under launchd on a Mac); omitted keeps the machine\'s current runtime}
-        {--host-tools= : Comma list of tool sets a host advertises, e.g. xcode}
+        {--host-tools= : Comma list of tool sets a host advertises: xcode, asc}
         {--image= : Pinned runtime image; defaults to the tag the Dockerfile builds}
         {--network= : Docker network the app can reach containers on, e.g. kanvas-ecosystem-api_sail}
         {--provider=oai : Provider id, as declared in the project config}

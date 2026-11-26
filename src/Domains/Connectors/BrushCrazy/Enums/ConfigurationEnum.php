@@ -13,8 +13,8 @@ enum ConfigurationEnum: string
     case BRUSHCRAZY_DB_PASSWORD = 'BRUSHCRAZY_DB_PASSWORD';
 
     /**
-     * Path to the RDS CA bundle. The source app sets MYSQL_ATTR_SSL_CA, so the instance may
-     * require TLS — without this the connection is rejected once the network path is open.
+     * The RDS CA bundle: its PEM content (the us-east-2 bundle; the global one is too big for the
+     * setting) or a path inside the container. `kanvas_mirror` is REQUIRE SSL.
      */
     case BRUSHCRAZY_DB_SSL_CA = 'BRUSHCRAZY_DB_SSL_CA';
     case BRUSHCRAZY_SYNC_ENABLED = 'BRUSHCRAZY_SYNC_ENABLED';
@@ -44,4 +44,17 @@ enum ConfigurationEnum: string
      */
     case BRUSHCRAZY_API_URL = 'BRUSHCRAZY_API_URL';
     case BRUSHCRAZY_API_SECRET = 'BRUSHCRAZY_API_SECRET';
+
+    /**
+     * On, every push only proves the connection (BrushCrazyApi::probe) and the real body is never
+     * sent. For a Kanvas environment pointed at a BrushCrazy it must not write to, such as dev
+     * against BrushCrazy production.
+     */
+    case BRUSHCRAZY_API_DRY_RUN = 'BRUSHCRAZY_API_DRY_RUN';
+
+    /**
+     * The branch every imported customer's Kanvas login joins (a dedicated customers company, never
+     * a studio's: a member of a studio company can read its data). Unset, no logins are created.
+     */
+    case BRUSHCRAZY_CUSTOMER_ACCOUNTS_BRANCH_ID = 'BRUSHCRAZY_CUSTOMER_ACCOUNTS_BRANCH_ID';
 }

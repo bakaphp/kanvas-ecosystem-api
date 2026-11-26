@@ -8,33 +8,34 @@ use Kanvas\NervousSystem\Orchestrator\Routing\Enums\RoutingOutcomeEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 
 /**
- * The orchestrator's decision for one signal. `project` is the target (FORWARD) or the suggested
- * project (APPROVAL); null for TRIAGE (no guess to surface) and DROP (no action). The job acts on
- * `outcome`. Not queued — computed and consumed within one job run.
+ * The orchestrator's decision for one signal. `target` is the record to deliver to (FORWARD) or the
+ * suggested project (APPROVAL); null for TRIAGE (no guess to surface) and DROP (no action). The job
+ * acts on `outcome`. Not queued — computed and consumed within one job run.
  */
 final readonly class RoutingDecision
 {
     public function __construct(
         public RoutingOutcomeEnum $outcome,
-        public ?Project $project,
+        public ?RoutingCandidate $target,
         public float $confidence,
         public string $reason,
     ) {
     }
 
-    public static function forward(
-        Project $project,
-        float $confidence,
-        string $reason
-    ): self {
+    public static function forward(RoutingCandidate $target, float $confidence, string $reason): self
+    {
         return new self(
             RoutingOutcomeEnum::FORWARD,
-            $project,
+            $target,
             $confidence,
             $reason
         );
     }
 
+    /**
+     * Only a project is ever held for approval: a lead or organization reaches routing through a
+     * real attendee, so it is never a guess a human has to confirm.
+     */
     public static function approval(
         Project $project,
         float $confidence,
@@ -42,7 +43,7 @@ final readonly class RoutingDecision
     ): self {
         return new self(
             RoutingOutcomeEnum::APPROVAL,
-            $project,
+            RoutingCandidate::forProject($project),
             $confidence,
             $reason
         );
@@ -66,5 +67,10 @@ final readonly class RoutingDecision
             0.0,
             $reason
         );
+    }
+
+    public function project(): ?Project
+    {
+        return $this->target?->project();
     }
 }

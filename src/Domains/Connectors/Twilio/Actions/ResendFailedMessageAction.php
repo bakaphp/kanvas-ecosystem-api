@@ -5,19 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Actions;
 
 use Illuminate\Support\Facades\Cache;
-use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
-use Kanvas\Connectors\Twilio\Models\MessageAttempt;
+use Kanvas\Communication\Messages\Actions\RetryDeliveryAction;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
-use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * Sends a failed outbound SMS again, as the same message: same body and attachments, to the number and
- * from the sender of its last attempt. The new SID replaces the old one, so the status callbacks, the
- * `delivery` body key and the Pusher push all follow the new attempt.
+ * Sends a failed outbound text again, as the same message: its delivery is retried, so the same
+ * body and attachments go to the same number from the same connection, and the outcome is written
+ * back onto this message.
  *
  * Every send guard still applies (do-not-contact, opt-out, the line-type Lookup) — a resend is a
  * person deciding to try again, not a way around a stop request.
@@ -33,17 +29,6 @@ class ResendFailedMessageAction
 
     public function execute(): Message
     {
-        $lead = $this->message->entity(Lead::class);
-        if (! $lead instanceof Lead) {
-            throw new ValidationException('This message is not linked to a lead, so there is no one to resend it to');
-        }
-
-        $content = trim((string) ($this->message->getMessage()['content'] ?? ''));
-        $files = $this->message->files()->get();
-        if ($content === '' && $files->isEmpty()) {
-            throw new ValidationException('This message has no text or attachments to resend');
-        }
-
         // A double click must not text the person twice; the status is re-read under the lock because
         // the first resend moves it off failed.
         $lock = Cache::lock('twilio:resend:' . $this->message->getId(), self::LOCK_SECONDS);
@@ -52,37 +37,30 @@ class ResendFailedMessageAction
         }
 
         try {
-            $status = MessageStatusEnum::fromTwilio($this->message->get(CustomFieldEnum::CURRENT_STATUS->value));
-            if ($status?->isFailure() !== true) {
-                throw new ValidationException(sprintf(
-                    'Only a failed or undelivered Twilio message can be resent; this one is %s',
-                    $status?->value ?? 'not a Twilio message',
-                ));
-            }
-
-            $lastAttempt = MessageAttempt::query()
+            $delivery = Delivery::query()
+                ->fromApp($this->message->app)
+                ->fromCompany($this->message->company)
                 ->where('message_id', $this->message->getId())
                 ->latest('id')
                 ->first();
 
-            $result = $this->sender($lead)->execute(
-                channel: LeadCommunicationChannelEnum::SMS->value,
-                message: $content,
-                from: $lastAttempt?->from_number,
-                files: $files->isNotEmpty() ? $files : null,
-                to: $lastAttempt?->to_number,
-            );
+            if (! $delivery instanceof Delivery) {
+                throw new ValidationException('This message has no delivery on record, so there is nothing to resend');
+            }
 
-            new StoreMessageSidAction($this->message)->execute($result);
+            if (! new RetryDeliveryAction($delivery)->execute()) {
+                $delivery->refresh();
+
+                throw new ValidationException(sprintf(
+                    'Only a failed or undelivered message can be resent; this one is %s%s',
+                    $delivery->status->value,
+                    $delivery->error_code !== null ? ' (' . $delivery->error_code . ')' : '',
+                ));
+            }
         } finally {
             $lock->release();
         }
 
         return $this->message;
-    }
-
-    protected function sender(Lead $lead): SendMessageToLeadAction
-    {
-        return new SendMessageToLeadAction($lead);
     }
 }

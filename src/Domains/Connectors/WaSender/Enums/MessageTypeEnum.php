@@ -92,13 +92,7 @@ enum MessageTypeEnum: string
     }
 
     /**
-     * The key holding downloadable media, or null when the message carries none.
-     */
-    /**
-     * The unwrapped node the media actually hangs off, or null when the payload carries none.
-     *
-     * Callers want the node, not the key — resolving it here keeps them from unwrapping a second
-     * time just to index into the result.
+     * The unwrapped node the media hangs off, or null when the payload carries none.
      *
      * @return array<string, mixed>|null
      */
@@ -115,6 +109,9 @@ enum MessageTypeEnum: string
         return null;
     }
 
+    /**
+     * The key holding downloadable media, or null when the message carries none.
+     */
     public static function mediaKey(array $messageContent): ?string
     {
         $content = self::unwrap($messageContent);
@@ -165,13 +162,8 @@ enum MessageTypeEnum: string
         return is_string($text) && trim($text) !== '' ? $text : null;
     }
 
-    public static function isDocumentType(string $type): bool
+    public function isDocumentType(): bool
     {
-        return in_array($type, [
-            self::DOCUMENT->value,
-            self::AUDIO->value,
-            self::IMAGE->value,
-            self::VIDEO->value,
-        ]);
+        return in_array($this, [self::DOCUMENT, self::AUDIO, self::IMAGE, self::VIDEO], true);
     }
 }

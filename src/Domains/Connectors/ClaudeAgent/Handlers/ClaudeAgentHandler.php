@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ClaudeAgent\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\ClaudeAgent\Client;
 use Kanvas\Connectors\ClaudeAgent\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 

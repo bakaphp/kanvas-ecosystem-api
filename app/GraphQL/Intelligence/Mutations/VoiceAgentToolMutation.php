@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
+use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Voice\RunVoiceAgentToolAction;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
@@ -16,6 +17,8 @@ use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
  */
 class VoiceAgentToolMutation
 {
+    use KanvasJobsTrait;
+
     /**
      * @param array{agent_uuid: string, tool_name: string, arguments?: mixed} $args
      */
@@ -23,6 +26,10 @@ class VoiceAgentToolMutation
     {
         $app = app(Apps::class);
         $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['agent_uuid'], $app);
+        // A cross-app runtime key (VOICE_RUNTIME_CROSS_APP) resolves agents of other apps, and the
+        // request is bound to the key's app: a tool that creates a row without an app of its own
+        // gets the bound one.
+        $this->overwriteAppService($agent->app);
 
         $arguments = $args['arguments'] ?? [];
         if (! is_array($arguments)) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\Concerns\RespondsWithNoInventoryMatches;
@@ -18,7 +19,7 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Inventory Search', category: 'inventory')]
+#[AgentTool(name: 'Inventory Search', category: 'inventory', readOnly: true)]
 class InventorySearchTool extends Tool
 {
     // Lets the voice data plane hand this tool the AGENT's tenant
@@ -27,6 +28,11 @@ class InventorySearchTool extends Tool
     use HasKanvasContext;
     use RespondsWithNoInventoryMatches;
     use TrackByInputs;
+
+    private const string QUERY_BY_ALL_LOCALES = 'name,description,translations.name,translations.description';
+    private const string QUERY_BY_BASE = 'name,description';
+    private const string TENANT_FIELD = 'companies_id';
+    private const string LEGACY_TENANT_FIELD = 'company.id';
 
     protected string $name = 'inventory_search';
 
@@ -69,32 +75,24 @@ class InventorySearchTool extends Tool
         // the voice runtime authenticates as its own app-key app, so without this
         // the tool searches the WRONG tenant's catalogue. withContext() (set by
         // RunVoiceAgentToolAction) hands us the agent's app; bind it explicitly so
-        // the search can't drift to the runtime's app. Restored by the caller.
+        // the search can't drift to the runtime's app.
         app()->instance(Apps::class, $this->app);
 
-        // query_by is widened to the all-locales `translations.*` fields so a
-        // product is found by its English name even when the indexed `name` was
-        // resolved under another locale. A collection created before those fields
-        // existed rejects them ("Could not find a field named `translations.name`"),
-        // so fall back to the always-present base fields — search still works
-        // pre-reindex and gains the locale-independent match once reindexed.
         try {
-            $products = $this->searchQuery($product_name)
-                ->take(10)
-                ->get();
+            $products = $this->searchWithSchemaFallbacks($product_name);
         } catch (Throwable $e) {
-            if (! str_contains($e->getMessage(), 'Could not find a field named')) {
-                return ['message' => "Search failed: {$e->getMessage()}"];
-            }
+            // The engine's message names index fields and filters — log it, never speak it.
+            report($e);
 
-            try {
-                $products = $this->searchQuery($product_name, 'name,description')
-                    ->take(10)
-                    ->get();
-            } catch (Throwable $retry) {
-                return ['message' => "Search failed: {$retry->getMessage()}"];
-            }
+            return $this->searchUnavailableResponse('inventory');
         }
+
+        // Defense in depth: whichever tenant filter the engine applied, only this
+        // company's products leave the tool.
+        $companyId = (int) $this->company->getId();
+        $products = $products
+            ->filter(fn (Products $product) => (int) $product->companies_id === $companyId)
+            ->values();
 
         if ($products->isEmpty()) {
             return $this->noMatchesResponse($product_name);
@@ -140,7 +138,8 @@ class InventorySearchTool extends Tool
 
     protected function searchQuery(
         string $productName,
-        string $queryBy = 'name,description,translations.name,translations.description'
+        string $queryBy = self::QUERY_BY_ALL_LOCALES,
+        string $tenantField = self::TENANT_FIELD,
     ): Builder {
         $query = Products::search($productName);
 
@@ -148,7 +147,9 @@ class InventorySearchTool extends Tool
             // Scout translates this where into Algolia `filters` or Typesense `filter_by`.
             // `companies_id` is the flat, filterable tenant field shared by Algolia and
             // Typesense. Enforce it from the agent context instead of auth state or app flags.
-            $query->where('companies_id', $this->company->getId());
+            // `company.id` (the nested object) is the legacy equivalent for collections
+            // created before `companies_id` was declared — see searchWithSchemaFallbacks().
+            $query->where($tenantField, $this->company->getId());
         }
 
         // Products::search() queries `name,description`, where `name` is the
@@ -164,5 +165,56 @@ class InventorySearchTool extends Tool
         }
 
         return $query;
+    }
+
+    /**
+     * Run the search, stepping down to fields an older Typesense collection has.
+     *
+     * A collection is created once from Products::typesenseCollectionSchema() and
+     * never revisited by Scout, so one born before a field was declared rejects
+     * any query naming it (TypesenseSchemaReconciler explains the general case):
+     *  - `translations.*` in query_by → "Could not find a field named …": retry on
+     *    the always-present `name,description`.
+     *  - `companies_id` in filter_by → "Could not find a filter field named
+     *    `companies_id`": retry filtering on the nested `company.id`, which every
+     *    product collection indexes (enable_nested_fields) and Products::search()
+     *    already filters on. The tenant filter is swapped, never dropped; the caller
+     *    also re-checks companies_id on every returned row.
+     * Each fallback applies at most once; any other failure is rethrown.
+     *
+     * @return Collection<int, Products>
+     */
+    protected function searchWithSchemaFallbacks(string $productName)
+    {
+        $queryBy = self::QUERY_BY_ALL_LOCALES;
+        $tenantField = self::TENANT_FIELD;
+
+        while (true) {
+            try {
+                return $this->searchQuery($productName, $queryBy, $tenantField)
+                    ->take(10)
+                    ->get();
+            } catch (Throwable $e) {
+                $message = $e->getMessage();
+                $collectionLacksTenantField = $tenantField === self::TENANT_FIELD
+                    && str_contains($message, 'filter field named `' . self::TENANT_FIELD . '`');
+                $collectionLacksLocaleFields = $queryBy === self::QUERY_BY_ALL_LOCALES
+                    && str_contains($message, 'Could not find a field named');
+
+                if ($collectionLacksTenantField) {
+                    $tenantField = self::LEGACY_TENANT_FIELD;
+
+                    continue;
+                }
+
+                if ($collectionLacksLocaleFields) {
+                    $queryBy = self::QUERY_BY_BASE;
+
+                    continue;
+                }
+
+                throw $e;
+            }
+        }
     }
 }

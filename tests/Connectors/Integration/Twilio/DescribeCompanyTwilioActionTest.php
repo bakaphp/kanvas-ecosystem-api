@@ -6,8 +6,8 @@ namespace Tests\Connectors\Integration\Twilio;
 
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Actions\DescribeCompanyTwilioAction;
-use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Twilio\Services\CompanyPhoneNumbersService;
 use Tests\Stubs\Intelligence\FakeTwilioAccountClient;
 use Tests\TestCase;
 use Twilio\Rest\Client;
@@ -113,7 +113,7 @@ class DescribeCompanyTwilioActionTest extends TestCase
      */
     private function describe(FakeTwilioAccountClient $client): array
     {
-        $account = new class ($this->company, $client) extends ListCompanyPhoneNumbersAction {
+        $account = new class ($this->company, $client) extends CompanyPhoneNumbersService {
             public function __construct(Companies $company, private FakeTwilioAccountClient $client)
             {
                 parent::__construct($company);
@@ -126,12 +126,12 @@ class DescribeCompanyTwilioActionTest extends TestCase
         };
 
         return new class ($this->company, $account) extends DescribeCompanyTwilioAction {
-            public function __construct(Companies $company, private ListCompanyPhoneNumbersAction $fake)
+            public function __construct(Companies $company, private CompanyPhoneNumbersService $fake)
             {
                 parent::__construct($company);
             }
 
-            protected function account(): ListCompanyPhoneNumbersAction
+            protected function account(): CompanyPhoneNumbersService
             {
                 return $this->fake;
             }

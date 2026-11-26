@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Contracts\EngageableInterface;
 use Baka\Contracts\PayableInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Support\Money;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Contracts\DeliversApprovalNoticesInterface;
+use Kanvas\Approvals\Contracts\DescribesApprovalDetailsInterface;
 use Kanvas\Approvals\Contracts\ReactsToApprovalExpiryInterface;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
@@ -115,7 +117,7 @@ use Throwable;
  * @property int|null $users_id
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNoticesInterface, ReactsToApprovalExpiryInterface, EngageableInterface
+class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNoticesInterface, DescribesApprovalDetailsInterface, ReactsToApprovalExpiryInterface, EngageableInterface
 {
     use HasApprovals;
     use HasInternalNotes;
@@ -383,12 +385,23 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
         return ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value;
     }
 
+    #[Override]
+    public function approvalDetails(): array
+    {
+        return [
+            'party' => $this->billable_display_name ?? $this->customer?->name,
+            'amount' => (float) $this->total_native,
+            'currency' => $this->currency,
+            'due_date' => $this->due_date?->toDateString(),
+        ];
+    }
+
     protected function approvalNoticeBody(): string
     {
-        $customer = $this->billable_display_name ?? $this->customer?->name ?? 'Unknown customer';
+        $customer = $this->approvalDetails()['party'] ?? 'Unknown customer';
 
-        return "You have an AR invoice pending approval:\nCustomer: {$customer}\nAmount: {$this->currency} "
-            . number_format((float) $this->total_native, 2)
+        return "You have an AR invoice pending approval:\nCustomer: {$customer}\nAmount: "
+            . Money::format((float) $this->total_native, $this->currency)
             . ($this->notes !== null && $this->notes !== '' ? "\nMemo: {$this->notes}" : '')
             . "\nInvoice ID (Kanvas): {$this->getKey()}";
     }

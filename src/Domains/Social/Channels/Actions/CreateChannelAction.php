@@ -121,7 +121,9 @@ class CreateChannelAction
                 'entity_namespace' => $this->channelDto->entity_namespace,
                 'users_id' => $this->channelDto->users->id,
                 'name' => $this->channelDto->name,
-                'description' => $this->channelDto->description,
+                // The column holds 255 characters, and callers pass whatever text they have (a plan's whole
+                // description): too long, the insert fails and the entity is left with no channel.
+                'description' => Str::limit($this->channelDto->description, 250),
                 'metadata' => $this->channelDto->metadata,
             ]);
 

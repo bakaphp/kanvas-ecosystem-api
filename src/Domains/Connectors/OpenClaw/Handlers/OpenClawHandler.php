@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;

@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Number;
 use Kanvas\Approvals\Actions\CancelApprovalAction;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
@@ -93,7 +94,7 @@ class PollHarnessSessionJob implements ShouldQueue
         }
 
         if ($session->isChat() && in_array($tick->status, [HarnessStatusEnum::IDLE, HarnessStatusEnum::FAILED], true)) {
-            new DeliverCodingChatTurnAction($session, $tick)->execute();
+            new DeliverCodingChatTurnAction($session, $tick, attempt: $this->attempt)->execute();
 
             return;
         }
@@ -174,7 +175,7 @@ class PollHarnessSessionJob implements ShouldQueue
             return false;
         }
 
-        $this->reachLimit($session, $tick, 'cost limit of $' . number_format($cap, 2));
+        $this->reachLimit($session, $tick, 'cost limit of ' . Number::currency($cap, 'USD'));
 
         return true;
     }

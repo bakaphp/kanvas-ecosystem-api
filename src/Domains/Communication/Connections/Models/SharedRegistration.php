@@ -47,6 +47,17 @@ class SharedRegistration extends BaseModel
         return $this->dependents()->whereNull('released_at');
     }
 
+    /**
+     * The vendor credentials a release needs live on a connection, and the registration has none of
+     * its own: the last connection to lean on it is the one whose account still reaches the resource.
+     */
+    public function latestConnection(): ?Connection
+    {
+        $dependent = $this->dependents()->latest('id')->first();
+
+        return Connection::query()->find($dependent?->connection_id);
+    }
+
     public function lockKey(): string
     {
         return self::lockKeyFor($this->provider, $this->provider_account_key, $this->resource_type . ':' . $this->resource_key);

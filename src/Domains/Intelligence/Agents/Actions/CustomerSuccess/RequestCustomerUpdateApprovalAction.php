@@ -62,8 +62,8 @@ class RequestCustomerUpdateApprovalAction
         }
 
         // The first recipient rides on the message as chat_jid, the way every other email draft
-        // carries its destination, so anything SendAgentEmailAction-shaped still finds one. The full
-        // list lives in the approval context, which is what the handler actually sends to.
+        // carries its destination. The full list lives in the approval context, which is what the
+        // handler sends to.
         $note->addMessage(['chat_jid' => $this->recipients[0]]);
 
         new RequestMessageApprovalAction(

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Guild\Integration;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
+use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;

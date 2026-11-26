@@ -24,7 +24,8 @@ class ApprovalRequestedNotification extends Notification
     public function __construct(ApprovalRequest $request)
     {
         $summary = $request->emailSummary();
-        $subject = 'Approval needed: ' . $summary['action'] . ' — ' . $summary['name'];
+        $subject = 'Approval needed: ' . $summary['action'] . ' — ' . $summary['name']
+            . ($summary['details'] !== null ? ' · ' . $summary['details'] : '');
 
         parent::__construct($request, [
             'app' => $request->app,

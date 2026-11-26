@@ -42,6 +42,10 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
 
     public const string EVENT_BOOKING = 'event_booking';
 
+    public const string CAPTURE_ON_STATUS = 'capture_on_status';
+
+    public const string FULFILL_ON_STATUS = 'fulfill_on_status';
+
     protected $table = 'order_types';
     protected $guarded = [];
 
@@ -53,6 +57,23 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
     public function isExpirable(): bool
     {
         return (bool) ($this->config['expirable'] ?? false);
+    }
+
+    public function capturesOnStatus(string $slug): bool
+    {
+        return $this->statusListed(self::CAPTURE_ON_STATUS, $slug);
+    }
+
+    public function fulfillsOnStatus(string $slug): bool
+    {
+        return $this->statusListed(self::FULFILL_ON_STATUS, $slug);
+    }
+
+    private function statusListed(string $configKey, string $slug): bool
+    {
+        $statuses = $this->config[$configKey] ?? [];
+
+        return is_array($statuses) && in_array($slug, $statuses, true);
     }
 
     public function allowedPaymentProcessors(): ?array

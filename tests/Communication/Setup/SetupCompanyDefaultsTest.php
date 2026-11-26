@@ -6,10 +6,6 @@ namespace Tests\Communication\Setup;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\BurstConfigEnum as MetaBurstConfigEnum;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
-use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
-use Kanvas\Communication\Connections\Actions\EnsureAutoReplyRuleAction;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Exceptions\SetupBlockedException;
 use Kanvas\Communication\Connections\Models\Connection;
@@ -21,11 +17,10 @@ use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Communication\Setup\Enums\SetupSettingEnum;
 use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
-use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\SalesAssist\Activities\SalesAssistAgentReachOutActivity;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Connectors\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
+use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -40,8 +35,6 @@ use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
-use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Workflows\Activities\PrivatizeConversationMessageActivity;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -58,6 +51,7 @@ use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Services\WorkflowActionCatalog;
 use PHPUnit\Framework\Attributes\Group;
+use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Concerns\RefusesParallelRuns;
@@ -210,46 +204,6 @@ final class SetupCompanyDefaultsTest extends TestCase
         $this->assertTrue(LeadType::query()->fromCompany($this->company)->exists());
     }
 
-    public function testTheCompanysSallyAnswersInbound(): void
-    {
-        $this->globalAgentTemplates();
-        $this->setupDefaults();
-
-        $this->assertSame(
-            $this->companyAgent(DefaultAgentEnum::SALLY)->getId(),
-            (int) $this->company->get(AutoReplyPolicy::SETTING)
-        );
-    }
-
-    public function testAnAnsweringAgentTheCompanyNamedIsKept(): void
-    {
-        $this->globalAgentTemplates();
-        $this->company->set(AutoReplyPolicy::SETTING, 999999);
-
-        $this->setupDefaults();
-
-        $this->assertSame(999999, (int) $this->company->get(AutoReplyPolicy::SETTING));
-    }
-
-    public function testIntegratingAloneLeavesTheCompanyAnsweringInbound(): void
-    {
-        $this->useFakeProvisioner();
-        $integration = $this->integrateMessaging(['+18095550100'], $this->company);
-
-        $this->runSetup($integration);
-
-        $rule = Rule::query()
-            ->fromApp($this->currentApp())
-            ->where('companies_id', $this->company->getId())
-            ->where('name', EnsureAutoReplyRuleAction::RULE_NAME)
-            ->notDeleted()
-            ->first();
-
-        $this->assertNotNull($rule, 'no auto-reply rule');
-        $this->assertSame(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value, $rule->type->name);
-        $this->assertSame(['/^fake-/'], $rule->getRulesConditions()->pluck('value')->all());
-    }
-
     public function testTheSwitchesTurnTheAgentsOnForNewLeads(): void
     {
         $this->globalAgentTemplates();
@@ -265,10 +219,8 @@ final class SetupCompanyDefaultsTest extends TestCase
         $this->assertNotNull($this->company->get(IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value));
         $this->assertSame($sally->getId(), (int) $this->company->get(ConversationAgentEnum::SETTING->value));
         $this->assertSame((int) $sally->user_id, (int) $this->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value));
-        $this->assertSame(
-            $this->companyAgent(DefaultAgentEnum::FIRST_MESSAGE_ENGAGER)->getId(),
-            (int) $this->company->get(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value)
-        );
+        $this->assertTrue($this->companyAgent(DefaultAgentEnum::FIRST_MESSAGE_ENGAGER)->reachesOutToNewLeads());
+        $this->assertFalse($sally->fresh()->reachesOutToNewLeads());
         $this->assertSame(10, $this->company->get(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value));
     }
 
@@ -299,7 +251,21 @@ final class SetupCompanyDefaultsTest extends TestCase
 
         new SetupCompanySettingsAction($this->currentApp(), $this->company)->execute();
 
-        $this->assertSame($firstMessage->getId(), (int) $this->company->get(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value));
+        $this->assertTrue(Agent::forNewLeads($this->currentApp(), $this->company)->is($firstMessage));
+    }
+
+    public function testAReachOutSomeoneSwitchedOffStaysOff(): void
+    {
+        $firstMessage = Agent::factory()
+            ->withAppId($this->currentApp()->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => DefaultAgentEnum::FIRST_MESSAGE_ENGAGER->value]);
+        $firstMessage->switchReachOut(false);
+
+        $written = new SetupCompanySettingsAction($this->currentApp(), $this->company)->execute();
+
+        $this->assertNotContains(SetupCompanySettingsAction::REACH_OUT, $written);
+        $this->assertFalse($firstMessage->fresh()->reachesOutToNewLeads());
     }
 
     public function testTheAiUserIsNeverTheOwner(): void
@@ -315,14 +281,6 @@ final class SetupCompanyDefaultsTest extends TestCase
         $this->assertContains(ConversationAgentEnum::SETTING->value, $written);
     }
 
-    public function testInboundWhatsAppIsAnsweredWithoutWaiting(): void
-    {
-        new SetupCompanySettingsAction($this->currentApp(), $this->company)->execute();
-
-        $this->assertSame(0, MetaBurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->company));
-        $this->assertSame(0, MetaBurstConfigEnum::BURST_JITTER_SECONDS->getInt($this->company));
-    }
-
     public function testASwitchTheCompanyAlreadySetIsLeftAlone(): void
     {
         $this->company->set(IntelligenceConfigurationEnum::AI_ENABLE->value, false);
@@ -333,7 +291,7 @@ final class SetupCompanyDefaultsTest extends TestCase
         $this->assertNotContains(IntelligenceConfigurationEnum::AI_ENABLE->value, $written);
         $this->assertFalse((bool) $this->company->get(IntelligenceConfigurationEnum::AI_ENABLE->value));
         $this->assertSame('2026-01-01 00:00:00', $this->company->get(IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value));
-        $this->assertNotContains(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value, $written, 'no first-message agent, no reach-out agent');
+        $this->assertNotContains(SetupCompanySettingsAction::REACH_OUT, $written, 'no first-message agent, no reach-out agent');
     }
 
     public function testTheBackfillGivesEveryPersonTheirConversationThenSwitchesOn(): void
@@ -425,31 +383,9 @@ final class SetupCompanyDefaultsTest extends TestCase
             [...$first['created'], ...array_keys($first['skipped'])]
         );
         $this->assertSame([], $second['created']);
-        $this->assertSame('not_configured', $first['skipped'][DefaultRuleEnum::HUMAN_AGENT_RESPONSE->value]);
         $this->assertSame('not_configured', $first['skipped'][DefaultRuleEnum::GOOGLE_CALENDAR_EVENT->value]);
 
-        $reachOut = $this->companyRule(DefaultRuleEnum::AGENT_REACH_OUT);
-        $this->assertSame(['trigger_type' => TriggersEnum::NEW_LEAD->value], $reachOut->params);
-        $this->assertSame(
-            [TriggerIntelligenceActivity::class, SalesAssistAgentReachOutActivity::class],
-            $reachOut->workflowActivities()->orderBy('weight')->get()->map(fn ($ruleAction) => $ruleAction->activity->action->model_name)->all()
-        );
-        $this->assertSame(
-            DefaultAgentEnum::POLLY->of($this->currentApp(), $this->company)->getId(),
-            $this->companyRule(DefaultRuleEnum::AI_ASSIST_RESPONDER)->params['agent_id']
-        );
-    }
-
-    public function testTheHumanReplyRuleSendsFromTheCompanysNumber(): void
-    {
-        $this->company->set(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value, '+18095550111');
-
-        $result = new SetupCompanyRulesAction($this->currentApp(), $this->company)->execute();
-
-        $this->assertContains(DefaultRuleEnum::HUMAN_AGENT_RESPONSE->value, $result['created']);
-        $rule = $this->companyRule(DefaultRuleEnum::HUMAN_AGENT_RESPONSE);
-        $this->assertSame(['from' => '+18095550111'], $rule->params);
-        $this->assertSame('1 AND 2 AND 3 AND 4', $rule->pattern);
+        $this->assertNotNull($this->companyRule(DefaultRuleEnum::PRIVATIZE_MESSAGES));
     }
 
     public function testARuleTheWholeAppAlreadyRunsIsNotCopied(): void
@@ -517,6 +453,37 @@ final class SetupCompanyDefaultsTest extends TestCase
 
         $this->assertNull($this->setupDefaults()['follow_up_pipeline']);
         $this->assertNull($this->setupDefaults()['follow_up_pipeline'], 'nor on the next pass');
+    }
+
+    public function testAFollowUpPipelineCopyThatFailedIsTriedAgainOnTheNextPass(): void
+    {
+        $this->globalAgentTemplates();
+        $this->currentApp()->set(SetupSettingEnum::OTHER_LEAD_TYPE_CONFIG->value, self::OTHER_CONFIG);
+        [$template] = $this->followUpPipelineTemplate();
+        $this->currentApp()->set(SetupSettingEnum::FOLLOW_UP_PIPELINE->value, $template->getId());
+
+        $copyFails = true;
+        Pipeline::creating(function () use (&$copyFails): void {
+            if ($copyFails) {
+                throw new RuntimeException('The pipeline could not be copied.');
+            }
+        });
+
+        try {
+            $this->setupDefaults();
+            $this->fail('the copy did not fail');
+        } catch (RuntimeException) {
+            $this->assertFalse(
+                LeadType::query()->fromCompany($this->company->getId())->whereNotNull('config')->exists(),
+                'no lead type says the company follows up while it has no pipeline to follow up on'
+            );
+        }
+
+        $copyFails = false;
+        $pipelineId = $this->setupDefaults()['follow_up_pipeline'];
+
+        $this->assertNotNull($pipelineId);
+        $this->assertTrue(Pipeline::query()->findOrFail($pipelineId)->isDefault());
     }
 
     public function testAFollowUpPipelineSettingPointingNowhereBlocksSetup(): void

@@ -21,7 +21,6 @@ class VerifyMailgunWebhookSignatureActionTest extends TestCase
     {
         parent::setUp();
 
-        // No app-level key by default, so resolution falls through to the company.
         $this->kanvasApp = app(Apps::class);
         $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, '');
 
@@ -46,29 +45,42 @@ class VerifyMailgunWebhookSignatureActionTest extends TestCase
         $this->assertTrue($result);
     }
 
-    public function testAppLevelKeyTakesPrecedenceOverCompany(): void
+    public function testTheCompanysOwnKeyWinsOverTheApps(): void
     {
-        $appKey = 'app-global-signing-key';
-        $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, $appKey);
+        $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, 'app-global-signing-key');
 
         try {
-            $timestamp = (string) time();
-            $token = bin2hex(random_bytes(16));
-            // Signed with the APP key while the company holds a different key.
-            $signature = hash_hmac('sha256', $timestamp . $token, $appKey);
-
-            $result = new VerifyMailgunWebhookSignatureAction(
-                $this->kanvasApp,
-                $this->company,
-                $token,
-                $timestamp,
-                $signature,
-            )->execute();
-
-            $this->assertTrue($result);
+            $this->assertTrue($this->verifies(self::SIGNING_KEY));
+            $this->assertFalse($this->verifies('app-global-signing-key'));
         } finally {
             $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, '');
         }
+    }
+
+    public function testACompanyWithNoKeyOfItsOwnIsCheckedAgainstTheApps(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, 'app-global-signing-key');
+        $this->company->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, '');
+
+        try {
+            $this->assertTrue($this->verifies('app-global-signing-key'));
+        } finally {
+            $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, '');
+        }
+    }
+
+    private function verifies(string $signedWith): bool
+    {
+        $timestamp = (string) time();
+        $token = bin2hex(random_bytes(16));
+
+        return new VerifyMailgunWebhookSignatureAction(
+            $this->kanvasApp,
+            $this->company,
+            $token,
+            $timestamp,
+            hash_hmac('sha256', $timestamp . $token, $signedWith),
+        )->execute();
     }
 
     public function testInvalidSignatureFails(): void

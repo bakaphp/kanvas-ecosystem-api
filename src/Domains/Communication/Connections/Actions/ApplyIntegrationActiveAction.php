@@ -29,7 +29,7 @@ final class ApplyIntegrationActiveAction
     {
         $connections = Connection::query()
             ->live()
-            ->where('integrations_company_id', $this->integrationCompany->getId());
+            ->ofIntegration($this->integrationCompany);
 
         if (! $this->active) {
             SetConnectionEnabledAction::skipPending($connections->pluck('id')->all(), 'integration_inactive');

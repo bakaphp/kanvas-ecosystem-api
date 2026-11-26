@@ -81,6 +81,7 @@ final class BrushCrazyWriteBackActivitiesTest extends TestCase
         $app = app(Apps::class);
         $app->del(ConfigurationEnum::BRUSHCRAZY_API_URL->value);
         $app->del(ConfigurationEnum::BRUSHCRAZY_API_SECRET->value);
+        $app->del(ConfigurationEnum::BRUSHCRAZY_API_DRY_RUN->value);
 
         $this->previousStudioId !== null
             ? $this->company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, $this->previousStudioId)
@@ -157,6 +158,36 @@ final class BrushCrazyWriteBackActivitiesTest extends TestCase
         $this->assertSame(422, $result['status']);
         $this->assertSame(StatusEnum::FAILED, $activity->workflowStatus());
         $this->assertNull($order->get(CustomFieldEnum::BRUSHCRAZY_SALE_ID->value));
+    }
+
+    public function testDryRunOnlyProvesTheConnectionAndBooksNothing(): void
+    {
+        app(Apps::class)->set(ConfigurationEnum::BRUSHCRAZY_API_DRY_RUN->value, true);
+        Http::fake([self::API_URL . '/api/kanvas/sales' => Http::response(['message' => 'The kanvas order uuid field is required.'], 422)]);
+        [$order] = $this->siteBooking(total: 70.0);
+
+        $activity = $this->paid();
+        $result = $this->push($activity, $order);
+
+        $this->assertTrue($result['dry_run']);
+        $this->assertSame($order->uuid, $result['request']['kanvas_order_uuid']);
+        $this->assertNotSame(StatusEnum::FAILED, $activity->workflowStatus());
+        $this->assertNull($order->get(CustomFieldEnum::BRUSHCRAZY_SALE_ID->value));
+        Http::assertSent(fn (Request $request) => $request->body() === '{}');
+        Http::assertSentCount(1);
+    }
+
+    public function testDryRunWithAWrongSecretFails(): void
+    {
+        app(Apps::class)->set(ConfigurationEnum::BRUSHCRAZY_API_DRY_RUN->value, true);
+        Http::fake([self::API_URL . '/*' => Http::response(['message' => 'Invalid signature.'], 401)]);
+        [$order] = $this->siteBooking(total: 70.0);
+
+        $activity = $this->paid();
+        $result = $this->push($activity, $order);
+
+        $this->assertSame(401, $result['status']);
+        $this->assertSame(StatusEnum::FAILED, $activity->workflowStatus());
     }
 
     public function testAServerErrorThrowsSoTheJobRetries(): void

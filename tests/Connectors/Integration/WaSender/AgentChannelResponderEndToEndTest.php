@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
+use Kanvas\Communication\Messages\Actions\AgentChannelResponderAction;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -27,7 +27,6 @@ use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
 use Tests\Traits\AttachesMediaToMessage;
-use Throwable;
 
 /**
  * End-to-end: inbound WaSender Message → kernel dispatch → Neuron agent reply
@@ -37,7 +36,10 @@ use Throwable;
 class AgentChannelResponderEndToEndTest extends TestCase
 {
     use AttachesMediaToMessage;
+    use ArrivesOnWaSenderConnection;
     use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
     public function testInboundWhatsAppTriggersAgentReplyPersistedOnChannel(): void
     {
@@ -239,16 +241,12 @@ class AgentChannelResponderEndToEndTest extends TestCase
     ): void {
         $action = new AgentChannelResponderAction(
             $channel,
-            $inbound,
+            $this->arrivedOnConnection($inbound, $agent),
             $agent,
             $session,
         );
 
-        try {
-            $action->execute([]);
-        } catch (Throwable) {
-            // Expected: outbound WaSender API call fails without real credentials.
-        }
+        $action->execute([]);
     }
 
     private function latestAgentReply(Channel $channel): ?Message

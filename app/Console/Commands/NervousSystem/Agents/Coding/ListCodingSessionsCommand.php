@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Number;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
 /**
@@ -60,7 +61,7 @@ class ListCodingSessionsCommand extends Command
                 // Attach mode has no workspace of its own: the container owns it and outlives the run.
                 $session->workspace_path ?? 'attached',
                 $this->age($session),
-                '$' . number_format((float) $session->estimated_cost, 4),
+                Number::currency((float) $session->estimated_cost, 'USD', precision: 4),
             ];
         }
 

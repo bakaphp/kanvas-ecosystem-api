@@ -27,6 +27,7 @@ the one company setting is `$company->set()`; unset means the default.
 | `agent_lead_summary_enabled` | app | `AgentRunConfigurationEnum::LEAD_SUMMARY` | **on** | `0` turns off the rolling coverage-tracked summary on a lead's rollup, caught up before the reply; `Guild/Leads/Summary/CLAUDE.md` |
 | `agent_lead_summary_keys` | app, or **company** (wins) | `AgentRunConfigurationEnum::LEAD_SUMMARY_KEYS` | none | facts the lead summary tracks beyond its generic sections, named after lead custom fields; `Guild/Leads/Summary/CLAUDE.md` |
 | `agent_gemini_thinking` | app | `AgentRunConfigurationEnum::GEMINI_THINKING` | model default | `minimal` / `low` / `medium` / `high` sets Gemini's `thinkingLevel` on every chat step, an integer sets `thinkingBudget`; thought tokens land in the step's usage as `reasoning_tokens`, so compare before and after on one agent |
+| `agent_still_working_updates_enabled` | app | `AgentRunConfigurationEnum::STILL_WORKING_UPDATES` | off | a chat whose agent handed work to another agent (a PM's delegated plan, a factory stage) hears "⏳ Still working on it" after three silent minutes, from the per-minute `kanvas:nervous-system:post-still-working-updates`; the update lands in the agent's transcript and is pushed to Slack or WhatsApp when the chat lives there, so turn it on only where long delegated runs are the norm |
 
 Add a row here whenever a new `*ConfigurationEnum` case lands.
 

@@ -8,8 +8,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 
 /**
- * Who is speaking. It is recorded on the request and on the filed message; it does not choose the
- * connection — that is routing, and an agent has no number of its own.
+ * Who is speaking. It is recorded on the request and on the filed message. Routing reads it too: an
+ * agent that owns a number or a mailbox speaks from it.
  */
 final readonly class Sender
 {
@@ -46,9 +46,22 @@ final readonly class Sender
         };
     }
 
+    /**
+     * @param array{type?: string, id?: int|null}|null $sender as `toArray()` stored it on a request
+     */
+    public static function fromArray(?array $sender): self
+    {
+        return new self((string) ($sender['type'] ?? 'system'), $sender['id'] ?? null);
+    }
+
     public function isAgent(): bool
     {
         return $this->type === 'agent';
+    }
+
+    public function isUser(): bool
+    {
+        return $this->type === 'user';
     }
 
     /**

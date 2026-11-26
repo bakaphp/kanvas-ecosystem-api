@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Orchestrator\Signals\Adapters;
 
+use Kanvas\NervousSystem\Orchestrator\Signals\Concerns\AcceptsUnsignedRequests;
 use Kanvas\NervousSystem\Orchestrator\Signals\Concerns\NormalizesTranscriptCues;
 use Kanvas\NervousSystem\Orchestrator\Signals\Contracts\SignalSourceAdapter;
 use Kanvas\NervousSystem\Orchestrator\Signals\DataTransferObject\InboundSignal;
@@ -19,6 +20,7 @@ use Override;
  */
 final class WebVttSignalAdapter implements SignalSourceAdapter
 {
+    use AcceptsUnsignedRequests;
     use NormalizesTranscriptCues;
 
     #[Override]

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WebPos\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\WebPos\Actions\SetupWebPosAction;
 use Kanvas\Connectors\WebPos\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WebPos\Enums\EnvironmentEnum;

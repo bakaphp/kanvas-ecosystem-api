@@ -25,13 +25,13 @@ opting out at one dealer does not opt out at another.
 | Concern | Class |
 |---|---|
 | Is this message a consent signal? | `Services/ConsentKeywordService` |
-| Apply a stop request | `Actions/ApplyDoNotContactAction` |
-| Apply a START / re-subscribe | `Actions/RevokeDoNotContactAction` |
-| Detect + dispatch, for an inbound webhook | `Actions/ProcessInboundConsentAction` |
+| Apply a stop request | `Actions/Communication/ApplyDoNotContactAction` |
+| Apply a START / re-subscribe | `Actions/Communication/RevokeDoNotContactAction` |
+| Detect + dispatch, for an inbound webhook | `Actions/Communication/ProcessInboundConsentAction` |
 | May this person / this address be contacted? (`SendMessageToLeadAction` and the Communication domain both read it) | `Services/ConsentGuard` |
-| The one permitted acknowledgement | `Guild\Leads\Actions\SendOptOutConfirmationAction` |
+| The one permitted acknowledgement | `Guild\Leads\Actions\Communication\SendOptOutConfirmationAction` |
 | Natural-language stop requests | `Intelligence\...\Tools\CRM\StopContactTool` |
-| Inbound mail (both receivers) | `Connectors\Mailgun\Services\MailgunConsentService` |
+| Inbound mail's subject pass | `Connectors\Mailgun\MailgunInbound::parse()` (sets `consentSignal`) |
 
 State written by an opt-out, keyed by `Enums/ConsentConfigurationEnum`:
 - every `Contact` of the person → `is_opt_out = 1`
@@ -58,8 +58,8 @@ it carries no flag. Every guard therefore checks both.
 | `SendEmailTool` / `SendSmsTool` / `SendPersonEmailTool` | agent-initiated sends |
 
 The single `execute()`-level guard is deliberate: a per-channel `if` in each send method is how one
-channel ends up forgotten. `sendWhatsAppMessage` hands off to `sendRespondIoMessage` **before** its
-own per-address check, which is exactly that failure mode — RespondIO needs its own.
+channel ends up forgotten. The per-address check has the same shape for the same reason: SMS and
+WhatsApp (either vendor) resolve their number through `cellphoneFor()`, which is where it runs.
 
 ## Three tiers, and only the last one is a tool
 
@@ -120,16 +120,11 @@ of tier 2b used it and silently opted out the phone of a customer who had only a
 instead. Covered by `test_a_channel_preference_is_not_treated_as_an_opt_out`. If you want to tell a
 human something without changing state, record a note.
 
-**Email has TWO inbound receivers and both need wiring.** `AgentProcessEmailWebhookJob` is the shared
-lead inbox and `AgentInboxWebhookJob` is one agent's own address — the second replies *inline* rather
-than through a workflow rule, so it was the easier one to miss. Both go through
-`MailgunConsentService`, which adds the subject pass email needs: a one-word "Unsubscribe" lands in the
-SUBJECT at least as often as in the body, usually with nothing under it.
-
-**Order matters on the lead inbox.** `CreateMessageFromEmailAction` is what fires the responder
-workflow, so consent is evaluated *before* it and passes `suppressAgentResponse`. Evaluating it after
-let the agent read a stop request, spend a turn on it, and compose a reply the outbound guard then
-threw away.
+**Email needs a pass the other channels do not.** A one-word "Unsubscribe" lands in the SUBJECT at
+least as often as in the body, usually with nothing under it. Every inbound message goes through the
+one pipeline (`Communication\...\ReceiveMessageAction`), which settles consent before any agent turn
+is queued; `MailgunInbound` hands it the signal it found in the body or, failing that, the subject.
+A new email provider must do the same.
 
 **There is no public unsubscribe endpoint, and that is deliberate.** A `List-Unsubscribe` header needs
 a URL anyone on the internet can POST to, and we are not exposing one. Email opt-out arrives the same

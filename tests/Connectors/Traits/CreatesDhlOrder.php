@@ -5,36 +5,26 @@ declare(strict_types=1);
 namespace Tests\Connectors\Traits;
 
 use ArrayObject;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Actions\AttachDhlDocumentAction;
-use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
-use Kanvas\Guild\Customers\Models\Address;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Locations\Models\Countries;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
+use Tests\Souk\Concerns\CreatesDeliveryOrder;
 
 trait CreatesDhlOrder
 {
+    use CreatesDeliveryOrder;
     use HasDhlConfiguration;
-
-    private array $dhlOrderStatuses = [];
 
     protected function setUpDhlOrderStatuses(): void
     {
-        $result = new SetupDhlOrderTypeAction(app(Apps::class))->execute();
-
-        foreach ($result['statuses'] as $status) {
-            $this->dhlOrderStatuses[$status->slug] = $status;
-        }
+        $this->setUpDeliveryOrderStatuses();
     }
 
     protected function connectDhlIntegration(Companies $company, Regions $region): IntegrationsCompany
@@ -59,35 +49,12 @@ trait CreatesDhlOrder
 
     protected function dhlOrder(Companies $company, string $statusSlug, array $overrides = [], bool $withAddress = true): Order
     {
-        $status = OrderStatus::find($this->dhlOrderStatuses[$statusSlug]->getId());
-        $people = People::factory()->create([
-            'apps_id' => app(Apps::class)->getId(),
-            'companies_id' => $company->getId(),
-            'name' => 'Maria Perez',
-        ]);
-
-        $address = $withAddress ? Address::create([
-            'peoples_id' => $people->getId(),
-            'address' => 'Calle El Sol 12',
-            'city' => 'Santiago',
-            'state' => 'Santiago',
-            'zip' => '51000',
-            'countries_id' => Countries::firstOrCreate(['code' => 'do'], ['name' => 'Dominican Republic'])->getId(),
-        ]) : null;
-
-        return Order::factory()
-            ->withCompanyId($company->getId())
-            ->withUserId((int) $company->users_id)
-            ->create([
-                'people_id' => $people->getId(),
-                'order_types_id' => $status->order_types_id,
-                'order_status_id' => $status->getId(),
-                'shipping_address_id' => $address?->getId(),
-                'user_email' => 'maria@customer.test',
-                'user_phone' => '+18095550123',
-                'metadata' => ['shipping' => $this->dhlShippingMetadata()],
-                ...$overrides,
-            ])->refresh();
+        return $this->deliveryOrder(
+            $company,
+            $statusSlug,
+            ['metadata' => ['shipping' => $this->dhlShippingMetadata()], ...$overrides],
+            $withAddress
+        );
     }
 
     protected function dhlShippingMetadata(array $meta = []): array
@@ -129,13 +96,8 @@ trait CreatesDhlOrder
         return $stored;
     }
 
-    protected function statusSlugOf(Order $order): string
-    {
-        return $order->refresh()->orderStatus->slug;
-    }
-
     protected function readyForDispatch(): string
     {
-        return OrderStatusEnum::READY_FOR_DISPATCH->value;
+        return DeliveryOrderStatusEnum::READY_FOR_DISPATCH->value;
     }
 }

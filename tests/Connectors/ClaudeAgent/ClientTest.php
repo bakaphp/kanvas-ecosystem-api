@@ -14,15 +14,19 @@ use Kanvas\Connectors\ClaudeAgent\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ClaudeAgent\Exceptions\ClaudeAgentApiException;
 use Kanvas\Exceptions\ValidationException;
 use Tests\Connectors\Traits\HasClaudeAgentConfiguration;
+use Tests\Connectors\Traits\HasThrowawayApp;
+use Tests\Connectors\Traits\HasThrowawayCompany;
 use Tests\TestCase;
 
 final class ClientTest extends TestCase
 {
     use DatabaseTransactions;
     use HasClaudeAgentConfiguration;
+    use HasThrowawayApp;
+    use HasThrowawayCompany;
 
-    /** Settings live on mysql; agents, types and sessions on intelligence. */
-    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+    /** Apps, companies and their settings live on ecosystem; agents, types and sessions on intelligence. */
+    protected array $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence'];
 
     private Apps $currentApp;
     private Companies $currentCompany;
@@ -31,8 +35,8 @@ final class ClientTest extends TestCase
     {
         parent::setUp();
 
-        $this->currentApp = app(Apps::class);
-        $this->currentCompany = static::$cachedUser->getCurrentCompany();
+        $this->currentApp = $this->freshApp();
+        $this->currentCompany = $this->freshCompany();
     }
 
     public function testListAgentsDecodesTheResponse(): void

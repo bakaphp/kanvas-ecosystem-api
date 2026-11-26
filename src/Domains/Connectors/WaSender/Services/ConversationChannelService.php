@@ -64,23 +64,23 @@ final readonly class ConversationChannelService
 
     public function findChannel(string $jid): ?Channel
     {
-        return Channel::where('slug', self::channelSlug($jid))
-            ->where('companies_id', $this->receiver->company->getId())
-            ->where('apps_id', $this->receiver->app->getId())
+        return Channel::query()
+            ->fromApp((int) $this->receiver->apps_id)
+            ->fromCompany((int) $this->receiver->companies_id)
+            ->where('slug', self::channelSlug($jid))
             ->first();
     }
 
     /**
-     * Matches on `slug`, which is where CreateMessageAction writes the deterministic WhatsApp id —
-     * `uuid` is a random UuidTrait value. Every status/reaction/receipt handler used to query
-     * `uuid` here and so silently matched nothing, and message.sent double-filed instead of
-     * updating.
+     * Matches on `slug`, which is where CreateMessageAction writes the deterministic WhatsApp id;
+     * `uuid` is a random UuidTrait value and matches nothing.
      */
     public function findMessageBySlug(string $messageId, string $jid): ?Message
     {
-        return Message::where('slug', self::messageSlug($messageId, $jid))
-            ->where('companies_id', $this->receiver->company->getId())
-            ->where('apps_id', $this->receiver->app->getId())
+        return Message::query()
+            ->fromApp((int) $this->receiver->apps_id)
+            ->fromCompany((int) $this->receiver->companies_id)
+            ->where('slug', self::messageSlug($messageId, $jid))
             ->first();
     }
 
@@ -89,8 +89,7 @@ final readonly class ConversationChannelService
      *
      * `channels.slug` carries only non-unique composite indexes, so locking a row that does not
      * exist yet gap-locks the whole index range: two workers opening different conversations then
-     * deadlock on the insert-intention lock. The old transaction also ran on the default
-     * connection while Channel writes to `social`, so it never guarded these writes at all.
+     * deadlock on the insert-intention lock.
      */
     public function getOrCreateChannel(string $jid, ?string $name = null, ?Lead $lead = null): Channel
     {
@@ -139,9 +138,8 @@ final readonly class ConversationChannelService
                 $channel->entity_id = $lead->getId();
             }
 
-            // Saved unconditionally: a lead-less channel (group, newsletter) used to be built and
-            // thrown away on every delivery, so it never got an id and the config set on the way
-            // out was silently skipped.
+            // Saved with or without a lead: a group or newsletter channel needs its id for the
+            // configuration set on the way out.
             $channel->save();
 
             $channel->addTags(

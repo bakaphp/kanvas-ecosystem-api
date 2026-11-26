@@ -7,12 +7,12 @@ namespace Tests\Connectors\Movipass;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\SyncRoadsideAssistanceStatusesAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Enums\RoadsideNotProceedReasonEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
-use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
@@ -21,6 +21,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
@@ -28,6 +29,11 @@ use Tests\TestCase;
  * The three flow branches the case lifecycle gained: the authorization gate that declines a case
  * before dispatch, the incident record, and the reschedule/close decision that follows it.
  */
+/**
+ * Serial: it commits changes to the app's roadside statuses, which RoadsideAssistanceStatusSetupTest
+ * edits inside its own transaction and counts exactly.
+ */
+#[Group('serial')]
 final class RoadsideAssistanceFlowTest extends TestCase
 {
     use HasIntegrationCompany;
@@ -440,43 +446,6 @@ final class RoadsideAssistanceFlowTest extends TestCase
      */
     private function createRoadsideStatuses(): void
     {
-        $cancelled = MovipassOrderStatusEnum::SERVICE_CANCELLED->value;
-        $requestSubmitted = MovipassOrderStatusEnum::REQUEST_SUBMITTED->value;
-        $notAuthorized = MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->value;
-
-        new CreateOrderStatusesAction($this->apps, OrderTypeEnum::ROADSIDE_ASSISTANCE->value, [
-            $requestSubmitted => [
-                'is_default' => true,
-                'transitions' => [
-                    MovipassOrderStatusEnum::AWAITING_OPERATOR->value,
-                    $cancelled,
-                    $notAuthorized,
-                ],
-            ],
-            MovipassOrderStatusEnum::AWAITING_OPERATOR->value => [
-                'transitions' => [MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value, $requestSubmitted, $cancelled, $notAuthorized],
-            ],
-            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => [
-                'transitions' => [MovipassOrderStatusEnum::DISPATCHED->value, $requestSubmitted, $cancelled],
-            ],
-            MovipassOrderStatusEnum::DISPATCHED->value => [
-                'transitions' => [MovipassOrderStatusEnum::ON_SITE->value, $requestSubmitted, $cancelled],
-            ],
-            MovipassOrderStatusEnum::ON_SITE->value => [
-                'transitions' => [MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value, $requestSubmitted, $cancelled],
-            ],
-            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
-                    $requestSubmitted,
-                    $cancelled,
-                ],
-            ],
-            MovipassOrderStatusEnum::SERVICE_COMPLETED->value => ['is_final' => true],
-            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => ['is_final' => true],
-            $cancelled => ['is_final' => true],
-            $notAuthorized => ['is_final' => true],
-        ])->execute();
+        new SyncRoadsideAssistanceStatusesAction($this->apps)->execute();
     }
 }

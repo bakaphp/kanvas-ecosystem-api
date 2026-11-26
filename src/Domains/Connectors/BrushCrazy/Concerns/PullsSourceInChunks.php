@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\BrushCrazy\Concerns;
 
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
+use Kanvas\Connectors\BrushCrazy\Support\ImportPace;
 use stdClass;
 use Throwable;
 
@@ -22,8 +22,7 @@ trait PullsSourceInChunks
     }
 
     /**
-     * One failing row is recorded and the walk goes on. A Model returned by `$syncRow` is indexed
-     * with its chunk in one batch: the syncs write with model events off, so Scout never saw it.
+     * One failing row is recorded and the walk goes on.
      *
      * @param  callable(array<int, stdClass>): void  $prepareChunk
      * @param  callable(stdClass): mixed  $syncRow
@@ -58,13 +57,13 @@ trait PullsSourceInChunks
                     }
                 }
 
-                if ($indexed !== []) {
-                    new EloquentCollection($indexed)->searchable();
-                }
+                ImportPace::indexChanged($indexed);
 
                 if ($onProgress !== null) {
                     $onProgress($rows->count());
                 }
+
+                ImportPace::pauseBetweenChunks();
             },
             $keyColumn,
             'id'

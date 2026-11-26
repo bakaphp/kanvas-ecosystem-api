@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Number;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
@@ -338,8 +339,8 @@ class AgentSpendReportCommand extends Command
         ));
 
         $this->info(sprintf(
-            'TOTAL: $%s across %d agents in %d apps',
-            number_format(array_sum(array_column($rows, 'cost')), 2),
+            'TOTAL: %s across %d agents in %d apps',
+            Number::currency(array_sum(array_column($rows, 'cost')), 'USD'),
             count(array_unique(array_filter(array_column($rows, 'agent_id')))),
             count(array_unique(array_column($rows, 'apps_id')))
         ));

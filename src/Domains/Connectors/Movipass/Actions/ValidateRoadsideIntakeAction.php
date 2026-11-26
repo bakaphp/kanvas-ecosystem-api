@@ -97,6 +97,10 @@ class ValidateRoadsideIntakeAction
             return false;
         }
 
+        if ($field->requiredWhenValue !== null) {
+            return strtolower(trim((string) $this->answers[$field->requiredWhen])) === strtolower($field->requiredWhenValue);
+        }
+
         try {
             return $this->toBoolean($this->answers[$field->requiredWhen]);
         } catch (ValidationException) {

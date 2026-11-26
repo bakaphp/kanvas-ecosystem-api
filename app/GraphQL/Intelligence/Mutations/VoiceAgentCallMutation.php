@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\Intelligence\Agents\Actions\Voice\PlaceVoiceTestCallAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
@@ -15,6 +15,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
  */
 class VoiceAgentCallMutation
 {
+    use ResolvesActingContext;
+
     /**
      * @param array{id: int|string, to_number: string} $args
      *
@@ -22,9 +24,8 @@ class VoiceAgentCallMutation
      */
     public function placeTestCall(mixed $root, array $args): array
     {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-        $agent = Agent::getByIdFromCompanyApp((int) $args['id'], $company, $app);
+        $ctx = $this->actingContext();
+        $agent = Agent::getByIdFromCompanyApp((int) $args['id'], $ctx->company, $ctx->app);
 
         return new PlaceVoiceTestCallAction($agent, (string) $args['to_number'])->execute();
     }

@@ -37,16 +37,6 @@ interface Provisioner
     public function legacyReceiverJobs(): array;
 
     /**
-     * How this provider's conversations are told apart, so the tenant's one auto-reply rule answers
-     * them, and the responder it answered with before the conversation responder — a tenant that
-     * already has a rule on that one keeps it and is not given a second. Null when an agent never
-     * answers this provider's inbound.
-     *
-     * @return array{channel_slug_pattern: string, legacy_responder: class-string|null}|null
-     */
-    public function autoReply(): ?array;
-
-    /**
      * Point the account's inbound at $inboundUrl and read it back. A registration someone else
      * made is never replaced.
      *
@@ -68,6 +58,15 @@ interface Provisioner
      * Unregister a shared resource once nothing depends on it, under the same ownership check.
      */
     public function releaseShared(SharedRegistration $registration): CleanupTaskStatusEnum;
+
+    /**
+     * The connection is ready and takes the account's traffic from here on: retire whatever served
+     * it before this domain did. Which receivers, rules and settings that was, only the provider
+     * knows; a provider with no such past returns nothing.
+     *
+     * @return list<string> what was retired, for the setup report
+     */
+    public function retireLegacy(Connection $connection): array;
 
     /**
      * For an integration saved before accounts were selected in the integration flow: the accounts

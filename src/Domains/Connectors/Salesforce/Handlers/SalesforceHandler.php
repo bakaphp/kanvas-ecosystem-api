@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Salesforce\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Salesforce\Enums\GrantTypeEnum;

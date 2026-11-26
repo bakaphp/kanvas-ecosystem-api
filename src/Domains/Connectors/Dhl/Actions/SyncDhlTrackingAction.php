@@ -12,7 +12,7 @@ use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\Enums\BookingStateEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Dhl\Enums\DhlTrackingEventEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Throwable;
 
@@ -34,7 +34,7 @@ class SyncDhlTrackingAction
     {
         $summary = ['polled' => 0, 'transitioned' => 0, 'epod_stored' => 0];
 
-        $dispatched = $this->ordersIn(OrderStatusEnum::DISPATCHED)
+        $dispatched = $this->ordersIn(DeliveryOrderStatusEnum::DISPATCHED)
             ->reject(fn (Order $order): bool => $order->get(CustomFieldEnum::BOOKING_STATE->value) === BookingStateEnum::MANUAL_REVIEW->value);
 
         foreach ($dispatched->chunk(self::NUMBERS_PER_CALL) as $chunk) {
@@ -82,15 +82,11 @@ class SyncDhlTrackingAction
 
         $order->transitionToStatus($this->company->user, $status->value);
 
-        if ($status !== OrderStatusEnum::DELIVERED) {
+        if ($status !== DeliveryOrderStatusEnum::DELIVERED) {
             return true;
         }
 
         $order->set(CustomFieldEnum::DELIVERED_AT->value, ($latest['date'] ?? '') . ' ' . ($latest['time'] ?? ''));
-
-        if (! $order->isFulfilled()) {
-            $order->fulfill();
-        }
 
         $this->storeEpod($order);
 
@@ -120,12 +116,12 @@ class SyncDhlTrackingAction
 
     private function deliveredWithoutEpod(): Collection
     {
-        return $this->ordersIn(OrderStatusEnum::DELIVERED)
+        return $this->ordersIn(DeliveryOrderStatusEnum::DELIVERED)
             ->filter(fn (Order $order): bool => ! isset($this->epodAttempted[$order->getId()])
                 && $order->get(CustomFieldEnum::EPOD_STORED_AT->value) === null);
     }
 
-    private function ordersIn(OrderStatusEnum $status): Collection
+    private function ordersIn(DeliveryOrderStatusEnum $status): Collection
     {
         $orderStatus = $status->forApp($this->app);
 

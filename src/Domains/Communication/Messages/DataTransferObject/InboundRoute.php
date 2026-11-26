@@ -18,9 +18,9 @@ final readonly class InboundRoute
     public const string ROUTED = 'routed';
 
     // Nobody claims the identity: a number the tenant had before provisioning, or one it did not
-    // select. On the tenant's own authenticated receiver it keeps answering the way it always has —
-    // turning that off is a selection, not a side effect of a deploy. On an app-wide receiver there
-    // is no tenant to file it for.
+    // select. On the tenant's own authenticated receiver it is filed and announced to the rules the
+    // tenant wrote; with no connection, no agent owns it to answer. On an app-wide receiver there is
+    // no tenant to file it for.
     public const string NOT_PROVISIONED = 'not_provisioned';
 
     // Claimed by a workspace this receiver does not serve: never filed here, never answered.

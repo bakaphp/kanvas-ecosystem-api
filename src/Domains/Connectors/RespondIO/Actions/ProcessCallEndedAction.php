@@ -6,25 +6,16 @@ namespace Kanvas\Connectors\RespondIO\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\RespondIO\BaseRespondIOAction;
-use Kanvas\Connectors\RespondIO\Traits\HasChannelProcessing;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
-use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Override;
 
 class ProcessCallEndedAction extends BaseRespondIOAction
 {
-    use HasChannelProcessing;
-
     #[Override]
     public function execute(): array
     {
-        /** @var array<string, mixed> $contact */
-        $contact = $this->payload['contact'] ?? [];
         /** @var array<string, mixed> $call */
         $call = $this->payload['call'] ?? [];
         /** @var array<string, mixed> $respondioUser */
@@ -32,19 +23,13 @@ class ProcessCallEndedAction extends BaseRespondIOAction
         /** @var string $eventId */
         $eventId = $this->payload['event_id'] ?? Str::uuid()->toString();
 
-        $identifier = $this->getContactIdentifier($contact);
+        $channel = $this->resolveChannel();
 
-        if ($identifier === null) {
-            return ['error' => 'Missing contact identifier'];
+        if ($channel === null) {
+            return $this->unresolved('no_channel_found');
         }
 
-        $channel = $this->findChannelByIdentifier($this->app, $this->company, $identifier);
-
-        if (! $channel) {
-            return ['status' => 'no_channel_found', 'identifier' => $identifier];
-        }
-
-        $lead = $this->findLeadFromChannel($this->app, $this->company, $channel);
+        $lead = $this->resolveLead($channel);
 
         $transcript = $this->formatTranscript($call['transcript'] ?? []);
         /** @var array<string, mixed> $callSummary */
@@ -78,39 +63,11 @@ class ProcessCallEndedAction extends BaseRespondIOAction
             $noteContent .= "\n\nAgent: {$agentName}";
         }
 
-        $notesChannel = $lead?->notes;
-
-        if ($notesChannel === null && $lead !== null) {
-            $notesChannel = new CreateChannelAction(
-                new ChannelDto(
-                    $this->app,
-                    $this->company,
-                    $this->user,
-                    (string) $lead->getKey(),
-                    get_class($lead),
-                    ChannelNameEnum::NOTES->value,
-                    'AI Notes Channel',
-                    Str::uuid()->toString()
-                )
-            )->execute();
-        }
-
-        $messageSlug = 'respondio-call-' . Str::slug($eventId);
-
-        $messageTypeModel = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $this->app->getId(),
-                0,
-                'respondio-call',
-                'respondio-call',
-            )
-        )->execute();
-
         $messageInput = new MessageInput(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            type: $messageTypeModel,
+            app: $this->receiver->app,
+            company: $this->receiver->company,
+            user: $this->receiver->user,
+            type: MessageTypeService::getOrCreate($this->receiver->app, 'respondio-call'),
             message: [
                 'content' => $noteContent,
                 'raw_data' => $this->payload,
@@ -121,17 +78,18 @@ class ProcessCallEndedAction extends BaseRespondIOAction
                 'call_status' => $callStatus,
             ],
             is_public: 0,
-            slug: $messageSlug,
+            slug: 'respondio-call-' . Str::slug($eventId),
             tags: ['respondio', 'call']
         );
 
         $message = new CreateMessageAction($messageInput)->execute();
 
-        if ($lead) {
+        if ($lead !== null) {
             $message->addEntity($lead);
         }
 
-        $targetChannel = $notesChannel ?? $channel;
+        // A call on a conversation with no lead is kept on the conversation itself.
+        $targetChannel = $lead !== null ? $this->notesChannelOf($lead) : $channel;
         $targetChannel->addMessage($message);
 
         return [

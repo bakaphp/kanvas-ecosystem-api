@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Delivery\Services;
 
 use Baka\Support\Str;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
-use Kanvas\Connectors\WaSender\Services\MessageService;
+use Kanvas\Communication\Communication;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
+use Kanvas\Guild\Customers\Actions\Communication\SendMessageToPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\ConsentGuard;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -22,10 +21,11 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
 /**
- * Carries an engagement link to a person. Email goes through SendEmailToPeopleAction (the agent's
- * mailbox when it has one, else the company's SMTP identity) with the PDFs attached; WhatsApp through
- * the company's WaSender number with the PDF as a document. Either way the sent text is filed on the
- * person's protocol channel, which is where their reply lands, so the agent reads both in one thread.
+ * Carries an engagement link to a person through SendMessageToPeopleAction: by email (the agent's
+ * mailbox when it has one, else the company's email connection) with the PDFs attached, or on the
+ * company's WhatsApp connection with each PDF as a document, whatever vendor carries it. Either way
+ * the sent text is filed on the person's protocol channel, which is where their reply lands, so the
+ * agent reads both in one thread.
  */
 class DocumentLinkSenderService
 {
@@ -83,21 +83,15 @@ class DocumentLinkSenderService
     ): Message {
         $urls = array_values(array_filter(array_map(static fn (Filesystem $file): ?string => $file->url, $files)));
 
-        $response = $target->channel === LeadCommunicationChannelEnum::EMAIL
-            ? new SendEmailToPeopleAction($people)->execute(
-                to: $target->destination,
-                message: $body,
-                subject: $subject,
-                attachmentUrls: $urls,
-                fromAgent: $agent,
-                templateName: ScribeEmailTemplateEnum::DOCUMENT_DELIVERY->value,
-            )
-            : $this->sendWhatsApp(
-                $people,
-                $target->destination,
-                $body,
-                $urls,
-            );
+        $response = new SendMessageToPeopleAction($people)->execute(
+            channel: ChannelTypeEnum::from($target->channel->value),
+            to: $target->destination,
+            message: $body,
+            subject: $subject,
+            attachmentUrls: $urls,
+            fromAgent: $agent,
+            emailTemplate: ScribeEmailTemplateEnum::DOCUMENT_DELIVERY->value,
+        );
 
         return new PersistOutboundMessageAction(
             entity: $people,
@@ -134,31 +128,6 @@ class DocumentLinkSenderService
 
     private function whatsAppConfigured(People $people): bool
     {
-        /** @var Companies $company */
-        $company = $people->company;
-        $key = WaSenderConfigurationEnum::API_KEY->value;
-
-        return ! empty($company->get($key) ?? $people->app?->get($key));
-    }
-
-    /**
-     * @param list<string> $documentUrls
-     *
-     * @return array<string, mixed>
-     */
-    private function sendWhatsApp(
-        People $people,
-        string $phone,
-        string $body,
-        array $documentUrls
-    ): array {
-        $service = new MessageService($people->app, $people->company);
-        $response = $service->sendTextMessage($phone, $body);
-
-        foreach ($documentUrls as $url) {
-            $service->sendDocumentMessage($phone, $url);
-        }
-
-        return $response;
+        return Communication::for($people->app, $people->company)->isReady(ChannelTypeEnum::WHATSAPP);
     }
 }

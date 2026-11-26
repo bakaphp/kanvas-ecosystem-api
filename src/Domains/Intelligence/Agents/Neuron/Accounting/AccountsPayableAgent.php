@@ -45,6 +45,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursemen
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendBillAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RespondToVendorEcfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SettleFromSuspenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
@@ -184,6 +186,8 @@ class AccountsPayableAgent extends SystemUserAgent
             $tools[] = new SettleFromSuspenseTool()->withContext($this->app, $this->company, $person);
             $tools[] = new ReclassifySuspenseTool()->withContext($this->app, $this->company, $person);
             $tools[] = new RespondToVendorEcfTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new UpdateApBillTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SubmitApBillTool()->withContext($this->app, $this->company, $person);
             $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
         }
 
@@ -267,6 +271,12 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'me" → recent_inbox_arrivals (outcome needs_review for the drafts that need a person). The accounting '
             . 'inbox turns every forwarded invoice into a bill on its own; you are told by a task when one needs you.',
             '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
+            '- A draft the inbox left for review (recent_inbox_arrivals, outcome needs_review) is fixed with update_ap_bill — '
+            . 'expense account, subaccount, invoice number, dates, notes; never amounts or the vendor — and then sent with '
+            . 'submit_ap_bill_for_approval, each only when the person tells you to. Both answer with '
+            . 'inbox_review_reason, why the inbox held the bill back; recent_inbox_arrivals keeps listing a draft after it was '
+            . 'corrected or sent, so go by the bill\'s document_status. Say what you changed. If the reason is a total that does '
+            . 'not match the invoice, the person fixes the amounts on the bill screen. You never approve a bill you sent.',
             '- "Paid Claro today" / "we paid bill Y" (with or without the receipt) → record_bill_payment. You never '
             . 'pay anyone; it records a payment a person already made, once however often you are told. If it '
             . 'answers that the money is already parked in Suspense, call settle_from_suspense as it says. '

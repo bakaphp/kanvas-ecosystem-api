@@ -4,42 +4,27 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\WaSender;
 
-use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Connectors\WaSender\Actions\ConnectWhatsAppSessionAction;
 use Kanvas\Connectors\WaSender\Actions\DisconnectWhatsAppSessionAction;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Services\SessionService;
-use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
-use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Rules\Models\Rule;
-use Kanvas\Workflow\Rules\Models\RuleType;
 use Mockery;
+use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
 
 class ConnectWhatsAppSessionActionTest extends TestCase
 {
-    private function ensureActionRow(string $modelName): void
-    {
-        // Both Workflow\Models\WorkflowAction and Rules\Models\Action map to the workflow `actions`
-        // table (minimal: name, model_name, is_deleted). Normally seeded by kanvas:workflow-sync-actions.
-        $table = DB::connection('workflow')->table('actions');
-        if (! $table->where('model_name', $modelName)->exists()) {
-            $table->insert([
-                'name' => class_basename($modelName),
-                'model_name' => $modelName,
-                'is_deleted' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-    }
+    use BuildsCommunicationFixtures;
+    use DatabaseTransactions;
+
+    // Linking a number now gives the company a receiver, an integration row and a connection.
+    protected $connectionsToTransact = [null, 'workflow', 'intelligence'];
 
     private function makeReceptionistAgent(Apps $app, int $companyId): Agent
     {
@@ -54,19 +39,11 @@ class ConnectWhatsAppSessionActionTest extends TestCase
             ->create(['agent_type_id' => $agentType->getId()]);
     }
 
-    public function testConnectCreatesReceiverBindsAgentStoresSecretAndReturnsQr(): void
+    public function testConnectPointsTheSessionAtTheCommunicationReceiverStoresSecretAndReturnsQr(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-
-        $this->ensureActionRow(ProcessWaSenderWebhookJob::class);
-        $this->ensureActionRow(AgentChannelResponderActivity::class);
-        RuleType::firstOrCreate(['name' => WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value]);
-        SystemModules::firstOrCreate(
-            ['model_name' => Channel::class],
-            ['name' => 'Channels', 'slug' => 'channels', 'description' => 'Channels system module']
-        );
 
         $agent = $this->makeReceptionistAgent($app, $company->getId());
 
@@ -116,12 +93,8 @@ class ConnectWhatsAppSessionActionTest extends TestCase
             $this->assertNotContains($duplicate->value, $events);
         }
 
-        // Receiver created + webhook_secret stored (so signature verification passes)
-        $receiver = ReceiverWebhook::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->latest('id')
-            ->first();
+        // The session posts to the company's communication receiver, which keeps its secret.
+        $receiver = new CommunicationReceivers()->find($app, $company, 'wasender');
         $this->assertNotNull($receiver);
         $this->assertSame('fb61be92ddb7935e0cedcec58e470f6c', $receiver->configuration['webhook_secret'] ?? null);
         $this->assertSame(909, $receiver->configuration['session_id'] ?? null);
@@ -136,25 +109,70 @@ class ConnectWhatsAppSessionActionTest extends TestCase
         // (MessageService reads company API_KEY first) authenticates /api/send-message with it.
         $this->assertSame('sess_909_send_key', (string) $company->get('wasender_api_key'));
 
-        // Agent bound on the AFTER_ADDING_MESSAGE_TO_CHANNEL rule
-        $rule = Rule::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('name', 'WhatsApp Receptionist responder')
-            ->first();
-        $this->assertNotNull($rule);
-        $this->assertSame($agent->getId(), (int) ($rule->params['agent_id'] ?? 0));
-
-        // Rule is scoped to WhatsApp channels only (mirrors prod: slug matches /wa/), so it doesn't
-        // fire the WhatsApp responder on email/SMS/other channels.
-        $this->assertTrue(
-            $rule->getRulesConditions()
-                ->where('attribute_name', 'slug')
-                ->where('operator', 'matches')
-                ->where('value', '/wa/')
-                ->exists(),
-            'Rule must carry the slug-matches-/wa/ condition scoping it to WhatsApp channels'
+        // The agent answers because it owns the number; no rule is made for it.
+        $this->assertFalse(
+            Rule::query()
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', $company->getId())
+                ->where('name', 'WhatsApp Receptionist responder')
+                ->where('created_at', '>=', now()->subMinute())
+                ->exists()
         );
+        $this->assertContains($receiver->getUrl(), $captured);
+    }
+
+    public function testConnectingTheNumberAnAgentAlreadyLinkedReusesItsSession(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->makeReceptionistAgent($app, $company->getId());
+        $agent->set('whatsapp_session_id', 777);
+
+        $sessionService = Mockery::mock(SessionService::class);
+        $sessionService->shouldReceive('getSession')->with(777)->andReturn(['id' => 777, 'phone_number' => '+1 809 555 1234']);
+        $sessionService->shouldReceive('connectSession')->once()->with(777, true)->andReturn(['status' => 'need_scan', 'qr_code' => 'QR-AGAIN']);
+        $sessionService->shouldNotReceive('createAndConnectSession');
+        $sessionService->shouldNotReceive('deleteSession');
+
+        $result = new ConnectWhatsAppSessionAction(
+            app: $app,
+            company: $company,
+            user: auth()->user(),
+            agent: $agent,
+            phoneNumber: '+18095551234',
+            sessionService: $sessionService,
+        )->execute();
+
+        $this->assertSame(777, $result['session_id']);
+        $this->assertSame('QR-AGAIN', $result['qr_code']);
+    }
+
+    public function testConnectingAnotherNumberReplacesTheSessionTheAgentHad(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->makeReceptionistAgent($app, $company->getId());
+        $agent->set('whatsapp_session_id', 777);
+
+        $sessionService = Mockery::mock(SessionService::class);
+        $sessionService->shouldReceive('getSession')->with(777)->andReturn(['id' => 777, 'phone_number' => '+18095550000']);
+        $sessionService->shouldReceive('deleteSession')->once()->with(777)->andReturn(['status' => 'deleted']);
+        $sessionService->shouldReceive('createAndConnectSession')->once()->andReturn([
+            'session' => ['id' => 888, 'webhook_secret' => 'new-secret', 'api_key' => 'new-key'],
+            'connection' => ['status' => 'need_scan', 'qr_code' => 'QR-NEW'],
+        ]);
+
+        $result = new ConnectWhatsAppSessionAction(
+            app: $app,
+            company: $company,
+            user: auth()->user(),
+            agent: $agent,
+            phoneNumber: '+18095551234',
+            sessionService: $sessionService,
+        )->execute();
+
+        $this->assertSame(888, $result['session_id']);
+        $this->assertSame('888', (string) Agent::getById($agent->getId(), $app)->get('whatsapp_session_id'));
     }
 
     public function testDisconnectPauseUnlinksButKeepsSession(): void
@@ -205,6 +223,52 @@ class ConnectWhatsAppSessionActionTest extends TestCase
         $fresh = Agent::getById($agent->getId(), $app);
         $this->assertSame('', (string) $fresh->get('whatsapp_session_id'));
         $this->assertSame('', (string) $fresh->get('whatsapp_phone_number'));
+    }
+
+    public function testRemovingOneAgentsSessionLeavesAnotherAgentsLiveNumberAlone(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $stale = $this->makeReceptionistAgent($app, $company->getId());
+        $stale->set('whatsapp_session_id', 777);
+        $live = $this->connection('wasender', '+18095550144', ['config' => ['session_id' => 999]]);
+
+        $sessionService = Mockery::mock(SessionService::class);
+        $sessionService->shouldReceive('deleteSession')->once()->with(777)->andReturn(['status' => 'deleted']);
+
+        new DisconnectWhatsAppSessionAction(
+            app: $app,
+            company: $company,
+            agent: $stale,
+            remove: true,
+            sessionService: $sessionService,
+        )->execute();
+
+        $this->assertTrue($live->fresh()->isLive());
+    }
+
+    public function testRemovingTheSessionRetiresItsNumberWithoutBlockingItFromComingBack(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->makeReceptionistAgent($app, $company->getId());
+        $agent->set('whatsapp_session_id', 777);
+        $agent->set('whatsapp_phone_number', '18095550145');
+        $connection = $this->connection('wasender', '+18095550145', ['config' => ['session_id' => 777]]);
+
+        $sessionService = Mockery::mock(SessionService::class);
+        $sessionService->shouldReceive('deleteSession')->once()->with(777)->andReturn(['status' => 'deleted']);
+
+        new DisconnectWhatsAppSessionAction(
+            app: $app,
+            company: $company,
+            agent: $agent,
+            remove: true,
+            sessionService: $sessionService,
+        )->execute();
+
+        $this->assertFalse($connection->fresh()->isLive());
+        $this->assertArrayNotHasKey('retired_accounts', $connection->integrationCompany->fresh()->config ?? []);
     }
 
     public function testDisconnectReturnsFalseWhenAgentHasNoConnection(): void

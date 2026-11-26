@@ -12,21 +12,12 @@ class ProcessContactAssigneeUpdatedAction extends BaseRespondIOAction
     #[Override]
     public function execute(): array
     {
-        /** @var array<string, mixed> $contact */
-        $contact = $this->payload['contact'] ?? [];
         /** @var array<string, mixed>|null $assignee */
-        $assignee = $contact['assignee'] ?? null;
+        $assignee = $this->payload['contact']['assignee'] ?? null;
+        $people = $this->resolvePeople();
 
-        $identifier = $this->getContactIdentifier($contact);
-
-        if ($identifier === null) {
-            return ['error' => 'Missing contact identifier'];
-        }
-
-        $people = $this->findPeopleByIdentifier($this->app, $this->company, $identifier);
-
-        if (! $people) {
-            return ['status' => 'contact_not_found', 'identifier' => $identifier];
+        if ($people === null) {
+            return $this->unresolved('contact_not_found');
         }
 
         if ($assignee !== null) {

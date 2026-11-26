@@ -10,53 +10,28 @@ use RecursiveIteratorIterator;
 use Tests\TestCaseUnit;
 
 /**
- * The domain is only vendor-neutral while its core cannot see a vendor. Sending, the ledger and
- * provisioning reach a provider through the contracts and the registry; one direct import and the
- * next provider is added by editing the core instead of by adding a folder.
+ * The domain is only vendor-neutral while it cannot see a vendor. Providers live under Connectors,
+ * implement the contracts and are named in `config/communication.php`; one direct import and the
+ * next provider is added by editing the domain instead of by adding a connector.
  */
 final class CommunicationLayoutTest extends TestCaseUnit
 {
     private const string ROOT = 'src/Domains/Communication';
-    private const string PROVIDER_NAMESPACE = '/^Kanvas\\\\Communication\\\\Channels\\\\[^\\\\]+\\\\Providers\\\\/';
+    private const string CONNECTOR_NAMESPACE = '/^Kanvas\\\\Connectors\\\\/';
 
-    public function testTheCoreImportsNoProvider(): void
+    public function testTheDomainImportsNoConnector(): void
     {
         $offenders = [];
 
-        foreach (['Contracts', 'Messages', 'Connections', 'Support', 'Models'] as $folder) {
-            foreach ($this->phpFiles(self::ROOT . '/' . $folder) as $file) {
-                foreach ($this->imports(file_get_contents($file)) as $import) {
-                    if (preg_match(self::PROVIDER_NAMESPACE, $import) === 1) {
-                        $offenders[] = $this->relative($file) . ' imports ' . $import;
-                    }
-                }
-            }
-        }
-
-        $this->assertSame([], $offenders, "The communication core must not import a provider:\n - " . implode("\n - ", $offenders));
-    }
-
-    /**
-     * A channel's own rules (the SMS length limit, the WhatsApp service window) hold whichever vendor
-     * carries the message, so they cannot depend on one.
-     */
-    public function testAChannelsRulesImportNoneOfItsProviders(): void
-    {
-        $offenders = [];
-
-        foreach ($this->phpFiles(self::ROOT . '/Channels') as $file) {
-            if (str_contains($file, '/Providers/')) {
-                continue;
-            }
-
+        foreach ($this->phpFiles(self::ROOT) as $file) {
             foreach ($this->imports(file_get_contents($file)) as $import) {
-                if (preg_match(self::PROVIDER_NAMESPACE, $import) === 1) {
+                if (preg_match(self::CONNECTOR_NAMESPACE, $import) === 1) {
                     $offenders[] = $this->relative($file) . ' imports ' . $import;
                 }
             }
         }
 
-        $this->assertSame([], $offenders, "Channel rules must not import a provider:\n - " . implode("\n - ", $offenders));
+        $this->assertSame([], $offenders, "The communication domain must not import a connector:\n - " . implode("\n - ", $offenders));
     }
 
     public function testImportsAreReadFromEveryFormOfUseStatement(): void
@@ -66,8 +41,8 @@ final class CommunicationLayoutTest extends TestCaseUnit
 
             namespace Kanvas\Communication\Messages\Actions;
 
-            use Kanvas\Communication\Channels\Sms\Providers\Twilio\SmsTransport;
-            use Kanvas\Communication\Channels\Email\Providers\Mailgun\{Client, EmailTransport as Mail};
+            use Kanvas\Connectors\Twilio\SmsTransport;
+            use Kanvas\Connectors\Mailgun\{Client, EmailTransport as Mail};
             use Kanvas\Communication\Contracts\Transport as TransportContract;
 
             class Example
@@ -78,9 +53,9 @@ final class CommunicationLayoutTest extends TestCaseUnit
 
         $this->assertSame(
             [
-                'Kanvas\Communication\Channels\Sms\Providers\Twilio\SmsTransport',
-                'Kanvas\Communication\Channels\Email\Providers\Mailgun\Client',
-                'Kanvas\Communication\Channels\Email\Providers\Mailgun\EmailTransport',
+                'Kanvas\Connectors\Twilio\SmsTransport',
+                'Kanvas\Connectors\Mailgun\Client',
+                'Kanvas\Connectors\Mailgun\EmailTransport',
                 'Kanvas\Communication\Contracts\Transport',
             ],
             $this->imports($source)

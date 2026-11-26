@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\AeroAmbulancia\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\AeroAmbulancia\Client;
 use Kanvas\Connectors\AeroAmbulancia\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 

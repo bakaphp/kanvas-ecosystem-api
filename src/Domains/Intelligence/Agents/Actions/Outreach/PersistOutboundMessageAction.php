@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
+use Baka\Support\Str;
+use Kanvas\Communication\Messages\Actions\FindOrCreateConversationChannelAction;
 use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
-use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -58,7 +61,17 @@ class PersistOutboundMessageAction
     public function execute(array $providerResponse): array
     {
         $people = $this->entity instanceof Lead ? $this->entity->people : $this->entity;
-        $channel = $this->resolveProtocolChannel();
+        // A send that names its conversation is filed there, where the customer's answer arrives and
+        // whoever owns it (the person, for a lead too). Found by slug alone: a lead-owned twin of
+        // the person's conversation would split one thread in two.
+        $conversationSlug = Str::trimToNull($providerResponse['channel_slug'] ?? null);
+        $channel = $conversationSlug !== null
+            ? new FindOrCreateConversationChannelAction(
+                $this->entity->app,
+                $this->entity->company,
+                $conversationSlug
+            )->forOutbound($this->recipient, $this->user, $people?->getId())
+            : $this->resolveProtocolChannel();
         $messageType = MessageTypeService::getOrCreate(
             $this->entity->app,
             match ($this->channelType) {
@@ -96,17 +109,15 @@ class PersistOutboundMessageAction
         }
 
         $channel->addMessage($message);
-        $message->addEntity($this->entity);
-        if ($this->entity instanceof Lead && $people !== null) {
-            $message->addEntity($people);
+
+        // Also links the message to the lead and the person, each once.
+        if ($this->entity instanceof Lead) {
+            new LeadChannelService()->recordOnLeadAndPerson($message, $this->entity, $this->user);
+        } else {
+            new PeopleChannelService()->recordOnPerson($message, $this->entity, $this->user);
         }
 
-        // A WhatsApp result carries no `channel`, which StoreMessageSidAction would read as SMS.
-        if ($this->channelType === ChannelCategoryEnum::SMS->value) {
-            new StoreMessageSidAction($message)->execute($providerResponse);
-        } else {
-            new LinkDeliveryMessageAction($message)->execute($providerResponse);
-        }
+        new LinkDeliveryMessageAction($message)->execute($providerResponse);
 
         $message->fireWorkflow(
             WorkflowEnum::CREATED->value,

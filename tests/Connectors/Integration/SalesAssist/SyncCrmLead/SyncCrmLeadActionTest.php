@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Reynolds;
+namespace Tests\Connectors\Integration\SalesAssist\SyncCrmLead;
 
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,7 +23,7 @@ use Kanvas\Connectors\SalesAssist\DataTransferObject\CrmLeadSyncResult;
 use Kanvas\Connectors\SalesAssist\Enums\CrmLeadSyncOutcomeEnum;
 use Kanvas\Connectors\SalesAssist\Enums\CrmLeadSyncSettingEnum;
 use Kanvas\Connectors\SalesAssist\Exceptions\CrmLeadSyncException;
-use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
+use Kanvas\Guild\Customers\Actions\Communication\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;

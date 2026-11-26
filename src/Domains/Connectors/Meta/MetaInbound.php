@@ -1,0 +1,356 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Meta;
+
+use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Kanvas\Communication\Connections\Models\InboundClaim;
+use Kanvas\Communication\Contracts\Concerns\HasInboundDefaults;
+use Kanvas\Communication\Contracts\InboundSource;
+use Kanvas\Communication\Messages\Actions\RecordDeliveryEventAction;
+use Kanvas\Communication\Messages\Actions\StoreInboundFileAction;
+use Kanvas\Communication\Messages\DataTransferObject\InboundAttachment;
+use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Meta\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Meta\Enums\PersonCustomFieldEnum;
+use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Override;
+
+/**
+ * Meta's side of the communication webhook. One payload can carry messages and delivery statuses
+ * for several numbers at once (`entry[].changes[].value`), each change naming the number it is for.
+ */
+class MetaInbound implements InboundSource
+{
+    use HasInboundDefaults;
+
+    private const array MEDIA_TYPES = [
+        'image',
+        'video',
+        'audio',
+        'document',
+        'sticker',
+    ];
+
+    /**
+     * Not a turn for the agent: a reaction to one of our messages, or Meta telling us something
+     * about the account.
+     */
+    private const array IGNORED_TYPES = [
+        'reaction',
+        'system',
+        'unsupported',
+        'ephemeral',
+    ];
+
+    /**
+     * What Meta is told to echo back when it verifies a callback URL. Not a secret anyone hands us —
+     * we pick it, so it is generated the first time a number is subscribed.
+     */
+    public static function verifyToken(AppInterface $app): string
+    {
+        $token = $app->get(ConfigurationEnum::WEBHOOK_VERIFY_TOKEN->value);
+
+        if (! is_string($token) || $token === '') {
+            $token = Str::random(40);
+            $app->setEncrypted(ConfigurationEnum::WEBHOOK_VERIFY_TOKEN->value, $token);
+        }
+
+        return $token;
+    }
+
+    /**
+     * `X-Hub-Signature-256` is an HMAC of the raw body with the Meta app's secret. Without a secret
+     * configured nothing can be verified, so nothing is accepted.
+     */
+    #[Override]
+    public function authenticate(Request $request, ReceiverWebhook $receiver): bool
+    {
+        $secret = $receiver->app->get(ConfigurationEnum::APP_SECRET->value);
+        $signature = (string) $request->header('X-Hub-Signature-256', '');
+
+        if (! is_string($secret) || $secret === '' || ! str_starts_with($signature, 'sha256=')) {
+            return false;
+        }
+
+        return hash_equals(
+            'sha256=' . hash_hmac('sha256', $request->getContent(), $secret),
+            $signature
+        );
+    }
+
+    /**
+     * The one URL every app's WABAs post to: a WABA takes one callback override, and whose numbers
+     * a payload carries is only known from the payload. Under /v1/receiver/ so it reads as a Kanvas
+     * receiver.
+     */
+    public static function callbackUrl(): string
+    {
+        return rtrim((string) config('app.url'), '/') . '/v1/receiver/meta';
+    }
+
+    public function answerChallenge(Request $request, AppInterface $app): ?string
+    {
+        $token = $app->get(ConfigurationEnum::WEBHOOK_VERIFY_TOKEN->value);
+
+        if ($this->hubParameter($request, 'mode') !== 'subscribe' || ! is_string($token) || $token === '') {
+            return null;
+        }
+
+        if (! hash_equals($token, $this->hubParameter($request, 'verify_token'))) {
+            return null;
+        }
+
+        return $this->hubParameter($request, 'challenge');
+    }
+
+    /**
+     * PHP turns the dot in `hub.mode` into an underscore when it parses a query string; a request
+     * built another way may keep it.
+     */
+    private function hubParameter(Request $request, string $name): string
+    {
+        return (string) ($request->query('hub_' . $name) ?? $request->query('hub.' . $name) ?? '');
+    }
+
+    /**
+     * The claim on the number the payload is for. A payload comes from one WABA, so its numbers
+     * belong to one company: the first claimed one names it.
+     */
+    public function claimFor(array $payload): ?InboundClaim
+    {
+        foreach ($this->changes($payload) as $value) {
+            $number = (string) ($value['metadata']['display_phone_number'] ?? '');
+            $claim = $number === ''
+                ? null
+                : InboundClaim::forIdentity(MetaWhatsAppHandler::slug(), ChannelTypeEnum::WHATSAPP, $number);
+
+            if ($claim !== null) {
+                return $claim;
+            }
+        }
+
+        return null;
+    }
+
+    #[Override]
+    public function messages(array $payload, ReceiverWebhook $receiver): array
+    {
+        $messages = [];
+
+        foreach ($this->changes($payload) as $value) {
+            $ourNumber = (string) ($value['metadata']['display_phone_number'] ?? '');
+
+            foreach ($value['messages'] ?? [] as $message) {
+                $from = WhatsAppTransport::senderOf($message);
+
+                if (in_array($message['type'] ?? null, self::IGNORED_TYPES, true) || $from === null) {
+                    continue;
+                }
+
+                $messages[] = $this->parse(
+                    $message,
+                    $value['metadata'] ?? [],
+                    $ourNumber,
+                    $from,
+                    $this->contactFor($message, $value['contacts'] ?? [])
+                );
+            }
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Routed by the message id Meta gave us when we sent it. A status for a message that never went
+     * through this domain is counted and left alone.
+     */
+    #[Override]
+    public function recordStatuses(array $payload, ReceiverWebhook $receiver): ?array
+    {
+        $statuses = [];
+
+        foreach ($this->changes($payload) as $value) {
+            array_push($statuses, ...($value['statuses'] ?? []));
+        }
+
+        if ($statuses === []) {
+            return null;
+        }
+
+        $summary = ['recorded' => 0, 'duplicates' => 0, 'unmatched' => 0];
+
+        foreach ($statuses as $status) {
+            $deliveryStatus = StatusMap::toDeliveryStatus((string) ($status['status'] ?? ''));
+            $delivery = $deliveryStatus !== null && ! empty($status['id'])
+                ? Delivery::query()
+                    ->fromApp($receiver->app)
+                    ->reportedBy(MetaWhatsAppHandler::slug(), (string) $status['id'])
+                    ->first()
+                : null;
+
+            if ($delivery === null) {
+                $summary['unmatched']++;
+
+                continue;
+            }
+
+            $error = $status['errors'][0] ?? null;
+
+            $recorded = new RecordDeliveryEventAction(
+                delivery: $delivery,
+                status: $deliveryStatus,
+                providerStatus: strtolower((string) $status['status']),
+                payload: $status,
+                occurredAt: isset($status['timestamp']) ? Carbon::createFromTimestamp((int) $status['timestamp']) : null,
+                errorCode: isset($error['code']) ? (string) $error['code'] : null,
+                error: $error['error_data']['details'] ?? $error['title'] ?? null
+            )->execute();
+
+            $summary[$recorded ? 'recorded' : 'duplicates']++;
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Meta hands out a media id; the file is behind two authenticated calls.
+     */
+    #[Override]
+    public function downloadAttachment(Message $message, InboundAttachment $attachment): Filesystem
+    {
+        $client = Client::forCompany($message->app, $message->company);
+        $media = $client->media($attachment->url);
+
+        return new StoreInboundFileAction(
+            $message,
+            $client->downloadMedia($media['url']),
+            $media['mime_type'] ?? $attachment->contentType,
+            'whatsapp'
+        )->execute();
+    }
+
+    #[Override]
+    public function burstPolicy(InboundMessage $inbound, Companies $company): BurstPolicy
+    {
+        $sender = $inbound->fromIsVendorId ? $inbound->from : Str::digitsOnly($inbound->from);
+
+        return BurstPolicy::fromCompanySettings($company, 'meta_whatsapp', ['whatsapp:' . $sender]);
+    }
+
+    /**
+     * @return list<array<string, mixed>> each change's `value` that carries messages or statuses
+     */
+    private function changes(array $payload): array
+    {
+        if (($payload['object'] ?? null) !== 'whatsapp_business_account') {
+            return [];
+        }
+
+        $values = [];
+
+        foreach ($payload['entry'] ?? [] as $entry) {
+            foreach ($entry['changes'] ?? [] as $change) {
+                if (($change['field'] ?? null) === 'messages' && is_array($change['value'] ?? null)) {
+                    $values[] = $change['value'];
+                }
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Meta lists who wrote beside the messages rather than on them, keyed by their number or by
+     * its own id for them.
+     *
+     * @param list<array<string, mixed>> $contacts
+     *
+     * @return array<string, mixed>
+     */
+    private function contactFor(array $message, array $contacts): array
+    {
+        foreach ($contacts as $contact) {
+            // Either end can come without a number, and two absent numbers are not the same one.
+            $sameNumber = isset($contact['wa_id'], $message['from'])
+                && (string) $contact['wa_id'] === (string) $message['from'];
+            $sameUser = isset($contact['user_id'], $message['from_user_id'])
+                && $contact['user_id'] === $message['from_user_id'];
+
+            if ($sameNumber || $sameUser) {
+                return $contact;
+            }
+        }
+
+        return [];
+    }
+
+    private function parse(
+        array $message,
+        array $metadata,
+        string $ourNumber,
+        string $from,
+        array $contact
+    ): InboundMessage {
+        $type = (string) ($message['type'] ?? 'text');
+        $userId = Str::trimToNull($contact['user_id'] ?? $message['from_user_id'] ?? null);
+        $username = Str::trimToNull($contact['profile']['username'] ?? null);
+        $attachments = [];
+
+        if (in_array($type, self::MEDIA_TYPES, true) && isset($message[$type]['id'])) {
+            $attachments[] = new InboundAttachment((string) $message[$type]['id'], (string) ($message[$type]['mime_type'] ?? ''));
+        }
+
+        return new InboundMessage(
+            provider: MetaWhatsAppHandler::slug(),
+            channel: ChannelTypeEnum::WHATSAPP,
+            inboundIdentity: $ourNumber,
+            from: $from,
+            providerMessageId: (string) $message['id'],
+            conversationSlug: WhatsAppTransport::channelSlug($from),
+            messageVerb: WhatsAppTransport::MESSAGE_VERB,
+            messageSlug: 'meta-' . Str::slug((string) $message['id']),
+            text: $this->text($type, $message),
+            // The number it reached, kept on the message so a reply can find its way back.
+            raw: $message + ['metadata' => $metadata],
+            fromName: Str::trimToNull($contact['profile']['name'] ?? null) ?? $username,
+            attachments: $attachments,
+            personCustomFields: array_filter(
+                [
+                    PersonCustomFieldEnum::USERNAME->value => $username,
+                    PersonCustomFieldEnum::USER_ID->value => $userId,
+                ],
+                fn (?string $value): bool => $value !== null
+            ),
+            personTags: ['whatsapp', 'meta'],
+            fromIsVendorId: WhatsAppTransport::isUserId($from),
+            personIdField: $userId !== null ? PersonCustomFieldEnum::USER_ID->value : null,
+        );
+    }
+
+    private function text(string $type, array $message): ?string
+    {
+        return match ($type) {
+            'text' => $message['text']['body'] ?? null,
+            'button' => $message['button']['text'] ?? null,
+            'interactive' => $message['interactive']['button_reply']['title']
+                ?? $message['interactive']['list_reply']['title']
+                ?? null,
+            'location' => isset($message['location']['latitude'], $message['location']['longitude'])
+                ? trim(($message['location']['name'] ?? '') . ' ' . $message['location']['latitude'] . ',' . $message['location']['longitude'])
+                : null,
+            default => $message[$type]['caption'] ?? null,
+        };
+    }
+}

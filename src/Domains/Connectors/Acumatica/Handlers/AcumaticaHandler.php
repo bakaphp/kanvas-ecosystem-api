@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Acumatica\Handlers;
 
+use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Acumatica\Client;
 use Kanvas\Connectors\Acumatica\DataTransferObject\Acumatica as AcumaticaDto;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaService;
 use Kanvas\Connectors\Acumatica\SqlClient;
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 use Throwable;

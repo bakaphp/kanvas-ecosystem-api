@@ -69,6 +69,7 @@ Big task-shaped recipes have been moved to skills under `.claude/skills/`. They 
 Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
+- `src/Domains/Communication/CLAUDE.md` — messaging as a first-party domain: sending from any domain through `Communication::for($app, $company)->send()/reply()`, what stays in the domain vs in a connector, `config/communication.php` as the only join (providers, opt-in, default rules), how to add a provider without touching the core, and the inbound → auto-reply flow.
 - `src/Domains/Connectors/Microsoft/CLAUDE.md` — Outlook + OneDrive: a company's own account (Outlook + its drive) vs the app's shared OneDrive (`MicrosoftTokenStore`), the tools' `drive` choice, the `microsoft`/`onedrive` OAuth integrations and their `oauth_url`, App Registration for personal accounts, granted-scopes refresh, Word-by-XML / Excel write limits, eTag and delete rules, native tools vs `microsoft365_mcp`.
 - `src/Domains/Connectors/Salesforce/CLAUDE.md` — the generic half (standard objects, per-company field maps) vs GAGroup's hardcoded property model (`Project__c`/`Location__c`), what a second tenant with properties needs, and why a location is a variant of its project's product.
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
@@ -94,6 +95,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Souk/CLAUDE.md` — commerce: order vs invoice in regular ecommerce (paid at checkout, no invoice record) vs B2B (paid on terms, one order → N Scribe invoices linked by `invoices.order_id`, the payment link is built from the invoice balance, ERP-issued invoices import with no JE), and the `USE_B2B_COMPANY_GROUP` global-company rule.
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 - `src/Domains/Connectors/Dhl/CLAUDE.md` — DHL Express order fulfillment (first used by Cabinet): the order status path and which hook moves it, reserve-then-call booking (MyDHL cannot void), quote replay, the hourly tracking poll and the late proof of delivery.
+- `scripts/deploy/CLAUDE.md` — host scripts: `update-images.sh` is the one command that updates nginx and the PHP base image on a server (a deploy never does), what it restarts, and why it removes-then-creates instead of `--force-recreate`.
 
 ### Where to put new conventions (don't bloat this file)
 

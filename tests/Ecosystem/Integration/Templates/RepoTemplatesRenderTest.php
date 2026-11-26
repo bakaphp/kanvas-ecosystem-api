@@ -197,6 +197,40 @@ final class RepoTemplatesRenderTest extends TestCase
         $this->assertStringNotContainsString('Review approvals', $withoutLink);
     }
 
+    public function testEveryApprovalEmailPrintsTheDetailsLine(): void
+    {
+        $line = 'Acme Supplies · USD 300.00 · due 2026-12-01';
+        $bill = [
+            'id' => 1,
+            'name' => '1001',
+            'type' => 'Bill',
+            'action' => 'Approve Bill',
+            'approval_type' => 'approve_bill',
+            'requested_at' => '2026-11-02 10:00:00',
+            'details' => $line,
+        ];
+        $context = [
+            'count' => 2,
+            'approvals' => [
+                $bill,
+                ['id' => 2, 'name' => 'Rachel Kim', 'details' => null] + $bill,
+            ],
+            'approval' => $bill,
+            'company_name' => 'GA Group',
+            'intro' => 'Nobody decided this request before it expired.',
+            'review_url' => null,
+        ];
+        $templates = [
+            'emails/approvalRequested.twig',
+            'emails/approvalDigest.twig',
+            'emails/approvalExpired.twig',
+        ];
+
+        foreach ($templates as $template) {
+            $this->assertSame(1, substr_count($this->render($template, $context), $line), $template);
+        }
+    }
+
     public function testMentionEmailsRenderTheBodyAsMarkdown(): void
     {
         foreach (['emails/userMentioned.twig', 'emails/agentMentionReply.twig'] as $template) {

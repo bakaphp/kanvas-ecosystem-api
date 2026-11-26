@@ -12,7 +12,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Campaigns\Actions\CreateBatchCampaignAction;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Campaigns\Services\CampaignAttachmentMatcherService;
-use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
+use Kanvas\Guild\Customers\Actions\Communication\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;

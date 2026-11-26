@@ -10,6 +10,7 @@ use Illuminate\Queue\RedisQueue;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Number;
 use Kanvas\Workflow\Services\WedgedWorkflowService;
 use Throwable;
 
@@ -17,9 +18,10 @@ class KanvasStatusCommand extends Command
 {
     protected $signature = 'kanvas:status
         {--backlog=10000 : Pending count above which a queue is flagged as backed up}
+        {--redis-memory=85 : Percent of the Redis memory limit above which Redis is flagged as nearly full}
         {--delay=120 : Seconds the oldest waiting job may sit before the queue is flagged as late}';
 
-    protected $description = 'Health snapshot of Kanvas: databases, redis, queues, failed jobs — is everything good?';
+    protected $description = 'Health snapshot of Kanvas: databases, redis and how full it is, queues, failed jobs — is everything good?';
 
     public const array QUEUES = [
         'default',
@@ -72,7 +74,9 @@ class KanvasStatusCommand extends Command
         $healthy = true;
 
         $healthy = $this->reportDatabases() && $healthy;
-        $healthy = $this->reportRedis() && $healthy;
+        $redisUp = $this->reportRedis();
+        $healthy = $redisUp && $healthy;
+        $redisNearlyFull = $redisUp && $this->reportRedisMemory((int) $this->option('redis-memory'));
 
         $backlogged = $this->reportQueues($queue, (int) $this->option('backlog'));
 
@@ -84,9 +88,13 @@ class KanvasStatusCommand extends Command
             return self::FAILURE;
         }
 
+        if ($redisNearlyFull) {
+            $this->warn('  ! Redis is close to its memory limit. See above.');
+        }
+
         if ($backlogged) {
             $this->warn('  ! Infrastructure healthy, but some queues are backed up or have failed jobs. See above.');
-        } else {
+        } elseif (! $redisNearlyFull) {
             $this->info('  ✓ ALL GOOD — every connection is up and queues are draining.');
         }
         $this->newLine();
@@ -137,6 +145,111 @@ class KanvasStatusCommand extends Command
 
             return false;
         }
+    }
+
+    /**
+     * @return bool whether used memory is past the threshold
+     */
+    private function reportRedisMemory(int $thresholdPercent): bool
+    {
+        try {
+            $info = Redis::connection()->info();
+        } catch (Throwable $e) {
+            $this->warn('  ! Could not read redis memory: ' . $this->shorten($e->getMessage()));
+
+            return false;
+        }
+
+        $memory = $this->redisMemory($info);
+        $nearlyFull = $memory['percent'] !== null && $memory['percent'] >= $thresholdPercent;
+        $color = match (true) {
+            $memory['percent'] === null => 'yellow',
+            $memory['percent'] >= 95 => 'red',
+            $nearlyFull => 'yellow',
+            default => 'green',
+        };
+        $usage = $memory['percent'] === null
+            ? Number::fileSize($memory['used'], 2) . ' used, limit unknown'
+            : sprintf(
+                '%s of %s (%s%%)',
+                Number::fileSize($memory['used'], 2),
+                Number::fileSize($memory['limit'], 2),
+                $memory['percent']
+            );
+
+        $this->line(sprintf(
+            '  Memory: <fg=%s>%s</>%s   |   peak %s   |   policy %s   |   evicted keys %d',
+            $color,
+            $usage,
+            $memory['has_max_memory'] || $memory['percent'] === null ? '' : ' — no maxmemory set, measured against host memory',
+            Number::fileSize((int) ($info['used_memory_peak'] ?? 0), 2),
+            $info['maxmemory_policy'] ?? '?',
+            (int) ($info['evicted_keys'] ?? 0)
+        ));
+        $this->table(
+            [
+                'DB',
+                'Used by',
+                'Keys',
+                'Keys that expire',
+            ],
+            $this->redisKeyspace($info)
+        );
+
+        return $nearlyFull;
+    }
+
+    /**
+     * Managed Redis can hide both maxmemory and the host's memory; a null percent keeps that from
+     * reading as "0% full".
+     *
+     * @return array{used: int, limit: int, percent: ?float, has_max_memory: bool}
+     */
+    private function redisMemory(array $info): array
+    {
+        $used = (int) ($info['used_memory'] ?? 0);
+        $maxMemory = (int) ($info['maxmemory'] ?? 0);
+        $limit = $maxMemory > 0 ? $maxMemory : (int) ($info['total_system_memory'] ?? 0);
+
+        return [
+            'used' => $used,
+            'limit' => $limit,
+            'percent' => $limit > 0 ? round($used / $limit * 100, 1) : null,
+            'has_max_memory' => $maxMemory > 0,
+        ];
+    }
+
+    /**
+     * @return array<int, array<int, string>>
+     */
+    private function redisKeyspace(array $info): array
+    {
+        $usedBy = [];
+        foreach (Config::get('database.redis', []) as $name => $connection) {
+            if (is_array($connection) && isset($connection['database'])) {
+                $usedBy[(int) $connection['database']][] = $name;
+            }
+        }
+
+        $rows = [];
+        foreach ($info as $key => $value) {
+            if (! preg_match('/^db(\d+)$/', (string) $key, $matches)) {
+                continue;
+            }
+
+            parse_str(str_replace(',', '&', (string) $value), $stats);
+            $keys = (int) ($stats['keys'] ?? 0);
+            $expires = (int) ($stats['expires'] ?? 0);
+
+            $rows[] = [
+                $matches[1],
+                implode(', ', $usedBy[(int) $matches[1]] ?? []) ?: '-',
+                number_format($keys),
+                number_format($expires) . ' (' . ($keys > 0 ? round($expires / $keys * 100) : 0) . '%)',
+            ];
+        }
+
+        return $rows;
     }
 
     /**

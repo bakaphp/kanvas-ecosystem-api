@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use DomainException;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\PaymentInformation;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
 use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
@@ -52,12 +53,14 @@ use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Enums\VehicleInsuranceAttributeEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Services\CatalogCache;
+use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
 use Kanvas\Insurance\Services\VehicleAttributeReader;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Throwable;
 
 class UniversalSegurosProvider implements
     CanonicalQuoteProviderInterface,
@@ -619,11 +622,13 @@ class UniversalSegurosProvider implements
     protected function readPolicy(Order $order, string $quoteNumber, string $message): PolicyResult
     {
         $policy = $this->service->getPolicy($quoteNumber);
-        $policyNumber = (string) ($policy['numeroPoliza'] ?? $policy['numero'] ?? '');
+        $data = is_array($policy['data'] ?? null) ? $policy['data'] : $policy;
+        $policyNumber = (string) ($data['numeroPoliza'] ?? $data['numero'] ?? '');
         $status = InsuranceStatus::of($order) ?? InsuranceStatusEnum::QUOTED;
 
         if ($policyNumber !== '') {
             $order->set(InsuranceCustomFieldEnum::POLICY_NUMBER->value, $policyNumber);
+            $this->stampPolicyDates($order, $data);
             new RecordInsuranceStatusAction($order, InsuranceStatusEnum::POLICY_ACTIVE)->execute();
             $status = InsuranceStatusEnum::POLICY_ACTIVE;
         }
@@ -635,6 +640,35 @@ class UniversalSegurosProvider implements
             status: $status,
             raw: $policy,
         );
+    }
+
+    protected function stampPolicyDates(Order $order, array $data): void
+    {
+        $terminos = (array) ($data['terminos'] ?? []);
+        $startAt = $this->policyDate($terminos['inicioVigencia'] ?? null);
+        $endAt = $this->policyDate($terminos['finVigencia'] ?? null);
+
+        if ($startAt === null && $endAt === null) {
+            return;
+        }
+
+        $order->metadata = InsuranceOrderMetadata::withPolicyDates($order->metadata, $startAt, $endAt);
+        $order->saveQuietly();
+    }
+
+    protected function policyDate(mixed $value): ?string
+    {
+        $value = Str::trimToNull((string) $value);
+
+        if ($value === null) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     protected function toQuoteResult(array $response): QuoteResult

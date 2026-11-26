@@ -10,8 +10,7 @@ use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 
 /**
  * One inbound WhatsApp message resolved into "where the conversation lives" (conversationJid) and
- * "who spoke" (sender*). Those two collapse into the same value in a DM and diverge in a group,
- * which is what the old single-`$chatJid` expression could not express.
+ * "who spoke" (sender*). Those two collapse into the same value in a DM and diverge in a group.
  */
 final readonly class InboundMessage
 {

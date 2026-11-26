@@ -56,6 +56,15 @@ class TypesenseSchemaReconciler
         return new self($app, SearchEngineResolver::getTypesenseClient($settings), $settings);
     }
 
+    public static function indexesIntoTypesense(Apps $app, Model $model): bool
+    {
+        $engine = $app->get($model->getTable() . '_search_engine')
+            ?? $app->get('search_engine')
+            ?? config('scout.driver');
+
+        return $engine === 'typesense';
+    }
+
     /**
      * Which collection, on which server. Apps often share one index, so a caller sweeping every app
      * needs this to avoid reconciling the same collection once per app.
@@ -87,6 +96,7 @@ class TypesenseSchemaReconciler
         // under two types — collapsing to one would hide exactly the breakage worth repairing.
         $liveTypes = [];
         $liveRequired = [];
+        $liveFacet = [];
         $hasAutoField = false;
         foreach ($liveFields as $liveField) {
             $hasAutoField = $hasAutoField || $liveField['name'] === '.*';
@@ -95,6 +105,7 @@ class TypesenseSchemaReconciler
             // on that guess would cost a field rebuild for nothing.
             $liveRequired[$liveField['name']][] = array_key_exists('optional', $liveField)
                 && $liveField['optional'] === false;
+            $liveFacet[$liveField['name']] = (bool) ($liveField['facet'] ?? false);
         }
 
         $protected = ['id', $live['default_sorting_field'] ?? null];
@@ -137,26 +148,38 @@ class TypesenseSchemaReconciler
                 continue;
             }
 
-            $typeDrift = $current !== [$declared];
+            $typeDrift = $declared !== 'auto' && $current !== [$declared];
             $requiredDrift = ($field['optional'] ?? false)
                 && in_array(true, $liveRequired[$name], true);
 
-            if (! $typeDrift && ! $requiredDrift) {
+            $declaredFacet = (bool) ($field['facet'] ?? false);
+            $facetDrift = $declaredFacet !== ($liveFacet[$name] ?? false);
+
+            if (! $typeDrift && ! $requiredDrift && ! $facetDrift) {
                 continue;
             }
 
             // Relaxing a field to optional invalidates nothing already indexed — every stored
             // document carries a value for it — so on its own it is always safe to apply.
-            $widening = ! $typeDrift || $this->isWidening($current, $declared);
+            $widening = (! $typeDrift || $this->isWidening($current, $declared))
+                && (! $facetDrift || $declaredFacet);
 
             if ($wideningOnly && ! $widening) {
                 continue;
             }
 
+            $fromSuffix = $requiredDrift ? ' (required)' : '';
+            $toSuffix = $requiredDrift ? ' (optional)' : '';
+
+            if ($facetDrift && ! $typeDrift && ! $requiredDrift) {
+                $fromSuffix = ' (facet: ' . ($declaredFacet ? 'false' : 'true') . ')';
+                $toSuffix = ' (facet: ' . ($declaredFacet ? 'true' : 'false') . ')';
+            }
+
             $drift[] = [
                 'name' => $name,
-                'from' => implode(' + ', $current) . ($requiredDrift ? ' (required)' : ''),
-                'to' => $declared . ($requiredDrift ? ' (optional)' : ''),
+                'from' => implode(' + ', $current) . $fromSuffix,
+                'to' => $declared . $toSuffix,
                 'widening' => $widening,
                 'missing' => false,
             ];

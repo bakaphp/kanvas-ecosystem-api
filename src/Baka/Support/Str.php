@@ -164,6 +164,15 @@ class Str extends IlluminateStr
     }
 
     /**
+     * A value used literally inside a SQL LIKE pattern: its own `%` and `_` would otherwise match as
+     * wildcards, so "my_app" also finds "my-app".
+     */
+    public static function escapeLike(string $value): string
+    {
+        return addcslashes($value, '%_\\');
+    }
+
+    /**
      * Trim a value, treating a blank result as absent. Prefer this over `trim($x) ?: null`, which is
      * falsy-based and so turns the meaningful string "0" into null.
      */

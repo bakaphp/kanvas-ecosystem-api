@@ -110,6 +110,8 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use EmitsLedgerEventsForEntity;
     use TracksClosedAt;
 
+    public const string REACH_OUT_APPLIES_MODE = 'reach_out_applies_mode';
+
     protected $observables = [
         'softDeleting',
         'softDeleted',
@@ -1013,6 +1015,43 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         }
     }
 
+    /**
+     * The subject every email of this lead threads under: the first outreach writes it, a cold
+     * inbound gives it, replies and follow-ups read it.
+     */
+    public function emailThreadSubject(): ?string
+    {
+        $subject = $this->get(ConfigurationEnum::EMAIL_THREAD_SUBJECT->value);
+
+        return is_string($subject) ? Str::trimToNull($subject) : null;
+    }
+
+    /**
+     * First touch wins: a later email never renames the thread.
+     */
+    public function anchorEmailThread(?string $subject): void
+    {
+        $subject = Str::trimToNull($subject);
+
+        if ($subject !== null && $this->emailThreadSubject() === null) {
+            $this->set(ConfigurationEnum::EMAIL_THREAD_SUBJECT->value, $subject);
+        }
+    }
+
+    /**
+     * The thread subject as a reply carries it, or null when the lead has no thread yet.
+     */
+    public function emailThreadReplySubject(): ?string
+    {
+        $subject = $this->emailThreadSubject();
+
+        if ($subject === null) {
+            return null;
+        }
+
+        return preg_match('/^\s*re:/i', $subject) === 1 ? $subject : 'Re: ' . $subject;
+    }
+
     public function hasBeenContacted(): bool
     {
         return $this->get(ConfigurationEnum::CONTACTED->value) && $this->get(ConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;
@@ -1067,6 +1106,31 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function canRunAiAgent(): bool
     {
         return ! $this->isAiMuted();
+    }
+
+    /**
+     * Something happened that can change how the AI works this lead (`TriggersEnum` says what): the
+     * `trigger-ai` workflow event, whose app default rule applies the lead's AI mode.
+     *
+     * `$reachOutAppliesMode` is for a lead that was also announced with the `created` event: when an
+     * agent reaches out to the company's new leads, that reach-out gives the lead its mode right before
+     * reading it, so the rule leaves it alone. An import that announces only the trigger keeps the default.
+     *
+     * Fired even on a lead whose writes were switched off: an import that says its lead is new still
+     * means it.
+     */
+    public function announceAiTrigger(int $triggerType, bool $reachOutAppliesMode = false): void
+    {
+        $this->withWorkflows(fn () => $this->fireWorkflow(
+            WorkflowEnum::TRIGGER_AI->value,
+            true,
+            [
+                'app' => $this->app,
+                'company' => $this->company,
+                'trigger_type' => $triggerType,
+                ...($reachOutAppliesMode ? [self::REACH_OUT_APPLIES_MODE => true] : []),
+            ]
+        ));
     }
 
     public function isServiceLead(): bool

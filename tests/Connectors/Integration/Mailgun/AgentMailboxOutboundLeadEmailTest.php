@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Mailgun;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
@@ -16,13 +18,14 @@ use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Actions\Communication\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
+use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
 
 /**
@@ -32,6 +35,11 @@ use Tests\TestCase;
  */
 final class AgentMailboxOutboundLeadEmailTest extends TestCase
 {
+    use BuildsCommunicationFixtures;
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
+
     private const string DOMAIN = 'agents.kanvas.test';
 
     private Apps $kanvasApp;
@@ -283,6 +291,15 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
     {
         $agent = $this->agent();
         $agent->set(CustomFieldEnum::MAILBOX_ADDRESS->value, $this->addressOf($agent));
+
+        // What setup makes of a mailbox: a connection of its own, owned by the agent.
+        $this->connection('mailgun', $this->addressOf($agent), [
+            'config' => [
+                'domain' => $this->sendingDomain($agent),
+                'agent_id' => $agent->getId(),
+                Connection::PERSONAL => true,
+            ],
+        ]);
 
         return $agent;
     }

@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Dhl\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
-use Kanvas\Connectors\Contracts\DefaultRule;
+use Baka\Contracts\BaseIntegration;
+use Baka\Contracts\DefaultRule;
 use Kanvas\Connectors\Dhl\Actions\BuildDhlRatesPayloadAction;
-use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
 use Kanvas\Connectors\Dhl\Activities\CreateDhlShipmentActivity;
-use Kanvas\Connectors\Dhl\Activities\NotifyOrderStatusActivity;
+use Kanvas\Connectors\Dhl\Activities\FlagCancelledDhlShipmentActivity;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\DataTransferObject\Dhl;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Actions\EnsureDeliveryOrderNoticeRuleAction;
+use Kanvas\Souk\Orders\Actions\SetupDeliveryOrderTypeAction;
+use Kanvas\Souk\Orders\Enums\DeliveryOrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
@@ -24,7 +25,7 @@ use Throwable;
 class DhlHandler extends BaseIntegration
 {
     public const string BOOKING_RULE_NAME = 'DHL create shipment on ready-for-dispatch';
-    public const string STATUS_NOTICE_RULE_NAME = 'DHL order status notice';
+    public const string CANCELLED_REVIEW_RULE_NAME = 'DHL flag cancelled booking for review';
 
     #[Override]
     public function setup(): bool
@@ -55,7 +56,8 @@ class DhlHandler extends BaseIntegration
             return false;
         }
 
-        new SetupDhlOrderTypeAction($this->app)->execute();
+        new SetupDeliveryOrderTypeAction($this->app)->execute();
+        new EnsureDeliveryOrderNoticeRuleAction($this->app, $this->company)->execute();
 
         return true;
     }
@@ -73,23 +75,20 @@ class DhlHandler extends BaseIntegration
                     new RuleConditionData(
                         attribute_name: 'to_status',
                         operator: RuleConditionOperatorEnum::EQUAL,
-                        value: OrderStatusEnum::READY_FOR_DISPATCH->value,
+                        value: DeliveryOrderStatusEnum::READY_FOR_DISPATCH->value,
                     ),
                 ],
             ),
             new DefaultRule(
                 trigger: WorkflowEnum::STATUS_TRANSITION,
                 model: Order::class,
-                activity: NotifyOrderStatusActivity::class,
-                name: self::STATUS_NOTICE_RULE_NAME,
+                activity: FlagCancelledDhlShipmentActivity::class,
+                name: self::CANCELLED_REVIEW_RULE_NAME,
                 conditions: [
                     new RuleConditionData(
                         attribute_name: 'to_status',
-                        operator: RuleConditionOperatorEnum::IN,
-                        value: implode(',', array_map(
-                            fn (OrderStatusEnum $status): string => $status->value,
-                            NotifyOrderStatusActivity::NOTIFIED_STATUSES
-                        )),
+                        operator: RuleConditionOperatorEnum::EQUAL,
+                        value: DeliveryOrderStatusEnum::CANCELLED->value,
                     ),
                 ],
             ),
