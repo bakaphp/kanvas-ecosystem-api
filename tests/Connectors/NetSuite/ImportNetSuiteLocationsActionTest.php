@@ -221,8 +221,7 @@ class ImportNetSuiteLocationsActionTest extends TestCase
         string $name,
         ?string $type,
         bool $available
-    ): Location
-    {
+    ): Location {
         $location = new Location();
         $location->internalId = $id;
         $location->name = $name;

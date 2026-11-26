@@ -216,18 +216,18 @@ final class SalesforceImportersTest extends TestCase
                     return $this->records;
                 }
             }
-            : new class ($this->integrationCompany, $this->kanvasUser, $records) extends SalesforceOrganizationsImporter {
-                public function __construct(IntegrationsCompany $integrationCompany, Users $user, private readonly array $records)
-                {
-                    parent::__construct($integrationCompany, $user);
-                }
+        : new class ($this->integrationCompany, $this->kanvasUser, $records) extends SalesforceOrganizationsImporter {
+            public function __construct(IntegrationsCompany $integrationCompany, Users $user, private readonly array $records)
+            {
+                parent::__construct($integrationCompany, $user);
+            }
 
-                #[Override]
-                protected function pullAll(): array
-                {
-                    return $this->records;
-                }
-            };
+            #[Override]
+            protected function pullAll(): array
+            {
+                return $this->records;
+            }
+        };
 
         new class ($run, $importer) extends RunIntegrationImportJob {
             public function __construct(IntegrationImport $run, private readonly IntegrationImporter $seamImporter)

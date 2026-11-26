@@ -185,8 +185,7 @@ final class StartIntegrationImportActionTest extends TestCase
         string $entity,
         array $options = [],
         ?IntegrationsCompany $row = null
-    ): void
-    {
+    ): void {
         try {
             $this->start($entity, $options, $row);
             $this->fail('Expected a refusal: ' . $message);
