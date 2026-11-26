@@ -39,6 +39,7 @@ final class CardNetActivationFlagTest extends TestCase
     protected function tearDown(): void
     {
         $this->kanvasApp->del(ConfigurationEnum::REQUIRES_ACTIVATION->value);
+        $this->kanvasUser->del(CustomFieldEnum::CUSTOMER_ID->value);
         Mockery::close();
         parent::tearDown();
     }

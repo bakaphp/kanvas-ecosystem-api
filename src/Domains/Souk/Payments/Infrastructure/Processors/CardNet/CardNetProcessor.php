@@ -548,7 +548,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 raw: array_merge($tokenResponse, [
                     CustomFieldEnum::CUSTOMER_ID->value => $customerId,
                     CustomFieldEnum::TOKEN->value => $token,
-                    CustomFieldEnum::REQUIRES_ACTIVATION->value => (bool) $this->app->get(ConfigurationEnum::REQUIRES_ACTIVATION->value),
+                    CustomFieldEnum::REQUIRES_ACTIVATION->value => $this->requiresActivation(),
                 ]),
             );
         } catch (CardNetException $e) {
@@ -628,6 +628,11 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 raw: $e->responseBody,
             );
         }
+    }
+
+    private function requiresActivation(): bool
+    {
+        return (bool) $this->app->get(ConfigurationEnum::REQUIRES_ACTIVATION->value);
     }
 
     private function getOrCreateCustomerId(UserInterface $user, array $cardDetails): int
