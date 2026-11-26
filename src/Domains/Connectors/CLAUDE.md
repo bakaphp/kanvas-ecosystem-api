@@ -28,7 +28,7 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 A connector that can pull records in bulk declares them in its handler's `importables()` and writes one
 importer per entity; it does not add its own mutation, run table or queued loop. The layer, its
 contract and how to add an importer: [`../Workflow/Integrations/Imports/CLAUDE.md`](../Workflow/Integrations/Imports/CLAUDE.md).
-NetSuite and Salesforce are the references.
+NetSuite, Salesforce and Shopify are the references.
 
 ## Known duplication — flagged, not yet resolved
 

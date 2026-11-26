@@ -7,7 +7,13 @@ everything else (validation, concurrency, chunking, counting, status).
 References: NetSuite (`src/Domains/Connectors/NetSuite/Importers/`: chunked with a `choices` option, a
 single-run one, a follow-up import) and Salesforce (`src/Domains/Connectors/Salesforce/Importers/`:
 organizations with an opt-in `then_people` follow-up, people refused while organizations run, used by
-both GraphQL and `kanvas:salesforce-backfill`).
+both GraphQL and `kanvas:salesforce-backfill`) and Shopify (`src/Domains/Connectors/Shopify/Importers/`:
+no options, products listed as ids and fetched one by one, customers listed with only the fields the
+sync reads).
+
+**Size the list.** The first job holds `list()` in memory and the cache holds it between chunks. A
+store with 30,000 customers or 80,000 products is normal: list ids, or ask the API for only the fields
+`importOne()` needs, never whole records with HTML and images.
 
 ## The contract
 
@@ -132,6 +138,8 @@ Rules every entry point shares:
 
 - **Odoo** still has its own copy, `OdooBackfillImportJob`; migrate it onto this layer instead of
   keeping a second record loop (see `src/Domains/Connectors/CLAUDE.md`, "Known duplication").
-- **Shopify** has no importer yet.
+- **Shopify** imports products and customers only: no orders (an order sync creates people and
+  products and fires the paid-order notification) and no per-location stock (products land in the
+  default warehouse of the integration's region, as the product webhook does).
 - No cancel, no per-record retry and no history list: the table keeps every run, but the API only
   exposes the latest per entity.

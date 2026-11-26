@@ -13,7 +13,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as DataTransferObjectPeople;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 use Spatie\LaravelData\DataCollection;
 
 class SyncShopifyCustomerAction
@@ -57,17 +57,21 @@ class SyncShopifyCustomerAction
             ];
         }
 
+        // The customer webhook sends default_address; the customers list only sends addresses.
+        $defaultAddress = $this->customerData['default_address']
+            ?? collect($this->customerData['addresses'] ?? [])->firstWhere('default', true);
+
         $address = [];
-        if (! empty($this->customerData['default_address']) && ! empty($this->customerData['default_address']['address1'])) {
+        if (! empty($defaultAddress['address1'])) {
             $address = [
                 [
-                    'address' => $this->customerData['default_address']['address1'],
-                    'address_2' => $this->customerData['default_address']['address2'],
-                    'city' => $this->customerData['default_address']['city'],
-                    'county' => $this->customerData['default_address']['province'],
-                    'state' => $this->customerData['default_address']['province'],
-                    'country' => $this->customerData['default_address']['country'],
-                    'zip' => $this->customerData['default_address']['zip'],
+                    'address' => $defaultAddress['address1'],
+                    'address_2' => $defaultAddress['address2'] ?? null,
+                    'city' => $defaultAddress['city'] ?? null,
+                    'county' => $defaultAddress['province'] ?? null,
+                    'state' => $defaultAddress['province'] ?? null,
+                    'country' => $defaultAddress['country'] ?? null,
+                    'zip' => $defaultAddress['zip'] ?? null,
                     'is_default' => true,
                 ],
             ];

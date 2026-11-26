@@ -12,20 +12,19 @@ use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 
 class SyncShopifyProductAction
 {
-    protected array $files;
-
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected Regions $region,
         protected string|int $productId,
         protected ?UserInterface $user = null,
-        protected ?Warehouses $warehouses = null
+        protected ?Warehouses $warehouses = null,
+        protected bool $runWorkflow = true,
     ) {
         $this->user = $user ?? $this->company->user;
         $this->warehouses = $warehouses ?? Warehouses::fromCompany($this->company)->where('is_default', 1)->where('regions_id', $this->region->id)->firstOrFail();
@@ -39,8 +38,14 @@ class SyncShopifyProductAction
             $this->region
         );
 
-        $shopifyProduct = $shopify->Product($this->productId)->get();
+        return $this->import($shopify->Product($this->productId)->get());
+    }
 
+    /**
+     * For a caller that already holds the product as Shopify returns it.
+     */
+    public function import(array $shopifyProduct): Products
+    {
         $shopifyProductService = new ShopifyProductService(
             $this->app,
             $this->company,
@@ -50,15 +55,13 @@ class SyncShopifyProductAction
             $this->warehouses
         );
 
-        $productsToImport = $shopifyProductService->mapProductForImport($shopifyProduct);
-
-        return (
-            new ProductImporterAction(
-                ProductImporter::from($productsToImport),
-                $this->company,
-                $this->user,
-                $this->region,
-                $this->app
-            ))->execute();
+        return new ProductImporterAction(
+            importedProduct: ProductImporter::from($shopifyProductService->mapProductForImport($shopifyProduct)),
+            company: $this->company,
+            user: $this->user,
+            region: $this->region,
+            app: $this->app,
+            runWorkflow: $this->runWorkflow,
+        )->execute();
     }
 }
