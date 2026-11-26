@@ -43,7 +43,7 @@ class ReviewCustomerPoTool extends AbstractCustomerOrderTool
             ),
             new ToolProperty(
                 name: 'agreed_payment_terms_days',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'The payment term in days that was agreed with the customer, to compare with the order\'s.',
                 required: false,
             ),
@@ -66,7 +66,8 @@ class ReviewCustomerPoTool extends AbstractCustomerOrderTool
         return $this->actOn(
             $order_number,
             'reviewed',
-            static fn (SalesOrder $order): SalesOrder => new ReviewSalesOrderAction($order, $agreement)->execute()
+            static fn (SalesOrder $order): SalesOrder => new ReviewSalesOrderAction($order, $agreement)
+                ->execute()
         );
     }
 }

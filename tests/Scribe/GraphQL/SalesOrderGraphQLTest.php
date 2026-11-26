@@ -88,6 +88,16 @@ class SalesOrderGraphQLTest extends ScribeTestCase
             }')
             ->assertSuccessful()
             ->assertJsonFragment(['id' => $id]);
+
+        $this->graphQL('
+            query {
+                scribeSalesOrders(
+                    where: { column: ACCEPTED_AT, operator: GTE, value: "2000-01-01 00:00:00" }
+                    orderBy: [{ column: ETD, order: DESC }]
+                ) { data { id } }
+            }')
+            ->assertSuccessful()
+            ->assertJsonFragment(['id' => $id]);
     }
 
     public function test_operations_can_return_a_confirmed_order_with_a_reason(): void
@@ -108,7 +118,8 @@ class SalesOrderGraphQLTest extends ScribeTestCase
             ],
         ]])->json('data.registerScribeCustomerPo.id');
 
-        $this->graphQL('mutation ($id: ID!) { reviewScribeSalesOrder(id: $id) { id } }', ['id' => $id])->assertSuccessful();
+        $this->graphQL('mutation ($id: ID!) { reviewScribeSalesOrder(id: $id) { id } }', ['id' => $id])
+            ->assertSuccessful();
         $this->graphQL('mutation ($id: ID!) { confirmScribeSalesOrder(id: $id, feasibility_confirmed: true) { id } }', ['id' => $id])
             ->assertSuccessful();
 

@@ -53,8 +53,9 @@ class SalesOrderReviewService
         $orderLines = $order->lines()->orderBy('line_number')->get()->values();
         $quoteLines = $quote->lines()->orderBy('sort_order')->get()->values();
         $found = [];
+        $count = max($orderLines->count(), $quoteLines->count());
 
-        foreach (range(0, max($orderLines->count(), $quoteLines->count()) - 1) as $index) {
+        for ($index = 0; $index < $count; $index++) {
             $number = $index + 1;
             $orderLine = $orderLines[$index] ?? null;
             $quoteLine = $quoteLines[$index] ?? null;
@@ -101,9 +102,22 @@ class SalesOrderReviewService
     /**
      * @return array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}|null
      */
-    private function ifChanged(string $key, string $field, ?string $orderValue, ?string $quoteValue): ?array
-    {
-        return $orderValue === $quoteValue ? null : $this->difference($key, $field, $orderValue, $quoteValue);
+    private function ifChanged(
+        string $key,
+        string $field,
+        ?string $orderValue,
+        ?string $quoteValue
+    ): ?array {
+        if ($orderValue === $quoteValue) {
+            return null;
+        }
+
+        return $this->difference(
+            $key,
+            $field,
+            $orderValue,
+            $quoteValue
+        );
     }
 
     /**
@@ -115,14 +129,23 @@ class SalesOrderReviewService
             return null;
         }
 
-        return $this->difference($key, $key, $orderValue, $agreedValue);
+        return $this->difference(
+            $key,
+            $key,
+            $orderValue,
+            $agreedValue
+        );
     }
 
     /**
      * @return array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}
      */
-    private function difference(string $key, string $field, ?string $orderValue, ?string $quoteValue): array
-    {
+    private function difference(
+        string $key,
+        string $field,
+        ?string $orderValue,
+        ?string $quoteValue
+    ): array {
         return [
             'key' => $key,
             'field' => $field,

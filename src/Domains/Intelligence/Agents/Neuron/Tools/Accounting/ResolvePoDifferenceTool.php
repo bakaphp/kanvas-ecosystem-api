@@ -57,7 +57,8 @@ class ResolvePoDifferenceTool extends AbstractCustomerOrderTool
         return $this->actOn(
             $order_number,
             'resolved',
-            static fn (SalesOrder $order): SalesOrder => new ResolveSalesOrderDifferenceAction($order, $key, $resolution)->execute()
+            static fn (SalesOrder $order): SalesOrder => new ResolveSalesOrderDifferenceAction($order, $key, $resolution)
+                ->execute()
         );
     }
 }

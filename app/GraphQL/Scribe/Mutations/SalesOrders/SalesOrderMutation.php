@@ -26,7 +26,7 @@ class SalesOrderMutation
         $ctx = $this->actingContext();
 
         return new RegisterCustomerPoAction(
-            SalesOrderData::fromMultiple(
+            SalesOrderData::from(
                 $ctx->app,
                 $ctx->user,
                 $ctx->company,
@@ -68,7 +68,8 @@ class SalesOrderMutation
 
     public function confirm(mixed $rootValue, array $request): SalesOrder
     {
-        return new ConfirmSalesOrderAction($this->order($request), (bool) $request['feasibility_confirmed'])->execute();
+        return new ConfirmSalesOrderAction($this->order($request), (bool) $request['feasibility_confirmed'])
+            ->execute();
     }
 
     public function accept(mixed $rootValue, array $request): SalesOrder

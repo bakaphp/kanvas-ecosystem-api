@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Closure;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
@@ -18,17 +19,20 @@ use Throwable;
  */
 abstract class AbstractCustomerOrderTool extends Tool
 {
+    use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
     protected function salesOrderByNumber(string $orderNumber): ?SalesOrder
     {
-        return SalesOrder::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where('order_number', trim($orderNumber))
-            ->first();
+        $order = $this->findTenantRecordOrNotFound(
+            SalesOrder::class,
+            'order_number',
+            $orderNumber,
+            'sales order'
+        );
+
+        return $order instanceof SalesOrder ? $order : null;
     }
 
     /**
@@ -75,10 +79,7 @@ abstract class AbstractCustomerOrderTool extends Tool
      */
     protected function summary(SalesOrder $order): array
     {
-        $open = array_column(
-            array_filter($order->differences(), static fn (array $difference): bool => $difference['resolution'] === null),
-            'key'
-        );
+        $open = array_column($order->openDifferences(), 'key');
 
         return [
             'order_number' => $order->order_number,
@@ -88,7 +89,7 @@ abstract class AbstractCustomerOrderTool extends Tool
             'customer_po_number' => $order->customer_po_number,
             'currency' => $order->currency,
             'order_total' => (float) $order->order_total,
-            'open_differences' => array_values($open),
+            'open_differences' => $open,
             'etd' => $order->etd?->toDateString(),
             'eta' => $order->eta?->toDateString(),
             'next' => $this->nextStep($order, $open),
@@ -100,13 +101,18 @@ abstract class AbstractCustomerOrderTool extends Tool
      */
     private function nextStep(SalesOrder $order, array $open): string
     {
-        return match (true) {
-            $order->document_status === SalesOrderStatusEnum::RECEIVED && $order->reviewed_at === null => 'Review it against its quote with review_customer_po.',
-            $order->document_status === SalesOrderStatusEnum::RECEIVED && $open !== [] => 'Clarify each open difference with the customer and record it with resolve_po_difference.',
-            $order->document_status === SalesOrderStatusEnum::RECEIVED => 'Ready to confirm: confirm_customer_order once Operations has confirmed it is feasible.',
-            $order->document_status === SalesOrderStatusEnum::CONFIRMED => 'Waiting for Operations: answer_customer_order accepts it with firm dates or returns it with a reason.',
-            $order->document_status === SalesOrderStatusEnum::RETURNED => 'Operations returned it: renegotiate with the customer, correct the order and review it again.',
-            $order->document_status === SalesOrderStatusEnum::ACCEPTED => 'Accepted with firm dates; it can go to purchasing and shipping.',
+        return match ($order->document_status) {
+            SalesOrderStatusEnum::RECEIVED => match (true) {
+                $order->reviewed_at === null => 'Review it against its quote with review_customer_po.',
+                $open !== [] => 'Clarify each open difference with the customer and record it with '
+                    . 'resolve_po_difference.',
+                default => 'Ready to confirm: confirm_customer_order once Operations has confirmed it is feasible.',
+            },
+            SalesOrderStatusEnum::CONFIRMED => 'Waiting for Operations: answer_customer_order accepts it with firm '
+                . 'dates or returns it with a reason.',
+            SalesOrderStatusEnum::RETURNED => 'Operations returned it: renegotiate with the customer, correct the '
+                . 'order and review it again.',
+            SalesOrderStatusEnum::ACCEPTED => 'Accepted with firm dates; it can go to purchasing and shipping.',
             default => 'Nothing more to do on this order in this step.',
         };
     }

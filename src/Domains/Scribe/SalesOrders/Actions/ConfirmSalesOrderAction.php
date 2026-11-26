@@ -33,10 +33,7 @@ class ConfirmSalesOrderAction
             throw new ValidationException("Review sales order {$this->order->order_number} against its quote before confirming it.");
         }
 
-        $open = array_filter(
-            $this->order->differences(),
-            static fn (array $difference): bool => $difference['resolution'] === null
-        );
+        $open = $this->order->openDifferences();
 
         if ($open !== []) {
             throw new ValidationException(

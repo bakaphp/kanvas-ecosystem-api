@@ -110,6 +110,19 @@ class SalesOrder extends BaseModel
         return $this->review['differences'] ?? [];
     }
 
+    /**
+     * The differences still waiting for a written clarification.
+     *
+     * @return list<array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}>
+     */
+    public function openDifferences(): array
+    {
+        return array_values(array_filter(
+            $this->differences(),
+            static fn (array $difference): bool => $difference['resolution'] === null
+        ));
+    }
+
     #[Override]
     public function getGraphTypeName(): string
     {
