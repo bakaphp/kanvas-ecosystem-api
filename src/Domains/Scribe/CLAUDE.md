@@ -66,6 +66,8 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   the tenant edits them in the template UI; the two names share one file so an invoice restyle never
   touches quotes. `Scribe\Documents\Enums\ConfigurationEnum::{INVOICE,QUOTE}_PDF_TEMPLATE` naming any
   other stored template wins over the rows.
+  Both layouts take the company block (logo, address, contact) from `DocumentIssuerBlock`, which the payment
+  receipt layout shares too.
   One service, not two: the documents differ only in title, number field, due-vs-valid-until and
   amount-paid, and two layouts would drift. **Rendering is not sending.** Sending lives in
   `Scribe/Delivery/`: a document reaches a customer only as an ActionEngine engagement on the document
@@ -99,6 +101,16 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   Per tenant: `scribe:setup-document-actions {app_id} {company_id?}`. Links shorten through the
   company's short.io integration, else the app's; the page base URL is the company's
   `link_page_base_url`, else the app's `NEW_ACTION_PAGE_V4` (`ShortIoConfigurationService`).
+- **A payment receipt is the document for money received, one per confirmed customer payment.**
+  `CreatePaymentReceiptAction` (`Scribe/PaymentReceipts/`) numbers it from the company's own `payment_receipt`
+  sequence (7 digits by default) and freezes the invoices the payment covered; asking again for the same payment
+  returns the same receipt. Only a `cleared` inbound payment applied to invoices gets one. The one-page Spanish
+  PDF is the `scribe-payment-receipt` Twig row (packaged fallback `resources/views/pdf/scribe-payment-receipt.twig`),
+  labelled `RD$` / `US$` by currency. Per company: the name under "Recibido por" is the setting
+  `payment-receipt-received-by`; the signature and seal are company files named `payment_receipt_signature` and
+  `payment_receipt_seal`; the admin mutation `configureScribePaymentReceipt` sets all three in one call (a field
+  left out stays, an empty name clears it) and `scribePaymentReceiptSettings` reads them. The AR agent's `generate_payment_receipt` issues it right after
+  `apply_ar_payment`.
 - **A company's SOW layouts are named versions with a switchable default.** Company-level template rows
   `scribe-sow-{version}` (`CompanySowTemplateService`), the default a pointer in the company setting
   `scribe_sow_default_template` (none = the app's stock `scribe-sow`), so switching never overwrites a layout. The AR
