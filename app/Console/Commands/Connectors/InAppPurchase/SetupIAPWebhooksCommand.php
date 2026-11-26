@@ -112,7 +112,8 @@ class SetupIAPWebhooksCommand extends Command
             return;
         }
 
-        $secret = 'Bearer ' . bin2hex(random_bytes(32));
+        // Not a Bearer value: RefreshTokenMiddleware rejects any Bearer header that is not a Kanvas JWT.
+        $secret = 'rc_' . bin2hex(random_bytes(32));
         $configuration[ProcessRevenueCatWebhookJob::AUTHORIZATION_CONFIG_KEY] = $secret;
         $receiver->configuration = $configuration;
         $receiver->saveOrFail();

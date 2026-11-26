@@ -25,12 +25,14 @@ enum RevenueCatEventTypeEnum: string
     case EXPERIMENT_ENROLLMENT = 'EXPERIMENT_ENROLLMENT';
 
     /**
-     * A non-renewing purchase has no expiry, so it can never be stored as a subscription row.
+     * RevenueCat delivers promotional grants as NON_RENEWING_PURCHASE with an expiry, so it counts; one
+     * without an expiry is still refused by the no-expiry rule.
      */
     public function changesSubscription(): bool
     {
         return match ($this) {
             self::INITIAL_PURCHASE,
+            self::NON_RENEWING_PURCHASE,
             self::RENEWAL,
             self::CANCELLATION,
             self::UNCANCELLATION,

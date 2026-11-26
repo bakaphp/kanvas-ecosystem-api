@@ -28,9 +28,10 @@ use Laravel\Cashier\Subscription as CashierSubscription;
 use Override;
 
 /**
- * RevenueCat webhook (v1.0). With the app's REVENUECAT_SECRET_KEY the event is only a signal: status
- * and ends_at come from GET /v1/subscribers/{id}, so the event type never decides the outcome, and a
- * failed call throws and leaves the row alone. Without the key the event's own fields are trusted.
+ * RevenueCat webhook (v1.0). With the app's REVENUECAT_SECRET_KEY + REVENUECAT_PROJECT_ID the event is
+ * only a signal: status and ends_at come from REST API v2 (the customer's subscriptions), so the event
+ * type never decides the outcome, and a failed call throws and leaves the row alone. Without them the
+ * event's own fields are trusted.
  */
 #[WorkflowAction]
 class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
@@ -92,7 +93,6 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
         }
 
         $user = $this->findAppUsers($this->customerIds($event))->first();
-        $lineageId = $this->lineageId($event);
         $productId = (string) ($event['product_id'] ?? '');
 
         if (! $user instanceof Users) {
@@ -103,6 +103,8 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
                 'status' => 'skipped',
             ];
         }
+
+        $lineageId = $this->lineageId($event, $user);
 
         if ($lineageId === null || $productId === '') {
             return [
@@ -150,7 +152,7 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
         }
 
         $revenueCat = $this->revenueCat();
-        $source = $revenueCat->hasSecretKey() ? self::SOURCE_API : self::SOURCE_EVENT;
+        $source = $revenueCat->hasApiAccess() ? self::SOURCE_API : self::SOURCE_EVENT;
 
         if ($source === self::SOURCE_EVENT && $this->isStaleEvent($this->customerFor($user), $lineageId, $event)) {
             return [
@@ -162,7 +164,7 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
         }
 
         $state = $source === self::SOURCE_API
-            ? $revenueCat->getSubscriptionState($user->uuid, $productId)
+            ? $revenueCat->getSubscriptionState($user->uuid, $event)
             : RevenueCatSubscriptionState::fromEvent($event, $type);
 
         if (! $state instanceof RevenueCatSubscriptionState) {
@@ -205,7 +207,7 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
         $previousOwnerIds = Users::query()
             ->whereIn('uuid', $this->kanvasUuids((array) ($event['transferred_from'] ?? [])))
             ->pluck('id');
-        $lineageId = $this->lineageId($event);
+        $lineageId = $this->lineageId($event, user: null);
 
         $customerIds = AppsStripeCustomer::query()
             ->where('apps_id', $this->receiver->app->getId())
@@ -220,7 +222,7 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
             ->get();
 
         $revenueCat = $this->revenueCat();
-        $source = $revenueCat->hasSecretKey() ? self::SOURCE_API : self::SOURCE_EVENT;
+        $source = $revenueCat->hasApiAccess() ? self::SOURCE_API : self::SOURCE_EVENT;
         $moved = [];
         $ended = [];
 
@@ -228,7 +230,12 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
             $stripeId = (string) $subscription->stripe_id;
             $productId = (string) $subscription->stripe_price;
             $state = $newOwner instanceof Users && $source === self::SOURCE_API
-                ? $revenueCat->getSubscriptionState($newOwner->uuid, $productId)
+                ? $revenueCat->getSubscriptionState($newOwner->uuid, [
+                    'product_id' => $productId,
+                    'store' => $event['store'] ?? null,
+                    'environment' => $event['environment'] ?? null,
+                    'original_transaction_id' => Str::after($stripeId, self::LINEAGE_PREFIX),
+                ])
                 : null;
 
             if ($newOwner instanceof Users && ($source === self::SOURCE_EVENT || $state !== null)) {
@@ -425,14 +432,24 @@ class ProcessRevenueCatWebhookJob extends ProcessWebhookJob
     }
 
     /**
+     * A promotional grant may come with no store transaction, so its lineage is the customer's grant of
+     * that product: a later grant of the same product extends the same row.
+     *
      * @param array<string, mixed> $event
      */
-    private function lineageId(array $event): ?string
+    private function lineageId(array $event, ?Users $user): ?string
     {
         $transactionId = $event['original_transaction_id'] ?? $event['transaction_id'] ?? null;
 
-        return is_scalar($transactionId) && (string) $transactionId !== ''
-            ? self::LINEAGE_PREFIX . $transactionId
+        if (is_scalar($transactionId) && (string) $transactionId !== '') {
+            return self::LINEAGE_PREFIX . $transactionId;
+        }
+
+        $isPromotional = strtolower((string) ($event['store'] ?? '')) === RevenueCatService::STORE_PROMOTIONAL;
+        $productId = (string) ($event['product_id'] ?? '');
+
+        return $isPromotional && $user instanceof Users && $productId !== ''
+            ? self::LINEAGE_PREFIX . RevenueCatService::STORE_PROMOTIONAL . ':' . $user->uuid . ':' . $productId
             : null;
     }
 

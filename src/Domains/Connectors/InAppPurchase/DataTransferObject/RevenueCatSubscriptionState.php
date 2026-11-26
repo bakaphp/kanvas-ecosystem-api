@@ -5,20 +5,19 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\InAppPurchase\DataTransferObject;
 
 use Carbon\Carbon;
+use Kanvas\Connectors\InAppPurchase\Enums\RevenueCatAutoRenewalStatusEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\RevenueCatEventTypeEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\RevenueCatPeriodTypeEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\RevenueCatReasonEnum;
+use Kanvas\Connectors\InAppPurchase\Enums\RevenueCatSubscriptionStatusEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\SubscriptionStatusEnum;
 
 /**
- * One RevenueCat subscription lineage as Kanvas stores it, read either from the REST API's
- * subscriber.subscriptions[product] or, without a secret key, from a webhook event.
+ * One RevenueCat subscription lineage as Kanvas stores it, read either from REST API v2 or, without
+ * API access, from a webhook event.
  */
 final readonly class RevenueCatSubscriptionState
 {
-    private const string ENVIRONMENT_SANDBOX = 'SANDBOX';
-    private const string ENVIRONMENT_PRODUCTION = 'PRODUCTION';
-
     public function __construct(
         public string $productId,
         public Carbon $expiresAt,
@@ -34,27 +33,44 @@ final readonly class RevenueCatSubscriptionState
     }
 
     /**
-     * @param array<string, mixed> $entry subscriber.subscriptions[productId] of GET /v1/subscribers/{id}
+     * v2 has no refund date: a subscription that no longer gives access (refund, revocation, billing
+     * retry, pause) has ended by now at the latest, and one still giving access past its period end is
+     * in grace until $accessExtendedTo (its customer's latest entitlement expiry).
+     *
+     * @param array<string, mixed> $subscription an item of GET /v2/projects/{id}/customers/{id}/subscriptions
      */
-    public static function fromSubscriberEntry(string $productId, array $entry): ?self
-    {
-        $expiresAt = self::isoDate($entry['expires_date'] ?? null);
+    public static function fromV2Subscription(
+        string $productId,
+        array $subscription,
+        ?Carbon $accessExtendedTo = null
+    ): ?self {
+        $status = RevenueCatSubscriptionStatusEnum::tryFrom((string) ($subscription['status'] ?? ''));
+        $autoRenewal = RevenueCatAutoRenewalStatusEnum::tryFrom((string) ($subscription['auto_renewal_status'] ?? ''));
+        $givesAccess = ! empty($subscription['gives_access']);
+        $isPaused = $status === RevenueCatSubscriptionStatusEnum::PAUSED
+            || $autoRenewal === RevenueCatAutoRenewalStatusEnum::WILL_PAUSE;
+        $periodEnd = self::msDate($subscription['ends_at'] ?? $subscription['current_period_ends_at'] ?? null)
+            ?? ($isPaused ? now() : null);
 
-        if ($expiresAt === null) {
+        if ($periodEnd === null) {
             return null;
         }
+
+        $expiresAt = $givesAccess
+            ? ($accessExtendedTo?->greaterThan($periodEnd) ? $accessExtendedTo : $periodEnd)
+            : $periodEnd->min(now());
+        $hasBillingIssue = $status === RevenueCatSubscriptionStatusEnum::IN_GRACE_PERIOD
+            || $status === RevenueCatSubscriptionStatusEnum::IN_BILLING_RETRY;
 
         return new self(
             productId: $productId,
             expiresAt: $expiresAt,
-            refundedAt: self::isoDate($entry['refunded_at'] ?? null),
-            billingIssueAt: self::isoDate($entry['billing_issues_detected_at'] ?? null),
-            gracePeriodExpiresAt: self::isoDate($entry['grace_period_expires_date'] ?? null),
-            isUnsubscribed: ! empty($entry['unsubscribe_detected_at']),
-            isPaused: ! empty($entry['auto_resume_date']),
-            isTrial: RevenueCatPeriodTypeEnum::fromValue($entry['period_type'] ?? null) === RevenueCatPeriodTypeEnum::TRIAL,
-            environment: ! empty($entry['is_sandbox']) ? self::ENVIRONMENT_SANDBOX : self::ENVIRONMENT_PRODUCTION,
-            store: strtoupper((string) ($entry['store'] ?? '')),
+            billingIssueAt: $hasBillingIssue ? now() : null,
+            isUnsubscribed: $autoRenewal?->endsAtPeriodEnd() ?? false,
+            isPaused: $isPaused,
+            isTrial: $status === RevenueCatSubscriptionStatusEnum::TRIALING,
+            environment: strtoupper((string) ($subscription['environment'] ?? '')),
+            store: strtoupper((string) ($subscription['store'] ?? '')),
         );
     }
 
@@ -138,11 +154,6 @@ final readonly class RevenueCatSubscriptionState
             $this->isUnsubscribed => SubscriptionStatusEnum::CANCELED,
             default => SubscriptionStatusEnum::ACTIVE,
         };
-    }
-
-    private static function isoDate(mixed $value): ?Carbon
-    {
-        return is_string($value) && $value !== '' ? Carbon::parse($value) : null;
     }
 
     private static function msDate(mixed $value): ?Carbon

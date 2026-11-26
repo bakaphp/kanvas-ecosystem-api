@@ -29,9 +29,12 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
 
     protected $connectionsToTransact = [null, 'workflow'];
 
-    private const string SECRET = 'Bearer rc-test-secret';
+    private const string SECRET = 'rc_test_secret';
     private const string API_KEY = 'sk_test_revenuecat';
+    private const string PROJECT_ID = 'proj_test';
     private const string PRODUCT_ID = 'fitmaxxing_pro_monthly';
+    private const string RC_PRODUCT_ID = 'prod1a2b3c4d5e';
+    private const string PROMOTIONAL_PRODUCT_ID = 'rc_promo_pro_monthly';
 
     private string $originalTransactionId;
 
@@ -40,7 +43,7 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
         parent::setUp();
         $this->originalTransactionId = (string) random_int(100000000000, 999999999999);
         Http::preventStrayRequests();
-        $this->bindRevenueCat(apiKey: '');
+        $this->bindRevenueCat(apiKey: '', projectId: '');
     }
 
     public function testRequestWithoutAuthorizationHeaderIsRejected(): void
@@ -65,6 +68,17 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
 
         $this->assertFalse(ProcessRevenueCatWebhookJob::authenticateRequest($this->request([], ''), $receiver));
         $this->assertFalse(ProcessRevenueCatWebhookJob::authenticateRequest($this->request([], 'Bearer '), $receiver));
+    }
+
+    public function testTheReceiverRouteAcceptsTheSecretThroughTheGlobalMiddleware(): void
+    {
+        $receiver = $this->createReceiver();
+        $url = '/v1/receiver/' . $receiver->uuid;
+        $payload = ['api_version' => '1.0', 'event' => ['id' => 'route-test', 'type' => 'TEST']];
+
+        $this->postJson($url, $payload)->assertStatus(401);
+        $this->postJson($url, $payload, ['Authorization' => 'rc_wrong'])->assertStatus(401);
+        $this->postJson($url, $payload, ['Authorization' => self::SECRET])->assertOk();
     }
 
     public function testConfiguredAuthorizationHeaderIsAccepted(): void
@@ -319,14 +333,13 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
 
     public function testApiStateWinsOverTheEventType(): void
     {
-        $this->bindRevenueCat(self::API_KEY);
+        $this->bindRevenueCat();
         $paidUntil = now()->addMonth()->startOfSecond();
-        $this->fakeSubscriber([
-            'expires_date' => $paidUntil->toIso8601ZuluString(),
-            'period_type' => 'normal',
-            'store' => 'app_store',
-            'is_sandbox' => false,
-        ]);
+        $this->fakeApi([[$this->v2Subscription([
+            'ends_at' => $paidUntil->getTimestampMs(),
+            'current_period_ends_at' => $paidUntil->getTimestampMs(),
+            'environment' => 'production',
+        ])]]);
 
         $result = $this->dispatch($this->event('EXPIRATION', [
             'expiration_at_ms' => now()->subDay()->getTimestampMs(),
@@ -338,32 +351,183 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
         $this->assertSame($paidUntil->toDateTimeString(), $subscription->ends_at->toDateTimeString());
         $this->assertTrue($subscription->active());
         $this->assertSame('PRODUCTION', $subscription->owner->config['environment']);
+        $subscriptionsUrl = 'https://api.revenuecat.com/v2/projects/' . self::PROJECT_ID . '/customers/'
+            . auth()->user()->uuid . '/subscriptions';
         Http::assertSent(fn (HttpRequest $request): bool => $request->hasHeader('Authorization', 'Bearer ' . self::API_KEY)
-            && $request->url() === 'https://api.revenuecat.com/v1/subscribers/' . auth()->user()->uuid);
+            && str_starts_with($request->url(), $subscriptionsUrl . '?')
+            && $request['environment'] === 'sandbox');
     }
 
-    public function testApiReportsCancellationAndRefund(): void
+    public function testApiMatchesTheStoreProductAcrossPages(): void
     {
-        $this->bindRevenueCat(self::API_KEY);
-        $refundedAt = now()->subHour()->startOfSecond();
-        $this->fakeSubscriber([
-            'expires_date' => now()->addMonth()->toIso8601ZuluString(),
-            'unsubscribe_detected_at' => $refundedAt->toIso8601ZuluString(),
-            'refunded_at' => $refundedAt->toIso8601ZuluString(),
+        $this->bindRevenueCat();
+        $paidUntil = now()->addWeeks(2)->startOfSecond();
+        $this->fakeApi([
+            [$this->v2Subscription(['product_id' => 'prodOther', 'status' => 'expired', 'gives_access' => false])],
+            [$this->v2Subscription([
+                'ends_at' => $paidUntil->getTimestampMs(),
+                'store_subscription_identifier' => 'latest-renewal-transaction',
+            ])],
         ]);
 
         $result = $this->dispatch($this->event('RENEWAL'));
 
+        $this->assertSame('active', $result['new_status']);
+        $this->assertSame($paidUntil->toDateTimeString(), $this->findSubscription()->ends_at->toDateTimeString());
+    }
+
+    public function testApiPrefersTheLineageNamedByTheTransaction(): void
+    {
+        $this->bindRevenueCat();
+        $this->fakeApi([[
+            $this->v2Subscription(['store_subscription_identifier' => 'another-lineage']),
+            $this->v2Subscription([
+                'status' => 'active',
+                'auto_renewal_status' => 'will_not_renew',
+                'store_subscription_identifier' => $this->originalTransactionId,
+            ]),
+        ]]);
+
+        $result = $this->dispatch($this->event('CANCELLATION'));
+
+        $this->assertSame('canceled', $result['new_status']);
+        $this->assertTrue($this->findSubscription()->active());
+    }
+
+    public function testApiTrialSetsTheTrialEnd(): void
+    {
+        $this->bindRevenueCat();
+        $trialEnds = now()->addDays(3)->startOfSecond();
+        $this->fakeApi([[$this->v2Subscription(['status' => 'trialing', 'ends_at' => $trialEnds->getTimestampMs()])]]);
+
+        $result = $this->dispatch($this->event('INITIAL_PURCHASE'));
+
+        $this->assertSame('active', $result['new_status']);
+        $this->assertSame($trialEnds->toDateTimeString(), $this->findSubscription()->trial_ends_at->toDateTimeString());
+    }
+
+    public function testApiRefundEndsAccessNow(): void
+    {
+        $this->bindRevenueCat();
+        $this->fakeApi([[$this->v2Subscription([
+            'status' => 'expired',
+            'gives_access' => false,
+            'auto_renewal_status' => 'will_not_renew',
+        ])]]);
+
+        $result = $this->dispatch($this->event('CANCELLATION', ['cancel_reason' => 'CUSTOMER_SUPPORT']));
+
         $this->assertSame('expired', $result['new_status']);
         $subscription = $this->findSubscription();
-        $this->assertSame($refundedAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+        $this->assertTrue($subscription->ends_at->lessThanOrEqualTo(now()));
         $this->assertFalse($subscription->active());
+    }
+
+    public function testApiGracePeriodRunsToTheEntitlementExpiry(): void
+    {
+        $this->bindRevenueCat();
+        $graceEnds = now()->addDays(5)->startOfSecond();
+        $this->fakeApi(
+            [[$this->v2Subscription([
+                'status' => 'in_grace_period',
+                'ends_at' => now()->subDay()->getTimestampMs(),
+            ])]],
+            entitlementExpiries: [$graceEnds->getTimestampMs()]
+        );
+
+        $result = $this->dispatch($this->event('BILLING_ISSUE'));
+
+        $this->assertSame('active', $result['new_status']);
+        $subscription = $this->findSubscription();
+        $this->assertSame($graceEnds->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+        $this->assertTrue($subscription->active());
+    }
+
+    public function testApiBillingRetryIsPastDue(): void
+    {
+        $this->bindRevenueCat();
+        $this->fakeApi([[$this->v2Subscription([
+            'status' => 'in_billing_retry',
+            'gives_access' => false,
+            'ends_at' => now()->subDays(20)->getTimestampMs(),
+        ])]]);
+
+        $result = $this->dispatch($this->event('BILLING_ISSUE'));
+
+        $this->assertSame('past_due', $result['new_status']);
+        $this->assertFalse($this->findSubscription()->active());
+    }
+
+    public function testApiPausedIndefinitelyIsPausedWithoutAccess(): void
+    {
+        $this->bindRevenueCat();
+        $this->fakeApi([[$this->v2Subscription([
+            'status' => 'paused',
+            'gives_access' => false,
+            'ends_at' => null,
+            'current_period_ends_at' => null,
+        ])]]);
+
+        $result = $this->dispatch($this->event('SUBSCRIPTION_PAUSED'));
+
+        $this->assertSame('paused', $result['new_status']);
+        $this->assertFalse($this->findSubscription()->active());
+    }
+
+    public function testPromotionalGrantAsRevenueCatSendsItCreatesAnActiveRow(): void
+    {
+        $grantEnds = now()->addMonths(2)->startOfSecond();
+
+        $result = $this->dispatch($this->event('NON_RENEWING_PURCHASE', [
+            'store' => 'PROMOTIONAL',
+            'product_id' => 'rc_promo_pro_custom',
+            'period_type' => 'PROMOTIONAL',
+            'environment' => 'PRODUCTION',
+            'expiration_at_ms' => $grantEnds->getTimestampMs(),
+        ]));
+
+        $this->assertSame('active', $result['new_status']);
+        $subscription = $this->findSubscription();
+        $this->assertSame($grantEnds->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+        $this->assertTrue($subscription->active());
+    }
+
+    public function testApiPromotionalGrantCreatesAnActiveRow(): void
+    {
+        $this->bindRevenueCat();
+        $grantEnds = now()->addMonth()->startOfSecond();
+        $this->fakeApi([[$this->v2Subscription([
+            'product_id' => null,
+            'store' => 'promotional',
+            'ends_at' => $grantEnds->getTimestampMs(),
+            'store_subscription_identifier' => 'rc_promo_grant',
+        ])]]);
+
+        $result = $this->dispatch($this->promotionalEvent());
+
+        $this->assertSame('active', $result['new_status']);
+        $subscription = $this->findSubscription($this->promotionalLineage());
+        $this->assertSame($grantEnds->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+        $this->assertTrue($subscription->active());
+    }
+
+    public function testApiPromotionalGrantFallsBackToTheActiveEntitlement(): void
+    {
+        $this->bindRevenueCat();
+        $grantEnds = now()->addWeek()->startOfSecond();
+        $this->fakeApi([[]], entitlementExpiries: [$grantEnds->getTimestampMs()]);
+
+        $result = $this->dispatch($this->promotionalEvent());
+
+        $this->assertSame('active', $result['new_status']);
+        $subscription = $this->findSubscription($this->promotionalLineage());
+        $this->assertSame($grantEnds->toDateTimeString(), $subscription->ends_at->toDateTimeString());
     }
 
     public function testApiWithoutTheProductWritesNothing(): void
     {
-        $this->bindRevenueCat(self::API_KEY);
-        Http::fake(['api.revenuecat.com/*' => Http::response(['subscriber' => ['subscriptions' => []]])]);
+        $this->bindRevenueCat();
+        $this->fakeApi([[$this->v2Subscription(['product_id' => 'prodOther'])]]);
 
         $result = $this->dispatch($this->event('INITIAL_PURCHASE'));
 
@@ -371,13 +535,26 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
         $this->assertNull($this->findSubscription());
     }
 
+    public function testApiNeedsTheProjectIdAsWellAsTheKey(): void
+    {
+        $this->bindRevenueCat(projectId: '');
+
+        $result = $this->dispatch($this->event('INITIAL_PURCHASE'));
+
+        $this->assertSame('event', $result['source']);
+        Http::assertNothingSent();
+    }
+
     public function testApiFailureLeavesTheRowUnchanged(): void
     {
         Exceptions::fake();
         $this->dispatch($this->event('INITIAL_PURCHASE', ['event_timestamp_ms' => now()->subDay()->getTimestampMs()]));
         $before = $this->findSubscription()->toArray();
-        $this->bindRevenueCat(self::API_KEY);
-        Http::fake(['api.revenuecat.com/*' => Http::response(['message' => 'unavailable'], 503)]);
+        $this->bindRevenueCat();
+        Http::fake(['api.revenuecat.com/*' => Http::response([
+            'code' => 7723,
+            'message' => "You're trying to use a secret API key incompatible with RevenueCat API V1.",
+        ], 403)]);
 
         $result = $this->dispatch($this->event('EXPIRATION', ['expiration_at_ms' => now()->subDay()->getTimestampMs()]));
 
@@ -413,6 +590,26 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
         $this->assertSame($endsAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
     }
 
+    public function testApiTransferMovesTheRowWithTheNewOwnersState(): void
+    {
+        $previousOwner = $this->createUser();
+        $this->seedSubscription($previousOwner);
+        $this->bindRevenueCat();
+        $paidUntil = now()->addMonths(2)->startOfSecond();
+        $this->fakeApi([[$this->v2Subscription([
+            'ends_at' => $paidUntil->getTimestampMs(),
+            'store_subscription_identifier' => $this->originalTransactionId,
+        ])]]);
+
+        $result = $this->dispatch($this->transferEvent([$previousOwner->uuid], [auth()->user()->uuid]));
+
+        $this->assertSame('revenuecat_api', $result['source']);
+        $this->assertSame(['rc:' . $this->originalTransactionId], $result['moved']);
+        $subscription = $this->findSubscription();
+        $this->assertSame(auth()->user()->getId(), (int) $subscription->owner->users_id);
+        $this->assertSame($paidUntil->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+    }
+
     public function testTransferToACustomerOutsideTheAppEndsAccess(): void
     {
         $previousOwner = $this->createUser();
@@ -444,7 +641,7 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
             ->where('companies_id', $user->getCurrentCompany()->getId())
             ->firstOrFail();
         $secret = $receiver->configuration[ProcessRevenueCatWebhookJob::AUTHORIZATION_CONFIG_KEY];
-        $this->assertStringStartsWith('Bearer ', $secret);
+        $this->assertStringStartsWith('rc_', $secret);
         $this->assertTrue(ProcessRevenueCatWebhookJob::authenticateRequest($this->request([], $secret), $receiver));
     }
 
@@ -499,49 +696,128 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
         ];
     }
 
-    /**
-     * @param array<string, mixed> $subscription
-     */
-    private function fakeSubscriber(array $subscription): void
+    private function promotionalEvent(): array
     {
-        Http::fake([
-            'api.revenuecat.com/v1/subscribers/*' => Http::response([
-                'request_date_ms' => now()->getTimestampMs(),
-                'subscriber' => [
-                    'original_app_user_id' => auth()->user()->uuid,
-                    'subscriptions' => [
-                        self::PRODUCT_ID => $subscription + [
-                            'billing_issues_detected_at' => null,
-                            'grace_period_expires_date' => null,
-                            'is_sandbox' => true,
-                            'period_type' => 'normal',
-                            'purchase_date' => now()->subDay()->toIso8601ZuluString(),
-                            'refunded_at' => null,
-                            'store' => 'app_store',
-                            'unsubscribe_detected_at' => null,
-                        ],
-                    ],
-                ],
-            ]),
+        $payload = $this->event('NON_RENEWING_PURCHASE', [
+            'store' => 'PROMOTIONAL',
+            'product_id' => self::PROMOTIONAL_PRODUCT_ID,
+            'period_type' => 'PROMOTIONAL',
         ]);
+        unset($payload['event']['original_transaction_id'], $payload['event']['transaction_id']);
+
+        return $payload;
+    }
+
+    private function promotionalLineage(): string
+    {
+        return 'rc:promotional:' . auth()->user()->uuid . ':' . self::PROMOTIONAL_PRODUCT_ID;
     }
 
     /**
-     * Writing a real app setting would leak the key to parallel tests through Redis.
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
      */
-    private function bindRevenueCat(string $apiKey): void
+    private function v2Subscription(array $overrides = []): array
+    {
+        $uuid = auth()->user()->uuid;
+
+        return array_merge([
+            'object' => 'subscription',
+            'id' => 'sub' . Str::random(12),
+            'customer_id' => $uuid,
+            'original_customer_id' => $uuid,
+            'product_id' => self::RC_PRODUCT_ID,
+            'starts_at' => now()->subMonth()->getTimestampMs(),
+            'current_period_starts_at' => now()->subDay()->getTimestampMs(),
+            'current_period_ends_at' => now()->addMonth()->getTimestampMs(),
+            'ends_at' => now()->addMonth()->getTimestampMs(),
+            'gives_access' => true,
+            'pending_payment' => false,
+            'auto_renewal_status' => 'will_renew',
+            'status' => 'active',
+            'environment' => 'sandbox',
+            'store' => 'app_store',
+            'store_subscription_identifier' => (string) random_int(100000000000, 999999999999),
+            'ownership' => 'purchased',
+            'pending_changes' => null,
+            'entitlements' => ['object' => 'list', 'items' => [], 'next_page' => null, 'url' => '/v2/entitlements'],
+        ], $overrides);
+    }
+
+    /**
+     * Routes the v2 endpoints the service calls: the customer's subscriptions (one array per page), a
+     * product's store identifier, and the customer's active entitlements.
+     *
+     * @param array<int, array<int, array<string, mixed>>> $subscriptionPages
+     * @param int[] $entitlementExpiries
+     */
+    private function fakeApi(array $subscriptionPages, array $entitlementExpiries = []): void
+    {
+        $products = [self::RC_PRODUCT_ID => self::PRODUCT_ID, 'prodOther' => 'another_store_product'];
+
+        Http::fake(function (HttpRequest $request) use ($subscriptionPages, $entitlementExpiries, $products) {
+            $path = (string) parse_url($request->url(), PHP_URL_PATH);
+
+            if (str_ends_with($path, '/subscriptions')) {
+                $page = isset($request['starting_after']) ? 1 : 0;
+
+                return Http::response([
+                    'object' => 'list',
+                    'items' => $subscriptionPages[$page] ?? [],
+                    'next_page' => isset($subscriptionPages[$page + 1]) ? $path . '?starting_after=next' : null,
+                    'url' => $path,
+                ]);
+            }
+
+            if (str_ends_with($path, '/active_entitlements')) {
+                return Http::response([
+                    'object' => 'list',
+                    'items' => array_map(fn (int $expiresAt): array => [
+                        'object' => 'customer.active_entitlement',
+                        'entitlement_id' => 'entl' . Str::random(8),
+                        'expires_at' => $expiresAt,
+                    ], $entitlementExpiries),
+                    'next_page' => null,
+                    'url' => $path,
+                ]);
+            }
+
+            $productId = Str::afterLast($path, '/products/');
+
+            return isset($products[$productId])
+                ? Http::response(['object' => 'product', 'id' => $productId, 'store_identifier' => $products[$productId], 'type' => 'subscription'])
+                : Http::response(['message' => 'Not found'], 404);
+        });
+    }
+
+    /**
+     * Writing real app settings would leak them to parallel tests through Redis.
+     */
+    private function bindRevenueCat(string $apiKey = self::API_KEY, string $projectId = self::PROJECT_ID): void
     {
         $this->app->bind(
             RevenueCatService::class,
-            fn ($container, array $parameters): RevenueCatService => new class ($parameters['app'], $apiKey) extends RevenueCatService {
-                public function __construct(AppInterface $app, private readonly string $apiKey)
-                {
+            fn ($container, array $parameters): RevenueCatService => new class (
+                $parameters['app'],
+                $apiKey,
+                $projectId
+            ) extends RevenueCatService {
+                public function __construct(
+                    AppInterface $app,
+                    private readonly string $apiKey,
+                    private readonly string $fakeProjectId
+                ) {
                     parent::__construct($app);
                 }
 
                 protected function secretKey(): string
                 {
                     return $this->apiKey;
+                }
+
+                protected function projectId(): string
+                {
+                    return $this->fakeProjectId;
                 }
             }
         );
@@ -569,10 +845,10 @@ class ProcessRevenueCatWebhookJobTest extends TestCase
         ]);
     }
 
-    private function findSubscription(): ?CashierSubscription
+    private function findSubscription(?string $stripeId = null): ?CashierSubscription
     {
         return CashierSubscription::with('owner')
-            ->where('stripe_id', 'rc:' . $this->originalTransactionId)
+            ->where('stripe_id', $stripeId ?? 'rc:' . $this->originalTransactionId)
             ->first();
     }
 
