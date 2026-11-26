@@ -10,6 +10,7 @@ enum CreditConfigurationEnum: string
     case CREDIT_LIMIT_AMOUNT = 'scribe-credit-limit-amount';
     case CREDIT_LIMIT_CURRENCY = 'scribe-credit-limit-currency';
 
-    // Company setting: days an invoice may stay overdue before the customer's new orders are held.
+    // Company setting: days from day 0 of the payment term (the bill of lading date, or the invoice date) after which
+    // an overdue invoice puts the customer's new orders on hold. The collection plan names the same day.
     case CREDIT_HOLD_DAYS = 'scribe-credit-hold-days';
 }

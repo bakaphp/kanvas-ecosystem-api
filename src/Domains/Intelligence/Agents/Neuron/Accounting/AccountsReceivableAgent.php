@@ -71,6 +71,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetDefaultSowTemplateTool
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateDraftInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
@@ -203,6 +204,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new AnswerQuoteTool(),
             new ConvertQuoteToInvoiceTool(),
             new RegisterCustomerPoTool(),
+            new UpdateCustomerOrderTool(),
             new ReviewCustomerPoTool(),
             new ResolvePoDifferenceTool(),
             new ConfirmCustomerOrderTool(),
@@ -365,13 +367,17 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'writing: ask the person how it was clarified and record it with resolve_po_difference, never invent '
             . 'the answer. confirm_customer_order needs the person to tell you Operations confirmed the order is '
             . 'feasible. Operations\' answer is recorded with answer_customer_order (accept with firm etd and eta, or '
-            . 'return with the reason). "Where is customer order SO-12" / "what is waiting on Operations" → '
-            . 'find_customer_order, list_customer_orders (find_sales_order and list_open_sales_orders read the orders '
+            . 'return with the reason). An order that is wrong, or that Operations returned, is corrected with '
+            . 'update_customer_order and reviewed again. '
+            . '"Where is customer order SO-12" / "what is waiting on Operations" → find_customer_order, '
+            . 'list_customer_orders (find_sales_order and list_open_sales_orders read the orders '
             . 'synced from the ERP, which are a different thing). Never confirm, accept or cancel an order on your '
             . 'own initiative.',
             '- Shipping a customer order: before the bill of lading, check_shipping_documents cross-checks the order, '
             . 'the commercial invoice, the packing list and the draft BL; clarify each difference with '
             . 'resolve_po_difference (source documents), then record_shipment once the person says the BL was issued. '
+            . 'The invoice has to be issued by then: correct it while it is a draft, check again after any edit, and '
+            . 'issue it before the bill of lading; once the order ships the invoice is only corrected with a note. '
             . 'The invoice then falls due the payment term after the BL date, not the invoice date: say so, and read '
             . 'get_collection_plan for the follow-up. mark_documents_package_sent only records that the package went out. '
             . 'confirm_delivery needs the proof-of-delivery reference; close_customer_order needs the invoice paid.',

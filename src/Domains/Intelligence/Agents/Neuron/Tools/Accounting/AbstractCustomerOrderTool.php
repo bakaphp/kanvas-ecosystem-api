@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Closure;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
 use NeuronAI\Tools\Tool;
@@ -33,6 +34,29 @@ abstract class AbstractCustomerOrderTool extends Tool
         );
 
         return $order instanceof SalesOrder ? $order : null;
+    }
+
+    /**
+     * @return Quote|array<string, mixed>|null the quote, null when no number was given, or the not-found answer
+     */
+    protected function quoteByNumber(?string $quoteNumber, string $doneKey): Quote|array|null
+    {
+        if ($quoteNumber === null) {
+            return null;
+        }
+
+        $quote = $this->findTenantRecordOrNotFound(
+            Quote::class,
+            'quote_number',
+            $quoteNumber,
+            'quote'
+        );
+
+        return $quote instanceof Quote ? $quote : [
+            $doneKey => false,
+            'reason' => 'quote_not_found',
+            'message' => "No quote numbered {$quoteNumber} for this company.",
+        ];
     }
 
     /**
@@ -133,7 +157,7 @@ abstract class AbstractCustomerOrderTool extends Tool
             SalesOrderStatusEnum::CONFIRMED => 'Waiting for Operations: answer_customer_order accepts it with firm '
                 . 'dates or returns it with a reason.',
             SalesOrderStatusEnum::RETURNED => 'Operations returned it: renegotiate with the customer, correct the '
-                . 'order and review it again.',
+                . 'order with update_customer_order and review it again.',
             SalesOrderStatusEnum::ACCEPTED => $order->documents_checked_at === null
                 ? 'Accepted with firm dates: cross-check the shipping documents with check_shipping_documents '
                     . 'before the bill of lading.'

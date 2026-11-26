@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\SalesOrders\Actions;
 
-use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\SalesOrders\Actions\Concerns\PersistsSalesOrderLines;
 use Kanvas\Scribe\SalesOrders\DataTransferObject\SalesOrder as SalesOrderData;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
@@ -18,6 +18,7 @@ use Kanvas\Scribe\SalesOrders\Services\SalesOrderStateMachineService;
  */
 class UpdateSalesOrderAction
 {
+    use LocksDocumentRow;
     use PersistsSalesOrderLines;
 
     public function __construct(
@@ -29,37 +30,46 @@ class UpdateSalesOrderAction
 
     public function execute(): SalesOrder
     {
-        $editable = [SalesOrderStatusEnum::RECEIVED, SalesOrderStatusEnum::RETURNED];
-
-        if (! in_array($this->order->document_status, $editable, true)) {
-            throw new InvalidSalesOrderTransitionException(
-                "Sales order {$this->order->order_number} is {$this->order->document_status->value}: only an order that is received or returned can be edited."
-            );
-        }
-
         $this->assertLines($this->data);
 
-        return DB::connection('accounting')->transaction(function (): SalesOrder {
-            if ($this->order->document_status === SalesOrderStatusEnum::RETURNED) {
-                $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::RECEIVED);
-                $this->order->document_status = SalesOrderStatusEnum::RECEIVED;
+        return $this->withRowLocked($this->order, function (): SalesOrder {
+            $order = $this->order;
+            $editable = [SalesOrderStatusEnum::RECEIVED, SalesOrderStatusEnum::RETURNED];
+
+            if (! in_array($order->document_status, $editable, true)) {
+                throw new InvalidSalesOrderTransitionException(
+                    "Sales order {$order->order_number} is {$order->document_status->value}: "
+                    . 'only an order that is received or returned can be edited.'
+                );
             }
 
-            $this->order->customer_po_number = $this->data->customer_po_number;
-            $this->order->customer_po_date = $this->data->customer_po_date;
-            $this->order->signature_checklist = $this->data->signature_checklist;
-            $this->order->currency = $this->data->currency;
-            $this->order->incoterm = $this->data->incoterm;
-            $this->order->consignee = $this->data->consignee;
-            $this->order->payment_terms_days = $this->data->payment_terms_days;
-            $this->order->requested_date = $this->data->requested_date;
-            $this->order->notes = $this->data->notes;
-            $this->order->review = null;
-            $this->order->reviewed_at = null;
+            if ($order->document_status === SalesOrderStatusEnum::RETURNED) {
+                $this->stateMachine->assertTransition($order, SalesOrderStatusEnum::RECEIVED);
+                $order->document_status = SalesOrderStatusEnum::RECEIVED;
+            }
 
-            $this->persistLines($this->order, $this->data);
+            $order->forceFill($this->data->sent([
+                'quote_id' => $this->data->quote?->getId(),
+                'customer_po_number' => $this->data->customer_po_number,
+                'customer_po_date' => $this->data->customer_po_date,
+                'signature_checklist' => $this->data->signature_checklist,
+                'currency' => $this->data->currency,
+                'incoterm' => $this->data->incoterm,
+                'consignee' => $this->data->consignee,
+                'payment_terms_days' => $this->data->payment_terms_days,
+                'requested_date' => $this->data->requested_date,
+                'notes' => $this->data->notes,
+            ]));
+            $order->review = null;
+            $order->reviewed_at = null;
 
-            return $this->order->fresh(['lines']);
+            if ($this->data->changes('lines')) {
+                $this->persistLines($order, $this->data);
+            } else {
+                $order->saveOrFail();
+            }
+
+            return $order->fresh(['lines']);
         });
     }
 }

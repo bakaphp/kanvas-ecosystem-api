@@ -6,8 +6,8 @@ namespace Kanvas\Scribe\SalesOrders\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrderShipment;
@@ -18,6 +18,8 @@ use Kanvas\Scribe\SalesOrders\Services\SalesOrderStateMachineService;
  */
 class ConfirmDeliveryAction
 {
+    use LocksDocumentRow;
+
     public function __construct(
         protected readonly SalesOrder $order,
         protected readonly Carbon $deliveredOn,
@@ -30,13 +32,20 @@ class ConfirmDeliveryAction
 
     public function execute(): SalesOrderShipment
     {
-        $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::DELIVERED);
-
         $pod = Str::trimToNull($this->podReference)
             ?? throw new ValidationException('A delivery needs the reference of the signed proof of delivery.');
 
-        return DB::connection('accounting')->transaction(function () use ($pod): SalesOrderShipment {
+        return $this->withRowLocked($this->order, function () use ($pod): SalesOrderShipment {
+            $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::DELIVERED);
+
             $shipment = $this->order->shipment;
+
+            if ($this->deliveredOn->copy()->startOfDay()->lt($shipment->bl_date)) {
+                throw new ValidationException(
+                    "The delivery cannot be before the bill of lading date ({$shipment->bl_date->toDateString()})."
+                );
+            }
+
             $shipment->delivered_on = $this->deliveredOn;
             $shipment->pod_reference = $pod;
             $shipment->delivery_discrepancies = Str::trimToNull($this->discrepancies);

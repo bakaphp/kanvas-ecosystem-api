@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\SalesOrders\Services;
 
+use Kanvas\Scribe\SalesOrders\Credit\CustomerCreditService;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrderShipment;
 
 /**
@@ -47,11 +48,6 @@ class SalesOrderCollectionPlanService
             'action' => 'No payment: escalate to the Commercial Director',
             'owner' => 'Direction',
         ],
-        [
-            'day' => 80,
-            'action' => 'No payment: no new order of the customer is confirmed or released',
-            'owner' => 'Gates 1 and 3',
-        ],
     ];
 
     /**
@@ -63,8 +59,18 @@ class SalesOrderCollectionPlanService
             ...self::STEPS,
             [
                 'day' => $shipment->payment_terms_days,
-                'action' => 'Due: reconcile the payment and update the collections register and the payment scorecard',
+                'action' => 'Due: reconcile the payment and update the collections register and the payment '
+                    . 'scorecard',
                 'owner' => 'Collections',
+            ],
+            // The same day the credit gates start refusing the customer, so the plan never promises another one.
+            [
+                'day' => CustomerCreditService::firstHoldDay(
+                    CustomerCreditService::holdDaysFor($shipment->salesOrder->company),
+                    $shipment->payment_terms_days
+                ),
+                'action' => 'No payment: no new order of the customer is confirmed or released',
+                'owner' => 'Gates 1 and 3',
             ],
         ];
 
