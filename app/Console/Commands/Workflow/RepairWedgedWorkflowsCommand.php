@@ -28,16 +28,44 @@ class RepairWedgedWorkflowsCommand extends Command
         $queues = $this->option('queue') ?: KanvasStatusCommand::QUEUES;
         $minAttempts = (int) ($this->option('attempts') ?: WedgedWorkflowService::DEFAULT_MIN_ATTEMPTS);
 
-        $wedged = $service->find($queues, $minAttempts);
+        [$wedged, $others] = $service->scan($queues, $minAttempts);
 
-        if ($wedged === []) {
-            $this->info("No workflow job is past {$minAttempts} attempts.");
+        if ($wedged === [] && $others === []) {
+            $this->info("No job is past {$minAttempts} attempts.");
 
             return self::SUCCESS;
         }
 
+        if ($others !== []) {
+            $this->table(
+                [
+                    'Job',
+                    'Queue',
+                    'Jobs',
+                    'Most attempts',
+                ],
+                $others
+            );
+            $this->warn('Not tied to a stored workflow, so nothing here can repair them.');
+        }
+
+        if ($wedged === []) {
+            return self::FAILURE;
+        }
+
         $this->table(
-            ['Workflow', 'Queue', 'Attempts', 'Status', 'Started', 'Rule / entity', 'Last activity', 'Locks', 'Repair'],
+            [
+                'Workflow',
+                'Job',
+                'Queue',
+                'Attempts',
+                'Status',
+                'Started',
+                'Rule / entity',
+                'Last activity',
+                'Locks',
+                'Repair',
+            ],
             array_map($this->row(...), $wedged)
         );
 
@@ -74,6 +102,7 @@ class RepairWedgedWorkflowsCommand extends Command
 
         return [
             $storedWorkflow->id,
+            class_basename($workflow->job),
             $workflow->queue,
             $workflow->attempts,
             $storedWorkflow->status::$name,
