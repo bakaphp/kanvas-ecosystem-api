@@ -28,6 +28,14 @@ final class AccountingAgentEmailToolsTest extends ScribeTestCase
         }
     }
 
+    public function test_the_ap_agent_sends_a_purchase_order_only_while_a_person_is_asking(): void
+    {
+        $handler = AccountsPayableAgent::make();
+
+        $this->assertContains('send_purchase_order', $this->toolNames($handler, personAsking: true));
+        $this->assertNotContains('send_purchase_order', $this->toolNames($handler, personAsking: false));
+    }
+
     public function test_both_agents_read_and_annotate_the_sales_side_of_a_counterparty(): void
     {
         foreach ([AccountsPayableAgent::make(), AccountsReceivableAgent::make()] as $handler) {

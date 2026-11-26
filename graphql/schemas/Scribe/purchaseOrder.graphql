@@ -22,7 +22,14 @@ type ScribePurchaseOrder {
     order_date: Date
     expected_date: Date
     currency: String
+    "Printed on the document the vendor receives."
     notes: String
+    "Staff notes, never printed: why an order was rejected or its approval expired."
+    internal_notes: String
+    approved_at: DateTime
+    "When the order was emailed to the vendor, and to whom."
+    sent_at: DateTime
+    sent_to: String
     cancelled_at: DateTime
     cancel_reason: String
     order_total: Money!
@@ -95,6 +102,31 @@ extend type Mutation @guard {
     updateScribePurchaseOrder(id: ID!, input: UpdateScribePurchaseOrderInput!): ScribePurchaseOrder!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@update"
+        )
+    "Submits a draft for approval; the vendor's approver is asked. Needs an approval policy for purchase orders."
+    submitScribePurchaseOrderForApproval(id: ID!): ScribePurchaseOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@submit"
+        )
+    "Approves an order pending approval. Only an approver of the vendor can."
+    approveScribePurchaseOrder(id: ID!, comment: String): ScribePurchaseOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@approve"
+        )
+    "Rejects an order pending approval; it goes back to draft with the reason in its internal notes."
+    rejectScribePurchaseOrder(id: ID!, reason: String!): ScribePurchaseOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@reject"
+        )
+    "Emails an approved order to the vendor as a PDF and marks it sent. A sent order can be sent again."
+    sendScribePurchaseOrder(id: ID!, to: [String!]!, message: String): ScribePurchaseOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@send"
+        )
+    "Renders the order as a PDF and attaches it to the order."
+    generateScribePurchaseOrderPdf(id: ID!): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@generatePdf"
         )
     "Cancels a purchase order the company issued, as long as no goods have arrived against it."
     cancelScribePurchaseOrder(id: ID!, reason: String): ScribePurchaseOrder!

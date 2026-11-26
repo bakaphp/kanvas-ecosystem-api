@@ -18,6 +18,7 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use ReflectionProperty;
 use Spatie\LaravelData\DataCollection;
 
 /** Policy, approver and submitted-bill fixtures shared by the Scribe approval tests. Use from a ScribeTestCase. */
@@ -41,10 +42,13 @@ trait SeedsBillApprovals
         ?string $fallbackResolver = null,
         bool $allowAuthorityOverride = false,
     ): ApprovalPolicy {
+        $module = SystemModulesRepository::getByModelName($model, $this->kanvasApp);
+        $this->forgetApprovalModuleIds($model);
+
         return ApprovalPolicy::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
-            'system_modules_id' => SystemModulesRepository::getByModelName($model, $this->kanvasApp)->getId(),
+            'system_modules_id' => $module->getId(),
             'approval_type' => $approvalType,
             'steps' => [[
                 'step' => 1,
@@ -57,6 +61,15 @@ trait SeedsBillApprovals
             'allow_authority_override' => $allowAuthorityOverride,
             'trigger' => ApprovalTriggerEnum::MANUAL,
         ]);
+    }
+
+    /**
+     * HasApprovals remembers a model's system module id for the life of the process, but a module row first created
+     * inside a test is rolled back with it. Forget the remembered id so the policy and the model resolve the same row.
+     */
+    protected function forgetApprovalModuleIds(string $model): void
+    {
+        new ReflectionProperty($model, 'approvalSystemModuleIds')->setValue(null, []);
     }
 
     protected function linkApprover(Organization $vendor, string $prefix = 'ap-approver'): Users

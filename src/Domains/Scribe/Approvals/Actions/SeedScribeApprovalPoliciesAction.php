@@ -15,11 +15,13 @@ use Kanvas\Scribe\Expenses\Approvals\ApproveExpenseHandler;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Approvals\IssueInvoiceHandler;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
+use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 
 /**
- * The AP bill, AR invoice and expense policies: one step, the vendor's or customer's own approver, one
+ * The AP bill, AR invoice, expense and purchase order policies: one step, the vendor's or customer's own approver, one
  * signature. Behaviour and rationale live on SeedScribeApprovalPoliciesCommand, which runs this.
  *
  * The fallback is who signs when the vendor or customer names nobody: the default approver when one is
@@ -54,6 +56,7 @@ class SeedScribeApprovalPoliciesAction
             [Bill::class, 'approve_bill', 'vendor', ApproveAndPushBillHandler::class, false],
             [Invoice::class, 'approve_invoice', 'customer', IssueInvoiceHandler::class, false],
             [Expense::class, 'approve_expense', 'vendor', ApproveExpenseHandler::class, true],
+            [PurchaseOrder::class, 'approve_purchase_order', 'vendor', ApprovePurchaseOrderHandler::class, false],
         ];
 
         $results = [];

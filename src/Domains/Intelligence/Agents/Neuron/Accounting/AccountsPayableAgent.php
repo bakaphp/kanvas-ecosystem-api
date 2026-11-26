@@ -26,6 +26,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GeneratePurchaseOrderPdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetExchangeRateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\IngestBankStatementTool;
@@ -46,8 +47,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordCompanyCardExpenseT
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendBillAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RespondToVendorEcfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SettleFromSuspenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitPurchaseOrderForApprovalTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdatePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
@@ -136,6 +139,8 @@ class AccountsPayableAgent extends SystemUserAgent
             new CreatePurchaseOrderTool(),
             new UpdatePurchaseOrderTool(),
             new CancelPurchaseOrderTool(),
+            new SubmitPurchaseOrderForApprovalTool(),
+            new GeneratePurchaseOrderPdfTool(),
             new IssuePurchaseEcfTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
@@ -182,8 +187,9 @@ class AccountsPayableAgent extends SystemUserAgent
 
         $tools = [...$tools, ...$this->accountingApprovalTools()];
 
-        // These book money or answer DGII, and this agent reads inbound email: a forged statement, "it's paid"
-        // or a vendor's own email must not land on its own, so they load only when a real person is asking.
+        // These book money, answer DGII or email a document out, and this agent reads inbound email: a forged
+        // statement, "it's paid" or a vendor's own email must not land on its own, so they load only when a real
+        // person is asking.
         $person = $this->personAsking();
         if ($person !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new RecordCompanyCardExpenseTool()->withContext($this->app, $this->company, $person);
@@ -195,6 +201,7 @@ class AccountsPayableAgent extends SystemUserAgent
             $tools[] = new UpdateApBillTool()->withContext($this->app, $this->company, $person);
             $tools[] = new SubmitApBillTool()->withContext($this->app, $this->company, $person);
             $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
+            $tools[] = new SendPurchaseOrderTool()->withContext($this->app, $this->company, $person);
         }
 
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
@@ -254,6 +261,12 @@ class AccountsPayableAgent extends SystemUserAgent
             '- "Order X from vendor Y" → find_vendor to resolve organization_id, then create_purchase_order '
             . '(it stays a draft, never approved or sent by you); "change that order" → update_purchase_order '
             . 'with the PO number; "cancel that order" → cancel_purchase_order with the PO number and the reason.',
+            '- A purchase order goes draft → submit_purchase_order_for_approval → approved by the vendor\'s approver '
+            . '(approve_pending_item with target_type purchase_order, only when the approver says so) → '
+            . 'send_purchase_order, which really emails the vendor: only to the email on file of a person linked '
+            . 'to the vendor (list_organization_people; a new contact is added with create_person and '
+            . 'link_person_to_organization first), never a guessed address. A rejection sends the order back to draft with the reason in its internal notes. '
+            . 'generate_purchase_order_pdf gives a copy to hand over (then get_file_link).',
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
