@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Event\Concerns;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventCategory;
@@ -150,6 +151,20 @@ trait BuildsInviteOnlyParking
         return $code;
     }
 
+    private function issueEventCode(int $uses = 1): string
+    {
+        [, $code] = new CreatePassAction(
+            event: $this->gatedEvent,
+            eventVersion: $this->gatedEvent->versions()->orderBy('start_at')->firstOrFail(),
+            expirationDate: Carbon::now()->addDays(30),
+            format: PassFormatEnum::QR_CODE,
+            maxUses: $uses,
+            eventWide: true
+        )->execute();
+
+        return $code;
+    }
+
     private function bookWithInvite(TimeSlots $timeSlot, ?string $code, array $metadata = []): TestResponse
     {
         return $this->graphQL('
@@ -172,8 +187,19 @@ trait BuildsInviteOnlyParking
         ]);
     }
 
+    private function bookInviteOnDay(array $day, array $metadata = []): EventVersion
+    {
+        $response = $this->bookWithInvite($day['slot'], $this->issueInvite($day['version']), $metadata);
+
+        $this->assertNull($response->json('errors'), json_encode($response->json('errors')));
+        RateLimiter::clear('invite-code:user:' . $this->user->getId());
+        RateLimiter::clear('invite-code:ip:127.0.0.1');
+
+        return EventVersion::findOrFail($response->json('data.bookTimeSlot.id'));
+    }
+
     private function redeemedBy(EventVersion $booking): ?ParticipantPass
     {
-        return ParticipantPass::where('redeemed_event_version_id', $booking->getId())->first();
+        return ParticipantPass::query()->redeemedByBooking($booking->getId())->whereNotNull('redeemed_at')->first();
     }
 }

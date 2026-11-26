@@ -21,8 +21,10 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Events\Services\TimeSlotBookingLock;
 use Kanvas\Event\Participants\Models\ParticipantPass;
+use Kanvas\Event\Passes\Actions\AssignBookingReferenceAction;
 use Kanvas\Event\Passes\DataTransferObject\EventAccess;
 use Kanvas\Event\Passes\DataTransferObject\WalkInAccess;
+use Kanvas\Event\Passes\Enums\InviteCodeCheckReasonEnum;
 use Kanvas\Event\Passes\Gates\OpenWalkInVisitGuard;
 use Kanvas\Event\Passes\Services\InviteCodeGate;
 use Kanvas\Event\Passes\Services\PassAttemptLimiter;
@@ -64,7 +66,10 @@ class TimeSlotBookingMutation
 
         $claimInvite = $gate === null
             ? null
-            : fn (EventVersion $booking) => $gate->redeem($inviteCode, $timeSlot, $booking);
+            : function (EventVersion $booking) use ($gate, $access, $inviteCode, $timeSlot): void {
+                $gate->redeem($inviteCode, $timeSlot, $booking);
+                new AssignBookingReferenceAction($access, $booking)->execute();
+            };
 
         $createBooking = fn (): EventVersion => $this->createLockedBooking(
             TimeSlots::getById($timeSlot->id, $app),
@@ -131,8 +136,13 @@ class TimeSlotBookingMutation
         }
 
         $participantCount = count($input['participants'] ?? []);
+
         if (! $timeSlot->hasAvailableCapacity($participantCount)) {
-            throw new ValidationException('Time slot does not have enough available capacity. Available: ' . $timeSlot->getAvailableSlots() . ', Required: ' . $participantCount);
+            throw new ValidationException(
+                $claimInvite !== null
+                    ? InviteCodeCheckReasonEnum::FULL->message()
+                    : 'Time slot does not have enough available capacity. Available: ' . $timeSlot->getAvailableSlots() . ', Required: ' . $participantCount
+            );
         }
 
         $bookingData = $input;
@@ -197,6 +207,10 @@ class TimeSlotBookingMutation
             throw new ModelNotFoundException()->setModel(EventVersion::class, [$args['id']]);
         }
 
+        if (ParticipantPass::query()->redeemedByBooking($eventVersion->getId())->exists()) {
+            throw new ValidationException('Invite bookings cannot be cancelled.');
+        }
+
         return new CancelEventAction($eventVersion)->execute();
     }
 
@@ -227,8 +241,8 @@ class TimeSlotBookingMutation
             ->fromCompany($company)
             ->findOrFail($input['event_version_id']);
 
-        if (ParticipantPass::query()->where('redeemed_event_version_id', $eventVersion->getId())->exists()) {
-            throw new ValidationException('An invite booking cannot be moved. Cancel it and book again.');
+        if (ParticipantPass::query()->redeemedByBooking($eventVersion->getId())->exists()) {
+            throw new ValidationException('An invite booking cannot be moved.');
         }
 
         $oldTimeSlotId = $eventVersion->time_slot_id ?? null;

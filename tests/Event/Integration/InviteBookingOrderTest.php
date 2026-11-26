@@ -14,6 +14,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\ActivateEventBookingOrderAction;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
 use Kanvas\Event\Events\Actions\BuildEventDataAction;
+use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
 use Kanvas\Event\Events\Models\Event;
@@ -90,6 +91,17 @@ class InviteBookingOrderTest extends TestCase
         $this->assertSame('18:00', $order->metadata['data']['arrival_hour']);
         $this->assertSame('A123456', $order->metadata['data']['vehiclePlate']);
         $this->assertSame($this->gatedVariant->getId(), $order->metadata['data']['variants_ids']['parking_variant_id']);
+    }
+
+    public function testTheOrderCarriesThePassCodeOfTheBooking(): void
+    {
+        $booking = $this->bookDay(0);
+
+        $passCode = $this->orderOf($booking)->metadata['data']['pass_code'];
+
+        $this->assertSame($booking->getPassCode(), $passCode);
+        $this->assertSame($booking->reference, $this->orderOf($booking)->metadata['data']['reference']);
+        $this->assertMatchesRegularExpression('/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/', $passCode);
     }
 
     public function testTheOrderWindowIsInTheAppTimezoneLikeACartOrder(): void
@@ -182,16 +194,8 @@ class InviteBookingOrderTest extends TestCase
     {
         $booking = $this->bookDay(0);
 
-        $response = $this->graphQL('
-            mutation cancel($id: ID!) {
-                cancelTimeSlotBooking(id: $id) { id }
-            }
-        ', ['id' => (string) $booking->getId()], [], [
-            'X-Kanvas-Location' => $this->company->branch->uuid,
-            'X-Kanvas-App' => $this->apps->key,
-        ]);
+        new CancelEventAction($booking)->withoutNotifications()->disableWorkflow()->execute();
 
-        $this->assertNull($response->json('errors'), json_encode($response->json('errors')));
         $order = $this->orderOf($booking);
         $this->assertSame('cancelled', $order->orderStatus->slug);
         $this->assertSame('canceled', $order->status);
@@ -319,6 +323,8 @@ class InviteBookingOrderTest extends TestCase
         $this->assertSame('event', $order->orderType->name);
         $this->assertSame('completed', $order->status);
         $this->assertEmpty($order->metadata);
+        $this->assertArrayNotHasKey('pass_code', $order->metadata['data'] ?? []);
+        $this->assertArrayNotHasKey('reference', $order->metadata['data'] ?? []);
         $this->assertSame(0, ParticipantPass::where('event_version_id', $response->json('data.bookTimeSlot.id'))->count());
     }
 
