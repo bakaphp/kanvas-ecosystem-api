@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8d35430704fde7da10f912760c410f40",
+    "content-hash": "6cb3cc254e6f1f559800a927b09b079a",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -155,6 +155,68 @@
                 "source": "https://github.com/algolia/scout-extended/tree/v5.0.0"
             },
             "time": "2026-04-28T12:56:21+00:00"
+        },
+        {
+            "name": "apache/avro",
+            "version": "1.12.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/apache/avro.git",
+                "reference": "8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/apache/avro/zipball/8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772",
+                "reference": "8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || ^8.0"
+            },
+            "require-dev": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-pcntl": "*",
+                "ext-xml": "*",
+                "php-mock/php-mock-phpunit": "^2.10",
+                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
+                "squizlabs/php_codesniffer": "3.*"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Apache\\Avro\\": "lang/php/lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Apache Avro Developers",
+                    "email": "dev@avro.apache.org",
+                    "homepage": "http://avro.apache.org"
+                }
+            ],
+            "description": "Apache Avro™ is a data serialization system.",
+            "homepage": "http://avro.apache.org",
+            "keywords": [
+                "avro",
+                "data",
+                "serialization"
+            ],
+            "support": {
+                "email": "dev@avro.apache.org",
+                "issues": "https://issues.apache.org/jira/browse/AVRO",
+                "source": "https://github.com/apache/avro/tree/release-1.12.2"
+            },
+            "time": "2026-08-07T12:56:37+00:00"
         },
         {
             "name": "asad/oauth2-zoho",
@@ -1838,30 +1900,44 @@
         },
         {
             "name": "durable-workflow/workflow",
-            "version": "1.1.1",
+            "version": "2.39.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "c58e5b3ed3c68b31ccf71b83b0f530e7aa3be9a7"
+                "reference": "74cda565281d239ecbfe66fea096f4b83035f6c5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/c58e5b3ed3c68b31ccf71b83b0f530e7aa3be9a7",
-                "reference": "c58e5b3ed3c68b31ccf71b83b0f530e7aa3be9a7",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/74cda565281d239ecbfe66fea096f4b83035f6c5",
+                "reference": "74cda565281d239ecbfe66fea096f4b83035f6c5",
                 "shasum": ""
             },
             "require": {
-                "laravel/framework": "^9.0|^10.0|^11.0|^12.0|^13.0",
-                "php": "^8.1",
-                "react/promise": "^2.9|^3.0"
+                "apache/avro": "^1.12",
+                "laravel/framework": "^12.72.0|^13.41.0",
+                "php": "^8.2",
+                "react/promise": "^2.9|^3.0",
+                "symfony/yaml": "^6.0|^7.0|^8.0"
+            },
+            "conflict": {
+                "open-telemetry/api": "<1.10.1 || >=2.0"
             },
             "replace": {
                 "laravel-workflow/laravel-workflow": "self.version"
             },
             "require-dev": {
-                "orchestra/testbench": "^8.0",
+                "aws/aws-sdk-php": "^3.0",
+                "doctrine/dbal": "^3.7",
+                "open-telemetry/api": "^1.10.1",
+                "open-telemetry/exporter-otlp": "^1.4",
+                "open-telemetry/sdk": "^1.0",
+                "orchestra/testbench": "^10.0|^11.0",
                 "phpstan/phpstan": "^2.0",
                 "symplify/easy-coding-standard": "^11.0"
+            },
+            "suggest": {
+                "durable-workflow/sdk": "Framework-neutral client and remote-worker SDK for the standalone Durable Workflow server.",
+                "open-telemetry/api": "Optional application-owned trace propagation API, version 1.10.1 or later in the 1.x line."
             },
             "type": "library",
             "extra": {
@@ -1869,11 +1945,20 @@
                     "providers": [
                         "Workflow\\Providers\\WorkflowServiceProvider"
                     ]
+                },
+                "branch-alias": {
+                    "dev-main": "2.0.x-dev"
+                },
+                "durable-workflow": {
+                    "product-train": "2.39.0",
+                    "laravel-embedded-upgrade-contract": "resources/laravel-embedded-upgrade-contract.json",
+                    "laravel-dependency-security-policy": "resources/laravel-dependency-security-policy.json"
                 }
             },
             "autoload": {
                 "files": [
-                    "src/functions.php"
+                    "src/functions.php",
+                    "src/V2/functions.php"
                 ],
                 "psr-4": {
                     "Workflow\\": "src/"
@@ -1889,12 +1974,12 @@
                     "email": "support@durable-workflow.com"
                 }
             ],
-            "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
+            "description": "Embedded durable workflow runtime and orchestration engine for Laravel applications.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.1.1"
+                "source": "https://github.com/durable-workflow/workflow/tree/2.39.0"
             },
-            "time": "2026-11-11T14:32:51+00:00"
+            "time": "2026-11-23T17:58:26+00:00"
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
@@ -5463,16 +5548,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.10.8",
+            "version": "2.10.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "681e662a40c805c567f52d603b64d55282ea356c"
+                "reference": "3e956235b26ea34ea721a302e27eae9a32cb9ef0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/681e662a40c805c567f52d603b64d55282ea356c",
-                "reference": "681e662a40c805c567f52d603b64d55282ea356c",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/3e956235b26ea34ea721a302e27eae9a32cb9ef0",
+                "reference": "3e956235b26ea34ea721a302e27eae9a32cb9ef0",
                 "shasum": ""
             },
             "require": {
@@ -5566,7 +5651,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-11-24T15:44:47+00:00"
+            "time": "2026-11-26T14:08:53+00:00"
         },
         {
             "name": "league/config",
