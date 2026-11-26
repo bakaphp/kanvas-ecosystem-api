@@ -12,7 +12,9 @@ use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\SalesOrders\Actions\AcceptSalesOrderAction;
+use Kanvas\Scribe\SalesOrders\Actions\CheckShippingDocumentsAction;
 use Kanvas\Scribe\SalesOrders\Actions\ConfirmSalesOrderAction;
+use Kanvas\Scribe\SalesOrders\Actions\RecordShipmentAction;
 use Kanvas\Scribe\SalesOrders\Actions\RegisterCustomerPoAction;
 use Kanvas\Scribe\SalesOrders\Actions\ReviewSalesOrderAction;
 use Kanvas\Scribe\SalesOrders\DataTransferObject\SalesOrder as SalesOrderData;
@@ -26,7 +28,7 @@ trait CreatesTestSalesOrder
 {
     use CreatesTestQuote;
 
-    protected function createAcceptedSalesOrder(Organization $customer, int $paymentTermsDays = 50): SalesOrder
+    protected function createReviewedSalesOrder(Organization $customer, int $paymentTermsDays = 50): SalesOrder
     {
         $quote = $this->createTestQuote($customer);
 
@@ -47,10 +49,42 @@ trait CreatesTestSalesOrder
             )
         )->execute();
 
-        $order = new ReviewSalesOrderAction($order)->execute();
-        $order = new ConfirmSalesOrderAction($order, feasibilityConfirmed: true)->execute();
+        return new ReviewSalesOrderAction($order)->execute();
+    }
+
+    protected function createAcceptedSalesOrder(Organization $customer, int $paymentTermsDays = 50): SalesOrder
+    {
+        $order = new ConfirmSalesOrderAction(
+            $this->createReviewedSalesOrder($customer, $paymentTermsDays),
+            feasibilityConfirmed: true
+        )->execute();
 
         return new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-28'))->execute();
+    }
+
+    protected function createShippedSalesOrder(Organization $customer): SalesOrder
+    {
+        $order = $this->createAcceptedSalesOrder($customer);
+        $invoice = $this->issueInvoiceWithLines($customer, [
+            ['quantity' => 10, 'unit_price' => 20],
+            ['quantity' => 5, 'unit_price' => 30],
+        ]);
+
+        $order = new CheckShippingDocumentsAction(
+            $order,
+            $invoice,
+            [['quantity' => 10], ['quantity' => 5]],
+            ['total_quantity' => 15]
+        )->execute();
+
+        new RecordShipmentAction(
+            order: $order,
+            blNumber: 'BL-' . uniqid(),
+            blDate: Carbon::parse('2026-12-10'),
+            user: static::$cachedUser,
+        )->execute();
+
+        return $order->fresh();
     }
 
     /**

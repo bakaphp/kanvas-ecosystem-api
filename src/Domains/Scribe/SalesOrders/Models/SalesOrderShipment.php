@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $due_date
  * @property Carbon|null $documents_package_due_on
  * @property Carbon|null $documents_package_sent_at
+ * @property Carbon|null $documents_released_at
  * @property Carbon|null $delivered_on
  * @property string|null $pod_reference
  * @property string|null $delivery_discrepancies
@@ -45,6 +46,7 @@ class SalesOrderShipment extends EloquentModel
         'due_date' => 'date',
         'documents_package_due_on' => 'date',
         'documents_package_sent_at' => 'datetime',
+        'documents_released_at' => 'datetime',
         'delivered_on' => 'date',
         'damage_reported' => 'boolean',
         'delivery_recorded_at' => 'datetime',

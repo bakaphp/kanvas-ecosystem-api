@@ -16,6 +16,7 @@ use Kanvas\Scribe\SalesOrders\Actions\ConfirmSalesOrderAction;
 use Kanvas\Scribe\SalesOrders\Actions\MarkDocumentsPackageSentAction;
 use Kanvas\Scribe\SalesOrders\Actions\RecordShipmentAction;
 use Kanvas\Scribe\SalesOrders\Actions\RegisterCustomerPoAction;
+use Kanvas\Scribe\SalesOrders\Actions\ReleaseDocumentsAction;
 use Kanvas\Scribe\SalesOrders\Actions\ResolveSalesOrderDifferenceAction;
 use Kanvas\Scribe\SalesOrders\Actions\ReturnSalesOrderAction;
 use Kanvas\Scribe\SalesOrders\Actions\ReviewSalesOrderAction;
@@ -138,6 +139,11 @@ class SalesOrderMutation
             discrepancies: $request['discrepancies'] ?? null,
             damageReported: (bool) ($request['damage_reported'] ?? false),
         )->execute();
+    }
+
+    public function releaseDocuments(mixed $rootValue, array $request): SalesOrderShipment
+    {
+        return new ReleaseDocumentsAction($this->order($request))->execute();
     }
 
     public function close(mixed $rootValue, array $request): SalesOrder

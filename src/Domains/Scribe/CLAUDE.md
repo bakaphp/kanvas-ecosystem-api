@@ -142,7 +142,18 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   `list_customer_orders`, `check_shipping_documents`, `record_shipment`, `mark_documents_package_sent`,
   `confirm_delivery`, `close_customer_order` and `get_collection_plan`; GraphQL is `registerScribeCustomerPo` and the
   matching update, review, resolve, confirm, accept, return, cancel, check-documents, record-shipment, package-sent,
-  delivery and close mutations. Credit and margin checks on gate 1 are not in yet.
+  delivery and close mutations. Credit: a customer's limit is two organization settings
+  (`scribe-credit-limit-amount` and `-currency`, `CreditConfigurationEnum`; none means no limit is checked) and the
+  company setting `scribe-credit-hold-days` (80 by default). `CustomerCreditService` adds the open invoices and the
+  confirmed or accepted orders that have no invoice yet, converted to the limit's currency with the published FX
+  rates; a missing rate refuses the decision instead of guessing. Gate 1 (`ConfirmSalesOrderAction`) refuses a
+  customer on hold or an order that does not fit what is left; gate 3 (`ReleaseDocumentsAction`, the original BL or
+  telex release) refuses overdue invoices, a limit exceeded or a hold. Releasing is recorded but does not block the
+  delivery. Margin checks are not in. `OrderKpiService` computes the order-to-cash indicators from the order
+  timestamps (acceptance in 72 hours, returns, right first time, shipping, documents package, perfect delivery,
+  collection in the term and average days); the 4-hour hand-off is not measured because it has no event of its own.
+  Tools `set_customer_credit_limit`, `check_customer_credit`, `release_shipping_documents` and `order_kpis`; GraphQL
+  `setScribeCustomerCreditLimit` (admin), `scribeCustomerCredit`, `releaseScribeDocuments` and `scribeOrderKpis`.
 - **Regional compliance** (NCF for DR, CFDI for MX, NFE for BR, …) lives in a single `regional_compliance` JSON column on invoices/bills/quotes/sales_receipts, validated by per-country validator services in `Scribe/Regional/Validators/{Country}/{Code}Validator`. NOT custom fields (those are tenant-choice extensions); NOT dedicated DR-only columns (schema bloat).
 - **Electronic invoicing state is NOT in that JSON.** `regional_compliance.do_ecf` holds only the pre-issuance
   choices (`EcfCompliance::draftSettings()`: type, export, purchase order, withholding, foreign payment). From

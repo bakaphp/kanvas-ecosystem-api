@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\SalesOrders\Actions;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\SalesOrders\Credit\CustomerCreditService;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
 use Kanvas\Scribe\SalesOrders\Services\SalesOrderStateMachineService;
@@ -13,7 +14,8 @@ use Kanvas\Scribe\SalesOrders\Services\SalesOrderValidityService;
 
 /**
  * Gate 1: Commercial confirms the order and hands it to Operations. It needs a review with no open difference, a
- * valid customer commitment, and Operations' word that the order is feasible.
+ * valid customer commitment, Operations' word that the order is feasible, and credit: the customer is not on hold and
+ * the order fits in what is left of their limit, when one is set.
  */
 class ConfirmSalesOrderAction
 {
@@ -22,6 +24,7 @@ class ConfirmSalesOrderAction
         protected readonly bool $feasibilityConfirmed,
         protected readonly SalesOrderStateMachineService $stateMachine = new SalesOrderStateMachineService(),
         protected readonly SalesOrderValidityService $validity = new SalesOrderValidityService(),
+        protected readonly CustomerCreditService $credit = new CustomerCreditService(),
     ) {
     }
 
@@ -52,6 +55,8 @@ class ConfirmSalesOrderAction
         if (! $this->feasibilityConfirmed) {
             throw new ValidationException('Operations has to confirm the order is feasible before it is confirmed.');
         }
+
+        $this->credit->assertCanConfirm($this->order);
 
         $this->order->document_status = SalesOrderStatusEnum::CONFIRMED;
         $this->order->feasibility_confirmed_at = Carbon::now();

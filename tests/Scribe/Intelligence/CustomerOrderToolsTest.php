@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Scribe\Intelligence;
 
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AbstractCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckCustomerCreditTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckShippingDocumentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CloseCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmCustomerOrderTool;
@@ -16,11 +16,15 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetCollectionPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListCustomerOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MarkDocumentsPackageSentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\OrderKpisTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordShipmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RegisterCustomerPoTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReleaseShippingDocumentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResolvePoDifferenceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReviewCustomerPoTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetCustomerCreditLimitTool;
 use Kanvas\Scribe\Quotes\Models\Quote;
+use NeuronAI\Tools\Tool;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
 use Tests\Traits\CreatesTestSalesOrder;
@@ -221,6 +225,73 @@ class CustomerOrderToolsTest extends ScribeTestCase
         $this->assertSame('unknown_source', $badSource['reason']);
     }
 
+    public function test_the_agent_sets_a_credit_limit_and_the_confirmation_respects_it(): void
+    {
+        [$customer, $quote] = $this->customerWithQuote();
+
+        $set = $this->tool(SetCustomerCreditLimitTool::class)->__invoke(
+            customer_organization_id: $customer->getId(),
+            amount: 300,
+            currency: 'usd',
+        );
+        $this->assertTrue($set['set']);
+        $this->assertSame(300.0, $set['available']);
+
+        $credit = $this->tool(CheckCustomerCreditTool::class)->__invoke(customer_organization_id: $customer->getId());
+        $this->assertTrue($credit['has_limit']);
+        $this->assertFalse($credit['on_hold']);
+
+        $orderNumber = $this->register($customer, $quote)['order_number'];
+        $this->tool(ReviewCustomerPoTool::class)->__invoke(order_number: $orderNumber);
+        $refused = $this->tool(ConfirmCustomerOrderTool::class)->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
+
+        $this->assertFalse($refused['confirmed']);
+        $this->assertStringContainsString('still available', $refused['message']);
+
+        $removed = $this->tool(SetCustomerCreditLimitTool::class)->__invoke(customer_organization_id: $customer->getId());
+        $this->assertFalse($removed['has_limit']);
+    }
+
+    public function test_a_credit_limit_without_a_currency_and_an_unknown_customer_are_reported(): void
+    {
+        [$customer] = $this->customerWithQuote();
+
+        $noCurrency = $this->tool(SetCustomerCreditLimitTool::class)->__invoke(
+            customer_organization_id: $customer->getId(),
+            amount: 100,
+        );
+        $unknown = $this->tool(CheckCustomerCreditTool::class)->__invoke(customer_organization_id: 999999999);
+
+        $this->assertFalse($noCurrency['set']);
+        $this->assertStringContainsString('three-letter currency', $noCurrency['message']);
+        $this->assertSame('customer_not_found', $unknown['reason']);
+    }
+
+    public function test_the_agent_releases_the_documents_of_a_shipped_order(): void
+    {
+        $order = $this->createShippedSalesOrder($this->seedTestOrganization('Release Tool Customer'));
+
+        $released = $this->tool(ReleaseShippingDocumentsTool::class)->__invoke(order_number: $order->order_number);
+        $notShipped = $this->tool(ReleaseShippingDocumentsTool::class)->__invoke(
+            order_number: $this->createAcceptedSalesOrder($this->seedTestOrganization('Unshipped Tool Customer'))->order_number
+        );
+
+        $this->assertTrue($released['released']);
+        $this->assertFalse($notShipped['released']);
+        $this->assertStringContainsString('has not shipped', $notShipped['message']);
+    }
+
+    public function test_the_order_indicators_are_read_for_a_valid_period_only(): void
+    {
+        $report = $this->tool(OrderKpisTool::class)->__invoke(from: '2026-05-01', to: '2027-02-28');
+        $backwards = $this->tool(OrderKpisTool::class)->__invoke(from: '2027-02-28', to: '2026-05-01');
+        $garbage = $this->tool(OrderKpisTool::class)->__invoke(from: 'when', to: 'ever');
+
+        $this->assertCount(8, $report['indicators']);
+        $this->assertSame('invalid_period', $backwards['reason']);
+        $this->assertSame('invalid_period', $garbage['reason']);
+    }
+
     public function test_the_sales_order_tools_key_their_run_budget_by_inputs(): void
     {
         foreach ([
@@ -236,19 +307,23 @@ class CustomerOrderToolsTest extends ScribeTestCase
             ConfirmCustomerOrderTool::class,
             AnswerCustomerOrderTool::class,
             CancelCustomerOrderTool::class,
+            SetCustomerCreditLimitTool::class,
+            CheckCustomerCreditTool::class,
+            ReleaseShippingDocumentsTool::class,
+            OrderKpisTool::class,
         ] as $tool) {
             $this->assertRunKeyFollowsInputs(new $tool());
         }
     }
 
     /**
-     * @template T of AbstractCustomerOrderTool
+     * @template T of Tool
      *
      * @param class-string<T> $class
      *
      * @return T
      */
-    private function tool(string $class): AbstractCustomerOrderTool
+    private function tool(string $class): Tool
     {
         return new $class()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
     }
