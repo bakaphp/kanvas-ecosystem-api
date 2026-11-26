@@ -11,7 +11,10 @@ use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod as PaymentMethodData;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
+use Kanvas\Souk\Payments\Actions\EnforceCardVelocityLimitAction;
+use Kanvas\Souk\Payments\Actions\SendPaymentReceiptAction;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
+use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Exceptions\CardVelocityExceededException;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -39,6 +42,8 @@ class PaymentProcessorMutation
                 return ['status' => 'error', 'message' => 'Order is already paid'];
             }
 
+            new EnforceCardVelocityLimitAction($payment)->execute();
+
             $processor = ProcessorFactory::make($payment->paymentMethod?->processor, $app, $payment->company);
 
             $previousStatus = $payment->status;
@@ -60,6 +65,8 @@ class PaymentProcessorMutation
                 'payment' => $payment->fresh(),
                 'data' => $result->raw,
             ];
+        } catch (CardVelocityExceededException $e) {
+            throw $e;
         } catch (DomainException $e) {
             $payment->update(['status' => $previousStatus]);
 
@@ -86,7 +93,7 @@ class PaymentProcessorMutation
             $order = $payment->payable ?? throw new RuntimeException('Order not found for this payment');
             $amount = isset($request['amount']) ? (float) $request['amount'] : null;
 
-            $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
+            $processor = ProcessorFactory::make($payment->processorName(), $app, $payment->company);
             $result = $processor->capture($payment, $order, $amount);
 
             return [
@@ -143,7 +150,7 @@ class PaymentProcessorMutation
             $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
             $order = $payment->payable ?? throw new RuntimeException('Order not found for this payment');
 
-            $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
+            $processor = ProcessorFactory::make($payment->processorName(), $app, $payment->company);
             $result = $processor->void($payment, $order);
 
             return [
@@ -175,8 +182,11 @@ class PaymentProcessorMutation
                 return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
             }
 
+            new EnforceCardVelocityLimitAction($payment)->execute();
+
             $context = ['browser_info' => $request['browserInfo'] ?? []];
             $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order, $context);
+            $this->sendReceiptWhenPaid($order, $payment, $result);
 
             return [
                 'success' => $result->success,
@@ -234,7 +244,10 @@ class PaymentProcessorMutation
                 ],
             ];
 
+            new EnforceCardVelocityLimitAction($payment)->execute();
+
             $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order, $context);
+            $this->sendReceiptWhenPaid($order, $payment, $result);
 
             return [
                 'success' => $result->success,
@@ -330,6 +343,7 @@ class PaymentProcessorMutation
 
             $context = is_array($request['metadata'] ?? null) ? $request['metadata'] : [];
             $result = $this->resolveThreeDSProcessor($payment, $app)->finalizeChallenge($payment, $order, $context);
+            $this->sendReceiptWhenPaid($order, $payment, $result);
 
             return [
                 'success' => $result->success,
@@ -361,7 +375,7 @@ class PaymentProcessorMutation
                     ?? throw new RuntimeException('No payment found for this order');
             }
 
-            $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
+            $processor = ProcessorFactory::make($payment->processorName(), $app, $payment->company);
             $result = $processor->verify($payment, $order);
 
             return [
@@ -376,9 +390,18 @@ class PaymentProcessorMutation
         }
     }
 
+    private function sendReceiptWhenPaid(Order $order, Payments $payment, ThreeDSResult $result): void
+    {
+        if ($result->status !== PaymentStatusEnum::PAID->value) {
+            return;
+        }
+
+        SendPaymentReceiptAction::trySend($order, $payment);
+    }
+
     private function resolveThreeDSProcessor(Payments $payment, Apps $app): ThreeDSProcessorInterface
     {
-        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+        $processorName = $payment->processorName();
         $processor = ProcessorFactory::make($processorName, $app, $payment->company);
 
         if (! ($processor instanceof ThreeDSProcessorInterface)) {

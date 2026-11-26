@@ -66,6 +66,8 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   the tenant edits them in the template UI; the two names share one file so an invoice restyle never
   touches quotes. `Scribe\Documents\Enums\ConfigurationEnum::{INVOICE,QUOTE}_PDF_TEMPLATE` naming any
   other stored template wins over the rows.
+  Both layouts take the company block (logo, address, contact) from `DocumentIssuerBlock`, which the payment
+  receipt layout shares too.
   One service, not two: the documents differ only in title, number field, due-vs-valid-until and
   amount-paid, and two layouts would drift. **Rendering is not sending.** Sending lives in
   `Scribe/Delivery/`: a document reaches a customer only as an ActionEngine engagement on the document
@@ -99,6 +101,16 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   Per tenant: `scribe:setup-document-actions {app_id} {company_id?}`. Links shorten through the
   company's short.io integration, else the app's; the page base URL is the company's
   `link_page_base_url`, else the app's `NEW_ACTION_PAGE_V4` (`ShortIoConfigurationService`).
+- **A payment receipt is the document for money received, one per confirmed customer payment.**
+  `CreatePaymentReceiptAction` (`Scribe/PaymentReceipts/`) numbers it from the company's own `payment_receipt`
+  sequence (7 digits by default) and freezes the invoices the payment covered; asking again for the same payment
+  returns the same receipt. Only a `cleared` inbound payment applied to invoices gets one. The one-page Spanish
+  PDF is the `scribe-payment-receipt` Twig row (packaged fallback `resources/views/pdf/scribe-payment-receipt.twig`),
+  labelled `RD$` / `US$` by currency. Per company: the name under "Recibido por" is the setting
+  `payment-receipt-received-by`; the signature and seal are company files named `payment_receipt_signature` and
+  `payment_receipt_seal`; the admin mutation `configureScribePaymentReceipt` sets all three in one call (a field
+  left out stays, an empty name clears it) and `scribePaymentReceiptSettings` reads them. The AR agent's `generate_payment_receipt` issues it right after
+  `apply_ar_payment`.
 - **A company's SOW layouts are named versions with a switchable default.** Company-level template rows
   `scribe-sow-{version}` (`CompanySowTemplateService`), the default a pointer in the company setting
   `scribe_sow_default_template` (none = the app's stock `scribe-sow`), so switching never overwrites a layout. The AR
@@ -124,7 +136,8 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   `source = kanvas`, a `document_status` (`PurchaseOrderStatusEnum`, gated by `PurchaseOrderStateMachineService`:
   draft → pending_approval/approved → sent → partially_received → received, cancelled only before goods arrive) and a
   number from its own `purchase_order` sequence (`PO-` prefix). `Create/Update/CancelPurchaseOrderAction` only touch
-  orders where `isIssuedByCompany()`; editing is draft-only and replaces the lines as a whole. The AP agent drives them
+  orders where `isIssuedByCompany()`; editing is draft-only and writes only the fields it was sent (the DTO's
+  `changed`), so a notes-only edit never rewrites lines; lines, when sent, replace the lines as a whole. The AP agent drives them
   with `create_purchase_order`, `update_purchase_order` and `cancel_purchase_order`; GraphQL is
   `createScribePurchaseOrder`, `updateScribePurchaseOrder` and `cancelScribePurchaseOrder`. Approval runs on the
   generic approvals engine: `SubmitPurchaseOrderForApprovalAction` opens an `approve_purchase_order` request with the
@@ -140,35 +153,55 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
 - **A sales order is what a customer committed to buy, and it passes two gates before anything ships.** It is the
   customer's own purchase order (`customer_po`) or our proforma returned signed and stamped (`signed_proforma`, which
   takes its lines, currency and number from the quote). `RegisterCustomerPoAction` numbers it from its own `sales_order`
-  sequence (`SO-`) as `received`; `ReviewSalesOrderAction` compares it with its quote (lines matched by position) and the
-  agreed terms, and every difference stays open until `ResolveSalesOrderDifferenceAction` records how it was clarified.
+  sequence (`SO-`) as `received`; `ReviewSalesOrderAction` compares it with its quote (lines matched by position: the product by SKU, else by
+  description, then quantity and price) and the agreed terms, and every difference stays open until `ResolveSalesOrderDifferenceAction` records how it was clarified.
   Gate 1, `ConfirmSalesOrderAction`: a review with no open difference, a valid commitment
   (`SalesOrderValidityService`: an authorized signer, plus stamp and date, matching legal identity and initialed pages
   for a signed proforma) and Operations' word that it is feasible. Gate 2: `AcceptSalesOrderAction` with firm etd and
   eta, or `ReturnSalesOrderAction` with a reason, which goes back to Commercial (editing a returned order puts it back
-  to `received` and voids the review). Cancel works until it ships. Shipping:
+  to `received` and voids the review; an edit can also attach the quote, which has to be the customer's own). An
+  action is refused on an order already in its target state (`SalesOrderStateMachineService::assertTransition`), so
+  nothing is accepted, shipped or delivered twice. Every order action re-reads the order under its row lock first
+  (`LocksDocumentRow`), so a copy loaded before another request moved the order is judged on what the order is now,
+  and an edit writes only the fields it was sent. The re-read is the locking read itself (a plain `refresh()` answers
+  from the transaction's snapshot, which can be older than the lock), and an action that depends on a second row
+  locks it too, order first and then invoice, before it reads anything else. Never guard with a locking read over an
+  index range instead: it gap-locks and deadlocks parallel writers. Cancel works until it ships. Shipping:
   `CheckShippingDocumentsAction` cross-checks the order, the commercial invoice, the packing list and the draft bill of
-  lading (`ShippingDocumentsCheckService`, lines by position) and stores its differences in `documents_check`, resolved
+  lading (`ShippingDocumentsCheckService`, lines by position and by product; the invoice has to be a commercial invoice no
+  other order uses, and a different currency is a difference) and stores its differences in `documents_check` with
+  the invoice's fingerprint (customer, document type, currency, total and lines), resolved
   with `ResolveSalesOrderDifferenceAction` and `DifferenceSourceEnum::DOCUMENTS`; `RecordShipmentAction` needs that
-  check with nothing open and the order's `payment_terms_days`, ships the order, and moves the chosen invoice's due
-  date to the BL date plus the term (`SetInvoiceDueFromBlAction`: a draft directly, an issued invoice through
-  `AmendInvoiceAction`). The documents package is due the earlier of 3 business days after the BL and 5 days before
-  the arrival. `ConfirmDeliveryAction` takes the proof-of-delivery reference, and `CloseSalesOrderAction` needs the
+  check with nothing open, the invoice unchanged since it (an edited invoice is checked again), the invoice issued
+  and the order's `payment_terms_days`. Goods ship against a final invoice: the check may run on a draft while it is
+  being corrected, but a draft is refused at the bill of lading, and from then on the invoice is frozen like any
+  issued invoice (`UpdateInvoiceAction` refuses it; a correction is a credit or debit note). The shipment locks the
+  invoice row before it reads it, ships the order, and moves the chosen invoice's due
+  date to the BL date plus the term (`SetInvoiceDueFromBlAction`, always an `AmendInvoiceAction` so the change is on the ledger with the BL as its
+  reason; an invoice paid before departure keeps its date, a voided one refuses the shipment). The documents package is due the earlier of 3 business days after the BL and 5 days before
+  the arrival. `ConfirmDeliveryAction` takes the proof-of-delivery reference and a date not before the bill
+  of lading, and `CloseSalesOrderAction` needs the
   invoice paid. `SalesOrderCollectionPlanService` lists the follow-up days from the BL date (30, 40, 45, the due step,
-  55, 65, 80). The AR agent drives it with `register_customer_po`, `review_customer_po`, `resolve_po_difference`,
+  55, 65, 80). The AR agent drives it with `register_customer_po`, `update_customer_order`, `review_customer_po`,
+  `resolve_po_difference`,
   `confirm_customer_order`, `answer_customer_order`, `cancel_customer_order`, `find_customer_order`,
   `list_customer_orders`, `check_shipping_documents`, `record_shipment`, `mark_documents_package_sent`,
   `confirm_delivery`, `close_customer_order` and `get_collection_plan`; GraphQL is `registerScribeCustomerPo` and the
   matching update, review, resolve, confirm, accept, return, cancel, check-documents, record-shipment, package-sent,
   delivery and close mutations. Credit: a customer's limit is two organization settings
   (`scribe-credit-limit-amount` and `-currency`, `CreditConfigurationEnum`; none means no limit is checked) and the
-  company setting `scribe-credit-hold-days` (80 by default). `CustomerCreditService` adds the open invoices and the
-  confirmed or accepted orders that have no invoice yet, converted to the limit's currency with the published FX
-  rates; a missing rate refuses the decision instead of guessing. Gate 1 (`ConfirmSalesOrderAction`) refuses a
-  customer on hold or an order that does not fit what is left; gate 3 (`ReleaseDocumentsAction`, the original BL or
+  company setting `scribe-credit-hold-days` (80 by default). The hold counts from day 0 of the payment term (the bill
+  of lading date, or the invoice date without one) and only for an invoice already overdue (`firstHoldDay`: the hold days, never before the term plus one, so a
+  120-day term holds from day 121); the collection plan reads the same rule, so the day it names is the day the
+  gates start refusing. `CustomerCreditService` adds the open
+  invoices and the confirmed, accepted, shipped or delivered orders whose amount no invoice carries yet (none, a
+  draft or a voided one), converted to the limit's currency with the published FX rates; a missing rate refuses the
+  decision instead of guessing. Gate 1 (`ConfirmSalesOrderAction`) refuses a
+  customer on hold or an order that does not fit what is left, and the confirmations of one customer run one at a
+  time (`oneDecisionAtATime`), so two orders never both take the same remaining credit; gate 3 (`ReleaseDocumentsAction`, the original BL or
   telex release) refuses overdue invoices, a limit exceeded or a hold. Releasing is recorded but does not block the
   delivery. Margin checks are not in. `OrderKpiService` computes the order-to-cash indicators from the order
-  timestamps (acceptance in 72 hours, returns, right first time, shipping, documents package, perfect delivery,
+  timestamps (acceptance in 72 hours, where an order still unanswered past them counts against it, returns, right first time, shipping, documents package, perfect delivery,
   collection in the term and average days); the 4-hour hand-off is not measured because it has no event of its own.
   Tools `set_customer_credit_limit`, `check_customer_credit`, `release_shipping_documents` and `order_kpis`; GraphQL
   `setScribeCustomerCreditLimit` (admin), `scribeCustomerCredit`, `releaseScribeDocuments` and `scribeOrderKpis`.

@@ -28,6 +28,12 @@ trait CreatesTestSalesOrder
 {
     use CreatesTestQuote;
 
+    /** The products of the test quote, in line order: an invoice has to name the same ones to match its order. */
+    private const array QUOTED_PRODUCTS = [
+        ['sku' => 'RICE-1', 'description' => 'Pallet of rice'],
+        ['sku' => 'BEAN-1', 'description' => 'Pallet of beans'],
+    ];
+
     protected function createReviewedSalesOrder(Organization $customer, int $paymentTermsDays = 50): SalesOrder
     {
         $quote = $this->createTestQuote($customer);
@@ -88,6 +94,43 @@ trait CreatesTestSalesOrder
         return $order->fresh();
     }
 
+    protected function draftInvoiceFor(SalesOrder $order, string $currency = 'USD'): Invoice
+    {
+        return new CreateInvoiceAction(
+            data: new InvoiceData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                billable: $order->customer,
+                lines: new DataCollection(InvoiceLineData::class, [
+                    new InvoiceLineData(
+                        description: 'Pallet of rice',
+                        quantity: 10,
+                        unit_price_native: 20,
+                        sku: 'RICE-1'
+                    ),
+                    new InvoiceLineData(
+                        description: 'Pallet of beans',
+                        quantity: 5,
+                        unit_price_native: 30,
+                        sku: 'BEAN-1'
+                    ),
+                ]),
+                currency: $currency,
+                fx_rate_to_base: 1.0,
+            ),
+            user: static::$cachedUser,
+        )->execute();
+    }
+
+    protected function issueDraftInvoice(Invoice $draft): Invoice
+    {
+        return new IssueInvoiceAction(
+            invoice: $draft,
+            billable: $draft->customer,
+            user: static::$cachedUser,
+        )->execute();
+    }
+
     /**
      * @param list<array{quantity: int|float, unit_price: int|float}> $lines
      */
@@ -101,12 +144,14 @@ trait CreatesTestSalesOrder
                 lines: new DataCollection(
                     InvoiceLineData::class,
                     array_map(
-                        static fn (array $line): InvoiceLineData => new InvoiceLineData(
-                            description: 'Shipped goods',
+                        static fn (array $line, int $index): InvoiceLineData => new InvoiceLineData(
+                            description: self::QUOTED_PRODUCTS[$index]['description'] ?? 'Shipped goods',
                             quantity: $line['quantity'],
                             unit_price_native: $line['unit_price'],
+                            sku: self::QUOTED_PRODUCTS[$index]['sku'] ?? null,
                         ),
-                        $lines
+                        $lines,
+                        array_keys($lines)
                     )
                 ),
                 currency: 'USD',
@@ -117,10 +162,6 @@ trait CreatesTestSalesOrder
             user: static::$cachedUser,
         )->execute();
 
-        return new IssueInvoiceAction(
-            invoice: $draft,
-            billable: $customer,
-            user: static::$cachedUser,
-        )->execute();
+        return $this->issueDraftInvoice($draft);
     }
 }

@@ -29,7 +29,6 @@ use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Connectors\EchoPay\Services\ShopperMessageResolver;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Actions\EnforceCardVelocityLimitAction;
 use Kanvas\Souk\Payments\Concerns\LogsEchoPayFailures;
 use Kanvas\Souk\Payments\Concerns\PersistsEchoPayAuthState;
 use Kanvas\Souk\Payments\Concerns\ResolvesEchoPayMerchant;
@@ -334,8 +333,6 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 status: PaymentStatusEnum::FAILED->value,
             );
         }
-
-        new EnforceCardVelocityLimitAction($payment)->execute();
 
         $payment->addLog('payment_initiated', [
             'order_id' => $order->id,

@@ -13,20 +13,18 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 #[WorkflowAction(
-    name: 'Settle Movipass Portal Payment',
-    description: 'For an AUTHORIZED Portal payment on a Movipass order (any OrderTypeEnum type); paso_rapido orders are confirmed with Paso Rapido first, '
+    name: 'Settle Movipass Authorized Payment',
+    description: 'For an AUTHORIZED card payment (Portal or Azul hold) on a Movipass order (any OrderTypeEnum type); paso_rapido orders are confirmed with Paso Rapido first, '
         . 'then the card is captured, the order marked paid and the receipt sent. The authorization is voided only '
         . 'when no service was delivered (Paso Rapido rejected or should_capture off); a failed capture of a '
         . 'confirmed service is retried by a job, never voided. This MOVES MONEY — attach it only to the '
         . 'after-payment-authorized event.',
-    integration: IntegrationsEnum::ECHO_PAY,
 )]
-class SettlePortalPaymentActivity extends KanvasActivity implements WorkflowActivityInterface
+class SettleAuthorizedMovipassPaymentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
@@ -39,7 +37,7 @@ class SettlePortalPaymentActivity extends KanvasActivity implements WorkflowActi
             return [
                 'order' => $order->getId(),
                 'status' => 'skipped',
-                'message' => 'No AUTHORIZED Portal payment of a Movipass order to settle',
+                'message' => 'No AUTHORIZED card payment of a Movipass order to settle',
             ];
         }
 
@@ -68,6 +66,6 @@ class SettlePortalPaymentActivity extends KanvasActivity implements WorkflowActi
             return null;
         }
 
-        return $payment->paymentMethod?->processor === SettleAuthorizedPaymentAction::PROCESSOR ? $payment : null;
+        return SettleAuthorizedPaymentAction::settles($payment) ? $payment : null;
     }
 }

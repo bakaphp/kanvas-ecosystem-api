@@ -37,6 +37,7 @@ class UpdateProductTypeAction
         $this->productType->description = $this->data->description;
         $this->productType->weight = $this->data->weight;
         $this->productType->is_published = $this->data->isPublished;
+        $this->productType->exclude_from_receipt = $this->data->excludeFromReceipt ?? $this->productType->exclude_from_receipt;
         $this->productType->saveOrFail();
 
         return $this->productType;

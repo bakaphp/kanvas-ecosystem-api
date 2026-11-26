@@ -1,0 +1,29 @@
+"What every payment receipt of the company prints besides the payment itself."
+type ScribePaymentReceiptSettings {
+    "Name printed under Recibido por."
+    received_by: String
+    signature_url: String
+    seal_url: String
+}
+
+input ScribePaymentReceiptSettingsInput {
+    "Sending it empty or null clears the name; leaving it out keeps it."
+    received_by: String
+    signature: Upload
+    seal: Upload
+}
+
+extend type Query @guard {
+    scribePaymentReceiptSettings: ScribePaymentReceiptSettings!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Setup\\PaymentReceiptSettingsQuery@current"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    "Sets the name, signature and seal printed on the company's payment receipts; anything left out stays as it is."
+    configureScribePaymentReceipt(input: ScribePaymentReceiptSettingsInput!): ScribePaymentReceiptSettings!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Setup\\PaymentReceiptSettingsMutation@configure"
+        )
+}

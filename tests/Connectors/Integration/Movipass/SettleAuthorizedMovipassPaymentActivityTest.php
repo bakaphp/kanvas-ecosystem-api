@@ -14,7 +14,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\Movipass\Actions\SettleAuthorizedPaymentAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Workflows\Activities\SettlePortalPaymentActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SettleAuthorizedMovipassPaymentActivity;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\InvoiceDetails;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
@@ -31,7 +31,7 @@ use Mockery;
 use Mockery\MockInterface;
 use Tests\GraphQL\Souk\PortalMockFlowCase;
 
-final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
+final class SettleAuthorizedMovipassPaymentActivityTest extends PortalMockFlowCase
 {
     public function testAuthorizedPasoRapidoPaymentIsCapturedAndTheOrderPaid(): void
     {
@@ -167,7 +167,7 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
 
         $first = new SettleAuthorizedPaymentAction($payment, $this->confirmingPasoRapido())->execute();
         $second = new SettleAuthorizedPaymentAction($stalePayment, $this->unreachedPasoRapido())->execute();
-        $lostClaim = ProcessorFactory::make(SettleAuthorizedPaymentAction::PROCESSOR, $this->apps, $this->company)
+        $lostClaim = ProcessorFactory::make('portal', $this->apps, $this->company)
             ->capture($stalePayment, $order);
 
         $this->assertSame('success', $first['status'], $first['message']);
@@ -208,7 +208,7 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $stalePayment = Payments::find($payment->getId());
         $payment->markAsPaid();
 
-        $result = ProcessorFactory::make(SettleAuthorizedPaymentAction::PROCESSOR, $this->apps, $this->company)
+        $result = ProcessorFactory::make('portal', $this->apps, $this->company)
             ->void($stalePayment, $order);
 
         $this->assertFalse($result->success);
@@ -222,7 +222,7 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $service->shouldReceive('reversePayment')->once()->andThrow(new Exception('gateway down'));
         [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
 
-        $result = ProcessorFactory::make(SettleAuthorizedPaymentAction::PROCESSOR, $this->apps, $this->company)
+        $result = ProcessorFactory::make('portal', $this->apps, $this->company)
             ->void($payment, $order);
 
         $this->assertFalse($result->success);
@@ -306,9 +306,9 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
     }
 
-    private function settleActivity(): SettlePortalPaymentActivity
+    private function settleActivity(): SettleAuthorizedMovipassPaymentActivity
     {
-        return new SettlePortalPaymentActivity(
+        return new SettleAuthorizedMovipassPaymentActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),

@@ -56,10 +56,19 @@ class SalesOrderStateMachineService extends AbstractDocumentStateMachineService
     ];
 
     /**
+     * Every action uses this as its "the order is in the state before this one" check, so a move to the state
+     * the order is already in is refused here; the shared guard would let it through as a no-op.
+     *
      * @throws InvalidSalesOrderTransitionException
      */
     public function assertTransition(SalesOrder $order, SalesOrderStatusEnum $target): void
     {
+        if ($order->document_status === $target) {
+            throw new InvalidSalesOrderTransitionException(
+                "Sales order {$order->order_number} is already {$target->value}."
+            );
+        }
+
         $this->guardTransition(
             entityId: (int) $order->id,
             current: $order->document_status,

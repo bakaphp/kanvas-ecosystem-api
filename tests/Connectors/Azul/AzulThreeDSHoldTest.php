@@ -11,6 +11,7 @@ use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Azul\Services\AzulService;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Azul\AzulProcessor;
 use Kanvas\Souk\Payments\Models\PaymentMethods;
@@ -56,16 +57,43 @@ final class AzulThreeDSHoldTest extends TestCase
         $app->set(ConfigurationEnum::AZUL_USE_HOLD->value, '1');
 
         $payment = new Payments();
-        $this->assertTrue($this->resolveChallengeHold($payment, []));
-        $this->assertFalse($this->resolveChallengeHold($payment, ['use_hold' => false]));
+        $this->assertTrue($this->resolveHold($payment, []));
+        $this->assertFalse($this->resolveHold($payment, ['use_hold' => false]));
 
         $payment->metadata = ['use_hold' => false];
-        $this->assertFalse($this->resolveChallengeHold($payment, []));
-        $this->assertTrue($this->resolveChallengeHold($payment, ['use_hold' => true]));
+        $this->assertFalse($this->resolveHold($payment, []));
+        $this->assertTrue($this->resolveHold($payment, ['use_hold' => true]));
 
         $app->set(ConfigurationEnum::AZUL_USE_HOLD->value, '0');
         $payment->metadata = ['use_hold' => true];
-        $this->assertTrue($this->resolveChallengeHold($payment, []));
+        $this->assertTrue($this->resolveHold($payment, []));
+    }
+
+    public function testTheOrderTypeForcesHoldOverTheCallerAndTheAppDefault(): void
+    {
+        app(Apps::class)->set(ConfigurationEnum::AZUL_USE_HOLD->value, '0');
+
+        $order = $this->order();
+        $order->setRelation('orderType', $this->holdOrderType());
+        $payment = new Payments();
+        $payment->metadata = ['use_hold' => false];
+
+        $this->assertTrue($this->resolveHold($payment, ['use_hold' => false], $order));
+    }
+
+    public function testAuthorizeHoldsWhenTheOrderTypeForcesItEvenIfTheCallerAsksForASale(): void
+    {
+        $payment = $this->authorizablePayment();
+        $payment->shouldNotReceive('markAsPaid');
+        $service = Mockery::mock(AzulService::class);
+        $service->shouldReceive('hold')->once()->andReturn($this->approvedResponse());
+        $service->shouldNotReceive('sale');
+        $order = $this->dopOrder();
+        $order->setRelation('orderType', $this->holdOrderType());
+
+        $result = $this->processorWith($service)->authorize($payment, $order, ['use_hold' => false]);
+
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED, $result->paymentStatus);
     }
 
     public function testAuthorizeWithHoldLeavesThePaymentAuthorized(): void
@@ -97,11 +125,19 @@ final class AzulThreeDSHoldTest extends TestCase
         $this->assertSame(PaymentStatusEnum::PAID, $result->paymentStatus);
     }
 
-    private function resolveChallengeHold(Payments $payment, array $context): bool
+    private function resolveHold(Payments $payment, array $context, ?Order $order = null): bool
     {
-        $method = new ReflectionMethod(AzulProcessor::class, 'resolveChallengeHold');
+        $method = new ReflectionMethod(AzulProcessor::class, 'resolveHold');
 
-        return $method->invoke($this->processor(), $payment, $context);
+        return $method->invoke($this->processor(), $payment, $order ?? $this->order(), $context);
+    }
+
+    private function holdOrderType(): OrderTypes
+    {
+        $type = new OrderTypes();
+        $type->config = [OrderTypes::PROCESSOR_USE_HOLD => true];
+
+        return $type;
     }
 
     private function processor(): AzulProcessor

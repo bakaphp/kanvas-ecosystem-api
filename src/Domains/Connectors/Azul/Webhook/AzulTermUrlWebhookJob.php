@@ -44,7 +44,7 @@ class AzulTermUrlWebhookJob extends ProcessWebhookJob
         if (! $paymentId) {
             return [
                 'message' => 'No payment identifier found in callback',
-                'html' => $this->notifyParent('error', 'No payment identifier'),
+                'html_response' => $this->notifyParent('error', 'No payment identifier'),
             ];
         }
 
@@ -83,7 +83,7 @@ class AzulTermUrlWebhookJob extends ProcessWebhookJob
 
         return [
             'message' => '3DS challenge response stored — awaiting finalization',
-            'html' => $this->notifyParent('success', '3DS authentication received'),
+            'html_response' => $this->notifyParent('success', '3DS authentication received'),
         ];
     }
 

@@ -12,4 +12,5 @@ enum CustomFieldEnum: string
     case CUSTOMER_ID = 'cardnet_customer_id';
     case ORDER_NUMBER = 'cardnet_order_number';
     case PAYMENT_PROFILE_ID = 'cardnet_payment_profile_id';
+    case REQUIRES_ACTIVATION = 'requires_activation';
 }

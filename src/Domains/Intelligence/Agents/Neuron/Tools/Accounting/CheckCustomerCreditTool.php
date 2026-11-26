@@ -16,8 +16,9 @@ class CheckCustomerCreditTool extends AbstractCustomerCreditTool
     protected string $name = 'check_customer_credit';
 
     protected ?string $description = 'Reads where a customer stands against their credit limit: the limit, what they owe on '
-        . 'open invoices, what is committed on confirmed orders that have no invoice yet, the overdue invoices, what is '
-        . 'left to use, and whether their new orders are on hold because an invoice is overdue beyond the hold days. '
+        . 'open invoices, what is committed on orders no issued invoice covers yet, the overdue invoices, what is '
+        . 'left to use, and whether their new orders are on hold because an overdue invoice is past the hold days, '
+        . 'counted from its bill of lading or invoice date. '
         . 'Amounts are in the limit\'s currency; if a rate is missing it says which pair instead of guessing. Read-only.';
 
     /**

@@ -10,7 +10,7 @@ use Kanvas\Scribe\SalesOrders\Services\Concerns\BuildsDifferences;
 
 /**
  * Compares a sales order with its quote, and with the agreed terms when they are given, and lists every
- * difference. Lines are matched by position.
+ * difference. Lines are matched by position, and each pair has to name the same product.
  */
 class SalesOrderReviewService
 {
@@ -85,6 +85,12 @@ class SalesOrderReviewService
                 continue;
             }
 
+            $found[] = $this->productDifference(
+                "line_{$number}_product",
+                "Line {$number} product",
+                $orderLine,
+                $quoteLine
+            );
             $found[] = $this->ifChanged(
                 "line_{$number}_quantity",
                 "Line {$number} quantity",

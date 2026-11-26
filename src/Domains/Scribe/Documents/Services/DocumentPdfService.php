@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Documents\Services;
 
-use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
-use finfo;
-use Intervention\Image\Drivers\Imagick\Driver;
-use Intervention\Image\ImageManager;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -19,7 +15,6 @@ use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Models\QuoteLine;
 use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Users\Models\Users;
-use Throwable;
 
 /**
  * Renders an invoice or a quote as a printable document and attaches the PDF to it.
@@ -104,7 +99,7 @@ final class DocumentPdfService
             'number' => $this->number(),
             'status' => $isQuote ? $this->document->status->value : $this->document->document_status->value,
             'currency' => $this->document->currency,
-            'issuer' => $this->issuerBlock(),
+            'issuer' => DocumentIssuerBlock::for($this->document->company),
             'customer' => $this->customerBlock(),
             'issued_date' => $this->document->issued_date?->toFormattedDateString(),
             'expiry_label' => $isQuote ? 'Valid until' : 'Due date',
@@ -140,54 +135,6 @@ final class DocumentPdfService
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function issuerBlock(): array
-    {
-        $company = $this->document->company;
-
-        return [
-            'name' => (string) $company->name,
-            'logo' => $this->logo(),
-            'address_lines' => $this->addressLines(['address' => $company->address ?? null]),
-            'email' => $company->email ?? null,
-            'phone' => $company->phone ?? null,
-            'website' => $company->website ?? null,
-        ];
-    }
-
-    /**
-     * Embed the company's uploaded photo, never the app's placeholder. wkhtmltopdf cannot display AVIF/WebP,
-     * so inspect the bytes rather than trusting an upload's filename and convert unsupported formats to PNG.
-     */
-    private function logo(): ?string
-    {
-        $url = Str::trimToNull($this->document->company->getFileByName('photo')?->filesystem?->url);
-        if ($url === null) {
-            return null;
-        }
-
-        try {
-            $bytes = SafeUrlFetcher::fetch($url);
-            $mime = (string) new finfo(FILEINFO_MIME_TYPE)->buffer($bytes);
-            if (! str_starts_with($mime, 'image/')) {
-                return null;
-            }
-
-            if (! in_array($mime, ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'], true)) {
-                $bytes = (string) new ImageManager(new Driver())->decodeBinary($bytes)->encodeUsingMediaType('image/png');
-                $mime = 'image/png';
-            }
-
-            return 'data:' . $mime . ';base64,' . base64_encode($bytes);
-        } catch (Throwable $e) {
-            report($e);
-
-            return null;
-        }
-    }
-
-    /**
      * Drafts have no billable snapshot — it freezes at send/issue time — so the live customer row
      * fills the block until then. Printing a draft with an empty bill-to is worse than printing a
      * name that can still change before the document is issued.
@@ -212,7 +159,7 @@ final class DocumentPdfService
             'legal_name' => $this->document->billable_legal_name,
             'tax_id' => $this->document->billable_tax_id,
             'email' => $this->document->billable_email,
-            'address_lines' => $this->addressLines($address),
+            'address_lines' => DocumentIssuerBlock::addressLines($address),
             'attention' => $this->attentionName(),
         ];
     }
@@ -225,33 +172,6 @@ final class DocumentPdfService
         }
 
         return Str::trimToNull($this->document->contact?->getDisplayName());
-    }
-
-    /**
-     * @param array<array-key, mixed>|null $address
-     *
-     * @return list<string>
-     */
-    private function addressLines(?array $address): array
-    {
-        if ($address === null) {
-            return [];
-        }
-
-        $cityLine = implode(', ', array_filter([
-            trim((string) ($address['city'] ?? '')),
-            trim(implode(' ', array_filter([
-                trim((string) ($address['state'] ?? '')),
-                trim((string) ($address['zip'] ?? '')),
-            ]))),
-        ]));
-
-        return array_values(array_filter([
-            trim((string) ($address['address'] ?? '')),
-            trim((string) ($address['address_2'] ?? '')),
-            $cityLine,
-            trim((string) ($address['country'] ?? '')),
-        ], static fn (string $line): bool => $line !== ''));
     }
 
     /**
