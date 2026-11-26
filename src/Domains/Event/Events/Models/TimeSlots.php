@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
 use Kanvas\Event\Events\Services\ResourceTimezoneService;
@@ -83,6 +84,14 @@ class TimeSlots extends BaseModel implements ReadableAtLocation
             ->copy()
             ->setTimezone(ResourceTimezoneService::resolve($this->resource))
             ->toDateString();
+    }
+
+    public function scopeOnLocalDay(Builder $query, string $day, string $timezone): Builder
+    {
+        return $query->whereBetween($this->qualifyColumn('start_at'), [
+            Carbon::parse($day, $timezone)->startOfDay()->utc(),
+            Carbon::parse($day, $timezone)->endOfDay()->utc(),
+        ]);
     }
 
     public function scopeForProduct(Builder $query, Products $product): Builder

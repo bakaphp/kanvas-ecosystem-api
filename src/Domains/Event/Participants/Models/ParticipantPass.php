@@ -54,6 +54,15 @@ class ParticipantPass extends BaseModel
             ->whereDoesntHave('event.eventStatus', fn (Builder $status) => $status->cancelled());
     }
 
+    public function scopeActiveBookingPass(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('participant_id')
+            ->whereNull('revoked_at')
+            ->notDeleted()
+            ->orderBy('id');
+    }
+
     public function liveBookingIds(bool $locking = false): Collection
     {
         $redemptions = $locking ? $this->redemptions()->lockForUpdate() : $this->redemptions();

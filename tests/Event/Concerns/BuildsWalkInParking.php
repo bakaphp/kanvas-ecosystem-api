@@ -65,9 +65,9 @@ trait BuildsWalkInParking
         return $orderType;
     }
 
-    private function startedSlot(): TimeSlots
+    private function startedSlot(int $hoursAgo = 1): TimeSlots
     {
-        $slot = $this->makeDaySlot($this->gatedVariant, Carbon::now()->subHour(), 5);
+        $slot = $this->makeDaySlot($this->gatedVariant, Carbon::now()->subHours($hoursAgo), 5);
         $slot->update(['end_at' => Carbon::now()->addHours(5)]);
 
         return $slot;

@@ -14,11 +14,6 @@ class EventBookingFields
 {
     private const string LOCAL_FORMAT = 'Y-m-d H:i:s';
 
-    public function reference(EventVersion $booking): ?string
-    {
-        return $booking->reference;
-    }
-
     public function passCode(EventVersion $booking): ?string
     {
         $encrypted = $booking->getAttribute('pass_code_encrypted');

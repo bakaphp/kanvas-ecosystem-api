@@ -83,6 +83,11 @@ class EventVersion extends BaseModel implements ReadableAtLocation
             ->orderBy('start_at');
     }
 
+    public function scopeByReference(Builder $query, string $reference): Builder
+    {
+        return $query->where($this->qualifyColumn('reference'), strtoupper(trim($reference)));
+    }
+
     public function timeSlot(): BelongsTo
     {
         return $this->belongsTo(TimeSlots::class, 'time_slot_id');
@@ -294,9 +299,7 @@ class EventVersion extends BaseModel implements ReadableAtLocation
     {
         $pass = ParticipantPass::query()
             ->where('event_version_id', $this->getId())
-            ->whereNull('participant_id')
-            ->whereNull('revoked_at')
-            ->notDeleted()
+            ->activeBookingPass()
             ->first();
 
         return $pass ? decrypt($pass->code) : null;

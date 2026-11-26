@@ -22,6 +22,7 @@ class AssignBookingReferenceAction
     public function execute(): string
     {
         return DB::connection('event')->transaction(function (): string {
+            // The event row is the mutex of its sequence: MAX() cannot lock a number nobody holds yet.
             Event::query()->whereKey($this->access->eventId)->lockForUpdate()->first();
 
             $reference = sprintf(
