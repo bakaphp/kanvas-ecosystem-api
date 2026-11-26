@@ -95,10 +95,11 @@ class SendEmailTool extends Tool
         string $subject,
         string $body,
         ?string $cc = null,
-        bool $sign_as_me = false,
+        ?bool $sign_as_me = null,
     ): array {
         $subject = trim($subject);
         $body = trim($body);
+        $signAsMe = $sign_as_me ?? false;
 
         if ($subject === '' || $body === '') {
             return [
@@ -132,8 +133,8 @@ class SendEmailTool extends Tool
 
         try {
             $sent = new SendMessageToLeadAction($lead)
-                ->withSignatureOwner($this->signatureOwner($sign_as_me))
-                ->withAgentSignature(! $sign_as_me)
+                ->withSignatureOwner($this->signatureOwner($signAsMe))
+                ->withAgentSignature(! $signAsMe)
                 ->execute(
                     channel: LeadCommunicationChannelEnum::EMAIL->value,
                     message: $body,

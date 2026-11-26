@@ -96,7 +96,7 @@ class SendPersonEmailTool extends Tool implements RequiresSystemAgent
         string $subject,
         string $body,
         ?string $cc = null,
-        bool $sign_as_me = false,
+        ?bool $sign_as_me = null,
     ): array {
         $subject = trim($subject);
         $body = trim($body);
@@ -131,7 +131,7 @@ class SendPersonEmailTool extends Tool implements RequiresSystemAgent
                 message: $body,
                 subject: $subject,
                 fromAgent: $this->contextAgent(),
-                signatureOwner: $this->signatureOwner($sign_as_me),
+                signatureOwner: $this->signatureOwner($sign_as_me ?? false),
                 cc: $ccResult['accepted'],
             );
         } catch (Throwable $e) {
