@@ -4,25 +4,31 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreatePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GeneratePurchaseOrderPdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillToPurchaseOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReceivePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitPurchaseOrderForApprovalTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdatePurchaseOrderTool;
 use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
+use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderPdfService;
 use Tests\Scribe\Approvals\Concerns\SeedsBillApprovals;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
+use Tests\Traits\CreatesTestBill;
 use Tests\Traits\CreatesTestPurchaseOrder;
 
 class PurchaseOrderToolsTest extends ScribeTestCase
 {
     use AssertsToolRunKeys;
+    use CreatesTestBill;
     use CreatesTestPurchaseOrder;
     use SeedsBillApprovals;
 
@@ -125,6 +131,86 @@ class PurchaseOrderToolsTest extends ScribeTestCase
         $this->assertRunKeyFollowsInputs(new SubmitPurchaseOrderForApprovalTool());
         $this->assertRunKeyFollowsInputs(new SendPurchaseOrderTool());
         $this->assertRunKeyFollowsInputs(new GeneratePurchaseOrderPdfTool());
+        $this->assertRunKeyFollowsInputs(new ReceivePurchaseOrderTool());
+        $this->assertRunKeyFollowsInputs(new MatchBillToPurchaseOrderTool());
+    }
+
+    public function test_the_agent_records_what_arrived_and_the_order_shows_its_receipts(): void
+    {
+        $order = $this->sentOrderFor($this->seedTestOrganization('Receive Tool Vendor'));
+        $tool = new ReceivePurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $partial = $tool->__invoke(
+            order_number: $order->order_number,
+            lines: [['line_number' => 1, 'quantity' => 4]],
+            received_on: '2026-12-02',
+            reference: 'DN-1',
+        );
+        $this->assertTrue($partial['received']);
+        $this->assertSame('partially_received', $partial['document_status']);
+        $this->assertSame(1, $partial['open_lines']);
+
+        $tooMuch = $tool->__invoke(order_number: $order->order_number, lines: [['line_number' => 1, 'quantity' => 50]]);
+        $this->assertFalse($tooMuch['received']);
+        $this->assertStringContainsString('only 6 is open', $tooMuch['message']);
+
+        $found = $this->findTool()->__invoke(order_number: $order->order_number);
+        $this->assertSame(['DN-1'], array_column($found['receipts'], 'reference'));
+        $this->assertSame('partially_received', $found['status']);
+    }
+
+    public function test_the_agent_matches_a_bill_and_links_it_only_when_it_matches(): void
+    {
+        $vendor = $this->seedTestOrganization('Match Tool Vendor');
+        $order = $this->sentOrderFor($vendor);
+        new ReceivePurchaseOrderTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(order_number: $order->order_number, lines: [['line_number' => 1, 'quantity' => 4]]);
+        $tooMuch = $this->createBillFor($vendor, [
+            ['description' => 'Pallet of paper', 'quantity' => 10, 'unit_price' => 12.5, 'sku' => 'PAP-1'],
+        ]);
+        $fits = $this->createBillFor($vendor, [
+            ['description' => 'Pallet of paper', 'quantity' => 4, 'unit_price' => 12.5, 'sku' => 'PAP-1'],
+        ]);
+        $tool = new MatchBillToPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $refused = $tool->__invoke(order_number: $order->order_number, bill_number: $tooMuch->bill_number, link: true);
+        $this->assertFalse($refused['matched']);
+        $this->assertFalse($refused['linked']);
+        $this->assertSame('line_1_billed_more_than_received', $refused['discrepancies'][0]['key']);
+
+        $reported = $tool->__invoke(order_number: $order->order_number, bill_number: $fits->bill_number);
+        $this->assertTrue($reported['matched']);
+        $this->assertFalse($reported['linked']);
+
+        $linked = $tool->__invoke(order_number: $order->order_number, bill_number: $fits->bill_number, link: true);
+        $this->assertTrue($linked['linked']);
+        $this->assertSame($order->getId(), $fits->fresh()->purchase_order_id);
+    }
+
+    public function test_receiving_and_matching_report_what_is_missing(): void
+    {
+        $order = $this->sentOrderFor($this->seedTestOrganization('Missing Receive Vendor'));
+        $receive = new ReceivePurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        $match = new MatchBillToPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $this->assertSame(
+            'purchase_order_not_found',
+            $receive->__invoke(order_number: 'PO-999999999', lines: [['line_number' => 1, 'quantity' => 1]])['reason']
+        );
+        $this->assertSame('purchase_order_not_found', $match->__invoke(order_number: 'PO-999999999', bill_number: 'X')['reason']);
+        $this->assertSame('bill_not_found', $match->__invoke(order_number: $order->order_number, bill_number: 'NO-SUCH-BILL')['reason']);
+    }
+
+    private function sentOrderFor(Organization $vendor): PurchaseOrder
+    {
+        $order = $this->createPurchaseOrderFor($vendor, [
+            ['description' => 'Pallet of paper', 'quantity' => 10, 'unit_cost' => 12.5, 'sku' => 'PAP-1'],
+        ]);
+        $order->document_status = PurchaseOrderStatusEnum::SENT;
+        $order->save();
+
+        return $order;
     }
 
     public function test_the_agent_submits_an_order_to_the_vendors_approver_only_when_a_policy_exists(): void

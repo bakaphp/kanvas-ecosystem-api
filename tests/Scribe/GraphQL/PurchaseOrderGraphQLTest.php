@@ -7,14 +7,17 @@ namespace Tests\Scribe\GraphQL;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
+use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderPdfService;
 use Tests\Scribe\Approvals\Concerns\SeedsBillApprovals;
 use Tests\Scribe\ScribeTestCase;
+use Tests\Traits\CreatesTestBill;
 use Tests\Traits\CreatesTestPurchaseOrder;
 
 class PurchaseOrderGraphQLTest extends ScribeTestCase
 {
+    use CreatesTestBill;
     use CreatesTestPurchaseOrder;
     use SeedsBillApprovals;
 
@@ -138,6 +141,70 @@ class PurchaseOrderGraphQLTest extends ScribeTestCase
             ->assertJsonPath('data.generateScribePurchaseOrderPdf.name', 'purchase-order-' . $order->order_number . '.pdf');
 
         $this->assertNotNull($order->fresh()->getFileByName(PurchaseOrderPdfService::FIELD_NAME));
+    }
+
+    public function test_goods_are_received_and_a_bill_is_matched_and_linked_through_the_api(): void
+    {
+        $vendor = $this->seedTestOrganization('Receiving Graph Vendor');
+        $order = $this->createPurchaseOrderFor($vendor, [
+            ['description' => 'Pallet of paper', 'quantity' => 10, 'unit_cost' => 12.5, 'sku' => 'PAP-1'],
+        ]);
+        $order->document_status = PurchaseOrderStatusEnum::SENT;
+        $order->save();
+        $id = (string) $order->getId();
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                receiveScribePurchaseOrder(
+                    id: $id
+                    received_on: "2026-12-02"
+                    reference: "Delivery note 9"
+                    lines: [{ line_number: 1, quantity: 6 }]
+                ) {
+                    receipt_number
+                    reference
+                    lines { quantity line { line_number received_qty open_qty } }
+                }
+            }', ['id' => $id])
+            ->assertJsonPath('data.receiveScribePurchaseOrder.reference', 'Delivery note 9')
+            ->assertJsonPath('data.receiveScribePurchaseOrder.lines.0.quantity', 6)
+            ->assertJsonPath('data.receiveScribePurchaseOrder.lines.0.line.open_qty', 4);
+
+        $this->graphQL('
+            mutation ($id: ID!) {
+                receiveScribePurchaseOrder(id: $id, received_on: "2026-12-03", lines: [{ line_number: 1, quantity: 9 }]) { id }
+            }', ['id' => $id])
+            ->assertGraphQLErrorMessage('Line 1: 9 received but only 4 is open on the order.');
+
+        $bill = $this->createBillFor($vendor, [
+            ['description' => 'Pallet of paper', 'quantity' => 8, 'unit_price' => 12.5, 'sku' => 'PAP-1'],
+        ]);
+        $variables = ['bill' => (string) $bill->getId(), 'order' => $id];
+
+        $this->graphQL('
+            query ($bill: ID!, $order: ID!) {
+                matchScribeBillToPurchaseOrder(bill_id: $bill, purchase_order_id: $order) {
+                    matched
+                    discrepancies { key order_value received_value billed_value }
+                }
+            }', $variables)
+            ->assertJsonPath('data.matchScribeBillToPurchaseOrder.matched', false)
+            ->assertJsonPath('data.matchScribeBillToPurchaseOrder.discrepancies.0.key', 'line_1_billed_more_than_received')
+            ->assertJsonPath('data.matchScribeBillToPurchaseOrder.discrepancies.0.received_value', '6');
+
+        $this->graphQL('
+            mutation ($bill: ID!, $order: ID!) {
+                linkScribeBillToPurchaseOrder(bill_id: $bill, purchase_order_id: $order) { id }
+            }', $variables)
+            ->assertGraphQLErrorMessage("Bill {$bill->bill_number} does not match purchase order {$order->order_number}: line_1_billed_more_than_received.");
+
+        $this->graphQL('
+            query {
+                scribePurchaseOrders(where: { column: ORDER_NUMBER, value: "' . $order->order_number . '" }) {
+                    data { receipts { receipt_number } }
+                }
+            }')
+            ->assertJsonCount(1, 'data.scribePurchaseOrders.data.0.receipts');
     }
 
     private function submittedOrderId(Organization $vendor): string

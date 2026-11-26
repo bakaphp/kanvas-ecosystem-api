@@ -37,6 +37,8 @@ type ScribePurchaseOrder {
     company: Company! @belongsTo(relation: "company")
     user: User @belongsTo(relation: "user")
     lines: [ScribePurchaseOrderLine!]! @hasMany(relation: "lines")
+    "What arrived against the order, one receipt per delivery."
+    receipts: [ScribePurchaseOrderReceipt!]! @hasMany(relation: "receipts")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -125,6 +127,22 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@generatePdf"
         )
+    "Records goods received against a sent order. Receiving more than is open is refused."
+    receiveScribePurchaseOrder(
+        id: ID!
+        received_on: Date!
+        lines: [ScribeReceiptLineInput!]!
+        reference: String
+        notes: String
+    ): ScribePurchaseOrderReceipt!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptResolver@receive"
+        )
+    "Links a vendor bill to the purchase order it bills, once the three-way match finds nothing to explain."
+    linkScribeBillToPurchaseOrder(bill_id: ID!, purchase_order_id: ID!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptResolver@link"
+        )
     "Cancels a purchase order the company issued, as long as no goods have arrived against it."
     cancelScribePurchaseOrder(id: ID!, reason: String): ScribePurchaseOrder!
         @field(
@@ -132,7 +150,50 @@ extend type Mutation @guard {
         )
 }
 
+type ScribePurchaseOrderReceiptLine {
+    id: ID!
+    "How much of the order line arrived on this receipt."
+    quantity: Float!
+    line: ScribePurchaseOrderLine! @belongsTo(relation: "line")
+}
+
+type ScribePurchaseOrderReceipt {
+    id: ID!
+    receipt_number: String!
+    received_on: Date!
+    "The vendor's delivery note or packing slip."
+    reference: String
+    notes: String
+    lines: [ScribePurchaseOrderReceiptLine!]! @hasMany(relation: "lines")
+    created_at: DateTime!
+}
+
+input ScribeReceiptLineInput {
+    "The order's line number."
+    line_number: Int!
+    quantity: Float!
+}
+
+"One reason a vendor bill does not match its purchase order and what was received."
+type ScribePurchaseOrderMatchDiscrepancy {
+    key: String!
+    message: String!
+    order_value: String
+    received_value: String
+    billed_value: String
+}
+
+type ScribePurchaseOrderMatch {
+    matched: Boolean!
+    discrepancies: [ScribePurchaseOrderMatchDiscrepancy!]!
+}
+
 extend type Query @guard {
+    "The three-way match of a vendor bill with a purchase order and what was received against it."
+    matchScribeBillToPurchaseOrder(bill_id: ID!, purchase_order_id: ID!): ScribePurchaseOrderMatch!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptResolver@match"
+        )
     scribePurchaseOrders(
         where: _
             @whereConditions(

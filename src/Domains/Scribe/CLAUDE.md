@@ -135,8 +135,17 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   SMTP settings, and only then marks the order sent; a sent order can be sent again. Tools
   `submit_purchase_order_for_approval`, `send_purchase_order` and `generate_purchase_order_pdf` (approving is the
   existing `approve_pending_item`); GraphQL `submitScribePurchaseOrderForApproval`, `approveScribePurchaseOrder`,
-  `rejectScribePurchaseOrder`, `sendScribePurchaseOrder` and `generateScribePurchaseOrderPdf`. Receiving is the next
-  layer; the status graph already has its states.
+  `rejectScribePurchaseOrder`, `sendScribePurchaseOrder` and `generateScribePurchaseOrderPdf`. Receiving:
+  `ReceivePurchaseOrderAction` records what arrived per order line on a `GR-` receipt (its own `goods_receipt`
+  sequence), keeps each line's received and open quantities, and moves a sent order to partially received and then
+  received; more than the open quantity is refused, within the company setting
+  `scribe-po-over-receipt-tolerance-percent` when it has one. `PurchaseOrderMatchService` is the three-way match of a
+  vendor bill with the order and what was received: same vendor and currency, every bill line on the order (paired by
+  SKU, else description), none billing more than was received, and unit prices within
+  `scribe-po-price-tolerance-percent`. It lists every discrepancy; `LinkBillToPurchaseOrderAction` links the bill
+  (`bills.purchase_order_id`) only on a clean match. Bills already linked are not counted against what was received.
+  Tools `receive_purchase_order` and `match_bill_to_purchase_order` (`find_purchase_order` now lists the receipts);
+  GraphQL `receiveScribePurchaseOrder`, `matchScribeBillToPurchaseOrder` and `linkScribeBillToPurchaseOrder`.
 - **Regional compliance** (NCF for DR, CFDI for MX, NFE for BR, …) lives in a single `regional_compliance` JSON column on invoices/bills/quotes/sales_receipts, validated by per-country validator services in `Scribe/Regional/Validators/{Country}/{Code}Validator`. NOT custom fields (those are tenant-choice extensions); NOT dedicated DR-only columns (schema bloat).
 - **Electronic invoicing state is NOT in that JSON.** `regional_compliance.do_ecf` holds only the pre-issuance
   choices (`EcfCompliance::draftSettings()`: type, export, purchase order, withholding, foreign payment). From

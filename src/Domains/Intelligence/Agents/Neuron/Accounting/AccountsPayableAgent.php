@@ -36,10 +36,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListSuspenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillToPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReceivePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReclassifySuspenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordBillPaymentTool;
@@ -142,6 +144,8 @@ class AccountsPayableAgent extends SystemUserAgent
             new SubmitPurchaseOrderForApprovalTool(),
             new SendPurchaseOrderTool(),
             new GeneratePurchaseOrderPdfTool(),
+            new ReceivePurchaseOrderTool(),
+            new MatchBillToPurchaseOrderTool(),
             new IssuePurchaseEcfTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
@@ -263,7 +267,10 @@ class AccountsPayableAgent extends SystemUserAgent
             '- A purchase order goes draft → submit_purchase_order_for_approval → approved by the vendor\'s approver '
             . '(approve_pending_item with target_type purchase_order, only when the approver says so) → send_purchase_order, '
             . 'which really emails the vendor: only with an address the person gave, never a guessed one. '
-            . 'generate_purchase_order_pdf gives a copy to hand over (then get_file_link).',
+            . 'generate_purchase_order_pdf gives a copy to hand over (then get_file_link). When goods arrive, '
+            . 'receive_purchase_order records what arrived per line, only as the person tells you. match_bill_to_purchase_order '
+            . 'checks a vendor bill against the order and what was received and lists every discrepancy; link it only when '
+            . 'the person asks, and never override a discrepancy: tell them what to fix.',
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
