@@ -10,6 +10,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Event\Events\Actions\SendEventEmailsAction;
 use Kanvas\Event\Events\Enums\ConfigurationEnum;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Enums\EventReminderStatusEnum;
@@ -231,7 +232,7 @@ class RescheduleCalendarEventToolTest extends TestCase
 
     public function testCreateEmailsTheLeadAtTheCompanysLocalTime(): void
     {
-        [, $company, $lead] = $this->bootstrap(timezone: 'America/Santo_Domingo');
+        [, $company, $lead] = $this->bootstrap(timezone: 'America/Chicago');
         $email = 'prospect-' . uniqid() . '@example.com';
         $lead->email = $email;
         $lead->saveQuietly();
@@ -242,8 +243,8 @@ class RescheduleCalendarEventToolTest extends TestCase
         $this->assertTrue($created['lead_notified']);
 
         $version = Event::getById($created['event']['id'])->versions()->first();
-        // 10:00 in Santo Domingo (UTC-4) is 14:00 UTC.
-        $this->assertSame('2026-06-20 14:00:00', $version->start_at->utc()->format('Y-m-d H:i:s'));
+        // 10:00 in Chicago (CDT, UTC-5) is 15:00 UTC. Not the resolver fallback zone, which reads 11:00.
+        $this->assertSame('2026-06-20 15:00:00', $version->start_at->utc()->format('Y-m-d H:i:s'));
         $this->assertTrue(
             $version->participants()->with('people')->get()
                 ->contains(fn ($participant) => $participant->people->getEmails()->contains('value', $email)),
@@ -254,7 +255,64 @@ class RescheduleCalendarEventToolTest extends TestCase
             EventParticipantNotification::class,
             fn (EventParticipantNotification $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === $email
                 && $notification->getTemplateName() === EmailTemplateEnum::BOOKING_CREATED->value
-                && $notification->getData()['start_time'] === '10:00'
+                && $notification->getData()['start_time'] === '10:00 AM'
+                && $notification->getData()['timezone'] === 'America/Chicago'
+        );
+    }
+
+    /**
+     * `US/Central` is a zone PHP accepts and the booking tool books in, but it is not a canonical
+     * IANA name, so the email used to drop it for the Santo Domingo fallback: 4:00 PM for a 3 PM call.
+     */
+    public function testEmailUsesACompanyTimezoneSavedUnderItsLegacyName(): void
+    {
+        [, , $lead] = $this->bootstrap(timezone: 'US/Central');
+        $lead->email = 'prospect-' . uniqid() . '@example.com';
+        $lead->saveQuietly();
+
+        $created = $this->createAppointment($lead, '2026-06-20 15:00', '2026-06-20 15:15');
+        $this->assertSame('success', $created['status'], json_encode($created));
+
+        Notification::assertSentOnDemand(
+            EventParticipantNotification::class,
+            function (EventParticipantNotification $notification): bool {
+                $data = $notification->getData();
+
+                return $data['start_time'] === '3:00 PM'
+                    && $data['end_time'] === '3:15 PM'
+                    && $data['timezone'] === 'US/Central';
+            }
+        );
+    }
+
+    public function testEmailFallsBackToTheEventCompanyTimezoneWhenThereIsNoResource(): void
+    {
+        [, , $lead] = $this->bootstrap(timezone: 'America/Chicago');
+        $lead->email = 'prospect-' . uniqid() . '@example.com';
+        $lead->saveQuietly();
+
+        $created = $this->createAppointment($lead, '2026-06-20 15:00', '2026-06-20 15:15');
+        $this->assertSame('success', $created['status'], json_encode($created));
+
+        $event = Event::getById($created['event']['id']);
+        $event->resources_id = null;
+        $event->resources_type = null;
+        $event->saveQuietly();
+
+        Notification::fake();
+
+        new SendEventEmailsAction(
+            $event->versions()->first(),
+            EmailTemplateEnum::BOOKING_CREATED->value
+        )->execute();
+
+        Notification::assertSentOnDemand(
+            EventParticipantNotification::class,
+            function (EventParticipantNotification $notification): bool {
+                $data = $notification->getData();
+
+                return $data['start_time'] === '3:00 PM' && $data['timezone'] === 'America/Chicago';
+            }
         );
     }
 
@@ -282,7 +340,7 @@ class RescheduleCalendarEventToolTest extends TestCase
             EventParticipantNotification::class,
             fn (EventParticipantNotification $notification): bool => $notification->getTemplateName() === EmailTemplateEnum::BOOKING_UPDATED->value
                 && $notification->getData()['start_date'] === '2026-06-21'
-                && $notification->getData()['start_time'] === '14:00'
+                && $notification->getData()['start_time'] === '2:00 PM'
         );
 
         $reminder = $version->reminders()->where('status', EventReminderStatusEnum::PENDING->value)->sole();
