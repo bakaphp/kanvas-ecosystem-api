@@ -152,8 +152,20 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   domain): one address outside that refuses the whole send. The GraphQL mutation takes the addresses a user types. Tools
   `submit_purchase_order_for_approval`, `send_purchase_order` and `generate_purchase_order_pdf` (approving is the
   existing `approve_pending_item`); GraphQL `submitScribePurchaseOrderForApproval`, `approveScribePurchaseOrder`,
-  `rejectScribePurchaseOrder`, `sendScribePurchaseOrder` and `generateScribePurchaseOrderPdf`. Receiving is the next
-  layer; the status graph already has its states.
+  `rejectScribePurchaseOrder`, `sendScribePurchaseOrder` and `generateScribePurchaseOrderPdf`. Receiving:
+  `ReceivePurchaseOrderAction` records what arrived per order line on a `GR-` receipt (its own `goods_receipt`
+  sequence), keeps each line's received and open quantities, and moves a sent order to partially received and then
+  received; more than the open quantity is refused, within the company setting
+  `scribe-po-over-receipt-tolerance-percent` when it has one. `PurchaseOrderMatchService` is the three-way match of a
+  vendor bill with the order and what was received: same vendor and currency, every bill line on the order (paired by
+  SKU, else description), none billing more than was received, and unit prices within
+  `scribe-po-price-tolerance-percent`. It lists every discrepancy; `LinkBillToPurchaseOrderAction` links the bill
+  (`bills.purchase_order_id`) only on a clean match. What the other bills linked to the order already bill counts against what was received, so
+  the same goods are not billed twice. Receiving and linking run under the order's row lock. The AP agent holds
+  `receive_purchase_order` only while a person is asking: a receipt is what a bill is matched against, so a vendor's
+  own email saying the goods arrived must not record one.
+  Tools `receive_purchase_order` and `match_bill_to_purchase_order` (`find_purchase_order` now lists the receipts);
+  GraphQL `receiveScribePurchaseOrder`, `matchScribeBillToPurchaseOrder` and `linkScribeBillToPurchaseOrder`.
 - **A sales order is what a customer committed to buy, and it passes two gates before anything ships.** It is the
   customer's own purchase order (`customer_po`) or our proforma returned signed and stamped (`signed_proforma`, which
   takes its lines, currency and number from the quote). `RegisterCustomerPoAction` numbers it from its own `sales_order`

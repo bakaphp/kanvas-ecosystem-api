@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
+use Kanvas\Scribe\Purchasing\Models\PurchaseOrderReceipt;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -95,6 +96,16 @@ class FindPurchaseOrderTool extends Tool
                 'gl_account' => $accounts[$l->expense_account_id] ?? null,
                 'subaccount' => $subaccounts[$l->subaccount_id] ?? null,
             ])->all(),
+            'receipts' => $po->receipts()
+                ->orderBy('received_on')
+                ->orderBy('id')
+                ->get()
+                ->map(static fn (PurchaseOrderReceipt $receipt): array => [
+                    'receipt_number' => $receipt->receipt_number,
+                    'received_on' => $receipt->received_on->toDateString(),
+                    'reference' => $receipt->reference,
+                ])
+                ->all(),
         ];
     }
 

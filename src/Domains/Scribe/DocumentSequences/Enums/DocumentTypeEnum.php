@@ -19,6 +19,7 @@ enum DocumentTypeEnum: string
     case PAYMENT_RECEIPT = 'payment_receipt';
     case SALES_ORDER = 'sales_order';
     case PURCHASE_ORDER = 'purchase_order';
+    case GOODS_RECEIPT = 'goods_receipt';
     case EXPENSE = 'expense';
     case JOURNAL_ENTRY = 'journal_entry';
 

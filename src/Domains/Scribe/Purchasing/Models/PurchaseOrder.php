@@ -122,6 +122,11 @@ class PurchaseOrder extends BaseModel implements DescribesApprovalDetailsInterfa
         return $this->hasMany(PurchaseOrderLine::class, 'purchase_order_id', 'id');
     }
 
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderReceipt::class, 'purchase_order_id', 'id');
+    }
+
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
