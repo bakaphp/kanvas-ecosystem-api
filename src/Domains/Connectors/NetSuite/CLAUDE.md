@@ -22,9 +22,9 @@ import one record. There is no NetSuite-specific import mutation or status query
 | Location → warehouse mapping | `Actions/ImportNetSuiteLocationsAction.php`, `Services/NetSuiteLocationWarehouseService.php` |
 | The account's locations, location join filter | `Services/NetSuiteLocationService.php` |
 | SOAP search pagination | `Client::searchAll()` |
-| Schema (only `netsuiteImportLocations` is NetSuite's) | `graphql/schemas/Connector/netsuite.graphql`, `app/GraphQL/Connector/NetSuite/` |
 
-Paths relative to `src/Domains/Connectors/NetSuite/` except the last.
+Paths relative to `src/Domains/Connectors/NetSuite/`. NetSuite has no GraphQL of its own: everything goes
+through the generic import (`src/Domains/Workflow/Integrations/Imports/CLAUDE.md`).
 
 Entities and options (`importables()`):
 
@@ -54,13 +54,11 @@ NetSuite keeps each item's quantity **per location**. Each imported location is 
 warehouse through the warehouse's `NET_SUITE_LOCATION_ID` custom field; the price refresh, the stock
 import and quotes all read it from there.
 
-Two ways to map them, same rules (`ImportNetSuiteLocationsAction`):
-
-- **While importing products** with `location_ids` (`ensureMapped()`, called by `NetSuiteProductsImporter::prepare()`): the location the default warehouse
-  already mirrors stays there; on a company with none mapped, the **first one chosen** goes onto the
-  default warehouse. The rest become new warehouses named after the location.
-- **On its own**, with `netsuiteImportLocations(default_location_id, location_ids)`: same, with an
-  explicit default. Use it to change the default.
+They are mapped while importing products (`ImportNetSuiteLocationsAction::ensureMapped()`, called by
+`NetSuiteProductsImporter::prepare()`): the location the default warehouse already mirrors stays there;
+on a company with none mapped, the **first one chosen** goes onto the default warehouse. The rest become
+new warehouses named after the location. Nothing exposes changing the default location today;
+`ImportNetSuiteLocationsAction::execute($defaultLocationId, $locationIds)` does it (support or tinker).
 
 Rules:
 
@@ -98,7 +96,8 @@ be pulled.
 2. **Existing:** `PullNetSuiteProductPriceAction` refreshes price, MAP, attributes and the quantity of
    its first warehouse.
 3. Either way, every chosen location's warehouse that does not carry the product gets a row at the same
-   price and quantity 0 (`Concerns/ResolvesVariantWarehouse`, shared with the stock import). NetSuite
+   price and quantity 0 (`Kanvas\Inventory\Variants\Actions\EnsureVariantInWarehouseAction`, shared
+   with the stock import and open to any connector with per-location stock). NetSuite
    prices an item, not a location.
 4. The other locations' quantities come from `STOCK`. With **2 or more** locations chosen, `completed()`
    starts a `stock` import by itself (through `StartIntegrationImportAction`); when it cannot (no stock

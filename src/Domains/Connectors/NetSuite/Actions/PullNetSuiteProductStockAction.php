@@ -8,10 +8,11 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Kanvas\Connectors\NetSuite\Concerns\ResolvesVariantWarehouse;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationWarehouseService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
+use Kanvas\Inventory\Variants\Actions\EnsureVariantInWarehouseAction;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
@@ -28,8 +29,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  */
 class PullNetSuiteProductStockAction
 {
-    use ResolvesVariantWarehouse;
-
     protected NetSuiteProductSearchService $searchService;
     protected NetSuiteLocationWarehouseService $locationService;
 
@@ -188,5 +187,17 @@ class PullNetSuiteProductStockAction
         }
 
         return $results;
+    }
+
+    /**
+     * The row is only created on request. A warehouse mapped to the wrong location would otherwise
+     * gain a row for every SKU in the catalog on its first sync, which is not something you can
+     * undo by fixing the mapping — hence opt-in rather than default.
+     */
+    protected function resolveVariantWarehouse(Variants $variant, Warehouses $warehouse, bool $createMissing): ?VariantsWarehouses
+    {
+        return $createMissing
+            ? new EnsureVariantInWarehouseAction($variant, $warehouse)->execute()
+            : EnsureVariantInWarehouseAction::existing($variant, $warehouse);
     }
 }

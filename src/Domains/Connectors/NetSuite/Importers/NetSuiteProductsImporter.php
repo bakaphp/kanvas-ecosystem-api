@@ -11,13 +11,13 @@ use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductAction;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
 use Kanvas\Connectors\NetSuite\Concerns\FindsNetSuiteVariant;
 use Kanvas\Connectors\NetSuite\Concerns\NormalizesImportIds;
-use Kanvas\Connectors\NetSuite\Concerns\ResolvesVariantWarehouse;
 use Kanvas\Connectors\NetSuite\Enums\ImportEntityEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationWarehouseService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Variants\Actions\EnsureVariantInWarehouseAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportChoice;
@@ -31,7 +31,6 @@ class NetSuiteProductsImporter extends ChunkedImporter
 {
     use FindsNetSuiteVariant;
     use NormalizesImportIds;
-    use ResolvesVariantWarehouse;
 
     protected NetSuiteProductSearchService $productSearch;
     protected NetSuiteProductService $productService;
@@ -141,7 +140,7 @@ class NetSuiteProductsImporter extends ChunkedImporter
         }
 
         foreach ($warehouses as $warehouse) {
-            $this->resolveVariantWarehouse($variant, $warehouse, createMissing: true);
+            new EnsureVariantInWarehouseAction($variant, $warehouse)->execute();
         }
 
         return $outcome;

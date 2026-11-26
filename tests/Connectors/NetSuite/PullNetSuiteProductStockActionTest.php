@@ -90,55 +90,6 @@ class PullNetSuiteProductStockActionTest extends TestCase
         $this->assertSame($this->variant->sku, $row->sku);
     }
 
-    public function testACreatedRowInheritsPriceFromWhereTheVariantIsAlreadyStocked(): void
-    {
-        // A row created at 0.00 would read as free everywhere price is surfaced.
-        $row = $this->resolve($this->empty, createMissing: true);
-
-        $this->assertSame(12.5, (float) $row->price);
-    }
-
-    public function testAVariantStockedNowhereStillGetsARow(): void
-    {
-        // No reference row to copy a price from — the first warehouse a variant lands in has to
-        // work, not warn and fall over on a null read.
-        $orphan = VariantFactory::new()
-            ->withProductId($this->variant->products_id)
-            ->withAppId($this->kanvasApp->getId())
-            ->withCompanyId($this->kanvasUser->getCurrentCompany()->getId())
-            ->withUserId($this->kanvasUser->getId())
-            ->create();
-
-        $action = new PullNetSuiteProductStockAction(
-            $this->kanvasApp,
-            $this->kanvasUser->getCurrentCompany(),
-            $this->kanvasUser
-        );
-
-        $method = new ReflectionMethod($action, 'resolveVariantWarehouse');
-        $method->setAccessible(true);
-        $row = $method->invoke($action, $orphan, $this->empty, true);
-
-        $this->assertNotNull($row);
-        $this->assertTrue($row->wasRecentlyCreated);
-        $this->assertSame(0.0, (float) $row->price);
-    }
-
-    public function testAnExistingRowIsReturnedUntouched(): void
-    {
-        $row = $this->resolve($this->stocked, createMissing: true);
-
-        $this->assertFalse($row->wasRecentlyCreated, 'An existing row must never be recreated');
-        $this->assertSame(12.5, (float) $row->price);
-        $this->assertSame(
-            1,
-            VariantsWarehouses::query()
-                ->where('products_variants_id', $this->variant->getId())
-                ->where('warehouses_id', $this->stocked->getId())
-                ->count()
-        );
-    }
-
     private function resolve(Warehouses $warehouse, bool $createMissing): ?VariantsWarehouses
     {
         $action = new PullNetSuiteProductStockAction(
