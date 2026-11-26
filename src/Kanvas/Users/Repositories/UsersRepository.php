@@ -42,6 +42,21 @@ class UsersRepository
     }
 
     /**
+     * @param string[] $uuids
+     * @return Collection<int, Users>
+     */
+    public static function findAppUsersByUuids(array $uuids, AppInterface $app): Collection
+    {
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+            ->where('users_associated_apps.apps_id', $app->getId())
+            ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
+            ->whereIn('users.uuid', $uuids)
+            ->groupBy('users.id')
+            ->get();
+    }
+
+    /**
      * Get the user by id.
      */
     public static function getById(int $id, int $companiesId): Users

@@ -11,4 +11,5 @@ enum StoreProviderEnum: string
 {
     case APPLE = 'apple';
     case GOOGLE_PLAY = 'google_play';
+    case REVENUECAT = 'revenuecat';
 }
