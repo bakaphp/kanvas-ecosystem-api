@@ -21,6 +21,10 @@ return new class () extends Migration {
 
             $table->index(['apps_id', 'companies_id', 'approved_at'], 'po_app_company_approved_idx');
             $table->index(['apps_id', 'companies_id', 'sent_at'], 'po_app_company_sent_idx');
+            // Answers "sent to this address" when it is the only or the first recipient; an address further
+            // down the list is a LIKE scan.
+            $table->index(['apps_id', 'companies_id', 'sent_to'], 'po_app_company_sent_to_idx');
+            $table->index(['apps_id', 'companies_id', 'cancelled_at'], 'po_app_company_cancelled_idx');
         });
     }
 
@@ -29,6 +33,8 @@ return new class () extends Migration {
         Schema::connection('accounting')->table('purchase_orders', function (Blueprint $table): void {
             $table->dropIndex('po_app_company_approved_idx');
             $table->dropIndex('po_app_company_sent_idx');
+            $table->dropIndex('po_app_company_sent_to_idx');
+            $table->dropIndex('po_app_company_cancelled_idx');
             $table->dropColumn(['approved_at', 'sent_at', 'sent_to', 'internal_notes']);
         });
     }
