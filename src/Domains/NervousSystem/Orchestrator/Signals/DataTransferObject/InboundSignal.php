@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Orchestrator\Signals\DataTransferObject;
 
+use Baka\Support\Str;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\NervousSystem\Orchestrator\Signals\Enums\SignalSourceEnum;
 use Kanvas\NervousSystem\Project\Enums\ProjectIngestTypeEnum;
 
@@ -17,6 +19,8 @@ use Kanvas\NervousSystem\Project\Enums\ProjectIngestTypeEnum;
  */
 final readonly class InboundSignal
 {
+    private const int EXCERPT_CHARS = 1500;
+
     /**
      * @param list<array{name: string, email: ?string}> $actors
      * @param array<string, mixed> $metadata source-specific extras (topics, action items, raw refs)
@@ -67,6 +71,102 @@ final readonly class InboundSignal
         }
 
         return array_keys($domains);
+    }
+
+    public function isSegment(): bool
+    {
+        return isset($this->metadata['segment_of']);
+    }
+
+    /**
+     * The whole signal as one text: what its file holds, and the message body when no file was stored.
+     */
+    public function document(): string
+    {
+        return implode("\n\n", array_filter([
+            $this->headline(),
+            $this->participantsLine(),
+            $this->reportLine(),
+            ...$this->summarySections(),
+            ucfirst($this->kind->bodyLabel()) . ":\n" . $this->content,
+        ]));
+    }
+
+    /**
+     * The message body once the full text lives in $file. The file is named on the second line because
+     * the PM's wake only quotes the opening of an ingest. A segment shows its own slice: the source's
+     * summary covers the whole signal, not the part routed here.
+     */
+    public function digest(Filesystem $file): string
+    {
+        $summary = $this->summarySections();
+
+        $body = match (true) {
+            $this->isSegment() => ["Relevant part:\n" . $this->content],
+            $summary !== [] => $summary,
+            default => ["Opening:\n" . Str::limit($this->content, self::EXCERPT_CHARS)],
+        };
+
+        return implode("\n\n", array_filter([
+            $this->headline(),
+            sprintf(
+                'Full %s: attached file "%s" (filesystem_id %d)',
+                $this->kind->bodyLabel(),
+                $file->name,
+                $file->getId()
+            ),
+            $this->participantsLine(),
+            $this->reportLine(),
+            ...$body,
+        ]));
+    }
+
+    public function fileName(): string
+    {
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $this->occurredAt, $match) === 1 ? $match[0] : '';
+
+        $parts = [$this->kind->noun(), Str::slug(Str::limit($this->title, 60, '')), $date];
+
+        return implode('-', array_filter($parts)) . '.md';
+    }
+
+    private function headline(): string
+    {
+        return sprintf(
+            '%s: "%s"%s',
+            ucfirst($this->kind->noun()),
+            $this->title,
+            $this->occurredAt !== null ? " ({$this->occurredAt})" : ''
+        );
+    }
+
+    private function participantsLine(): ?string
+    {
+        $people = array_map(
+            static fn (array $actor): string => trim($actor['name'] . ($actor['email'] !== null ? " <{$actor['email']}>" : '')),
+            $this->actors
+        );
+
+        return $people !== [] ? 'Participants: ' . implode(', ', $people) : null;
+    }
+
+    private function reportLine(): ?string
+    {
+        return ! empty($this->metadata['report_url']) ? 'Report: ' . $this->metadata['report_url'] : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function summarySections(): array
+    {
+        $metadata = $this->metadata;
+
+        return array_values(array_filter([
+            ! empty($metadata['summary']) ? "Summary:\n" . $metadata['summary'] : null,
+            ! empty($metadata['chapters']) ? "Chapters:\n- " . implode("\n- ", (array) $metadata['chapters']) : null,
+            ! empty($metadata['action_items']) ? "Action items:\n- " . implode("\n- ", (array) $metadata['action_items']) : null,
+        ]));
     }
 
     /**
