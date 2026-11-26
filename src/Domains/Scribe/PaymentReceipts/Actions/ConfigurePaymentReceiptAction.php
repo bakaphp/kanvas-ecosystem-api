@@ -64,7 +64,9 @@ class ConfigurePaymentReceiptAction
 
     private function assertImage(?UploadedFile $file): void
     {
-        if ($file !== null && ! in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions())) {
+        $allowed = AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions();
+
+        if ($file !== null && ! in_array($file->extension(), $allowed, true)) {
             throw new ValidationException('Invalid file format ' . $file->extension());
         }
     }

@@ -16,9 +16,14 @@ class PaymentReceiptSettingsService
     public function current(Companies $company): array
     {
         return [
-            'received_by' => Str::trimToNull((string) $company->get(ConfigurationEnum::RECEIVED_BY->value)),
+            'received_by' => $this->receivedBy($company),
             'signature_url' => $company->getFileByName(ConfigurationEnum::SIGNATURE_FILE->value)?->filesystem?->url,
             'seal_url' => $company->getFileByName(ConfigurationEnum::SEAL_FILE->value)?->filesystem?->url,
         ];
+    }
+
+    public function receivedBy(Companies $company): ?string
+    {
+        return Str::trimToNull((string) $company->get(ConfigurationEnum::RECEIVED_BY->value));
     }
 }

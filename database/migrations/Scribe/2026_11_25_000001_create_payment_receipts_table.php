@@ -12,31 +12,11 @@ use Illuminate\Support\Facades\Schema;
  * `payment_receipt` sequence, listing every invoice the payment covered.
  */
 return new class () extends Migration {
-    private const array SEQUENCE_TYPES = [
-        'invoice',
-        'credit_note',
-        'quote',
-        'bill',
-        'vendor_credit',
-        'sales_receipt',
-        'expense',
-        'journal_entry',
-        'ecf_31',
-        'ecf_32',
-        'ecf_33',
-        'ecf_34',
-        'ecf_41',
-        'ecf_43',
-        'ecf_44',
-        'ecf_45',
-        'ecf_46',
-        'ecf_47',
-        'debit_note',
-    ];
+    private const string SEQUENCE_TYPE = 'payment_receipt';
 
     public function up(): void
     {
-        $this->setSequenceTypes([...self::SEQUENCE_TYPES, 'payment_receipt']);
+        $this->setSequenceTypes([...$this->sequenceTypes(), self::SEQUENCE_TYPE]);
 
         Schema::connection('accounting')->create('payment_receipts', function (Blueprint $table): void {
             $table->id();
@@ -75,9 +55,26 @@ return new class () extends Migration {
     {
         Schema::connection('accounting')->dropIfExists('payment_receipts');
 
-        DB::connection('accounting')->table('document_sequences')->where('document_type', 'payment_receipt')->delete();
+        DB::connection('accounting')
+            ->table('document_sequences')
+            ->where('document_type', self::SEQUENCE_TYPE)
+            ->delete();
 
-        $this->setSequenceTypes(self::SEQUENCE_TYPES);
+        $this->setSequenceTypes(array_values(array_diff($this->sequenceTypes(), [self::SEQUENCE_TYPE])));
+    }
+
+    /**
+     * The enum's current values, read from the column so this migration keeps whatever other migrations added.
+     *
+     * @return list<string>
+     */
+    private function sequenceTypes(): array
+    {
+        $column = DB::connection('accounting')->selectOne("SHOW COLUMNS FROM document_sequences LIKE 'document_type'");
+
+        preg_match_all("/'([^']+)'/", (string) $column->Type, $matches);
+
+        return array_values(array_unique($matches[1]));
     }
 
     /**

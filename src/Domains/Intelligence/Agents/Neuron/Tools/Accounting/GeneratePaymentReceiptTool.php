@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -19,7 +20,6 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-/** Issues the payment receipt for a confirmed customer payment and renders it as a one-page PDF. */
 #[AgentTool(name: 'Generate Payment Receipt', category: 'accounting')]
 class GeneratePaymentReceiptTool extends Tool
 {
@@ -79,18 +79,33 @@ class GeneratePaymentReceiptTool extends Tool
         $user = $this->contextUser();
 
         if ($user === null) {
-            return $this->failure('no_user_context', 'No acting user in scope, so the receipt cannot be stored against this company.');
+            return $this->failure(
+                'no_user_context',
+                'No acting user in scope, so the receipt cannot be stored against this company.'
+            );
         }
 
         $payment = Payment::query()
-            ->whereKey($payment_id)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
             ->notDeleted()
+            ->whereKey($payment_id)
             ->first();
 
         if ($payment === null) {
-            return $this->failure('payment_not_found', "No payment {$payment_id} for this company. Use the payment_id apply_ar_payment returned.");
+            return $this->failure(
+                'payment_not_found',
+                "No payment {$payment_id} for this company. Use the payment_id apply_ar_payment returned."
+            );
+        }
+
+        try {
+            $instrumentDate = $instrument_date === null ? null : Carbon::parse($instrument_date);
+        } catch (InvalidFormatException) {
+            return $this->failure(
+                'invalid_instrument_date',
+                "\"{$instrument_date}\" is not a date. Pass instrument_date as YYYY-MM-DD, or leave it out."
+            );
         }
 
         try {
@@ -102,7 +117,7 @@ class GeneratePaymentReceiptTool extends Tool
                     payment: $payment,
                     payerBank: $payer_bank,
                     instrumentNumber: $instrument_number,
-                    instrumentDate: $instrument_date === null ? null : Carbon::parse($instrument_date),
+                    instrumentDate: $instrumentDate,
                 )
             )->execute();
 
@@ -115,7 +130,8 @@ class GeneratePaymentReceiptTool extends Tool
 
             return $this->failure(
                 'receipt_failed',
-                'Could not produce the receipt: ' . $e->getMessage() . ' Asking again for the same payment is safe; its number is not spent twice.'
+                'Could not produce the receipt: ' . $e->getMessage()
+                . ' Asking again for the same payment is safe; its number is not spent twice.'
             );
         }
 
@@ -130,7 +146,8 @@ class GeneratePaymentReceiptTool extends Tool
             'filesystem_id' => $file->getId(),
             'file_url' => $file->url,
             'file_name' => $file->name,
-            'message' => 'Receipt issued and its PDF stored. Hand the person a link with get_file_link, never the raw id.',
+            'message' => 'Receipt issued and its PDF stored. Hand the person a link with get_file_link, never the '
+                . 'raw id.',
         ];
     }
 

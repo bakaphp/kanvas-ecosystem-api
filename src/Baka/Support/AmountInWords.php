@@ -10,17 +10,58 @@ use InvalidArgumentException;
 final class AmountInWords
 {
     private const array UNITS = [
-        'cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve',
-        'diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve',
-        'veinte', 'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis',
-        'veintisiete', 'veintiocho', 'veintinueve',
+        'cero',
+        'uno',
+        'dos',
+        'tres',
+        'cuatro',
+        'cinco',
+        'seis',
+        'siete',
+        'ocho',
+        'nueve',
+        'diez',
+        'once',
+        'doce',
+        'trece',
+        'catorce',
+        'quince',
+        'dieciséis',
+        'diecisiete',
+        'dieciocho',
+        'diecinueve',
+        'veinte',
+        'veintiuno',
+        'veintidós',
+        'veintitrés',
+        'veinticuatro',
+        'veinticinco',
+        'veintiséis',
+        'veintisiete',
+        'veintiocho',
+        'veintinueve',
     ];
 
-    private const array TENS = [3 => 'treinta', 4 => 'cuarenta', 5 => 'cincuenta', 6 => 'sesenta', 7 => 'setenta', 8 => 'ochenta', 9 => 'noventa'];
+    private const array TENS = [
+        3 => 'treinta',
+        4 => 'cuarenta',
+        5 => 'cincuenta',
+        6 => 'sesenta',
+        7 => 'setenta',
+        8 => 'ochenta',
+        9 => 'noventa',
+    ];
 
     private const array HUNDREDS = [
-        1 => 'ciento', 2 => 'doscientos', 3 => 'trescientos', 4 => 'cuatrocientos', 5 => 'quinientos',
-        6 => 'seiscientos', 7 => 'setecientos', 8 => 'ochocientos', 9 => 'novecientos',
+        1 => 'ciento',
+        2 => 'doscientos',
+        3 => 'trescientos',
+        4 => 'cuatrocientos',
+        5 => 'quinientos',
+        6 => 'seiscientos',
+        7 => 'setecientos',
+        8 => 'ochocientos',
+        9 => 'novecientos',
     ];
 
     private const int LIMIT = 1_000_000_000_000;
@@ -31,10 +72,14 @@ final class AmountInWords
         $cents = (int) round($amount * 100);
 
         if ($cents < 0 || intdiv($cents, 100) >= self::LIMIT) {
-            throw new InvalidArgumentException("Cannot write {$amount} in words: it must be between 0 and 999,999,999,999.99.");
+            throw new InvalidArgumentException(
+                "Cannot write {$amount} in words: it must be between 0 and 999,999,999,999.99."
+            );
         }
 
-        return self::words(intdiv($cents, 100)) . ' con ' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT) . '/100';
+        $fraction = str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
+
+        return self::words(intdiv($cents, 100)) . " con {$fraction}/100";
     }
 
     private static function words(int $number): string

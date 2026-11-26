@@ -50,7 +50,13 @@ class DocumentNumberAllocatorService
         ?string $defaultPrefix = null,
         ?int $defaultPadding = null,
     ): string {
-        return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $documentType, $defaultPrefix, $defaultPadding): string {
+        return DB::connection('accounting')->transaction(function () use (
+            $appsId,
+            $companiesId,
+            $documentType,
+            $defaultPrefix,
+            $defaultPadding
+        ): string {
             $sequence = $this->lockOrCreateSequence(
                 $appsId,
                 $companiesId,

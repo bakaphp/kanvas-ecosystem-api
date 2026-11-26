@@ -14,8 +14,8 @@ use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\PaymentReceipts\DataTransferObject\PaymentReceipt as PaymentReceiptData;
-use Kanvas\Scribe\PaymentReceipts\Enums\ConfigurationEnum;
 use Kanvas\Scribe\PaymentReceipts\Models\PaymentReceipt;
+use Kanvas\Scribe\PaymentReceipts\Services\PaymentReceiptSettingsService;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
@@ -31,16 +31,19 @@ class CreatePaymentReceiptAction
     public function __construct(
         protected readonly PaymentReceiptData $data,
         protected readonly DocumentNumberAllocatorService $allocator = new DocumentNumberAllocatorService(),
+        protected readonly PaymentReceiptSettingsService $settings = new PaymentReceiptSettingsService(),
     ) {
     }
 
     public function execute(): PaymentReceipt
     {
-        $payment = $this->data->payment;
-        $this->assertReceivable($payment);
-
-        return DB::connection('accounting')->transaction(function () use ($payment): PaymentReceipt {
-            Payment::query()->whereKey($payment->getId())->lockForUpdate()->firstOrFail();
+        return DB::connection('accounting')->transaction(function (): PaymentReceipt {
+            // Judged on the locked row, not on the copy the caller loaded: a payment reversed meanwhile gets none.
+            $payment = Payment::query()
+                ->whereKey($this->data->payment->getId())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $this->assertReceivable($payment);
 
             return PaymentReceipt::query()->where('payment_id', $payment->getId())->notDeleted()->first()
                 ?? $this->issue($payment);
@@ -78,7 +81,7 @@ class CreatePaymentReceiptAction
             'payer_bank' => Str::trimToNull($this->data->payerBank),
             'instrument_number' => Str::trimToNull($this->data->instrumentNumber),
             'instrument_date' => $this->data->instrumentDate,
-            'received_by' => Str::trimToNull((string) $payment->company->get(ConfigurationEnum::RECEIVED_BY->value)),
+            'received_by' => $this->settings->receivedBy($payment->company),
             'issued_at' => Carbon::now(),
             'issued_by_users_id' => $this->data->user->getId(),
         ]);
@@ -94,12 +97,15 @@ class CreatePaymentReceiptAction
         }
 
         if ($payment->direction !== PaymentDirectionEnum::INBOUND) {
-            throw new ValidationException('A receipt is issued for money received from a customer, not for a payment we made.');
+            throw new ValidationException(
+                'A receipt is issued for money received from a customer, not for a payment we made.'
+            );
         }
 
         if ($payment->status !== PaymentStatusEnum::CLEARED) {
             throw new ValidationException(
-                "Payment {$payment->getId()} is {$payment->status->value}: a receipt is issued once the payment is confirmed."
+                "Payment {$payment->getId()} is {$payment->status->value}: "
+                . 'a receipt is issued once the payment is confirmed.'
             );
         }
     }

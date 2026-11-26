@@ -16,7 +16,7 @@ input ScribePaymentReceiptSettingsInput {
 extend type Query @guard {
     scribePaymentReceiptSettings: ScribePaymentReceiptSettings!
         @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Setup\\PaymentReceiptSettingsMutation@current"
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Setup\\PaymentReceiptSettingsQuery@current"
         )
 }
 

@@ -92,6 +92,19 @@ final class PaymentReceiptTest extends ScribeTestCase
         $this->issue($payment);
     }
 
+    public function test_a_payment_reversed_after_it_was_loaded_gets_no_receipt(): void
+    {
+        $customer = $this->seedTestOrganization('Reversed Receipt Customer');
+        $payment = $this->clearedPayment(200.0, $this->issueTestInvoice($customer, 200.0));
+        Payment::query()->whereKey($payment->getId())->update(['status' => PaymentStatusEnum::REVERSED->value]);
+
+        $this->assertSame(PaymentStatusEnum::CLEARED, $payment->status, 'the copy in hand still says cleared');
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('is reversed');
+
+        $this->issue($payment);
+    }
+
     public function test_a_payment_we_made_gets_no_receipt(): void
     {
         $payment = $this->newPayment(50.0, PaymentDirectionEnum::OUTBOUND);

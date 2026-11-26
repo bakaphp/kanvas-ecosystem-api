@@ -61,7 +61,9 @@ final class PaymentReceiptPdfService
 
     public function fileName(): string
     {
-        return 'recibo-de-pago-' . (string) preg_replace('/[^A-Za-z0-9_-]+/', '-', $this->receipt->receipt_number) . '.pdf';
+        $number = (string) preg_replace('/[^A-Za-z0-9_-]+/', '-', $this->receipt->receipt_number);
+
+        return "recibo-de-pago-{$number}.pdf";
     }
 
     /**
@@ -69,7 +71,6 @@ final class PaymentReceiptPdfService
      */
     public function viewData(): array
     {
-        $company = $this->receipt->company;
         $receipt = $this->receipt;
 
         return [
@@ -83,7 +84,7 @@ final class PaymentReceiptPdfService
             'received_by' => $receipt->received_by,
             'signature' => $this->companyImage(ConfigurationEnum::SIGNATURE_FILE),
             'seal' => $this->companyImage(ConfigurationEnum::SEAL_FILE),
-            'issuer' => DocumentIssuerBlock::for($company),
+            'issuer' => DocumentIssuerBlock::for($receipt->company),
         ];
     }
 

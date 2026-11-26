@@ -67,6 +67,17 @@ final class GeneratePaymentReceiptToolTest extends ScribeTestCase
         $this->assertStringContainsString('confirmed', $result['message']);
     }
 
+    public function test_a_date_that_is_not_a_date_is_asked_for_again_and_issues_nothing(): void
+    {
+        [, $paymentId] = $this->appliedPayment('Bad Date Tool Customer', 75.0);
+
+        $result = $this->tool()->__invoke(payment_id: $paymentId, instrument_date: 'the day it cleared');
+
+        $this->assertFalse($result['generated']);
+        $this->assertSame('invalid_instrument_date', $result['reason']);
+        $this->assertFalse(PaymentReceipt::query()->where('payment_id', $paymentId)->exists());
+    }
+
     public function test_an_unknown_payment_is_reported_not_guessed(): void
     {
         $result = $this->tool()->__invoke(payment_id: 999999999);
