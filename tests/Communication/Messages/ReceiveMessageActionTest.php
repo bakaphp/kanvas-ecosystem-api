@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Communication\Messages;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -373,6 +374,37 @@ final class ReceiveMessageActionTest extends TestCase
     }
 
     /**
+     * "Warm" is seeded by onboarding, which not every company went through.
+     */
+    public function testACompanyWithoutTheDefaultLeadTypeStillOpensALead(): void
+    {
+        $this->companyLeadTypes()->update(['is_deleted' => 1]);
+
+        $first = $this->receive($this->inbound('+18095550741', 'wamid.41', 'Hola'));
+        $second = $this->receive($this->inbound('+18095550742', 'wamid.42', 'Hola'));
+
+        $firstLead = Message::query()->findOrFail($first['message_id'])->entity(Lead::class);
+        $secondLead = Message::query()->findOrFail($second['message_id'])->entity(Lead::class);
+        $warm = $this->companyLeadTypes()->where('name', 'Warm')->sole();
+
+        $this->assertSame($warm->getId(), $firstLead->leads_types_id);
+        $this->assertSame($warm->getId(), $secondLead->leads_types_id);
+        $this->assertSame($this->currentApp()->getId(), $warm->apps_id);
+    }
+
+    public function testALeadTypeTheReceiverNamesIsOpenedWhenTheCompanyLacksIt(): void
+    {
+        $this->receiver->update(['configuration' => ['lead_type' => 'Walk-in ' . Str::uuid()]]);
+
+        $result = $this->receive($this->inbound('+18095550743', 'wamid.43', 'Hola'));
+
+        $lead = Message::query()->findOrFail($result['message_id'])->entity(Lead::class);
+
+        $this->assertSame($this->receiver->configuration['lead_type'], $lead->type->name);
+        $this->assertSame($this->currentCompany()->getId(), $lead->type->companies_id);
+    }
+
+    /**
      * A session that stands in for someone else's number says nothing about the person filed: who
      * they are stays as it is on file.
      */
@@ -557,6 +589,13 @@ final class ReceiveMessageActionTest extends TestCase
             ->withAppId($this->currentApp()->getId())
             ->withCompanyId($this->currentCompany()->getId())
             ->create();
+    }
+
+    private function companyLeadTypes(): Builder
+    {
+        return LeadType::query()
+            ->fromCompany($this->currentCompany())
+            ->notDeleted();
     }
 
     private function assertNothingFiledFor(string $from): void
