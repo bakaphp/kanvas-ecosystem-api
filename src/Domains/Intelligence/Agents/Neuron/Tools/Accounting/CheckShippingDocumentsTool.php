@@ -83,14 +83,14 @@ class CheckShippingDocumentsTool extends AbstractCustomerOrderTool
         array $packing_list,
         float $bl_total_quantity,
     ): array {
-        $invoice = Invoice::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where('invoice_number', trim($invoice_number))
-            ->first();
+        $invoice = $this->findTenantRecordOrNotFound(
+            Invoice::class,
+            'invoice_number',
+            $invoice_number,
+            'invoice'
+        );
 
-        if ($invoice === null) {
+        if (! $invoice instanceof Invoice) {
             return [
                 'checked' => false,
                 'reason' => 'invoice_not_found',

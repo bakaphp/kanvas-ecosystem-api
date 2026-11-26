@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\SalesOrders\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
@@ -76,6 +77,10 @@ class RecordShipmentAction
 
     private function assertReadyToShip(): void
     {
+        if (Str::trimToNull($this->blNumber) === null) {
+            throw new ValidationException('A shipment needs the number of its bill of lading.');
+        }
+
         if ($this->order->documents_checked_at === null) {
             throw new ValidationException(
                 "Cross-check the shipping documents of {$this->order->order_number} before the bill of lading is recorded."

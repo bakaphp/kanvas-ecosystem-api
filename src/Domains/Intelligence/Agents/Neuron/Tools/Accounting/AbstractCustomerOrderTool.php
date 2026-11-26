@@ -123,16 +123,25 @@ abstract class AbstractCustomerOrderTool extends Tool
      */
     private function nextStep(SalesOrder $order, array $open): string
     {
-        return match (true) {
-            $order->document_status === SalesOrderStatusEnum::RECEIVED && $order->reviewed_at === null => 'Review it against its quote with review_customer_po.',
-            $order->document_status === SalesOrderStatusEnum::RECEIVED && $open !== [] => 'Clarify each open difference with the customer and record it with resolve_po_difference.',
-            $order->document_status === SalesOrderStatusEnum::RECEIVED => 'Ready to confirm: confirm_customer_order once Operations has confirmed it is feasible.',
-            $order->document_status === SalesOrderStatusEnum::CONFIRMED => 'Waiting for Operations: answer_customer_order accepts it with firm dates or returns it with a reason.',
-            $order->document_status === SalesOrderStatusEnum::RETURNED => 'Operations returned it: renegotiate with the customer, correct the order and review it again.',
-            $order->document_status === SalesOrderStatusEnum::ACCEPTED && $order->documents_checked_at === null => 'Accepted with firm dates: cross-check the shipping documents with check_shipping_documents before the bill of lading.',
-            $order->document_status === SalesOrderStatusEnum::ACCEPTED => 'Documents checked: once every difference is clarified, record the bill of lading with record_shipment.',
-            $order->document_status === SalesOrderStatusEnum::SHIPPED => 'Shipped: send the documents package (mark_documents_package_sent), follow get_collection_plan, and confirm_delivery with the proof of delivery.',
-            $order->document_status === SalesOrderStatusEnum::DELIVERED => 'Delivered: close_customer_order once its invoice is paid.',
+        return match ($order->document_status) {
+            SalesOrderStatusEnum::RECEIVED => match (true) {
+                $order->reviewed_at === null => 'Review it against its quote with review_customer_po.',
+                $open !== [] => 'Clarify each open difference with the customer and record it with '
+                    . 'resolve_po_difference.',
+                default => 'Ready to confirm: confirm_customer_order once Operations has confirmed it is feasible.',
+            },
+            SalesOrderStatusEnum::CONFIRMED => 'Waiting for Operations: answer_customer_order accepts it with firm '
+                . 'dates or returns it with a reason.',
+            SalesOrderStatusEnum::RETURNED => 'Operations returned it: renegotiate with the customer, correct the '
+                . 'order and review it again.',
+            SalesOrderStatusEnum::ACCEPTED => $order->documents_checked_at === null
+                ? 'Accepted with firm dates: cross-check the shipping documents with check_shipping_documents '
+                    . 'before the bill of lading.'
+                : 'Documents checked: once every difference is clarified, record the bill of lading with '
+                    . 'record_shipment.',
+            SalesOrderStatusEnum::SHIPPED => 'Shipped: send the documents package (mark_documents_package_sent), '
+                . 'follow get_collection_plan, and confirm_delivery with the proof of delivery.',
+            SalesOrderStatusEnum::DELIVERED => 'Delivered: close_customer_order once its invoice is paid.',
             default => 'Nothing more to do on this order in this step.',
         };
     }

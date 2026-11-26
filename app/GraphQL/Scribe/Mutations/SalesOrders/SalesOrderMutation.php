@@ -71,7 +71,7 @@ class SalesOrderMutation
             $this->order($request),
             (string) $request['key'],
             (string) $request['resolution'],
-            DifferenceSourceEnum::from((string) $request['source']),
+            DifferenceSourceEnum::from((string) ($request['source'] ?? DifferenceSourceEnum::REVIEW->value)),
         )->execute();
     }
 

@@ -16,13 +16,42 @@ class SalesOrderCollectionPlanService
      * @var list<array{day: int, action: string, owner: string}>
      */
     private const array STEPS = [
-        ['day' => 0, 'action' => 'Shipping notice; Collections creates the collection order due at the bill of lading date plus the payment term', 'owner' => 'Operations, then Collections'],
-        ['day' => 30, 'action' => 'Confirm the invoice is registered in the customer\'s accounts payable', 'owner' => 'Commercial'],
-        ['day' => 40, 'action' => 'Friendly reminder with the invoice and the bank details', 'owner' => 'Collections'],
-        ['day' => 45, 'action' => 'Confirm the payment date and ask for the proof of payment', 'owner' => 'Commercial'],
-        ['day' => 55, 'action' => 'No payment: call the customer', 'owner' => 'Commercial'],
-        ['day' => 65, 'action' => 'No payment: escalate to the Commercial Director', 'owner' => 'Direction'],
-        ['day' => 80, 'action' => 'No payment: no new order of the customer is confirmed or released', 'owner' => 'Gates 1 and 3'],
+        [
+            'day' => 0,
+            'action' => 'Shipping notice; Collections creates the collection order due at the bill of lading date '
+                . 'plus the payment term',
+            'owner' => 'Operations, then Collections',
+        ],
+        [
+            'day' => 30,
+            'action' => 'Confirm the invoice is registered in the customer\'s accounts payable',
+            'owner' => 'Commercial',
+        ],
+        [
+            'day' => 40,
+            'action' => 'Friendly reminder with the invoice and the bank details',
+            'owner' => 'Collections',
+        ],
+        [
+            'day' => 45,
+            'action' => 'Confirm the payment date and ask for the proof of payment',
+            'owner' => 'Commercial',
+        ],
+        [
+            'day' => 55,
+            'action' => 'No payment: call the customer',
+            'owner' => 'Commercial',
+        ],
+        [
+            'day' => 65,
+            'action' => 'No payment: escalate to the Commercial Director',
+            'owner' => 'Direction',
+        ],
+        [
+            'day' => 80,
+            'action' => 'No payment: no new order of the customer is confirmed or released',
+            'owner' => 'Gates 1 and 3',
+        ],
     ];
 
     /**

@@ -145,6 +145,22 @@ class ShipmentTest extends ScribeTestCase
         $this->record($order);
     }
 
+    public function test_a_shipment_needs_its_bill_of_lading_number(): void
+    {
+        [$order, $invoice] = $this->orderWithInvoice();
+        $order = $this->checkDocuments($order, $invoice);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('number of its bill of lading');
+
+        new RecordShipmentAction(
+            order: $order,
+            blNumber: '  ',
+            blDate: Carbon::parse('2026-12-10'),
+            user: static::$cachedUser,
+        )->execute();
+    }
+
     public function test_the_documents_package_is_recorded_once_the_order_has_shipped(): void
     {
         [$order, $invoice] = $this->orderWithInvoice();

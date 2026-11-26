@@ -23,8 +23,12 @@ class ShippingDocumentsCheckService
      *
      * @return list<array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}>
      */
-    public function differences(SalesOrder $order, Invoice $invoice, array $packingList, array $blDraft): array
-    {
+    public function differences(
+        SalesOrder $order,
+        Invoice $invoice,
+        array $packingList,
+        array $blDraft
+    ): array {
         $orderQuantities = $order->lines()->orderBy('line_number')->pluck('quantity')->all();
         $invoiceQuantities = $invoice->lines()->orderBy('sort_order')->pluck('quantity')->all();
         $packedQuantities = array_column($packingList, 'quantity');
@@ -38,7 +42,9 @@ class ShippingDocumentsCheckService
             ),
         ];
 
-        foreach (range(0, max(count($orderQuantities), count($invoiceQuantities), count($packedQuantities)) - 1) as $index) {
+        $count = max(count($orderQuantities), count($invoiceQuantities), count($packedQuantities));
+
+        for ($index = 0; $index < $count; $index++) {
             $number = $index + 1;
 
             $found[] = $this->ifChanged(

@@ -60,12 +60,22 @@ class ResolvePoDifferenceTool extends AbstractCustomerOrderTool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $order_number, string $key, string $resolution, string $source = 'review'): array
-    {
-        $differenceSource = DifferenceSourceEnum::tryFrom(strtolower(trim($source)));
+    public function __invoke(
+        string $order_number,
+        string $key,
+        string $resolution,
+        ?string $source = null,
+    ): array {
+        $differenceSource = DifferenceSourceEnum::tryFrom(
+            strtolower(trim($source ?? DifferenceSourceEnum::REVIEW->value))
+        );
 
         if ($differenceSource === null) {
-            return ['resolved' => false, 'reason' => 'unknown_source', 'message' => 'The source has to be review or documents.'];
+            return [
+                'resolved' => false,
+                'reason' => 'unknown_source',
+                'message' => 'The source has to be review or documents.',
+            ];
         }
 
         return $this->actOn(
