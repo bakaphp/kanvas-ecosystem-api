@@ -261,8 +261,8 @@ class RescheduleCalendarEventToolTest extends TestCase
     }
 
     /**
-     * `US/Central` is a zone PHP accepts and the booking tool books in, but it is not a canonical
-     * IANA name, so the email used to drop it for the Santo Domingo fallback: 4:00 PM for a 3 PM call.
+     * `US/Central` is a zone PHP accepts and the booking tool books in, but not a canonical IANA name,
+     * so the schedule resolver rejects it. Falling back to Santo Domingo here reads 4:00 PM for a 3 PM call.
      */
     public function testEmailUsesACompanyTimezoneSavedUnderItsLegacyName(): void
     {
@@ -298,13 +298,11 @@ class RescheduleCalendarEventToolTest extends TestCase
         $event->resources_id = null;
         $event->resources_type = null;
         $event->saveQuietly();
+        $version = $event->versions()->first();
 
         Notification::fake();
 
-        new SendEventEmailsAction(
-            $event->versions()->first(),
-            EmailTemplateEnum::BOOKING_CREATED->value
-        )->execute();
+        new SendEventEmailsAction($version, EmailTemplateEnum::BOOKING_CREATED->value)->execute();
 
         Notification::assertSentOnDemand(
             EventParticipantNotification::class,
