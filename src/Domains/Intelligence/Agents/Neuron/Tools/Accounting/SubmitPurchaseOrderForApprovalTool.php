@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\FindsPurchaseOrderByNumber;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Ledger\Exceptions\InvalidDocumentTransitionException;
 use Kanvas\Scribe\Purchasing\Actions\SubmitPurchaseOrderForApprovalAction;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -15,7 +17,6 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-/** Submits a draft purchase order to its approvers; it never approves it. */
 #[AgentTool(name: 'Submit Purchase Order For Approval', category: 'accounting')]
 class SubmitPurchaseOrderForApprovalTool extends Tool
 {
@@ -60,6 +61,8 @@ class SubmitPurchaseOrderForApprovalTool extends Tool
         try {
             $submitted = new SubmitPurchaseOrderForApprovalAction($order, $this->user)->execute();
         } catch (Throwable $e) {
+            report_unless($e instanceof ValidationException || $e instanceof InvalidDocumentTransitionException, $e);
+
             return [
                 'submitted' => false,
                 'order_number' => $order->order_number,

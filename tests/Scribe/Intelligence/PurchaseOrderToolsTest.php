@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreatePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -335,15 +341,67 @@ class PurchaseOrderToolsTest extends ScribeTestCase
 
     public function test_an_order_that_is_not_approved_is_not_sent(): void
     {
-        $order = $this->createPurchaseOrderFor($this->seedTestOrganization('Send Tool Vendor'));
+        $vendor = $this->seedTestOrganization('Send Tool Vendor');
+        $order = $this->createPurchaseOrderFor($vendor);
+        $onFile = $this->seedVendorContact($vendor, 'purchasing@vendor.example.test');
 
-        $result = new SendPurchaseOrderTool()
-            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(order_number: $order->order_number, to: ['purchasing@vendor.example.test']);
+        $result = $this->sendTool()->__invoke(order_number: $order->order_number, to: [$onFile]);
 
         $this->assertFalse($result['sent']);
         $this->assertSame('send_failed', $result['reason']);
-        $this->assertSame('purchase_order_not_found', $this->sendTool()->__invoke(order_number: 'PO-999999999', to: [])['reason']);
+        $this->assertSame(
+            'purchase_order_not_found',
+            $this->sendTool()->__invoke(order_number: 'PO-999999999', to: [])['reason']
+        );
+    }
+
+    public function test_an_order_is_sent_only_to_a_contact_on_file_for_its_vendor(): void
+    {
+        $vendor = $this->seedTestOrganization('Closed Set Vendor');
+        $order = $this->createPurchaseOrderFor($vendor);
+        $onFile = $this->seedVendorContact($vendor, 'orders@closed-set.example.test');
+        $elsewhere = $this->seedVendorContact(
+            $this->seedTestOrganization('Another Vendor'),
+            'orders@another.example.test'
+        );
+        Mail::fake();
+
+        foreach (['stranger@nowhere.example.test', $elsewhere] as $outside) {
+            $result = $this->sendTool()->__invoke(order_number: $order->order_number, to: [$onFile, $outside]);
+
+            $this->assertFalse($result['sent']);
+            $this->assertSame('recipient_not_allowed', $result['reason']);
+            $this->assertSame([$outside], $result['refused']);
+        }
+
+        Mail::assertNothingSent();
+        $this->assertNull($order->fresh()->sent_at);
+    }
+
+    private function seedVendorContact(Organization $vendor, string $email): string
+    {
+        $person = People::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => 'Vendor Contact',
+            'firstname' => 'Vendor',
+            'lastname' => 'Contact',
+        ]);
+        Contact::create([
+            'peoples_id' => $person->getId(),
+            'contacts_types_id' => ContactTypeEnum::EMAIL->value,
+            'value' => $email,
+            'weight' => 0,
+            'is_deleted' => 0,
+        ]);
+        OrganizationPeople::create([
+            'organizations_id' => $vendor->getId(),
+            'peoples_id' => $person->getId(),
+            'created_at' => Carbon::now(),
+        ]);
+
+        return $email;
     }
 
     public function test_the_agent_renders_the_order_as_a_pdf(): void

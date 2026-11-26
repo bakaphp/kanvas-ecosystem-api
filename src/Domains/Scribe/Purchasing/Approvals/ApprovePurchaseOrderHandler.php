@@ -11,6 +11,7 @@ use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Purchasing\Actions\ApprovePurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Actions\RejectPurchaseOrderAction;
+use Kanvas\Scribe\Purchasing\Actions\SubmitPurchaseOrderForApprovalAction;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Override;
 
@@ -51,7 +52,7 @@ class ApprovePurchaseOrderHandler implements ApprovalHandlerInterface, ApprovalR
     private function result(PurchaseOrder $order): array
     {
         return [
-            'target_type' => 'purchase_order',
+            'target_type' => SubmitPurchaseOrderForApprovalAction::TARGET_TYPE,
             'target_id' => $order->getId(),
             'label' => $order->order_number,
             'pushed' => false,

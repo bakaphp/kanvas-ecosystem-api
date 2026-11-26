@@ -17,6 +17,7 @@ use Kanvas\Approvals\Contracts\ReactsToApprovalExpiryInterface;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Concerns\HasInternalNotes;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Override;
@@ -43,6 +44,7 @@ use Override;
  * @property string|null $sent_to
  * @property string|null $currency
  * @property string|null $notes
+ * @property string|null $internal_notes
  * @property string $order_total
  * @property string $source
  * @property string|null $external_id
@@ -56,6 +58,7 @@ use Override;
 class PurchaseOrder extends BaseModel implements DescribesApprovalDetailsInterface, ReactsToApprovalExpiryInterface
 {
     use HasApprovals;
+    use HasInternalNotes;
     use HasLightHouseCache;
     use UuidTrait;
 
@@ -96,20 +99,21 @@ class PurchaseOrder extends BaseModel implements DescribesApprovalDetailsInterfa
         ];
     }
 
-    /**
-     * An order whose approval expired with no decision goes back to draft, with a note saying why.
-     */
     #[Override]
     public function approvalExpired(ApprovalRequest $request): void
     {
-        if ($this->document_status !== PurchaseOrderStatusEnum::PENDING_APPROVAL) {
-            return;
+        if ($this->document_status === PurchaseOrderStatusEnum::PENDING_APPROVAL) {
+            $this->returnToDraft("Approval request #{$request->getId()} expired with no decision.");
         }
+    }
 
+    /**
+     * Back to draft for correction. Why is a staff note, never `notes`, which prints on the vendor's document.
+     */
+    public function returnToDraft(string $reason): void
+    {
         $this->document_status = PurchaseOrderStatusEnum::DRAFT;
-        $this->notes = trim(
-            ($this->notes ?? '') . "\nApproval request #{$request->getId()} expired with no decision; back in draft."
-        );
+        $this->appendInternalNote($reason);
         $this->saveOrFail();
     }
 
