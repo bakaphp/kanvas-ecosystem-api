@@ -36,6 +36,7 @@ use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Users\Models\Users;
@@ -612,11 +613,11 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_create_ar_credit_memo_requires_an_invoice_number(): void
     {
-        $customer = $this->seedTestOrganization('Proshop');
+        $customer = $this->seedTestOrganization('Northwind');
 
         $result = new CreateArCreditMemoTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Proshop', invoice_number: '', lines: [['control_account_number' => '71610', 'amount' => 50.0]]);
+            ->__invoke(customer_name: 'Northwind', invoice_number: '', lines: [['control_account_number' => '71610', 'amount' => 50.0]]);
 
         $this->assertFalse($result['created']);
         $this->assertSame('invoice_number_required', $result['reason']);
@@ -634,11 +635,11 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_create_ar_credit_memo_reports_not_found_for_unknown_control_account(): void
     {
-        $this->seedTestOrganization('Proshop');
+        $this->seedTestOrganization('Northwind');
 
         $result = new CreateArCreditMemoTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Proshop', invoice_number: 'REF-1', lines: [['control_account_number' => 'DOES-NOT-EXIST', 'amount' => 50.0]]);
+            ->__invoke(customer_name: 'Northwind', invoice_number: 'REF-1', lines: [['control_account_number' => 'DOES-NOT-EXIST', 'amount' => 50.0]]);
 
         $this->assertFalse($result['created']);
         $this->assertSame('account_not_found', $result['reason']);
@@ -646,7 +647,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_create_ar_credit_memo_issues_a_standalone_credit_note(): void
     {
-        $customer = $this->seedTestOrganization('Proshop Rebate QA Customer');
+        $customer = $this->seedTestOrganization('Rebate QA Customer');
         $controlAccount = Account::query()
             ->where('apps_id', $this->kanvasApp->getId())
             ->where('companies_id', $this->company->getId())
@@ -656,22 +657,22 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $result = new CreateArCreditMemoTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(
-                customer_name: 'Proshop Rebate QA Customer',
-                invoice_number: 'Proshop Superdays Sell-Out (22/05-07/06)',
+                customer_name: 'Rebate QA Customer',
+                invoice_number: 'Spring Sell-Out Rebate (22/05-07/06)',
                 lines: [
                     ['control_account_number' => $controlAccount->account_number, 'amount' => 250.0, 'description' => 'Promotion Discount'],
                 ],
             );
 
         $this->assertTrue($result['created']);
-        $this->assertSame('Proshop Rebate QA Customer', $result['customer']);
+        $this->assertSame('Rebate QA Customer', $result['customer']);
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $result['processed_at']);
 
         /** @var Invoice $creditNote */
         $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
         $this->assertSame(DocumentTypeEnum::CREDIT_NOTE, $creditNote->document_type);
         $this->assertNull($creditNote->parent_invoice_id);
-        $this->assertSame('Proshop Superdays Sell-Out (22/05-07/06)', $creditNote->invoice_number);
+        $this->assertSame('Spring Sell-Out Rebate (22/05-07/06)', $creditNote->invoice_number);
         $this->assertSame($customer->getId(), $creditNote->customer_organization_id);
         $this->assertSame(250.0, (float) $creditNote->total_native);
 
@@ -705,6 +706,50 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
         $this->assertStringContainsString('Notes QA Reference', $creditNote->notes);
         $this->assertStringContainsString('Back-end rebate on sales-out, no VAT. Approved by the requester.', $creditNote->notes);
+    }
+
+    public function test_create_ar_credit_memo_without_an_account_debits_the_default_revenue_account(): void
+    {
+        $this->seedTestOrganization('Rebate Customer');
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Rebate Customer',
+                invoice_number: 'Spring Rebate',
+                lines: [['amount' => 120.0]],
+            );
+
+        $this->assertTrue($result['created']);
+
+        $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
+        $line = $creditNote->lines->first();
+        $this->assertNull($line->account_id);
+        $this->assertSame('Spring Rebate', $line->description);
+
+        $debit = JournalEntry::query()
+            ->where('source_type', 'credit_note')
+            ->where('source_id', $creditNote->getId())
+            ->firstOrFail()
+            ->lines
+            ->firstWhere('account_id', $this->accountIdBySubType(AccountSubTypeEnum::SERVICE_REVENUE));
+        $this->assertSame(120.0, (float) $debit->debit_native);
+    }
+
+    public function test_create_ar_credit_memo_rejects_a_line_without_a_positive_amount(): void
+    {
+        $this->seedTestOrganization('Zero Line Customer');
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Zero Line Customer',
+                invoice_number: 'Zero Line Reference',
+                lines: [['description' => 'Rebate']],
+            );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('invalid_line', $result['reason']);
     }
 
     public function test_create_ar_credit_memo_writes_natively_without_connector_notification(): void

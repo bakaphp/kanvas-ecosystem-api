@@ -15,6 +15,6 @@ Holds business logic tied to NZXT's own exact document formats — not generic K
 1. Add a case to `Kanvas\Scribe\Invoices\Enums\CreditRequestFormClientEnum` (e.g. `OTHER_CLIENT = 'other_client'`).
 2. Build `Connectors/{Client}/Services/CreditRequestFormParserService.php` implementing `CreditRequestFormParserInterface`.
 3. Add a matching arm to `CreditRequestFormParserFactory::forClient()`.
-4. Set that tenant's app config `credit-request-form-client` (`ConfigurationEnum::CREDIT_REQUEST_FORM_CLIENT`) to the new enum value — NZXT's apps stay on the default and are unaffected.
+4. Set that tenant's app config `credit-request-form-client` (`ConfigurationEnum::CREDIT_REQUEST_FORM_CLIENT`) to the new enum value — an app with no value set has no parser and `extract_credit_request_form` tells the agent to use `draft_credit_note` instead, so NZXT's own apps must set `nzxt` explicitly.
 
 Never add a second client's label/layout knowledge into this NZXT-specific class — that's exactly the coupling this module exists to avoid.
