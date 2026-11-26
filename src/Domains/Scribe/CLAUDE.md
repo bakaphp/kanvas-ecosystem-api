@@ -140,6 +140,20 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   with `create_purchase_order`, `update_purchase_order` and `cancel_purchase_order`; GraphQL is
   `createScribePurchaseOrder`, `updateScribePurchaseOrder` and `cancelScribePurchaseOrder`. Approving, sending and
   receiving are the next layers; the status graph already has their states.
+- **A sales order is what a customer committed to buy, and it passes two gates before anything ships.** It is the
+  customer's own purchase order (`customer_po`) or our proforma returned signed and stamped (`signed_proforma`, which
+  takes its lines, currency and number from the quote). `RegisterCustomerPoAction` numbers it from its own `sales_order`
+  sequence (`SO-`) as `received`; `ReviewSalesOrderAction` compares it with its quote (lines matched by position) and the
+  agreed terms, and every difference stays open until `ResolveSalesOrderDifferenceAction` records how it was clarified.
+  Gate 1, `ConfirmSalesOrderAction`: a review with no open difference, a valid commitment
+  (`SalesOrderValidityService`: an authorized signer, plus stamp and date, matching legal identity and initialed pages
+  for a signed proforma) and Operations' word that it is feasible. Gate 2: `AcceptSalesOrderAction` with firm etd and
+  eta, or `ReturnSalesOrderAction` with a reason, which goes back to Commercial (editing a returned order puts it back
+  to `received` and voids the review). Cancel works until it ships. `SalesOrderStateMachineService` already holds the
+  shipping states. The AR agent drives it with `register_customer_po`, `review_customer_po`, `resolve_po_difference`,
+  `confirm_customer_order`, `answer_customer_order`, `cancel_customer_order`, `find_customer_order` and `list_customer_orders`;
+  GraphQL is `registerScribeCustomerPo` and the matching update, review, resolve, confirm, accept, return and cancel
+  mutations. Credit and margin checks on gate 1 are not in yet.
 - **Regional compliance** (NCF for DR, CFDI for MX, NFE for BR, …) lives in a single `regional_compliance` JSON column on invoices/bills/quotes/sales_receipts, validated by per-country validator services in `Scribe/Regional/Validators/{Country}/{Code}Validator`. NOT custom fields (those are tenant-choice extensions); NOT dedicated DR-only columns (schema bloat).
 - **Electronic invoicing state is NOT in that JSON.** `regional_compliance.do_ecf` holds only the pre-issuance
   choices (`EcfCompliance::draftSettings()`: type, export, purchase order, withholding, foreign payment). From
