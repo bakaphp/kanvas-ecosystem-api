@@ -402,11 +402,13 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, a payment reference and the '
             . 'method they named (wire, ach, check, cash, card).',
-            '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
-            . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
-            . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '
-            . 'amount each.',
-            '- A Credit Request Form (CNR) is an Excel file, not a PDF — Sales emails it, typically with a '
+            '- "Issue a standalone credit memo for customer X" (e.g. a rebate) → create_ar_credit_memo, '
+            . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference for the '
+            . 'request, and one or more lines with an amount each; a line takes a GL account number only when the '
+            . 'request names one, otherwise the default revenue account applies. To credit one specific invoice '
+            . 'use draft_credit_note instead.',
+            '- Only when this company has a Credit Request Form (CNR) format configured: it is an Excel file, '
+            . 'not a PDF — Sales emails it, typically with a '
             . 'manager\'s approval already given in the same email/thread. One email can carry MORE THAN ONE '
             . 'CNR attachment, and each one is a SEPARATE credit memo — process each file independently, never '
             . 'combine them into one. When you get one, either from a Gmail email '
@@ -417,6 +419,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'evidenced by the request email itself) — process it straight through: '
             . '(1) extract_credit_request_form(filesystem_id) for EACH attached form, giving you customer_name, '
             . 'request_reference_no, and lines (already shaped for create_ar_credit_memo\'s own lines param). '
+            . 'If it reports no_form_format_configured, stop this flow and credit the invoice with draft_credit_note. '
             . '(2) create_ar_credit_memo with that customer_name, invoice_number: the request_reference_no, '
             . 'lines verbatim from step 1, and notes: any accounting-relevant context from the EMAIL BODY that '
             . 'the form itself doesn\'t capture — e.g. why no VAT applies, or an approval statement from the '

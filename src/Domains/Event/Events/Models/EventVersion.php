@@ -74,6 +74,20 @@ class EventVersion extends BaseModel implements ReadableAtLocation
         return $query->notDeleted()->notCancelled();
     }
 
+    public function scopeDaysOfEvent(Builder $query, int $eventId): Builder
+    {
+        return $query
+            ->live()
+            ->where('event_id', $eventId)
+            ->whereNull('time_slot_id')
+            ->orderBy('start_at');
+    }
+
+    public function scopeByReference(Builder $query, string $reference): Builder
+    {
+        return $query->where($this->qualifyColumn('reference'), strtoupper(trim($reference)));
+    }
+
     public function timeSlot(): BelongsTo
     {
         return $this->belongsTo(TimeSlots::class, 'time_slot_id');
@@ -266,17 +280,26 @@ class EventVersion extends BaseModel implements ReadableAtLocation
 
     public function getPassCode(): ?string
     {
+        return $this->isManagedByCurrentUser() ? $this->plainBookingPassCode() : null;
+    }
+
+    public function getVisibleReference(): ?string
+    {
+        return $this->isManagedByCurrentUser() ? $this->reference : null;
+    }
+
+    private function isManagedByCurrentUser(): bool
+    {
         $user = auth()->user();
 
-        if ($user === null || ! $this->isManagedBy($user)) {
-            return null;
-        }
+        return $user !== null && $this->isManagedBy($user);
+    }
 
+    public function plainBookingPassCode(): ?string
+    {
         $pass = ParticipantPass::query()
             ->where('event_version_id', $this->getId())
-            ->whereNull('participant_id')
-            ->whereNull('revoked_at')
-            ->notDeleted()
+            ->activeBookingPass()
             ->first();
 
         return $pass ? decrypt($pass->code) : null;

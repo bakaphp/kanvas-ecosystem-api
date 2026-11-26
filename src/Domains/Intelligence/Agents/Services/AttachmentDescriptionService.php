@@ -98,21 +98,29 @@ class AttachmentDescriptionService
 
         $handler->setConfiguration(agent: $agent, user: $user);
 
-        return self::forHandler($handler, $agent);
+        // Nobody waits on a caption, so a model that is briefly out of capacity hands the attachment to
+        // the agent's fallback instead of leaving it undescribed (KANVAS-ECOSYSTEM-70B).
+        $chain = new NeuronResponderProviderFallback()->wrap($handler->getProvider(), $agent);
+
+        return self::forHandler($handler, $agent, $chain);
     }
 
     /**
      * For a caller already holding the configured handler (the chat runner), so the provider is not
-     * built a second time just to describe one attachment.
+     * built a second time just to describe one attachment. Audio is always matched against the
+     * handler's own provider: a failover chain says nothing about what its models can hear.
      */
-    public static function forHandler(BehavesAsKanvasAgent $handler, Agent $agent): self
-    {
+    public static function forHandler(
+        BehavesAsKanvasAgent $handler,
+        Agent $agent,
+        ?AIProviderInterface $chain = null,
+    ): self {
         $provider = $handler->getProvider();
         $audioProvider = app()->bound(self::AUDIO_PROVIDER_BINDING)
             ? app(self::AUDIO_PROVIDER_BINDING)
             : AgentProviderService::audioProvider($agent, $provider);
 
-        return new self($provider, ! $handler instanceof ConversesWithCustomer, $audioProvider);
+        return new self($chain ?? $provider, ! $handler instanceof ConversesWithCustomer, $audioProvider);
     }
 
     /**

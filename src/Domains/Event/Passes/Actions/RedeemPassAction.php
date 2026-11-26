@@ -6,6 +6,7 @@ namespace Kanvas\Event\Passes\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Models\ParticipantPass;
@@ -38,23 +39,30 @@ class RedeemPassAction
             return $pass;
         }
 
-        if (! $pass->isRedeemable() || ! $this->claim($pass)) {
-            throw new ValidationException('Invalid access code.');
-        }
+        $this->claim($pass);
 
         return $pass->refresh();
     }
 
-    private function claim(ParticipantPass $pass): bool
+    private function claim(ParticipantPass $pass): void
     {
-        return ParticipantPass::query()
-            ->whereKey($pass->getId())
-            ->whereNull('revoked_at')
-            ->where('redeemed_at', $pass->redeemed_at)
-            ->where('redeemed_event_version_id', $pass->redeemed_event_version_id)
-            ->update([
+        DB::connection('event')->transaction(function () use ($pass): void {
+            $locked = ParticipantPass::query()->whereKey($pass->getId())->lockForUpdate()->firstOrFail();
+            $day = $this->booking->timeSlot?->localDate();
+
+            if (
+                ! $locked->isValid()
+                || $locked->remainingUses(locking: true) < 1
+                || ($day !== null && in_array($day, $locked->bookedDays(locking: true), true))
+            ) {
+                throw new ValidationException('Invalid access code.');
+            }
+
+            $locked->update([
                 'redeemed_at' => Carbon::now(),
                 'redeemed_event_version_id' => $this->booking->getId(),
-            ]) === 1;
+            ]);
+            $locked->recordRedemption($this->booking);
+        });
     }
 }

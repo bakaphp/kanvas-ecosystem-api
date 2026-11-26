@@ -53,7 +53,8 @@ class ConfirmCustomerOrderTool extends AbstractCustomerOrderTool
         return $this->actOn(
             $order_number,
             'confirmed',
-            static fn (SalesOrder $order): SalesOrder => new ConfirmSalesOrderAction($order, $feasibility_confirmed)->execute()
+            static fn (SalesOrder $order): SalesOrder => new ConfirmSalesOrderAction($order, $feasibility_confirmed)
+                ->execute()
         );
     }
 }

@@ -36,13 +36,13 @@ class ListCustomerOrdersTool extends AbstractCustomerOrderTool
             ),
             new ToolProperty(
                 name: 'customer_organization_id',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'Only this customer\'s orders.',
                 required: false,
             ),
             new ToolProperty(
                 name: 'limit',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'Max orders to return. Defaults to 20, max 100.',
                 required: false,
             ),
@@ -68,7 +68,10 @@ class ListCustomerOrdersTool extends AbstractCustomerOrderTool
             ->fromCompany($this->company)
             ->notDeleted()
             ->when($statusFilter !== null, fn ($query) => $query->where('document_status', $statusFilter->value))
-            ->when($customer_organization_id !== null, fn ($query) => $query->where('customer_organization_id', $customer_organization_id))
+            ->when(
+                $customer_organization_id !== null,
+                fn ($query) => $query->where('customer_organization_id', $customer_organization_id)
+            )
             ->orderByDesc('received_at')
             ->limit(max(1, min(100, $limit ?? 20)))
             ->get()

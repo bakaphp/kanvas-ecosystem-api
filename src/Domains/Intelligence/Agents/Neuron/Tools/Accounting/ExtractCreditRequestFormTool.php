@@ -51,6 +51,17 @@ class ExtractCreditRequestFormTool extends Tool
      */
     public function __invoke(int $filesystem_id): array
     {
+        $parser = CreditRequestFormParserFactory::forApp($this->app);
+
+        if ($parser === null) {
+            return [
+                'success' => false,
+                'reason' => 'no_form_format_configured',
+                'message' => 'This company has no Credit Request Form format configured. Do not read the form by hand: '
+                    . 'use draft_credit_note on the invoice being credited instead.',
+            ];
+        }
+
         $file = $this->findTenantFile($filesystem_id);
 
         if ($file === null) {
@@ -66,7 +77,7 @@ class ExtractCreditRequestFormTool extends Tool
                 $file,
                 'cnr_',
                 'xlsx',
-                fn (string $path): array => CreditRequestFormParserFactory::forApp($this->app)->parse($path)
+                fn (string $path): array => $parser->parse($path)
             );
         } catch (Throwable $e) {
             return [

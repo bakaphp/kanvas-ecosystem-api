@@ -151,9 +151,15 @@ class Rule extends BaseModel
             && (bool) (($this->params ?? [])[EnsureAppDefaultRulesAction::PARAM] ?? false);
     }
 
+    /**
+     * A step is retired by soft-deleting its row while the rule stays for its other steps, so a
+     * deleted row is not a step: the run, the copy command and the API all read this.
+     */
     public function workflowActivities(): HasMany
     {
-        return $this->hasMany(RuleAction::class, 'rules_id', 'id')->orderBy('weight', 'ASC');
+        return $this->hasMany(RuleAction::class, 'rules_id', 'id')
+            ->where('rules_actions.is_deleted', 0)
+            ->orderBy('weight', 'ASC');
     }
 
     public function getRulesConditions(): HasMany

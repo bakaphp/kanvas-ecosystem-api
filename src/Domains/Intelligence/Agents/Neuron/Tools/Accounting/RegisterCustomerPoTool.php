@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\SalesOrders\Actions\RegisterCustomerPoAction;
 use Kanvas\Scribe\SalesOrders\DataTransferObject\SalesOrder as SalesOrderData;
+use Kanvas\Scribe\SalesOrders\Services\SalesOrderValidityService;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
@@ -37,7 +38,7 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
         return [
             new ToolProperty(
                 name: 'customer_organization_id',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'The Kanvas organization id of the customer (find_customer returns it).',
                 required: true,
             ),
@@ -123,7 +124,7 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
             ),
             new ToolProperty(
                 name: 'payment_terms_days',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'Payment term in days on the customer\'s order, e.g. 50.',
                 required: false,
             ),
@@ -140,25 +141,25 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
                 required: false,
                 properties: [
                     new ToolProperty(
-                        name: 'authorized_signer',
+                        name: SalesOrderValidityService::AUTHORIZED_SIGNER,
                         type: PropertyType::BOOLEAN,
                         description: 'Signed by an authorized representative (legal representative or with power of attorney).',
                         required: false,
                     ),
                     new ToolProperty(
-                        name: 'legible_stamp_and_date',
+                        name: SalesOrderValidityService::STAMP_AND_DATE,
                         type: PropertyType::BOOLEAN,
                         description: 'Legible stamp and date.',
                         required: false,
                     ),
                     new ToolProperty(
-                        name: 'matching_legal_name_and_tax_id',
+                        name: SalesOrderValidityService::MATCHING_LEGAL_IDENTITY,
                         type: PropertyType::BOOLEAN,
                         description: 'Legal name and tax id identical to the proforma.',
                         required: false,
                     ),
                     new ToolProperty(
-                        name: 'all_pages_initialed',
+                        name: SalesOrderValidityService::ALL_PAGES_INITIALED,
                         type: PropertyType::BOOLEAN,
                         description: 'Every page initialed, with no crossings-out or handwritten changes to the terms.',
                         required: false,
@@ -195,28 +196,14 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
         ?array $signature_checklist = null,
         ?string $notes = null,
     ): array {
-        $customerExists = Organization::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->whereKey($customer_organization_id)
-            ->exists();
+        $quote = $quote_number === null ? null : $this->findTenantRecordOrNotFound(
+            Quote::class,
+            'quote_number',
+            $quote_number,
+            'quote'
+        );
 
-        if (! $customerExists) {
-            return [
-                'registered' => false,
-                'reason' => 'customer_not_found',
-                'message' => "No customer with organization id {$customer_organization_id} for this company.",
-            ];
-        }
-
-        $quote = $quote_number === null ? null : Quote::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where('quote_number', trim($quote_number))
-            ->first();
-
-        if ($quote_number !== null && $quote === null) {
+        if (is_array($quote)) {
             return [
                 'registered' => false,
                 'reason' => 'quote_not_found',
@@ -226,7 +213,7 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
 
         try {
             $order = new RegisterCustomerPoAction(
-                SalesOrderData::fromMultiple(
+                SalesOrderData::from(
                     $this->app,
                     $this->user,
                     $this->company,
@@ -247,6 +234,13 @@ class RegisterCustomerPoTool extends AbstractCustomerOrderTool
                     ], static fn (mixed $value): bool => $value !== null)
                 )
             )->execute();
+        } catch (ModelNotFoundException) {
+            // The quote was found above, so the customer is the only lookup left in the DTO.
+            return [
+                'registered' => false,
+                'reason' => 'customer_not_found',
+                'message' => "No customer with organization id {$customer_organization_id} for this company.",
+            ];
         } catch (Throwable $e) {
             return [
                 'registered' => false,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Closure;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
@@ -18,17 +19,20 @@ use Throwable;
  */
 abstract class AbstractCustomerOrderTool extends Tool
 {
+    use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
     protected function salesOrderByNumber(string $orderNumber): ?SalesOrder
     {
-        return SalesOrder::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where('order_number', trim($orderNumber))
-            ->first();
+        $order = $this->findTenantRecordOrNotFound(
+            SalesOrder::class,
+            'order_number',
+            $orderNumber,
+            'sales order'
+        );
+
+        return $order instanceof SalesOrder ? $order : null;
     }
 
     /**

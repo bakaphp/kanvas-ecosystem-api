@@ -14,11 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Override;
 
 /**
- * A read-mirror of a source-ERP purchase order, for AP-bill matching. Not a posted accounting
- * document — reference data the agent queries to match an invoice to its PO and inherit line coding.
+ * A purchase order, for AP-bill matching. One mirrored from a source ERP (source other than kanvas) is
+ * read-only reference data; one the company issues itself (source kanvas) has a document_status and its own
+ * lifecycle. Neither posts to the ledger.
  *
  * @property int $id
  * @property int $apps_id
@@ -29,13 +31,18 @@ use Override;
  * @property int|null $vendor_organization_id
  * @property string|null $vendor_code
  * @property string|null $status
+ * @property PurchaseOrderStatusEnum|null $document_status
  * @property Carbon|null $order_date
+ * @property Carbon|null $expected_date
  * @property string|null $currency
+ * @property string|null $notes
  * @property string $order_total
  * @property string $source
  * @property string|null $external_id
  * @property Carbon|null $last_synced_at
  * @property array|null $metadata
+ * @property Carbon|null $cancelled_at
+ * @property string|null $cancel_reason
  * @property bool $is_deleted
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
@@ -48,12 +55,22 @@ class PurchaseOrder extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
+        'document_status' => PurchaseOrderStatusEnum::class,
         'order_date' => 'date',
+        'expected_date' => 'date',
+        'cancelled_at' => 'datetime',
         'order_total' => 'decimal:4',
         'is_deleted' => 'boolean',
         'last_synced_at' => 'datetime',
         'metadata' => Json::class,
     ];
+
+    public const string SOURCE_KANVAS = 'kanvas';
+
+    public function isIssuedByCompany(): bool
+    {
+        return $this->source === self::SOURCE_KANVAS && $this->document_status !== null;
+    }
 
     public function lines(): HasMany
     {

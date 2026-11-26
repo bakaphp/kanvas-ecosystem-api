@@ -62,7 +62,16 @@ return new class () extends Migration {
 
             $table->unique(['apps_id', 'companies_id', 'order_number'], 'so_app_company_number_uq');
             $table->unique(['apps_id', 'companies_id', 'customer_organization_id', 'customer_po_number'], 'so_app_company_customer_po_uq');
-            $table->index(['apps_id', 'companies_id', 'document_status'], 'so_app_company_status_idx');
+            // Status first, then newest first: the list every queue ("waiting on Operations") reads.
+            $table->index(['apps_id', 'companies_id', 'document_status', 'received_at'], 'so_app_company_status_received_idx');
+            $table->index(['apps_id', 'companies_id', 'quote_id'], 'so_app_company_quote_idx');
+            $table->index(['apps_id', 'companies_id', 'received_at'], 'so_app_company_received_idx');
+            $table->index(['apps_id', 'companies_id', 'confirmed_at'], 'so_app_company_confirmed_idx');
+            $table->index(['apps_id', 'companies_id', 'accepted_at'], 'so_app_company_accepted_idx');
+            $table->index(['apps_id', 'companies_id', 'returned_at'], 'so_app_company_returned_idx');
+            $table->index(['apps_id', 'companies_id', 'etd'], 'so_app_company_etd_idx');
+            $table->index(['apps_id', 'companies_id', 'eta'], 'so_app_company_eta_idx');
+            $table->index(['uuid'], 'so_uuid_idx');
         });
 
         Schema::connection('accounting')->create('sales_order_lines', function (Blueprint $table): void {

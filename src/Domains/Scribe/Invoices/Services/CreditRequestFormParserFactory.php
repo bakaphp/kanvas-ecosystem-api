@@ -4,27 +4,29 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Services;
 
+use Baka\Support\AllowedClass;
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Nzxt\Services\CreditRequestFormParserService;
 use Kanvas\Scribe\Invoices\Contracts\CreditRequestFormParserInterface;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
-use Kanvas\Scribe\Invoices\Enums\CreditRequestFormClientEnum;
 
-// Resolves which client's Credit Request Form parser an app uses. Adding a new client is exactly two edits: a case on CreditRequestFormClientEnum, and a match arm here — never a branch inside an existing client's parser.
+// Scribe never names a parser class: config('scribe.credit_request_form_parsers') maps the app setting to one, so a new format is a line there and nothing here.
 final class CreditRequestFormParserFactory
 {
-    public static function forApp(Apps $app): CreditRequestFormParserInterface
+    public static function forApp(Apps $app): ?CreditRequestFormParserInterface
     {
         $configured = $app->get(ConfigurationEnum::CREDIT_REQUEST_FORM_CLIENT->value);
-        $client = is_string($configured) ? CreditRequestFormClientEnum::tryFrom($configured) : null;
+        $key = is_string($configured) ? Str::trimToNull(strtolower($configured)) : null;
 
-        return self::forClient($client ?? CreditRequestFormClientEnum::NZXT);
-    }
+        if ($key === null) {
+            return null;
+        }
 
-    public static function forClient(CreditRequestFormClientEnum $client): CreditRequestFormParserInterface
-    {
-        return match ($client) {
-            CreditRequestFormClientEnum::NZXT => new CreditRequestFormParserService(),
-        };
+        $class = AllowedClass::resolve(
+            config("scribe.credit_request_form_parsers.{$key}"),
+            CreditRequestFormParserInterface::class
+        );
+
+        return $class === null ? null : new $class();
     }
 }

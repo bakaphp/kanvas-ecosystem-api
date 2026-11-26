@@ -142,7 +142,8 @@ abstract class AbstractDraftInvoiceNoteTool extends Tool
                 'drafted' => false,
                 'reason' => 'draft_already_waiting',
                 'note_id' => $waiting->getId(),
-                'pending_approval' => $waiting->pendingApproval() !== null,
+                'pending_approval' => $waiting->pendingApproval() !== null
+                    || $waiting->pendingLegacyApprovals()->exists(),
                 'message' => "{$this->noteLabel()} {$waiting->getId()} is already drafted against this invoice and not issued. "
                     . 'Do not draft another: ask whether it was approved, check it with ecf_status, or edit that draft.',
             ];
@@ -195,7 +196,7 @@ abstract class AbstractDraftInvoiceNoteTool extends Tool
             ];
         }
 
-        $pending = $note->pendingApproval() !== null;
+        $pending = $note->document_status === InvoiceDocumentStatusEnum::DRAFT;
 
         return [
             'drafted' => true,

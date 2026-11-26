@@ -27,8 +27,18 @@ trait CreatesTestQuote
                 company: $this->company,
                 billable: $customer,
                 lines: new DataCollection(QuoteLineData::class, $lines ?? [
-                    new QuoteLineData(description: 'Pallet of rice', quantity: 10, unit_price_native: 20, sku: 'RICE-1'),
-                    new QuoteLineData(description: 'Pallet of beans', quantity: 5, unit_price_native: 30, sku: 'BEAN-1'),
+                    new QuoteLineData(
+                        description: 'Pallet of rice',
+                        quantity: 10,
+                        unit_price_native: 20,
+                        sku: 'RICE-1'
+                    ),
+                    new QuoteLineData(
+                        description: 'Pallet of beans',
+                        quantity: 5,
+                        unit_price_native: 30,
+                        sku: 'BEAN-1'
+                    ),
                 ]),
                 currency: 'USD',
                 fx_rate_to_base: 1.0,

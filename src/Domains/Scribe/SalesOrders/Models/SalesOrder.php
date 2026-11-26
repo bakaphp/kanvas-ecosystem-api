@@ -135,7 +135,7 @@ class SalesOrder extends BaseModel
      */
     public function openDifferenceKeys(): array
     {
-        return $this->unresolvedKeys($this->differences());
+        return array_column($this->openDifferences(), 'key');
     }
 
     /**
@@ -145,7 +145,7 @@ class SalesOrder extends BaseModel
      */
     public function openDocumentsDifferenceKeys(): array
     {
-        return $this->unresolvedKeys($this->documentsDifferences());
+        return array_column($this->unresolved($this->documentsDifferences()), 'key');
     }
 
     /**
@@ -169,15 +169,27 @@ class SalesOrder extends BaseModel
     }
 
     /**
-     * @param list<array{key: string, resolution: string|null}> $differences
+     * The differences still waiting for a written clarification.
      *
-     * @return list<string>
+     * @return list<array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}>
      */
-    private function unresolvedKeys(array $differences): array
+    public function openDifferences(): array
     {
-        return array_values(array_column(
-            array_filter($differences, static fn (array $difference): bool => $difference['resolution'] === null),
-            'key'
+        return $this->unresolved($this->differences());
+    }
+
+    /**
+     * @template TDifference of array{key: string, resolution: string|null}
+     *
+     * @param list<TDifference> $differences
+     *
+     * @return list<TDifference>
+     */
+    private function unresolved(array $differences): array
+    {
+        return array_values(array_filter(
+            $differences,
+            static fn (array $difference): bool => $difference['resolution'] === null
         ));
     }
 

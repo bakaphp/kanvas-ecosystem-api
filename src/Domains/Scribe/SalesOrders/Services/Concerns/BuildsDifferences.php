@@ -13,16 +13,33 @@ trait BuildsDifferences
     /**
      * @return array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}|null
      */
-    private function ifChanged(string $key, string $field, ?string $orderValue, ?string $otherValue): ?array
-    {
-        return $orderValue === $otherValue ? null : $this->difference($key, $field, $orderValue, $otherValue);
+    private function ifChanged(
+        string $key,
+        string $field,
+        ?string $orderValue,
+        ?string $otherValue
+    ): ?array {
+        if ($orderValue === $otherValue) {
+            return null;
+        }
+
+        return $this->difference(
+            $key,
+            $field,
+            $orderValue,
+            $otherValue
+        );
     }
 
     /**
      * @return array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}
      */
-    private function difference(string $key, string $field, ?string $orderValue, ?string $otherValue): array
-    {
+    private function difference(
+        string $key,
+        string $field,
+        ?string $orderValue,
+        ?string $otherValue
+    ): array {
         return [
             'key' => $key,
             'field' => $field,

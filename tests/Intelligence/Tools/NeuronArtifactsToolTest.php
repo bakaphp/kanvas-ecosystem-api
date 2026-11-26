@@ -60,6 +60,19 @@ class NeuronArtifactsToolTest extends TestCase
         $this->assertSame([], $this->tool()($this->lead()->getId())['crm']['last_notes']);
     }
 
+    /** A lead outside any pipeline points at no stage row; the tool still has to answer the rest. */
+    public function testALeadWithoutAStageStillReturnsItsArtifacts(): void
+    {
+        $lead = $this->lead();
+        Lead::query()->whereKey($lead->getId())->update(['pipeline_stage_id' => 0]);
+
+        $result = $this->tool()($lead->getId());
+
+        $this->assertArrayHasKey('crm', $result);
+        $this->assertNull($result['crm']['stage']);
+        $this->assertSame([], $result['crm']['last_notes']);
+    }
+
     private function tool(): ArtifactsTool
     {
         $user = auth()->user();

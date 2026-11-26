@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -63,6 +64,14 @@ class ListOpenPurchaseOrdersTool extends Tool
             ->fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
+            ->where(
+                static fn ($closed) => $closed
+                    ->whereNull('document_status')
+                    ->orWhereNotIn('document_status', [
+                        PurchaseOrderStatusEnum::CANCELLED->value,
+                        PurchaseOrderStatusEnum::RECEIVED->value,
+                    ])
+            )
             ->when($vendor_organization_id !== null, fn ($q) => $q->where('vendor_organization_id', $vendor_organization_id))
             ->orderByDesc('order_date')
             ->limit($limit);
@@ -74,7 +83,7 @@ class ListOpenPurchaseOrdersTool extends Tool
                 'order_number' => $po->order_number,
                 'order_type' => $po->order_type,
                 'vendor_organization_id' => $po->vendor_organization_id,
-                'status' => $po->status,
+                'status' => $po->document_status?->value ?? $po->status,
                 'order_date' => $po->order_date?->toDateString(),
                 'currency' => $po->currency,
                 'order_total' => (float) $po->order_total,

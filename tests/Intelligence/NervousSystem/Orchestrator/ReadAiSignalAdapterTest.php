@@ -103,6 +103,62 @@ class ReadAiSignalAdapterTest extends TestCase
         $this->assertNull(SignalSourceEnum::parseWithFallback($payload, SignalSourceEnum::READ_AI));
     }
 
+    /**
+     * The example payload from Read.ai's "Getting Started with Webhooks", which is also what its
+     * "Send Test Call" sends.
+     */
+    public function testTheDocumentedPayloadIsKeptWholeInTheFileText(): void
+    {
+        $signal = new ReadAiSignalAdapter()->parse([
+            'session_id' => 'SESSIONID',
+            'trigger' => 'meeting_end',
+            'title' => 'Meeting Title',
+            'start_time' => '2026-01-01T00:00:00Z',
+            'end_time' => '2026-01-01T01:00:00Z',
+            'participants' => [
+                ['name' => 'Participant One', 'first_name' => 'Participant', 'last_name' => 'One', 'email' => 'participant_one@company.com'],
+                ['name' => 'Participant Two', 'first_name' => 'Participant', 'last_name' => 'Two', 'email' => null],
+            ],
+            'owner' => ['name' => 'Participant One', 'first_name' => 'Participant', 'last_name' => 'One', 'email' => 'participant_one@company.com'],
+            'summary' => 'Meeting summary goes here...',
+            'action_items' => [['text' => 'Action item one'], ['text' => 'Action item two']],
+            'key_questions' => [['text' => 'Key question one?'], ['text' => 'Key question two?']],
+            'topics' => [['text' => 'Topic one'], ['text' => 'Topic two']],
+            'report_url' => 'https://app.read.ai/analytics/meetings/SESSIONID',
+            'chapter_summaries' => [
+                ['title' => 'Chapter one', 'description' => 'First chapter description', 'topics' => [['text' => 'Topic one']]],
+                ['title' => 'Chapter two', 'description' => 'Second chapter description', 'topics' => [['text' => 'Topic two']]],
+            ],
+            'transcript' => [
+                'speaker_blocks' => [
+                    ['start_time' => '1719514000000', 'end_time' => '1719514001000', 'speaker' => ['name' => 'Speaker 1'], 'words' => 'Good morning everyone!'],
+                    ['start_time' => '1719514002000', 'end_time' => '1719514003000', 'speaker' => ['name' => 'Speaker 2'], 'words' => 'Hi!'],
+                ],
+                'speakers' => [['name' => 'Speaker 1'], ['name' => 'Speaker 2']],
+            ],
+            'platform_meeting_id' => 'abc-defg-hij',
+            'platform' => 'meet',
+            'request_id' => '01KKVQZ19X57NMNFTS8YXJNZE4',
+        ]);
+
+        $this->assertSame('SESSIONID', $signal->externalId);
+        $this->assertSame('meeting-meeting-title-2026-01-01.md', $signal->fileName());
+        $this->assertSame(
+            implode("\n\n", [
+                'Meeting: "Meeting Title" (2026-01-01T00:00:00Z)',
+                'Participants: Participant One <participant_one@company.com>, Participant Two',
+                'Report: https://app.read.ai/analytics/meetings/SESSIONID',
+                "Summary:\nMeeting summary goes here...",
+                "Chapters:\n- Chapter one: First chapter description\n- Chapter two: Second chapter description",
+                "Action items:\n- Action item one\n- Action item two",
+                "Key questions:\n- Key question one?\n- Key question two?",
+                "Topics:\n- Topic one\n- Topic two",
+                "Transcript:\nSpeaker 1: Good morning everyone!\nSpeaker 2: Hi!",
+            ]),
+            $signal->document()
+        );
+    }
+
     public function testSummaryReportUrlAndChaptersAreCarried(): void
     {
         $signal = new ReadAiSignalAdapter()->parse([
