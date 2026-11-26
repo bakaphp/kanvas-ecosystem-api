@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\CardNet;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\CardNet\Client;
 use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
@@ -95,6 +96,28 @@ final class CardNetActivationFlagTest extends TestCase
         $this->assertFalse($result->success);
         $this->assertTrue($paymentMethod->getMetadata(CustomFieldEnum::REQUIRES_ACTIVATION->value));
         $this->assertNull($paymentMethod->getMetadata(CustomFieldEnum::PAYMENT_PROFILE_ID->value));
+    }
+
+    public function testActivationErrorsReturnedWithASuccessfulStatusKeepThePendingFlag(): void
+    {
+        $paymentMethod = $this->pendingPaymentMethod();
+
+        /** @var MockInterface&Client $client */
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('post')
+            ->once()
+            ->with('v1/api/customer/555/activate', ['Token' => 'CT__TOKEN', 'ActivationCode' => 'ZZZZZZ'])
+            ->andReturn([
+                'Response' => null,
+                'Errors' => [['ErrorCode' => 'TK012', 'Message' => 'Error en la Activación del Token']],
+            ]);
+
+        $result = $this->processor(new CardNetService($client))->activatePaymentMethod($paymentMethod, 'ZZZZZZ');
+
+        $paymentMethod->refresh();
+        $this->assertFalse($result->success);
+        $this->assertSame('TK012 Error en la Activación del Token', $result->message);
+        $this->assertTrue($paymentMethod->getMetadata(CustomFieldEnum::REQUIRES_ACTIVATION->value));
     }
 
     private function processor(CardNetService $service): CardNetProcessor
