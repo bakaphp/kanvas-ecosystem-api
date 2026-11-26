@@ -9,6 +9,7 @@ use App\GraphQL\Concerns\ResolvesActingContext;
 use Illuminate\Support\Collection;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantPassRedemption;
 use Kanvas\Event\Reports\Services\EventReportAccess;
@@ -32,7 +33,7 @@ class EventInviteStatsQuery
             ->whereNull('revoked_at')
             ->notDeleted();
 
-        $bookingsByDay = EventVersion::query()
+        $bookingsBySlot = EventVersion::query()
             ->live()
             ->whereIn(
                 'id',
@@ -40,10 +41,21 @@ class EventInviteStatsQuery
                     ->select('booking_event_version_id')
                     ->whereIn('participant_passes_id', (clone $codes)->select('id'))
             )
-            ->with('timeSlot.resource')
+            ->groupBy('time_slot_id')
+            ->selectRaw('time_slot_id, COUNT(*) as bookings')
+            ->pluck('bookings', 'time_slot_id');
+
+        $slots = TimeSlots::query()
+            ->whereKey($bookingsBySlot->keys()->filter())
+            ->with('resource')
             ->get()
-            ->groupBy(fn (EventVersion $booking) => $booking->timeSlot?->localDate())
-            ->map->count();
+            ->keyBy('id');
+
+        $bookingsByDay = $bookingsBySlot
+            ->mapToGroups(fn (mixed $bookings, int|string $slotId): array => [
+                $slots->get($slotId)?->localDate() ?? '' => (int) $bookings,
+            ])
+            ->map->sum();
 
         return [
             'codes_issued' => (clone $codes)->count(),

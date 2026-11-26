@@ -6,7 +6,6 @@ namespace App\GraphQL\Event\Queries\Booking;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Support\IPInfo;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\TimeSlots;
@@ -87,10 +86,7 @@ class InviteCodeQuery
         return TimeSlots::query()
             ->fromApp($app)
             ->where('companies_id', $product->companies_id)
-            ->whereBetween('start_at', [
-                Carbon::parse($day, $timezone)->startOfDay()->utc(),
-                Carbon::parse($day, $timezone)->endOfDay()->utc(),
-            ])
+            ->onLocalDay($day, $timezone)
             ->forProduct($product)
             ->orderBy('start_at')
             ->first();

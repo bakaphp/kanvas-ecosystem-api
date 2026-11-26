@@ -242,7 +242,7 @@ class TimeSlotBookingMutation
             ->findOrFail($input['event_version_id']);
 
         if (ParticipantPass::query()->redeemedByBooking($eventVersion->getId())->exists()) {
-            throw new ValidationException('An invite booking cannot be moved. Cancel it and book again.');
+            throw new ValidationException('An invite booking cannot be moved.');
         }
 
         $oldTimeSlotId = $eventVersion->time_slot_id ?? null;

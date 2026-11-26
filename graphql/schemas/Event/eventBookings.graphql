@@ -10,9 +10,6 @@ enum EventBookingAdmissionSource {
 
 type EventBooking {
     reference: String
-        @field(
-            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@reference"
-        )
     pass_code: String
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@passCode"

@@ -64,9 +64,11 @@ class EventPassScanMutation
     {
         $booking = EventVersion::query()
             ->fromApp($app)
-            ->where('reference', strtoupper(trim($reference)))
+            ->byReference($reference)
             ->first();
 
+        // An unknown reference goes on as the code, so the scan records it as INVALID_CODE and counts
+        // it against the scanner's attempt limit.
         return $booking?->plainBookingPassCode() ?? $reference;
     }
 }

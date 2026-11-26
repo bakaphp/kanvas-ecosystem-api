@@ -7,7 +7,6 @@ namespace App\GraphQL\Event\Builders\Events;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -45,16 +44,15 @@ class EventBookingBuilder
             ))
             ->when(isset($args['date']), fn (Builder $query) => $query->whereHas(
                 'timeSlot',
-                fn (Builder $slot) => $slot->whereBetween('start_at', $this->dayRange(
+                fn (Builder $slot) => $slot->onLocalDay(
                     (string) $args['date'],
-                    $product,
-                    $ctx->company->timezone
-                ))
+                    $this->timezoneOf($product, $ctx->company)
+                )
             ))
-            ->when(isset($args['reference']), fn (Builder $query) => $query->where(
-                'event_versions.reference',
-                strtoupper(trim((string) $args['reference']))
-            ))
+            ->when(
+                isset($args['reference']),
+                fn (Builder $query) => $query->byReference((string) $args['reference'])
+            )
             ->with([
                 'participants.people',
                 'timeSlot.resource',
@@ -84,10 +82,7 @@ class EventBookingBuilder
         return ParticipantPass::query()
             ->select('code')
             ->whereColumn('event_version_id', 'event_versions.id')
-            ->whereNull('participant_id')
-            ->whereNull('revoked_at')
-            ->notDeleted()
-            ->orderBy('id')
+            ->activeBookingPass()
             ->limit(1);
     }
 
@@ -99,15 +94,10 @@ class EventBookingBuilder
             ->limit(1);
     }
 
-    private function dayRange(string $date, ?Products $product, ?string $companyTimezone): array
+    private function timezoneOf(?Products $product, Companies $company): string
     {
-        $timezone = $product !== null
+        return $product !== null
             ? ResourceTimezoneService::resolve($product)
-            : (in_array($companyTimezone, timezone_identifiers_list(), true) ? $companyTimezone : ResourceTimezoneService::FALLBACK);
-
-        return [
-            Carbon::parse($date, $timezone)->startOfDay()->utc(),
-            Carbon::parse($date, $timezone)->endOfDay()->utc(),
-        ];
+            : $company->getTimezone() ?? ResourceTimezoneService::FALLBACK;
     }
 }

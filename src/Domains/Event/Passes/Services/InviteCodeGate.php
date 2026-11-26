@@ -75,17 +75,18 @@ class InviteCodeGate
     private function reasonFor(?ParticipantPass $pass, ?TimeSlots $timeSlot): InviteCodeCheckReasonEnum
     {
         $version = $pass?->eventVersion;
+        $day = $timeSlot?->localDate();
 
         $belongsToTheEvent = $version !== null
             && (int) $version->event_id === $this->access->eventId
             && $pass->isValid()
             && ! $this->access->redeemWindowClosed()
-            && ($timeSlot === null || in_array($timeSlot->localDate(), $pass->allowedDays(), true));
+            && ($day === null || in_array($day, $pass->allowedDays(), true));
 
         return match (true) {
             ! $belongsToTheEvent => InviteCodeCheckReasonEnum::INVALID,
             $pass->remainingUses() < 1 => InviteCodeCheckReasonEnum::USED,
-            $timeSlot !== null && in_array($timeSlot->localDate(), $pass->bookedDays(), true) => InviteCodeCheckReasonEnum::USED_THIS_DAY,
+            $day !== null && in_array($day, $pass->bookedDays(), true) => InviteCodeCheckReasonEnum::USED_THIS_DAY,
             default => InviteCodeCheckReasonEnum::VALID,
         };
     }

@@ -131,7 +131,7 @@ class WalkInBookingTest extends TestCase
         $this->buildWalkInParking();
         $this->book($this->startedSlot(), '121212');
 
-        $response = $this->bookRequest($this->startedSlot(), '121212');
+        $response = $this->bookRequest($this->startedSlot(hoursAgo: 2), '121212');
 
         $this->assertStringContainsString('open visit', (string) $response->json('errors.0.message'));
     }
