@@ -539,17 +539,20 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 );
             }
 
+            $profile = $this->paymentProfile($customerId, $token);
+
             return new TokenizeResult(
                 success: true,
                 message: 'Card tokenized successfully.',
                 token: $token,
                 lastFour: substr($cardNumber, -4),
                 brand: strtolower($tokenResponse['Brand'] ?? $cardDetails['brand'] ?? ''),
-                raw: array_merge($tokenResponse, [
+                raw: array_merge($tokenResponse, array_filter([
                     CustomFieldEnum::CUSTOMER_ID->value => $customerId,
                     CustomFieldEnum::TOKEN->value => $token,
-                    CustomFieldEnum::REQUIRES_ACTIVATION->value => (bool) $this->app->get(ConfigurationEnum::REQUIRES_ACTIVATION->value),
-                ]),
+                    CustomFieldEnum::PAYMENT_PROFILE_ID->value => $profile['PaymentProfileId'] ?? null,
+                    CustomFieldEnum::REQUIRES_ACTIVATION->value => ($profile['Enabled'] ?? true) === false,
+                ], fn ($value) => $value !== null)),
             );
         } catch (CardNetException $e) {
             return new TokenizeResult(
@@ -628,6 +631,19 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 raw: $e->responseBody,
             );
         }
+    }
+
+    private function paymentProfile(int $customerId, string $token): ?array
+    {
+        try {
+            $profiles = $this->service->getCustomer($customerId)['PaymentProfiles'] ?? [];
+        } catch (CardNetException $e) {
+            report($e);
+
+            return null;
+        }
+
+        return collect($profiles)->firstWhere('Token', $token);
     }
 
     private function getOrCreateCustomerId(UserInterface $user, array $cardDetails): int

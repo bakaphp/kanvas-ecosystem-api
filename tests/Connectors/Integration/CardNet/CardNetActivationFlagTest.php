@@ -7,7 +7,6 @@ namespace Tests\Connectors\Integration\CardNet;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CardNet\Client;
-use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
@@ -38,27 +37,45 @@ final class CardNetActivationFlagTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->kanvasApp->del(ConfigurationEnum::REQUIRES_ACTIVATION->value);
+        $this->kanvasUser->del(CustomFieldEnum::CUSTOMER_ID->value);
         Mockery::close();
         parent::tearDown();
     }
 
-    public function testTokenizedCardIsPendingWhenTheAppRequiresActivation(): void
+    public function testTokenizedCardIsPendingWhenItsCardNetProfileIsDisabled(): void
     {
-        $this->kanvasApp->set(ConfigurationEnum::REQUIRES_ACTIVATION->value, true);
+        $service = $this->serviceTokenizing();
+        $service->shouldReceive('getCustomer')->once()->with(555)->andReturn($this->customerWithProfile(enabled: false));
 
-        $result = $this->processor($this->serviceTokenizing())->tokenize($this->cardDetails(), $this->kanvasUser);
+        $result = $this->processor($service)->tokenize($this->cardDetails(), $this->kanvasUser);
 
         $this->assertTrue($result->success);
         $this->assertTrue($result->raw[CustomFieldEnum::REQUIRES_ACTIVATION->value]);
+        $this->assertSame(126577, $result->raw[CustomFieldEnum::PAYMENT_PROFILE_ID->value]);
     }
 
-    public function testTokenizedCardIsActiveWhenTheAppDoesNotRequireActivation(): void
+    public function testTokenizedCardIsActiveWhenItsCardNetProfileIsEnabled(): void
     {
-        $result = $this->processor($this->serviceTokenizing())->tokenize($this->cardDetails(), $this->kanvasUser);
+        $service = $this->serviceTokenizing();
+        $service->shouldReceive('getCustomer')->once()->with(555)->andReturn($this->customerWithProfile(enabled: true));
+
+        $result = $this->processor($service)->tokenize($this->cardDetails(), $this->kanvasUser);
 
         $this->assertTrue($result->success);
         $this->assertFalse($result->raw[CustomFieldEnum::REQUIRES_ACTIVATION->value]);
+        $this->assertSame(126577, $result->raw[CustomFieldEnum::PAYMENT_PROFILE_ID->value]);
+    }
+
+    public function testTokenizedCardIsSavedAsActiveWhenTheProfileCannotBeRead(): void
+    {
+        $service = $this->serviceTokenizing();
+        $service->shouldReceive('getCustomer')->once()->andThrow(new CardNetException('Connection failed'));
+
+        $result = $this->processor($service)->tokenize($this->cardDetails(), $this->kanvasUser);
+
+        $this->assertTrue($result->success);
+        $this->assertFalse($result->raw[CustomFieldEnum::REQUIRES_ACTIVATION->value]);
+        $this->assertArrayNotHasKey(CustomFieldEnum::PAYMENT_PROFILE_ID->value, $result->raw);
     }
 
     public function testSuccessfulActivationClearsThePendingFlag(): void
@@ -125,7 +142,7 @@ final class CardNetActivationFlagTest extends TestCase
         return new CardNetProcessor($this->kanvasApp, $service);
     }
 
-    private function serviceTokenizing(): CardNetService
+    private function serviceTokenizing(): MockInterface&CardNetService
     {
         /** @var MockInterface&CardNetService $service */
         $service = Mockery::mock(CardNetService::class);
@@ -134,6 +151,17 @@ final class CardNetActivationFlagTest extends TestCase
             ->andReturn(['TokenId' => 'CT__TOKEN', 'Brand' => 'VISA']);
 
         return $service;
+    }
+
+    private function customerWithProfile(bool $enabled): array
+    {
+        return [
+            'CustomerId' => 555,
+            'PaymentProfiles' => [
+                ['PaymentProfileId' => 126570, 'Token' => 'CT__OTHER', 'Enabled' => true],
+                ['PaymentProfileId' => 126577, 'Token' => 'CT__TOKEN', 'Enabled' => $enabled],
+            ],
+        ];
     }
 
     private function cardDetails(): array
