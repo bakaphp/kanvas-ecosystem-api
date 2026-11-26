@@ -7,6 +7,8 @@ namespace Tests\Scribe\Approvals;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Invoices\Approvals\IssueInvoiceHandler;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Tests\Scribe\ScribeTestCase;
 
@@ -38,6 +40,13 @@ final class SeedScribeApprovalPoliciesCommandTest extends ScribeTestCase
         $this->runCommand();
 
         $this->assertFalse($this->policyFor(Bill::class)->allow_authority_override);
+    }
+
+    public function test_the_invoice_policy_is_handled_by_scribes_own_handler(): void
+    {
+        $this->runCommand();
+
+        $this->assertSame(IssueInvoiceHandler::class, $this->policyFor(Invoice::class)->handler);
     }
 
     /**

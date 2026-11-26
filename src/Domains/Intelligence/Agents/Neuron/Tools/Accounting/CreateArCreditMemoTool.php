@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Services\ApprovalOriginService;
@@ -27,7 +28,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/** Issues a standalone AR credit memo (e.g. a back-end rebate) directly in the Kanvas ledger. */
+/** Issues a standalone AR credit memo (e.g. a rebate) directly in the Kanvas ledger. */
 #[AgentTool(name: 'Create AR Credit Memo', category: 'accounting')]
 class CreateArCreditMemoTool extends Tool
 {
@@ -37,10 +38,9 @@ class CreateArCreditMemoTool extends Tool
 
     protected string $name = 'create_ar_credit_memo';
 
-    protected ?string $description = 'Issues a standalone AR credit memo for a customer — e.g. a back-end rebate/sell-out '
-        . 'allowance from a Credit Request Form — directly in the Kanvas ledger. It is not '
-        . 'tied to any specific invoice. Only call when the user explicitly asks to issue a credit, never '
-        . 'on a whim.';
+    protected ?string $description = 'Issues a standalone AR credit memo for a customer — e.g. a rebate or a goodwill '
+        . 'credit — directly in the Kanvas ledger. It is not tied to any specific invoice: to credit one invoice use '
+        . 'draft_credit_note instead. Only call when the user explicitly asks to issue a credit, never on a whim.';
 
     /**
      * @return array<int, ToolPropertyInterface>
@@ -52,21 +52,20 @@ class CreateArCreditMemoTool extends Tool
             new ToolProperty(
                 name: 'customer_name',
                 type: PropertyType::STRING,
-                description: 'Customer name to match (substring), e.g. "Proshop". Always required — never '
+                description: 'Customer name to match (substring), e.g. "Northwind". Always required — never '
                     . 'guess or pick an arbitrary customer; ask the user if it is not clear from context.',
                 required: true,
             ),
             new ToolProperty(
                 name: 'invoice_number',
                 type: PropertyType::STRING,
-                description: 'The Request Reference No. from the Credit Request Form (e.g. "Proshop Superdays '
-                    . 'Sell-Out (22/05-07/06)") — used as this credit memo\'s own document number, never a lookup '
-                    . 'into an existing invoice. Always required.',
+                description: 'The reference of the credit request (e.g. "Spring Sell-Out Rebate") — used as this credit '
+                    . 'memo\'s own document number, never a lookup into an existing invoice. Always required.',
                 required: true,
             ),
             new ArrayProperty(
                 name: 'lines',
-                description: 'One entry per row on the Credit Request Form. At least one line is required.',
+                description: 'One entry per credited item or concept. At least one line is required.',
                 required: true,
                 items: new ObjectProperty(
                     name: 'line',
@@ -75,19 +74,20 @@ class CreateArCreditMemoTool extends Tool
                         new ToolProperty(
                             name: 'control_account_number',
                             type: PropertyType::STRING,
-                            description: 'The "Control Acct#" from the form, e.g. "41045".',
-                            required: true,
+                            description: 'GL account number to debit, e.g. "41045", when the request names one. Leave it '
+                                . 'out otherwise: the company\'s default revenue account is used, as on every other credit note.',
+                            required: false,
                         ),
                         new ToolProperty(
                             name: 'amount',
                             type: PropertyType::NUMBER,
-                            description: 'The credited amount for this line.',
+                            description: 'The credited amount for this line, a positive number.',
                             required: true,
                         ),
                         new ToolProperty(
                             name: 'description',
                             type: PropertyType::STRING,
-                            description: 'Line description, e.g. the product name.',
+                            description: 'Line description, e.g. the product name. Defaults to the account number or the reference.',
                             required: false,
                         ),
                     ],
@@ -102,17 +102,16 @@ class CreateArCreditMemoTool extends Tool
             new ToolProperty(
                 name: 'notes',
                 type: PropertyType::STRING,
-                description: 'Accounting-relevant context from the request email\'s own wording that is not '
-                    . 'already captured by the form\'s fields — e.g. why no VAT applies, or an approval statement '
-                    . 'from the sender. Use the email\'s own wording, never invent one. Omit when the email has '
-                    . 'nothing beyond the routine request.',
+                description: 'Accounting-relevant context from the request\'s own wording that the other fields do not '
+                    . 'capture — e.g. why no VAT applies, or an approval statement from the sender. Use the sender\'s '
+                    . 'own wording, never invent one. Omit when there is nothing beyond the routine request.',
                 required: false,
             ),
         ];
     }
 
     /**
-     * @param array<int, array{control_account_number?: string, amount?: float|int|string, description?: string}> $lines
+     * @param array<int, array{control_account_number?: ?string, amount?: float|int|string, description?: string}> $lines
      *
      * @return array<string, mixed>
      */
@@ -167,11 +166,13 @@ class CreateArCreditMemoTool extends Tool
             ];
         }
 
-        if (trim($invoice_number) === '') {
+        $reference = trim($invoice_number);
+
+        if ($reference === '') {
             return [
                 'created' => false,
                 'reason' => 'invoice_number_required',
-                'message' => 'An invoice_number (the Credit Request Form\'s Request Reference No.) is required.',
+                'message' => 'An invoice_number (the reference of the credit request) is required.',
             ];
         }
 
@@ -179,7 +180,7 @@ class CreateArCreditMemoTool extends Tool
             return [
                 'created' => false,
                 'reason' => 'lines_required',
-                'message' => 'At least one line (control_account_number + amount) is required.',
+                'message' => 'At least one line with an amount is required.',
             ];
         }
 
@@ -196,19 +197,20 @@ class CreateArCreditMemoTool extends Tool
 
         $lineData = [];
         foreach ($lines as $line) {
-            $accountNumber = trim((string) ($line['control_account_number'] ?? ''));
+            $amount = (float) ($line['amount'] ?? 0);
 
-            if ($accountNumber === '') {
+            if ($amount <= 0) {
                 return [
                     'created' => false,
-                    'reason' => 'control_account_number_required',
-                    'message' => 'Every line requires a control_account_number.',
+                    'reason' => 'invalid_line',
+                    'message' => 'Every line needs a positive amount.',
                 ];
             }
 
-            $account = $this->resolveAccount($accountNumber);
+            $accountNumber = Str::trimToNull((string) ($line['control_account_number'] ?? ''));
+            $account = $accountNumber === null ? null : $this->resolveAccount($accountNumber);
 
-            if ($account === null) {
+            if ($accountNumber !== null && $account === null) {
                 return [
                     'created' => false,
                     'reason' => 'account_not_found',
@@ -216,16 +218,19 @@ class CreateArCreditMemoTool extends Tool
                 ];
             }
 
+            $description = Str::trimToNull((string) ($line['description'] ?? ''));
+
             $lineData[] = new InvoiceLineData(
-                description: (string) ($line['description'] ?? $accountNumber),
+                description: $description ?? $accountNumber ?? $reference,
                 quantity: 1.0,
-                unit_price_native: (float) ($line['amount'] ?? 0),
-                account_id: $account->getId(),
+                unit_price_native: $amount,
+                account_id: $account?->getId(),
             );
         }
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
+        $notes = Str::trimToNull($notes);
 
         try {
             $creditNote = new IssueCreditNoteAction(
@@ -237,10 +242,8 @@ class CreateArCreditMemoTool extends Tool
                     lines: new DataCollection(InvoiceLineData::class, $lineData),
                     currency: $currency,
                     fx_rate_to_base: 1.0,
-                    invoice_number: trim($invoice_number),
-                    notes: trim((string) $notes) !== ''
-                        ? "Credit Request Form reference: {$invoice_number}\n" . trim((string) $notes)
-                        : "Credit Request Form reference: {$invoice_number}",
+                    invoice_number: $reference,
+                    notes: "Reference: {$reference}" . ($notes === null ? '' : "\n{$notes}"),
                 ),
                 billable: $customer,
                 user: $actingUser,

@@ -18,7 +18,8 @@ use Override;
  * Read.ai webhook → InboundSignal (kind = TRANSCRIPT). Field names verified against a real Read.ai
  * sample payload: the meeting fields sit at the payload root — `trigger` ("meeting_end"), `session_id`,
  * `title`, `start_time` (ISO-8601), `participants[]{name,email}`, `owner{name,email}`, `summary`,
- * `topics[]{text}`, `action_items[]{text}`, `transcript.speaker_blocks[]{speaker{name},words}`. Some
+ * `topics[]{text}`, `action_items[]{text}`, `key_questions[]{text}`,
+ * `transcript.speaker_blocks[]{speaker{name},words}`. Some
  * relays (Zapier/n8n) nest everything under `data`, so we accept either. Extraction stays defensive —
  * an unexpected shape degrades to empty rather than throwing.
  *
@@ -55,6 +56,7 @@ final class ReadAiSignalAdapter implements SignalSourceAdapter
                 'report_url' => trim((string) ($data['report_url'] ?? '')),
                 'topics' => $this->textList($data['topics'] ?? []),
                 'action_items' => $this->textList($data['action_items'] ?? []),
+                'key_questions' => $this->textList($data['key_questions'] ?? []),
                 'chapters' => $this->chapters($data['chapter_summaries'] ?? []),
             ],
         );

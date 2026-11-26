@@ -12,8 +12,6 @@ use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Override;
 use Yasumi\Yasumi;
 
-use function Illuminate\Log\log;
-
 class CompanyWorkHoursTool implements ContextToolInterface
 {
     protected Carbon $now;
@@ -35,7 +33,6 @@ class CompanyWorkHoursTool implements ContextToolInterface
             : $this->entity->company;
 
         $tz = $company->timezone ?? 'UTC';
-        //log($tz);
         $this->now = Carbon::now($tz);
 
         $this->simpleHours = $company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
@@ -79,20 +76,14 @@ class CompanyWorkHoursTool implements ContextToolInterface
         array $holidayInfo
     ): string {
         if ($holidayInfo['is_observed_holiday']) {
-            log('holyday');
-
             return 'after_hours';
         }
 
         if (! $this->isWorkingDay($now)) {
-            log('working day');
-
             return 'after_hours';
         }
 
         if (! $opensAt || ! $closesAt) {
-            log('open ast');
-
             return 'after_hours';
         }
 

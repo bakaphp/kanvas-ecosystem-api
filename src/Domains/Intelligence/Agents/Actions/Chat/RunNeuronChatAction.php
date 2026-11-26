@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
+use Aws\BedrockRuntime\Exception\BedrockRuntimeException;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
@@ -29,6 +30,7 @@ use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
+use Kanvas\Intelligence\Agents\Services\LlmHttpRetryService;
 use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use Kanvas\Intelligence\Agents\Services\UnbackedRecordClaimsService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
@@ -64,6 +66,13 @@ class RunNeuronChatAction
      * lease ending within this many seconds waits for it instead of failing.
      */
     private const int DEAD_LEASE_RECOVERY_SECONDS = 300;
+
+    /** 401 and 403 are a key Bedrock will not take, 404 a model it does not serve to this account. */
+    private const array BEDROCK_SETUP_FAULT_STATUSES = [
+        401,
+        403,
+        404,
+    ];
 
     private int $threadWaitSeconds = 0;
 
@@ -629,6 +638,14 @@ class RunNeuronChatAction
                 . 'Ask me the same thing again in a moment and it should go through.';
         }
 
+        // Bedrock refused the key or the model itself (KANVAS-ECOSYSTEM-707, a model the AWS account was
+        // never cleared for). Rephrasing and retrying both fail the same way until an admin fixes the setup.
+        if ($this->isProviderSetupProblem($e)) {
+            return 'I cannot answer right now: the AI model this agent is set to use is not available to it. '
+                . 'That is a setup problem, not something in your message, so asking again will not help. '
+                . "An admin needs to check the agent's model and the AI provider account.";
+        }
+
         return 'I ran into a hiccup processing that. Could you try rephrasing, '
             . 'or let me know if you want me to hand off to a human?';
     }
@@ -637,9 +654,9 @@ class RunNeuronChatAction
      * A transient fault at the model provider rather than a fault in the request.
      *
      * Keyed on the HTTP status, because the provider's prose varies and is truncated by the time it
-     * reaches a log ("This model is currently experiencing high demand"). 429 is a rate limit; every
-     * 5xx covers the rest — Gemini's 503 and Anthropic's 529 alike — and the same request would
-     * survive a retry in all of them.
+     * reaches a log ("This model is currently experiencing high demand"). 429 is a rate limit, 408 is
+     * Bedrock's model timeout, and every 5xx covers the rest — Gemini's 503 and Anthropic's 529 alike —
+     * and the same request would survive a retry in all of them. The failover chain reads the same list.
      */
     private function isProviderOverloaded(Throwable $e): bool
     {
@@ -648,10 +665,23 @@ class RunNeuronChatAction
                 continue;
             }
 
-            $status = $current->getResponse()->getStatusCode();
-
-            if ($status === 429 || $status >= 500) {
+            if (LlmHttpRetryService::isTransientStatus($current->getResponse()->getStatusCode())) {
                 return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Read off the Bedrock exception only: a Guzzle 404 in a failed turn can be a tool's own request,
+     * and blaming the model for it would send an admin to fix a setup that works.
+     */
+    private function isProviderSetupProblem(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if ($current instanceof BedrockRuntimeException) {
+                return in_array($current->getStatusCode(), self::BEDROCK_SETUP_FAULT_STATUSES, true);
             }
         }
 

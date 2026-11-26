@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class LeadTypeTest extends TestCase
@@ -37,6 +38,47 @@ class LeadTypeTest extends TestCase
                 ],
             ]
         );
+    }
+
+    #[DataProvider('missingDescriptionProvider')]
+    public function testCreateWithoutADescription(array $description)
+    {
+        $name = fake()->name;
+
+        $this->graphQL(
+            '
+            mutation createLeadType($input: LeadTypeInput!) {
+                createLeadType(input: $input){
+                    name,
+                    description,
+                }
+            }
+            ',
+            [
+                'input' => [
+                    'name' => $name,
+                    'is_active' => true,
+                    ...$description,
+                ],
+            ]
+        )->assertJson(
+            [
+                'data' => [
+                    'createLeadType' => [
+                        'name' => $name,
+                        'description' => null,
+                    ],
+                ],
+            ]
+        );
+    }
+
+    public static function missingDescriptionProvider(): array
+    {
+        return [
+            'sent as null' => [['description' => null]],
+            'left out' => [[]],
+        ];
     }
 
     public function testUpdateLeadType()

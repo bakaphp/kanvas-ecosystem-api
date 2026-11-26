@@ -10,6 +10,7 @@ use Kanvas\Connectors\Movipass\Jobs\RetryPaymentReversalJob;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\SendPaymentReceiptAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
@@ -91,6 +92,10 @@ class ProcessPaymentAction
         }
 
         $captureResult = $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
+
+        if ($captureResult['status'] === 'skipped') {
+            return $result;
+        }
 
         if ($captureResult['status'] === 'error') {
             return $this->handleReversal($paymentProcessor, $bankTransaction, 'Capture failed: ' . $captureResult['message']);

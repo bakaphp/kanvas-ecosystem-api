@@ -42,4 +42,12 @@ return [
      * a fiscal document never declares it.
      */
     'market_rate_provider' => AllRatesTodayMarketRateProvider::class,
+
+    /*
+     * Credit Request Form parsers, keyed by the app setting `credit-request-form-client`
+     * (Kanvas\Scribe\Invoices\Enums\ConfigurationEnum::CREDIT_REQUEST_FORM_CLIENT). Each class implements
+     * CreditRequestFormParserInterface and is constructed with no arguments. An app naming no key, or one
+     * not listed here, has no parser.
+     */
+    'credit_request_form_parsers' => [],
 ];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Project\Actions;
 
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\NervousSystem\Project\Enums\ProjectIngestTypeEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -30,6 +31,9 @@ class IngestToProjectAction
 
     /**
      * @param array<int, array<string, mixed>> $files
+     * @param string|null $body what the message and the PM's wake show when the full content lives in a
+     *                          stored file; `$content` stays the dedup key either way
+     * @param list<Filesystem> $storedFiles files already stored, attached to the message as they are
      */
     public function __construct(
         private readonly Project $project,
@@ -38,6 +42,8 @@ class IngestToProjectAction
         private readonly ?Users $author = null,
         private readonly array $files = [],
         private readonly bool $wakeAgent = true,
+        private readonly ?string $body = null,
+        private readonly array $storedFiles = [],
     ) {
     }
 
@@ -75,11 +81,15 @@ class IngestToProjectAction
         $message = new PostProjectMessageAction(
             project: $this->project,
             verb: $this->type->messageVerb(),
-            content: $this->content,
+            content: $this->body ?? $this->content,
             author: $this->author,
             files: $this->files,
             extraPayload: ['ingest_type' => $this->type->value],
         )->execute();
+
+        foreach ($this->storedFiles as $file) {
+            $message->addFile($file, $file->name);
+        }
 
         $this->recordIngest($hash, (int) $message->getId());
         Cache::put($cacheKey, $message->getId(), now()->addHours(self::DEDUP_WINDOW_HOURS));
@@ -94,7 +104,7 @@ class IngestToProjectAction
             WakeAgentForProjectJob::dispatch(
                 $this->project,
                 WakeAgentForProjectJob::REASON_INGEST,
-                $this->content,
+                $this->body ?? $this->content,
             );
         }
 

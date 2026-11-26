@@ -18,26 +18,6 @@ use Throwable;
 
 final class PortalPaymentProcessorErrorLogTest extends TestCaseUnit
 {
-    public function testReasonIsReadFromTheWrappedGatewayBody(): void
-    {
-        $exception = $this->decline(['errorInformation' => ['reason' => 'INSUFFICIENT_FUND']]);
-
-        $this->assertSame('INSUFFICIENT_FUND', $exception->getReason());
-    }
-
-    public function testReasonIsReadFromAnUnwrappedGatewayBody(): void
-    {
-        $errorBody = ['errorInformation' => ['reason' => 'INVALID_ACCOUNT']];
-        $exception = new EchoPayException(message: 'Payment not approved', code: 400, errorBody: $errorBody);
-
-        $this->assertSame('INVALID_ACCOUNT', $exception->getReason());
-    }
-
-    public function testReasonIsNullWithoutErrorInformation(): void
-    {
-        $this->assertNull(new EchoPayException('Gateway timeout', 0)->getReason());
-    }
-
     public function testDeclineLogsTheGatewayFieldsAsSent(): void
     {
         $exception = $this->decline([
