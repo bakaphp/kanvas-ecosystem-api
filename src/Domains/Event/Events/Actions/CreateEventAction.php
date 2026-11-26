@@ -17,6 +17,7 @@ use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
+use Kanvas\Event\Passes\DataTransferObject\WalkInAccess;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -47,6 +48,7 @@ class CreateEventAction
     protected ?Closure $bookingClaim = null;
     protected bool $freeBooking = false;
     protected ?ModelsOrder $createdOrder = null;
+    protected ?WalkInAccess $walkIn = null;
 
     public function __construct(
         protected Event $event,
@@ -56,6 +58,9 @@ class CreateEventAction
 
     public function execute(): ModelsEvent
     {
+        $this->walkIn = WalkInAccess::forResource($this->event->resource);
+        $this->freeBooking = $this->freeBooking || $this->walkIn !== null;
+
         // Validate time slot availability
         $this->validateTimeSlotAvailability();
 
@@ -172,7 +177,9 @@ class CreateEventAction
                 $codes = new CreatePassAction(
                     event: $eventVersion->event,
                     eventVersion: $eventVersion,
-                    format: $this->freeBooking ? PassFormatEnum::QR_CODE : PassFormatEnum::NUMERIC_PIN
+                    format: $this->freeBooking ? PassFormatEnum::QR_CODE : PassFormatEnum::NUMERIC_PIN,
+                    maxUses: $this->walkIn?->maxUses,
+                    payload: $this->walkIn === null ? null : ['decision_from_use' => $this->walkIn->decisionFromUse]
                 )->forAllParticipants();
             }
 
@@ -416,7 +423,9 @@ class CreateEventAction
         return [
             'data' => array_filter([
                 'start_at' => $eventVersion->start_at?->copy()->setTimezone($timezone)->format('Y-m-d H:i'),
-                'end_at' => $eventVersion->end_at?->copy()->setTimezone($timezone)->format('Y-m-d H:i'),
+                'end_at' => $this->walkIn !== null
+                    ? null
+                    : $eventVersion->end_at?->copy()->setTimezone($timezone)->format('Y-m-d H:i'),
                 'arrival_hour' => $this->metadata['arrival_hour'] ?? null,
                 'vehiclePlate' => $this->metadata['vehiclePlate'] ?? null,
                 'vehicleBrand' => $this->metadata['vehicleBrand'] ?? null,

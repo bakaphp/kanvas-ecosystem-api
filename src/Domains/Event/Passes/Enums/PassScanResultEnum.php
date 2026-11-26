@@ -13,9 +13,10 @@ enum PassScanResultEnum: string
     case WRONG_RESOURCE = 'wrong_resource';
     case OUTSIDE_WINDOW = 'outside_window';
     case FORBIDDEN = 'forbidden';
+    case NOT_AUTHORIZED = 'not_authorized';
 
     public function isRejection(): bool
     {
-        return $this !== self::ADMITTED && $this !== self::ALREADY_ADMITTED;
+        return ! in_array($this, [self::ADMITTED, self::ALREADY_ADMITTED, self::NOT_AUTHORIZED], true);
     }
 }

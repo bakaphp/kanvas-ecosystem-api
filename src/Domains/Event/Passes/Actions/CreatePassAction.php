@@ -30,6 +30,8 @@ class CreatePassAction
         private ?Carbon $expirationDate = null,
         private PassFormatEnum $format = PassFormatEnum::NUMERIC_PIN,
         private ?int $codeLength = null,
+        private ?int $maxUses = null,
+        private ?array $payload = null,
     ) {
         if ($this->codeLength !== null && $this->codeLength < self::MIN_CODE_LENGTH) {
             throw new InvalidArgumentException('Pass code length must be at least ' . self::MIN_CODE_LENGTH . '.');
@@ -83,6 +85,8 @@ class CreatePassAction
             'users_id' => $this->eventVersion->users_id,
             'expiration_date' => $this->expirationDate ?? $this->eventVersion->end_at ?? now()->addDays(30),
             'used_date' => null,
+            'max_uses' => $this->maxUses,
+            'payload' => $this->payload === null ? null : json_encode($this->payload),
             'scope' => $this->participantId
                 ? EventPassScopeEnum::PARTICIPANT->value
                 : EventPassScopeEnum::EVENT->value,
@@ -116,6 +120,8 @@ class CreatePassAction
                 $this->expirationDate,
                 $this->format,
                 $this->codeLength,
+                $this->maxUses,
+                $this->payload,
             )->execute();
 
             $passes[$participant->getId()] = $plainCode;
@@ -129,6 +135,8 @@ class CreatePassAction
             $this->expirationDate,
             $this->format,
             $this->codeLength,
+            $this->maxUses,
+            $this->payload,
         )->execute();
 
         $passes['event'] = $plainCode;
