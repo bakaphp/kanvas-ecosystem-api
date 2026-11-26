@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Workflow\Integration;
 
 use App\Console\Commands\KanvasStatusCommand;
+use Closure;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
@@ -12,14 +13,18 @@ use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Queue\RedisQueue;
 use Illuminate\Redis\Connections\Connection;
+use Kanvas\Guild\Leads\Activities\DeliverHumanReplyActivity;
 use Kanvas\Workflow\Enums\WedgedWorkflowCauseEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Rules\DynamicRuleWorkflow;
 use Kanvas\Workflow\Services\WedgedWorkflowService;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use Tests\TestCase;
+use Workflow\Exception as ExceptionJob;
 use Workflow\Middleware\WithoutOverlappingMiddleware;
+use Workflow\Signal;
 use Workflow\States\WorkflowFailedStatus;
 use Workflow\States\WorkflowPendingStatus;
 use Workflow\States\WorkflowWaitingStatus;
@@ -31,6 +36,8 @@ use Workflow\States\WorkflowWaitingStatus;
 final class WedgedWorkflowServiceTest extends TestCase
 {
     use DatabaseTransactions;
+
+    private const string OTHER_JOB = 'App\\Jobs\\SomethingElse';
 
     protected $connectionsToTransact = ['workflow'];
 
@@ -99,17 +106,93 @@ final class WedgedWorkflowServiceTest extends TestCase
     public function testAHealthyWorkflowJobAndAnotherKindOfJobAreNotWorkflowsToRepair(): void
     {
         $storedWorkflow = $this->storedWorkflow(WorkflowPendingStatus::class);
-        $otherJob = json_encode([
-            'displayName' => 'App\Jobs\SomethingElse',
-            'attempts' => 9_000,
-            'data' => ['command' => 'O:8:"stdClass":0:{}'],
-        ]);
         $service = $this->serviceSeeing([
-            'ready' => [$this->workflowPayload($storedWorkflow, 3), $otherJob],
+            'ready' => [$this->workflowPayload($storedWorkflow, 3), $this->otherJobPayload(9_000)],
         ]);
 
         $this->assertSame([], $service->find(['default']));
         $this->assertSame(1, $service->countSpinningJobs(['default']));
+        $this->assertSame(
+            [
+                [
+                    'job' => self::OTHER_JOB,
+                    'queue' => 'default',
+                    'jobs' => 1,
+                    'attempts' => 9_000,
+                ],
+            ],
+            $service->scan(['default'])[1]
+        );
+    }
+
+    /**
+     * The engine releases these forever too, and they take the same workflow lock, so the status
+     * screen counts them and the report has to show them.
+     *
+     * @param Closure(StoredWorkflow): object $makeJob
+     */
+    #[DataProvider('jobsThatWaitOnTheWorkflowLock')]
+    public function testAnEngineJobBehindADeadActivityLockIsFoundAndRepaired(Closure $makeJob): void
+    {
+        $storedWorkflow = $this->storedWorkflow(WorkflowPendingStatus::class);
+        $this->holdActivityLock($storedWorkflow);
+        $job = $makeJob($storedWorkflow);
+        $service = $this->serviceSeeing(['delayed' => [$this->jobPayload($job, 2_000)]]);
+
+        [$wedged, $others] = $service->scan(['default']);
+
+        $this->assertCount(1, $wedged);
+        $this->assertSame($job::class, $wedged[0]->job);
+        $this->assertSame(WedgedWorkflowCauseEnum::ORPHANED_ACTIVITY_LOCK, $wedged[0]->cause);
+        $this->assertSame([], $others);
+
+        $this->assertTrue($service->repair($wedged[0]));
+        $this->assertTrue($this->workflowCanTakeItsTurn($storedWorkflow));
+    }
+
+    /**
+     * @return array<string, array{Closure(StoredWorkflow): object}>
+     */
+    public static function jobsThatWaitOnTheWorkflowLock(): array
+    {
+        return [
+            'exception' => [
+                fn (StoredWorkflow $storedWorkflow): object => new ExceptionJob(
+                    0,
+                    now()->toDateTimeString(),
+                    $storedWorkflow,
+                    ['message' => 'boom']
+                ),
+            ],
+            'signal' => [fn (StoredWorkflow $storedWorkflow): object => new Signal($storedWorkflow)],
+        ];
+    }
+
+    public function testASpinningActivityIsReportedAgainstItsWorkflowAndLeftAlone(): void
+    {
+        $storedWorkflow = $this->storedWorkflow(WorkflowWaitingStatus::class);
+        $activity = new DeliverHumanReplyActivity(0, now()->toDateTimeString(), $storedWorkflow);
+        $service = $this->serviceSeeing(['delayed' => [$this->jobPayload($activity, 400)]]);
+
+        $wedged = $service->find(['default']);
+
+        $this->assertCount(1, $wedged);
+        $this->assertSame($storedWorkflow->id, $wedged[0]->storedWorkflow->id);
+        $this->assertSame(WedgedWorkflowCauseEnum::UNKNOWN, $wedged[0]->cause);
+        $this->assertFalse($service->repair($wedged[0]));
+        $this->assertInstanceOf(WorkflowWaitingStatus::class, $storedWorkflow->refresh()->status);
+    }
+
+    public function testTheCommandListsSpinningJobsThatAreNotWorkflows(): void
+    {
+        $this->app->instance(
+            WedgedWorkflowService::class,
+            $this->serviceSeeing(['ready' => [$this->otherJobPayload(9_000)]])
+        );
+
+        $this->artisan('kanvas:workflow-wedged', ['--queue' => ['default']])
+            ->expectsOutputToContain(self::OTHER_JOB)
+            ->assertFailed();
     }
 
     public function testAQueueThatIsNotRedisHasNothingToScan(): void
@@ -143,7 +226,7 @@ final class WedgedWorkflowServiceTest extends TestCase
         $this->app->instance(WedgedWorkflowService::class, $this->serviceSeeing([]));
 
         $this->artisan('kanvas:workflow-wedged', ['--queue' => ['default']])
-            ->expectsOutputToContain('No workflow job is past 100 attempts.')
+            ->expectsOutputToContain('No job is past 100 attempts.')
             ->assertSuccessful();
     }
 
@@ -200,11 +283,25 @@ final class WedgedWorkflowServiceTest extends TestCase
 
     private function workflowPayload(StoredWorkflow $storedWorkflow, int $attempts): string
     {
+        return $this->jobPayload(new DynamicRuleWorkflow($storedWorkflow), $attempts);
+    }
+
+    private function otherJobPayload(int $attempts): string
+    {
         return json_encode([
-            'displayName' => DynamicRuleWorkflow::class,
+            'displayName' => self::OTHER_JOB,
+            'attempts' => $attempts,
+            'data' => ['command' => 'O:8:"stdClass":0:{}'],
+        ]);
+    }
+
+    private function jobPayload(object $job, int $attempts): string
+    {
+        return json_encode([
+            'displayName' => $job::class,
             'attempts' => $attempts,
             'data' => [
-                'command' => app(Encrypter::class)->encrypt(serialize(new DynamicRuleWorkflow($storedWorkflow))),
+                'command' => app(Encrypter::class)->encrypt(serialize($job)),
             ],
         ]);
     }
