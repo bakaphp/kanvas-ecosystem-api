@@ -6,14 +6,12 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use Exception;
 use Illuminate\Bus\UniqueLock;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
-use Kanvas\Connectors\EchoPay\Handlers\EchoPayHandler;
 use Kanvas\Connectors\Movipass\Actions\SettleAuthorizedPaymentAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SettlePortalPaymentActivity;
@@ -28,17 +26,13 @@ use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Notifications\PaymentReceiptNotification;
 use Kanvas\Souk\Payments\Processors\ProcessorFactory;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Mockery;
 use Mockery\MockInterface;
-use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Souk\PortalMockFlowCase;
 
 final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
 {
-    use HasIntegrationCompany;
-
     public function testAuthorizedPasoRapidoPaymentIsCapturedAndTheOrderPaid(): void
     {
         $captured = 0;
@@ -288,23 +282,37 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $paymentId = $this->createAuthorizedPortalPayment($service);
         $payment = Payments::find($paymentId);
         $order = $payment->payable;
-        $this->setIntegration(
-            $this->apps,
-            IntegrationsEnum::ECHO_PAY,
-            EchoPayHandler::class,
-            $this->company,
-            Auth::user()
-        );
 
-        $result = new SettlePortalPaymentActivity(
+        $result = $this->settleActivity()->execute($order, $this->apps, ['payment_id' => $payment->getId()]);
+
+        $this->assertSame('skipped', $result['status']);
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $payment->fresh()->status);
+    }
+
+    public function testActivityCapturesWhenTheCompanyHasNoPaymentIntegrationConnected(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('capturePayment')->once()->passthru();
+        $service->shouldNotReceive('reversePayment');
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+        $payment = Payments::find($paymentId);
+        $order = Order::find($payment->payable_id);
+        $order->setOrderType(OrderTypeEnum::MOVIPASS->value);
+
+        $result = $this->settleActivity()->execute($order->fresh(), $this->apps, ['payment_id' => $payment->getId()]);
+
+        $this->assertSame('success', $result['status'], $result['message'] ?? '');
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+    }
+
+    private function settleActivity(): SettlePortalPaymentActivity
+    {
+        return new SettlePortalPaymentActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
             []
-        )->execute($order, $this->apps, ['payment_id' => $payment->getId()]);
-
-        $this->assertSame('skipped', $result['status']);
-        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $payment->fresh()->status);
+        );
     }
 
     private function authorizedPasoRapidoPayment(MockInterface $service): array

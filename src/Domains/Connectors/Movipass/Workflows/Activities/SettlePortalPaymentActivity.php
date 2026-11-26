@@ -33,32 +33,23 @@ class SettlePortalPaymentActivity extends KanvasActivity implements WorkflowActi
     {
         $this->overwriteAppService($app);
 
-        return $this->executeIntegration(
-            entity: $order,
-            app: $app,
-            integration: IntegrationsEnum::ECHO_PAY,
-            additionalParams: $params,
-            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
-                $payment = $this->findSettleablePayment($order, (int) ($params['payment_id'] ?? 0));
+        $payment = $this->findSettleablePayment($order, (int) ($params['payment_id'] ?? 0));
 
-                if (! $payment instanceof Payments) {
-                    return [
-                        'order' => $order->getId(),
-                        'status' => 'skipped',
-                        'message' => 'No AUTHORIZED Portal payment of a Movipass order to settle',
-                    ];
-                }
+        if (! $payment instanceof Payments) {
+            return [
+                'order' => $order->getId(),
+                'status' => 'skipped',
+                'message' => 'No AUTHORIZED Portal payment of a Movipass order to settle',
+            ];
+        }
 
-                $result = new SettleAuthorizedPaymentAction($payment)->execute();
+        $result = new SettleAuthorizedPaymentAction($payment)->execute();
 
-                if (! in_array($result['status'], ['success', 'skipped'], true)) {
-                    return $this->failWorkflow($result);
-                }
+        if (! in_array($result['status'], ['success', 'skipped'], true)) {
+            return $this->failWorkflow($result);
+        }
 
-                return $result;
-            },
-            company: $order->company,
-        );
+        return $result;
     }
 
     private function findSettleablePayment(Model $order, int $paymentId): ?Payments
