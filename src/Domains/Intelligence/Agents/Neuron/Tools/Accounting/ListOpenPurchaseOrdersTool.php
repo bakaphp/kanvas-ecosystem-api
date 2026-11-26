@@ -73,11 +73,12 @@ class ListOpenPurchaseOrdersTool extends Tool
                     ])
             )
             ->when($vendor_organization_id !== null, fn ($q) => $q->where('vendor_organization_id', $vendor_organization_id))
+            ->with(['lines' => static fn ($lines) => $lines->where('open_qty', '>', 0)])
             ->orderByDesc('order_date')
             ->limit($limit);
 
         $orders = $query->get()->map(function (PurchaseOrder $po): array {
-            $lines = $po->lines()->where('open_qty', '>', 0)->get();
+            $lines = $po->lines;
 
             return [
                 'order_number' => $po->order_number,

@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreatePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -15,6 +22,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReceivePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitPurchaseOrderForApprovalTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdatePurchaseOrderTool;
+use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
@@ -92,6 +100,97 @@ class PurchaseOrderToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['created']);
         $this->assertSame('vendor_not_found', $result['reason']);
+    }
+
+    public function test_listing_orders_loads_open_lines_together_and_keeps_the_full_count(): void
+    {
+        $vendor = $this->seedTestOrganization('Batch Listed Vendor');
+        $lines = array_map(
+            static fn (int $number): array => ['description' => "Item {$number}", 'quantity' => 1, 'unit_cost' => 5],
+            range(1, 12)
+        );
+        $first = $this->createTool()->__invoke($vendor->getId(), 'USD', $lines);
+        $second = $this->createTool()->__invoke($vendor->getId(), 'USD', [$lines[0]]);
+        $order = PurchaseOrder::query()->where('order_number', $first['order_number'])
+            ->fromApp($this->kanvasApp)->fromCompany($this->company)->first();
+        $this->assertNotNull($order);
+        $order->lines()->where('line_number', 1)->update(['open_qty' => 0, 'received_qty' => 1]);
+        $connection = DB::connection('accounting');
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+
+        try {
+            $result = $this->listTool()->__invoke(vendor_organization_id: $vendor->getId());
+            $queries = $connection->getQueryLog();
+        } finally {
+            $connection->disableQueryLog();
+        }
+
+        $listed = collect($result['purchase_orders'])->keyBy('order_number');
+        $this->assertSame(2, $result['count']);
+        $this->assertSame(11, $listed[$first['order_number']]['open_line_count']);
+        $this->assertCount(10, $listed[$first['order_number']]['open_lines']);
+        $this->assertNotContains('Item 1', array_column($listed[$first['order_number']]['open_lines'], 'description'));
+        $this->assertSame(1, $listed[$second['order_number']]['open_line_count']);
+        $this->assertCount(1, array_filter(
+            $queries,
+            static fn (array $query): bool => str_contains($query['query'], 'from `purchase_order_lines`')
+        ));
+    }
+
+    public function test_finding_an_order_does_not_read_another_companys_account_number(): void
+    {
+        $foreign = Account::query()->fromApp($this->kanvasApp)->fromCompany($this->company)->first()->replicate();
+        $foreign->companies_id = $this->company->getId() + 987654;
+        $foreign->account_number = 'FOREIGN-' . uniqid();
+        $foreign->is_system = false;
+        $foreign->save();
+        $vendor = $this->seedTestOrganization('Foreign Account Vendor');
+        $created = $this->createTool()
+            ->__invoke($vendor->getId(), 'USD', [['description' => 'Item', 'quantity' => 1, 'unit_cost' => 5]]);
+        $order = PurchaseOrder::query()
+            ->fromApp($this->kanvasApp)
+            ->fromCompany($this->company)
+            ->where('order_number', $created['order_number'])
+            ->first();
+        $order->lines()->update(['expense_account_id' => $foreign->getId()]);
+
+        $found = $this->findTool()->__invoke(order_number: $created['order_number']);
+
+        $this->assertNull($found['lines'][0]['gl_account']);
+    }
+
+    public function test_finding_an_order_loads_its_account_codes_together(): void
+    {
+        $account = Account::query()->fromApp($this->kanvasApp)->fromCompany($this->company)->first();
+        $this->assertNotNull($account);
+        $vendor = $this->seedTestOrganization('Batch Account Vendor');
+        $created = $this->createTool()->__invoke($vendor->getId(), 'USD', array_fill(
+            0,
+            10,
+            ['description' => 'Item', 'quantity' => 1, 'unit_cost' => 5]
+        ));
+        $order = PurchaseOrder::query()->fromApp($this->kanvasApp)->fromCompany($this->company)
+            ->where('order_number', $created['order_number'])->first();
+        $this->assertNotNull($order);
+        $order->lines()->update(['expense_account_id' => $account->getId()]);
+        $connection = DB::connection('accounting');
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+
+        try {
+            $found = $this->findTool()->__invoke(order_number: $created['order_number']);
+            $queries = $connection->getQueryLog();
+        } finally {
+            $connection->disableQueryLog();
+        }
+
+        $this->assertSame(array_fill(0, 10, $account->account_number), array_column($found['lines'], 'gl_account'));
+        $this->assertSame(array_fill(0, 10, null), array_column($found['lines'], 'subaccount'));
+        $this->assertCount(1, array_filter(
+            $queries,
+            static fn (array $query): bool => str_contains($query['query'], 'from `accounts`')
+        ));
     }
 
     public function test_an_order_with_a_bad_line_is_refused_with_the_reason(): void
@@ -242,15 +341,67 @@ class PurchaseOrderToolsTest extends ScribeTestCase
 
     public function test_an_order_that_is_not_approved_is_not_sent(): void
     {
-        $order = $this->createPurchaseOrderFor($this->seedTestOrganization('Send Tool Vendor'));
+        $vendor = $this->seedTestOrganization('Send Tool Vendor');
+        $order = $this->createPurchaseOrderFor($vendor);
+        $onFile = $this->seedVendorContact($vendor, 'purchasing@vendor.example.test');
 
-        $result = new SendPurchaseOrderTool()
-            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(order_number: $order->order_number, to: ['purchasing@vendor.example.test']);
+        $result = $this->sendTool()->__invoke(order_number: $order->order_number, to: [$onFile]);
 
         $this->assertFalse($result['sent']);
         $this->assertSame('send_failed', $result['reason']);
-        $this->assertSame('purchase_order_not_found', $this->sendTool()->__invoke(order_number: 'PO-999999999', to: [])['reason']);
+        $this->assertSame(
+            'purchase_order_not_found',
+            $this->sendTool()->__invoke(order_number: 'PO-999999999', to: [])['reason']
+        );
+    }
+
+    public function test_an_order_is_sent_only_to_a_contact_on_file_for_its_vendor(): void
+    {
+        $vendor = $this->seedTestOrganization('Closed Set Vendor');
+        $order = $this->createPurchaseOrderFor($vendor);
+        $onFile = $this->seedVendorContact($vendor, 'orders@closed-set.example.test');
+        $elsewhere = $this->seedVendorContact(
+            $this->seedTestOrganization('Another Vendor'),
+            'orders@another.example.test'
+        );
+        Mail::fake();
+
+        foreach (['stranger@nowhere.example.test', $elsewhere] as $outside) {
+            $result = $this->sendTool()->__invoke(order_number: $order->order_number, to: [$onFile, $outside]);
+
+            $this->assertFalse($result['sent']);
+            $this->assertSame('recipient_not_allowed', $result['reason']);
+            $this->assertSame([$outside], $result['refused']);
+        }
+
+        Mail::assertNothingSent();
+        $this->assertNull($order->fresh()->sent_at);
+    }
+
+    private function seedVendorContact(Organization $vendor, string $email): string
+    {
+        $person = People::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => 'Vendor Contact',
+            'firstname' => 'Vendor',
+            'lastname' => 'Contact',
+        ]);
+        Contact::create([
+            'peoples_id' => $person->getId(),
+            'contacts_types_id' => ContactTypeEnum::EMAIL->value,
+            'value' => $email,
+            'weight' => 0,
+            'is_deleted' => 0,
+        ]);
+        OrganizationPeople::create([
+            'organizations_id' => $vendor->getId(),
+            'peoples_id' => $person->getId(),
+            'created_at' => Carbon::now(),
+        ]);
+
+        return $email;
     }
 
     public function test_the_agent_renders_the_order_as_a_pdf(): void

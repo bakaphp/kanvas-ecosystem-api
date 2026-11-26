@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Purchasing\Services;
 use Baka\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Scribe\Documents\Services\DocumentIssuerBlock;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Users\Models\Users;
@@ -54,7 +55,9 @@ final class PurchaseOrderPdfService
 
     public function fileName(): string
     {
-        return 'purchase-order-' . (string) preg_replace('/[^A-Za-z0-9_-]+/', '-', $this->order->order_number) . '.pdf';
+        $number = (string) preg_replace('/[^A-Za-z0-9_-]+/', '-', $this->order->order_number);
+
+        return "purchase-order-{$number}.pdf";
     }
 
     /**
@@ -62,7 +65,6 @@ final class PurchaseOrderPdfService
      */
     public function viewData(): array
     {
-        $company = $this->order->company;
         $vendor = $this->order->vendor;
 
         return [
@@ -71,24 +73,23 @@ final class PurchaseOrderPdfService
             'currency' => $this->order->currency,
             'order_date' => $this->order->order_date?->toFormattedDateString(),
             'expected_date' => $this->order->expected_date?->toFormattedDateString(),
-            'issuer' => [
-                'name' => (string) $company->name,
-                'address' => Str::trimToNull($company->address ?? null),
-                'email' => Str::trimToNull($company->email ?? null),
-                'phone' => Str::trimToNull($company->phone ?? null),
-            ],
+            'issuer' => DocumentIssuerBlock::for($this->order->company),
             'vendor' => [
                 'name' => (string) $vendor?->name,
                 'address' => Str::trimToNull($vendor?->address),
             ],
-            'lines' => $this->order->lines()->orderBy('line_number')->get()->map(static fn ($line): array => [
-                'number' => $line->line_number,
-                'sku' => $line->sku,
-                'description' => $line->description,
-                'quantity' => rtrim(rtrim(number_format((float) $line->order_qty, 6, '.', ','), '0'), '.'),
-                'unit_cost' => number_format((float) $line->unit_cost, 2),
-                'total' => number_format((float) $line->ext_cost, 2),
-            ])->all(),
+            'lines' => $this->order->lines()
+                ->orderBy('line_number')
+                ->get()
+                ->map(static fn ($line): array => [
+                    'number' => $line->line_number,
+                    'sku' => $line->sku,
+                    'description' => $line->description,
+                    'quantity' => rtrim(rtrim(number_format((float) $line->order_qty, 6, '.', ','), '0'), '.'),
+                    'unit_cost' => number_format((float) $line->unit_cost, 2),
+                    'total' => number_format((float) $line->ext_cost, 2),
+                ])
+                ->all(),
             'total' => number_format((float) $this->order->order_total, 2),
             'notes' => Str::trimToNull($this->order->notes),
         ];

@@ -11,15 +11,16 @@ use Kanvas\Scribe\Invoices\Services\CreditRequestFormParserFactory;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-/** Reads a client's credit-request document already saved in Kanvas and parses it into the fields create_ar_credit_memo needs — CreditRequestFormParserFactory picks the right client-specific parser per app, this tool never hardcodes one. */
 #[AgentTool(name: 'Extract Credit Request Form', category: 'accounting')]
 class ExtractCreditRequestFormTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesFilesystemForTool;
+    use TrackByInputs;
 
     protected string $name = 'extract_credit_request_form';
 

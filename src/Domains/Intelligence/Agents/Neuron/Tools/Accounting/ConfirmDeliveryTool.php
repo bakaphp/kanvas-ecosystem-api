@@ -12,7 +12,6 @@ use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-/** Records the delivery of a shipped customer order against its signed proof of delivery. */
 #[AgentTool(name: 'Confirm Delivery', category: 'accounting')]
 class ConfirmDeliveryTool extends AbstractCustomerOrderTool
 {
@@ -38,7 +37,7 @@ class ConfirmDeliveryTool extends AbstractCustomerOrderTool
             new ToolProperty(
                 name: 'delivered_on',
                 type: PropertyType::STRING,
-                description: 'The delivery date as YYYY-MM-DD.',
+                description: 'The delivery date as YYYY-MM-DD, on or after the bill of lading date.',
                 required: true,
             ),
             new ToolProperty(
@@ -56,7 +55,8 @@ class ConfirmDeliveryTool extends AbstractCustomerOrderTool
             new ToolProperty(
                 name: 'damage_reported',
                 type: PropertyType::BOOLEAN,
-                description: 'True when damage was reported, which starts a cargo claim to the carrier and the insurer.',
+                description: 'True when damage was reported on the proof of delivery. This records the damage only; '
+                    . 'the team must file any cargo claim with the carrier and insurer separately.',
                 required: false,
             ),
         ];

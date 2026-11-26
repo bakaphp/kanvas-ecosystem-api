@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Illuminate\Support\Collection;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -70,6 +71,9 @@ class FindPurchaseOrderTool extends Tool
 
         /** @var PurchaseOrder $po */
         $po = $result;
+        $lines = $po->lines()->orderBy('line_number')->get();
+        $accounts = $this->codes(Account::class, $lines->pluck('expense_account_id'), 'account_number');
+        $subaccounts = $this->codes(Subaccount::class, $lines->pluck('subaccount_id'), 'sub_code');
 
         return [
             'found' => true,
@@ -80,7 +84,7 @@ class FindPurchaseOrderTool extends Tool
             'order_date' => $po->order_date?->toDateString(),
             'currency' => $po->currency,
             'order_total' => (float) $po->order_total,
-            'lines' => $po->lines()->orderBy('line_number')->get()->map(fn ($l): array => [
+            'lines' => $lines->map(static fn ($l): array => [
                 'line_number' => (int) $l->line_number,
                 'sku' => $l->sku,
                 'description' => $l->description,
@@ -89,8 +93,8 @@ class FindPurchaseOrderTool extends Tool
                 'received_qty' => (float) $l->received_qty,
                 'unit_cost' => (float) $l->unit_cost,
                 'ext_cost' => (float) $l->ext_cost,
-                'gl_account' => $this->code(Account::class, $l->expense_account_id, 'account_number'),
-                'subaccount' => $this->code(Subaccount::class, $l->subaccount_id, 'sub_code'),
+                'gl_account' => $accounts[$l->expense_account_id] ?? null,
+                'subaccount' => $subaccounts[$l->subaccount_id] ?? null,
             ])->all(),
             'receipts' => $po->receipts()->orderBy('received_on')->orderBy('id')->get()->map(
                 static fn (PurchaseOrderReceipt $receipt): array => [
@@ -104,15 +108,23 @@ class FindPurchaseOrderTool extends Tool
 
     /**
      * @param class-string $model
+     * @param Collection<int, int|null> $ids
+     *
+     * @return Collection<int, string|null>
      */
-    private function code(string $model, ?int $id, string $column): ?string
+    private function codes(string $model, Collection $ids, string $column): Collection
     {
-        if ($id === null) {
-            return null;
+        $ids = $ids->filter()->unique();
+
+        if ($ids->isEmpty()) {
+            return new Collection();
         }
 
-        $value = $model::query()->where('id', $id)->value($column);
-
-        return $value !== null ? (string) $value : null;
+        return $model::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->whereIn('id', $ids)
+            ->pluck($column, 'id')
+            ->map(static fn (mixed $value): ?string => $value === null ? null : (string) $value);
     }
 }

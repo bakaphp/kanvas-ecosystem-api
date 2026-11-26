@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Recibo de pago {{ number }}</title>
+    <style>
+        @page { margin: 0; }
+        body { margin: 0; padding: 40px 48px; font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #1f2933; }
+        table { width: 100%; border-collapse: collapse; }
+        .logo { display: block; width: auto; height: auto; max-height: 56px; max-width: 200px; margin-bottom: 8px; }
+        .issuer-name { font-size: 16px; font-weight: bold; }
+        .muted { color: #6b7280; }
+        .title { margin: 26px 0 22px; padding: 10px 14px; background: #e5e7eb; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        .field { margin-bottom: 16px; line-height: 1.5; }
+        .label { font-weight: bold; }
+        .amount { font-size: 17px; font-weight: bold; }
+        .words { margin-top: 2px; text-transform: uppercase; }
+        .breakdown { margin: 4px 0 8px; width: 70%; }
+        .breakdown td { padding: 4px 8px; border-bottom: 1px solid #e5e7eb; }
+        .breakdown td.key { width: 38%; font-weight: bold; }
+        .signatures { margin-top: 56px; }
+        .signatures td { width: 33%; vertical-align: bottom; text-align: center; }
+        .signature-img { display: block; margin: 0 auto 4px; max-height: 70px; max-width: 180px; }
+        .seal-img { display: block; margin: 0 auto; max-height: 90px; max-width: 120px; }
+        .line { border-top: 1px solid #1f2933; padding-top: 4px; }
+        .footer { margin-top: 48px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #6b7280; }
+    </style>
+</head>
+<body>
+<table>
+    <tr>
+        <td>
+            {% if issuer.logo %}<img class="logo" src="{{ issuer.logo }}" alt="{{ issuer.name }}">{% endif %}
+            <div class="issuer-name">{{ issuer.name }}</div>
+        </td>
+    </tr>
+</table>
+
+<div class="title">Recibo de pago # {{ number }}</div>
+
+<div class="field"><span class="label">Hemos recibido de:</span> {{ customer_name }}</div>
+
+<div class="field">
+    <div><span class="label">La suma de</span> <span class="amount">{{ amount }}XXXXX</span></div>
+    <div class="words">{{ amount_words }}</div>
+</div>
+
+<div class="field"><span class="label">Por concepto de:</span> {{ concept }}</div>
+
+<div class="field">
+    <div class="label">Desglose:</div>
+    <table class="breakdown">
+        <tr><td class="key">Forma de pago</td><td>{{ payment.method }}</td></tr>
+        {% if payment.number %}<tr><td class="key">No.</td><td>{{ payment.number }}</td></tr>{% endif %}
+        {% if payment.date %}<tr><td class="key">Fechado</td><td>{{ payment.date }}</td></tr>{% endif %}
+        {% if payment.bank %}<tr><td class="key">Banco</td><td>{{ payment.bank }}</td></tr>{% endif %}
+    </table>
+</div>
+
+<table class="signatures">
+    <tr>
+        <td>
+            {% if signature %}<img class="signature-img" src="{{ signature }}" alt="">{% endif %}
+            <div class="line">Recibido por{% if received_by %}: {{ received_by }}{% endif %}</div>
+        </td>
+        <td>{% if seal %}<img class="seal-img" src="{{ seal }}" alt="">{% endif %}</td>
+        <td><div class="line">Fecha: {{ issued_date }}</div></td>
+    </tr>
+</table>
+
+<div class="footer">
+    {{ issuer.address_lines|join(' · ') }}
+    {% if issuer.phone %}<br>{{ issuer.phone }}{% endif %}{% if issuer.email %}{% if issuer.phone %} · {% else %}<br>{% endif %}{{ issuer.email }}{% endif %}
+</div>
+</body>
+</html>

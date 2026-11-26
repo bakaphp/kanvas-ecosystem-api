@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\KanvasMailable;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Exceptions\InvalidPurchaseOrderTransitionException;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
@@ -25,6 +26,8 @@ use Kanvas\Users\Models\Users;
  */
 class SendPurchaseOrderAction
 {
+    use LocksDocumentRow;
+
     /**
      * @param list<string> $recipients
      * @param (Closure(string): string)|null $fetchPdf reads a stored file's bytes; the default fetches its URL
@@ -41,26 +44,31 @@ class SendPurchaseOrderAction
 
     public function execute(): PurchaseOrder
     {
-        if (! $this->order->isIssuedByCompany()) {
-            throw InvalidPurchaseOrderTransitionException::notIssuedByCompany($this->order, 'sent');
-        }
-
-        if ($this->order->document_status !== PurchaseOrderStatusEnum::SENT) {
-            $this->stateMachine->assertTransition($this->order, PurchaseOrderStatusEnum::SENT);
-        }
-
         $recipients = $this->validRecipients();
-        $pdf = new PurchaseOrderPdfService($this->order)->generate($this->user);
-        $bytes = $this->fetchPdf !== null ? ($this->fetchPdf)($pdf->url) : SafeUrlFetcher::fetch($pdf->url);
 
-        $this->email($recipients, $bytes, $pdf->name);
+        // The lock is held while the email goes out: an order cancelled or sent back to draft meanwhile must
+        // neither reach the vendor nor be marked sent over its new state.
+        return $this->withRowLocked($this->order, function () use ($recipients): PurchaseOrder {
+            if (! $this->order->isIssuedByCompany()) {
+                throw InvalidPurchaseOrderTransitionException::notIssuedByCompany($this->order, 'sent');
+            }
 
-        $this->order->document_status = PurchaseOrderStatusEnum::SENT;
-        $this->order->sent_at = Carbon::now();
-        $this->order->sent_to = implode(', ', $recipients);
-        $this->order->saveOrFail();
+            if ($this->order->document_status !== PurchaseOrderStatusEnum::SENT) {
+                $this->stateMachine->assertTransition($this->order, PurchaseOrderStatusEnum::SENT);
+            }
 
-        return $this->order;
+            $pdf = new PurchaseOrderPdfService($this->order)->generate($this->user);
+            $bytes = $this->fetchPdf !== null ? ($this->fetchPdf)($pdf->url) : SafeUrlFetcher::fetch($pdf->url);
+
+            $this->email($recipients, $bytes, $pdf->name);
+
+            $this->order->document_status = PurchaseOrderStatusEnum::SENT;
+            $this->order->sent_at = Carbon::now();
+            $this->order->sent_to = implode(', ', $recipients);
+            $this->order->saveOrFail();
+
+            return $this->order;
+        });
     }
 
     /**
@@ -90,7 +98,8 @@ class SendPurchaseOrderAction
         $company = (string) $this->order->company->name;
         $note = Str::trimToNull($this->message);
 
-        $html = '<p>Please find attached purchase order ' . e($this->order->order_number) . ' from ' . e($company) . '.</p>'
+        $html = '<p>Please find attached purchase order ' . e($this->order->order_number)
+            . ' from ' . e($company) . '.</p>'
             . ($note === null ? '' : '<p>' . nl2br(e($note)) . '</p>');
 
         Mail::send(

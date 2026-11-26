@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\SalesOrders\Actions;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
 use Kanvas\Scribe\SalesOrders\Services\SalesOrderStateMachineService;
@@ -15,6 +16,8 @@ use Kanvas\Scribe\SalesOrders\Services\SalesOrderStateMachineService;
  */
 class AcceptSalesOrderAction
 {
+    use LocksDocumentRow;
+
     public function __construct(
         protected readonly SalesOrder $order,
         protected readonly Carbon $etd,
@@ -25,18 +28,20 @@ class AcceptSalesOrderAction
 
     public function execute(): SalesOrder
     {
-        $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::ACCEPTED);
+        return $this->withRowLocked($this->order, function (): SalesOrder {
+            $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::ACCEPTED);
 
-        if ($this->eta->lt($this->etd)) {
-            throw new ValidationException('The arrival date cannot be before the departure date.');
-        }
+            if ($this->eta->lt($this->etd)) {
+                throw new ValidationException('The arrival date cannot be before the departure date.');
+            }
 
-        $this->order->document_status = SalesOrderStatusEnum::ACCEPTED;
-        $this->order->etd = $this->etd;
-        $this->order->eta = $this->eta;
-        $this->order->accepted_at = Carbon::now();
-        $this->order->saveOrFail();
+            $this->order->document_status = SalesOrderStatusEnum::ACCEPTED;
+            $this->order->etd = $this->etd;
+            $this->order->eta = $this->eta;
+            $this->order->accepted_at = Carbon::now();
+            $this->order->saveOrFail();
 
-        return $this->order;
+            return $this->order;
+        });
     }
 }

@@ -11,7 +11,6 @@ use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-/** Lists sales orders, newest first, optionally of one status or one customer. */
 #[AgentTool(name: 'List Customer Orders', category: 'accounting')]
 class ListCustomerOrdersTool extends AbstractCustomerOrderTool
 {
@@ -74,6 +73,7 @@ class ListCustomerOrdersTool extends AbstractCustomerOrderTool
             )
             ->orderByDesc('received_at')
             ->limit(max(1, min(100, $limit ?? 20)))
+            ->with('shipment')
             ->get()
             ->map(fn (SalesOrder $order): array => $this->summary($order))
             ->all();

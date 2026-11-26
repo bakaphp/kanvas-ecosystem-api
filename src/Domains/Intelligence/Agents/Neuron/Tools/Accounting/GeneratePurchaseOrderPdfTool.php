@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\FindsPurchaseOrderByNumber;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Ledger\Exceptions\InvalidDocumentTransitionException;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderPdfService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -15,7 +17,6 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-/** Renders a purchase order as a PDF and attaches it to the order. */
 #[AgentTool(name: 'Generate Purchase Order PDF', category: 'accounting')]
 class GeneratePurchaseOrderPdfTool extends Tool
 {
@@ -59,6 +60,8 @@ class GeneratePurchaseOrderPdfTool extends Tool
         try {
             $file = new PurchaseOrderPdfService($order)->generate($this->user);
         } catch (Throwable $e) {
+            report_unless($e instanceof ValidationException || $e instanceof InvalidDocumentTransitionException, $e);
+
             return [
                 'generated' => false,
                 'order_number' => $order->order_number,

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Purchasing\Actions;
 
-use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Purchasing\Actions\Concerns\PersistsPurchaseOrderLines;
 use Kanvas\Scribe\Purchasing\DataTransferObject\PurchaseOrder as PurchaseOrderData;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
@@ -16,6 +16,7 @@ use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
  */
 class UpdatePurchaseOrderAction
 {
+    use LocksDocumentRow;
     use PersistsPurchaseOrderLines;
 
     public function __construct(
@@ -26,28 +27,40 @@ class UpdatePurchaseOrderAction
 
     public function execute(): PurchaseOrder
     {
-        if (! $this->order->isIssuedByCompany()) {
-            throw InvalidPurchaseOrderTransitionException::notIssuedByCompany($this->order, 'edited');
-        }
-
-        if ($this->order->document_status !== PurchaseOrderStatusEnum::DRAFT) {
-            throw new InvalidPurchaseOrderTransitionException(
-                "Purchase order {$this->order->order_number} is {$this->order->document_status->value}: only a draft can be edited."
-            );
-        }
-
         $this->assertLines($this->data);
 
-        return DB::connection('accounting')->transaction(function (): PurchaseOrder {
-            $this->order->vendor_organization_id = $this->data->vendor->getId();
-            $this->order->currency = $this->data->currency;
-            $this->order->order_date = $this->data->order_date;
-            $this->order->expected_date = $this->data->expected_date;
-            $this->order->notes = $this->data->notes;
+        return $this->withRowLocked($this->order, function (): PurchaseOrder {
+            $order = $this->order;
 
-            $this->persistLines($this->order, $this->data);
+            if (! $order->isIssuedByCompany()) {
+                throw InvalidPurchaseOrderTransitionException::notIssuedByCompany($order, 'edited');
+            }
 
-            return $this->order->fresh(['lines']);
+            if ($order->document_status !== PurchaseOrderStatusEnum::DRAFT) {
+                throw new InvalidPurchaseOrderTransitionException(
+                    "Purchase order {$order->order_number} is {$order->document_status->value}: "
+                    . 'only a draft can be edited.'
+                );
+            }
+
+            $order->forceFill($this->data->sent([
+                'currency' => $this->data->currency,
+                'order_date' => $this->data->order_date,
+                'expected_date' => $this->data->expected_date,
+                'notes' => $this->data->notes,
+            ]));
+
+            if ($this->data->changes('vendor_id')) {
+                $order->vendor_organization_id = $this->data->vendor->getId();
+            }
+
+            if ($this->data->changes('lines')) {
+                $this->persistLines($order, $this->data);
+            } else {
+                $order->saveOrFail();
+            }
+
+            return $order->fresh(['lines']);
         });
     }
 }

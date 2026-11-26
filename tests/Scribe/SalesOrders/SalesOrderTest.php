@@ -361,6 +361,133 @@ class SalesOrderTest extends ScribeTestCase
         new CancelSalesOrderAction($order)->execute();
     }
 
+    public function test_a_quote_of_another_customer_is_refused(): void
+    {
+        $quote = $this->createTestQuote($this->seedTestOrganization('Quote Owner'));
+        $other = $this->seedTestOrganization('Different Customer');
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('belongs to another customer');
+
+        $this->register($other, $quote);
+    }
+
+    public function test_a_missing_quote_can_be_attached_later(): void
+    {
+        [$customer, $quote] = $this->customerWithQuote();
+        $order = new RegisterCustomerPoAction(
+            SalesOrderData::from(
+                $this->kanvasApp,
+                static::$cachedUser,
+                $this->company,
+                [
+                    'customer_id' => $customer->getId(),
+                    'po_source' => 'customer_po',
+                    'customer_po_number' => 'PO-NO-QUOTE',
+                    'customer_po_date' => '2026-11-20',
+                    'currency' => 'USD',
+                    'lines' => self::LINES,
+                ]
+            )
+        )->execute();
+
+        $updated = new UpdateSalesOrderAction(
+            $order,
+            SalesOrderData::forUpdate(
+                $order,
+                $this->kanvasApp,
+                static::$cachedUser,
+                $this->company,
+                ['quote_id' => $quote->getId()]
+            )
+        )->execute();
+
+        $this->assertSame($quote->getId(), $updated->quote_id);
+        $this->assertSame([], new ReviewSalesOrderAction($updated)->execute()->differences());
+    }
+
+    public function test_an_order_confirmed_elsewhere_cannot_be_edited_from_a_stale_copy(): void
+    {
+        [$customer, $quote] = $this->customerWithQuote();
+        $order = new ReviewSalesOrderAction($this->register($customer, $quote))->execute();
+        $stale = $order->fresh();
+        new ConfirmSalesOrderAction($order, feasibilityConfirmed: true)->execute();
+
+        $this->expectException(InvalidSalesOrderTransitionException::class);
+        $this->expectExceptionMessage('received or returned');
+
+        new UpdateSalesOrderAction(
+            $stale,
+            SalesOrderData::forUpdate(
+                $stale,
+                $this->kanvasApp,
+                static::$cachedUser,
+                $this->company,
+                ['notes' => 'Too late']
+            )
+        )->execute();
+    }
+
+    public function test_an_accepted_order_cannot_be_accepted_again_with_other_dates(): void
+    {
+        $order = new AcceptSalesOrderAction(
+            $this->confirmedOrder(),
+            Carbon::parse('2026-12-10'),
+            Carbon::parse('2026-12-28')
+        )->execute();
+
+        $this->expectException(InvalidSalesOrderTransitionException::class);
+        $this->expectExceptionMessage('already accepted');
+
+        new AcceptSalesOrderAction($order, Carbon::parse('2027-01-10'), Carbon::parse('2027-01-28'))->execute();
+    }
+
+    public function test_a_review_finds_other_products_with_the_same_quantities_and_prices(): void
+    {
+        [$customer, $quote] = $this->customerWithQuote();
+        $order = $this->register($customer, $quote, [
+            'lines' => [
+                ['description' => 'Cement', 'quantity' => 10, 'unit_price' => 20, 'sku' => 'CEMENT-1'],
+                ['description' => 'Sand', 'quantity' => 5, 'unit_price' => 30, 'sku' => 'SAND-1'],
+            ],
+        ]);
+
+        $differences = new ReviewSalesOrderAction($order)->execute()->differences();
+
+        $this->assertSame(['line_1_product', 'line_2_product'], array_column($differences, 'key'));
+        $this->assertSame(['CEMENT-1', 'RICE-1'], [$differences[0]['po_value'], $differences[0]['quote_value']]);
+    }
+
+    public function test_a_notes_only_edit_from_a_stale_copy_keeps_newer_lines(): void
+    {
+        [$customer, $quote] = $this->customerWithQuote();
+        $order = $this->register($customer, $quote);
+        $stale = $order->fresh();
+        $notesOnly = SalesOrderData::forUpdate(
+            $stale,
+            $this->kanvasApp,
+            static::$cachedUser,
+            $this->company,
+            ['notes' => 'Notes only']
+        );
+        new UpdateSalesOrderAction(
+            $order,
+            SalesOrderData::forUpdate(
+                $order,
+                $this->kanvasApp,
+                static::$cachedUser,
+                $this->company,
+                ['lines' => [['description' => 'Corrected', 'quantity' => 1, 'unit_price' => 500]]]
+            )
+        )->execute();
+
+        $updated = new UpdateSalesOrderAction($stale, $notesOnly)->execute();
+
+        $this->assertSame('500.0000', $updated->order_total);
+        $this->assertSame(['Corrected'], $updated->lines->pluck('description')->all());
+        $this->assertSame('Notes only', $updated->notes);
+    }
+
     public function test_the_lifecycle_only_moves_forward(): void
     {
         $machine = new SalesOrderStateMachineService();

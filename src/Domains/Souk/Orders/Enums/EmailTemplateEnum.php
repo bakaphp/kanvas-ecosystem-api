@@ -10,4 +10,5 @@ enum EmailTemplateEnum: string
     case NEW_ORDER_STORE_OWNER = 'new-order-store-owner';
     case ORDER_EXPIRING = 'order-expiring';
     case ORDER_EXPIRED = 'order-expired';
+    case PAYMENT_RECEIPT_AZUL = 'payment_receipt_azul';
 }

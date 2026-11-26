@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Purchasing\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Exceptions\InvalidPurchaseOrderTransitionException;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
@@ -19,6 +19,8 @@ use Kanvas\Scribe\Purchasing\Services\PurchaseOrderStateMachineService;
  */
 class SubmitPurchaseOrderForApprovalAction
 {
+    use LocksDocumentRow;
+
     public const string TARGET_TYPE = 'purchase_order';
 
     public function __construct(
@@ -30,17 +32,20 @@ class SubmitPurchaseOrderForApprovalAction
 
     public function execute(): PurchaseOrder
     {
-        if (! $this->order->isIssuedByCompany()) {
-            throw InvalidPurchaseOrderTransitionException::notIssuedByCompany($this->order, 'submitted for approval');
-        }
+        return $this->withRowLocked($this->order, function (): PurchaseOrder {
+            if (! $this->order->isIssuedByCompany()) {
+                throw InvalidPurchaseOrderTransitionException::notIssuedByCompany(
+                    $this->order,
+                    'submitted for approval'
+                );
+            }
 
-        $this->stateMachine->assertTransition($this->order, PurchaseOrderStatusEnum::PENDING_APPROVAL);
+            $this->stateMachine->assertTransition($this->order, PurchaseOrderStatusEnum::PENDING_APPROVAL);
 
-        if ($this->order->document_status === PurchaseOrderStatusEnum::PENDING_APPROVAL) {
-            return $this->order;
-        }
+            if ($this->order->document_status === PurchaseOrderStatusEnum::PENDING_APPROVAL) {
+                return $this->order;
+            }
 
-        return DB::connection('accounting')->transaction(function (): PurchaseOrder {
             $this->order->document_status = PurchaseOrderStatusEnum::PENDING_APPROVAL;
             $this->order->saveOrFail();
 

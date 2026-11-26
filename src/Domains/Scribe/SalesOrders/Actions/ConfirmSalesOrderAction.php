@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\SalesOrders\Actions;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\SalesOrders\Credit\CustomerCreditService;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
@@ -19,6 +20,8 @@ use Kanvas\Scribe\SalesOrders\Services\SalesOrderValidityService;
  */
 class ConfirmSalesOrderAction
 {
+    use LocksDocumentRow;
+
     public function __construct(
         protected readonly SalesOrder $order,
         protected readonly bool $feasibilityConfirmed,
@@ -29,6 +32,14 @@ class ConfirmSalesOrderAction
     }
 
     public function execute(): SalesOrder
+    {
+        return $this->credit->oneDecisionAtATime(
+            $this->order->customer,
+            fn (): SalesOrder => $this->withRowLocked($this->order, fn (): SalesOrder => $this->confirm())
+        );
+    }
+
+    private function confirm(): SalesOrder
     {
         $this->stateMachine->assertTransition($this->order, SalesOrderStatusEnum::CONFIRMED);
 

@@ -46,7 +46,7 @@ final class AzulItbisFromTaxAmountTest extends TestCase
         );
     }
 
-    public function testItbisIsZeroStringWhenOrderHasNoTax(): void
+    public function testItbisIsThreeZerosWhenOrderHasNoTax(): void
     {
         $capturedRequest = null;
         [$processor, $payment, $order] = $this->buildProcessorWithMocks(
@@ -57,7 +57,21 @@ final class AzulItbisFromTaxAmountTest extends TestCase
         $processor->authorize($payment, $order);
 
         $this->assertNotNull($capturedRequest);
-        $this->assertSame('0', $capturedRequest->itbis);
+        $this->assertSame('000', $capturedRequest->itbis);
+    }
+
+    public function testAmountsUnderOnePesoKeepThreeDigits(): void
+    {
+        $capturedRequest = null;
+        [$processor, $payment, $order] = $this->buildProcessorWithMocks(
+            taxAmount: 0.05,
+            capturedRequest: $capturedRequest,
+        );
+
+        $processor->authorize($payment, $order);
+
+        $this->assertSame('005', $capturedRequest->itbis);
+        $this->assertSame('10005', $capturedRequest->amount);
     }
 
     private function buildProcessorWithMocks(float $taxAmount, mixed &$capturedRequest): array
