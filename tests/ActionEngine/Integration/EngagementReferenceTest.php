@@ -18,6 +18,7 @@ use Kanvas\ActionEngine\Engagements\Events\EngagementCompanyUpdateEvent;
 use Kanvas\ActionEngine\Engagements\Events\EngagementCompletedEvent;
 use Kanvas\ActionEngine\Engagements\Events\EngagementStatusChangedEvent;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Services\EngagementUploadTokenService;
 use Kanvas\ActionEngine\Engagements\Support\EngagementReferenceMap;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Support\Setup;
@@ -131,6 +132,25 @@ final class EngagementReferenceTest extends TestCase
         }
 
         $this->assertNotEmpty($engagement->message->getMessage()['action_link'] ?? null);
+    }
+
+    public function testGetDocsMessageReceivesAnEngagementScopedUploadToken(): void
+    {
+        $request = $this->request(Str::uuid()->toString());
+        $request['action'] = ActionEnum::GET_DOCS->value;
+        $request['extraData'] = ['count' => 100];
+        $data = EngagementData::from(auth()->user(), $this->people, $this->reference, $request);
+
+        $engagement = $this->recordingAction($data)->execute();
+        $uploadDetails = $engagement->message->getMessage()['file_upload'];
+        $claims = (new EngagementUploadTokenService())->verify($uploadDetails['token']);
+
+        $this->assertNotNull($claims);
+        $this->assertSame($engagement->uuid, $claims['engagement_uuid']);
+        $this->assertSame($this->company->getId(), $claims['company_id']);
+        $this->assertSame(100, $claims['max_files']);
+        $this->assertSame(100, $engagement->upload_limit);
+        $this->assertSame('/v1/engagements/' . $engagement->uuid . '/uploads', $uploadDetails['endpoint']);
     }
 
     public function testLeadPathDualWritesTheLeadAsReferenceAndStillDispatchesTheLeadEvent(): void

@@ -18,6 +18,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class AttachFilesystemAction
 {
+    public bool $runWorkflow = true;
+
     public function __construct(
         protected Filesystem $filesystem,
         protected EloquentModel $entity
@@ -128,7 +130,7 @@ class AttachFilesystemAction
             // Fire events after successful database operations. $entity is typed as a bare
             // EloquentModel, and hasWorkflow() comes from KanvasModelTrait — a model without it
             // (FiscalPeriod) reaches here and fatals, so probe it the way clearLightHouseCache is.
-            if (method_exists($this->entity, 'hasWorkflow') && $this->entity->hasWorkflow()) {
+            if ($this->runWorkflow && method_exists($this->entity, 'hasWorkflow') && $this->entity->hasWorkflow()) {
                 $this->entity->fireWorkflow(
                     WorkflowEnum::ATTACH_FILE->value,
                     true,
@@ -139,7 +141,7 @@ class AttachFilesystemAction
                 );
             }
 
-            if ($fileEntity->hasWorkflow()) {
+            if ($this->runWorkflow && $fileEntity->hasWorkflow()) {
                 $fileEntity->fireWorkflow(
                     WorkflowEnum::CREATED->value,
                     true,

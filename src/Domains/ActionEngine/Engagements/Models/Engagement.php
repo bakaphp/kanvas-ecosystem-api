@@ -45,6 +45,9 @@ use Nevadskiy\Tree\AsTree;
  * @property int $pipelines_stages_id
  * @property string $entity_uuid
  * @property string $slug
+ * @property int $upload_count
+ * @property int $upload_limit
+ * @property Carbon|null $upload_expires_at
  */
 #[ObservedBy(EngagementObserver::class)]
 class Engagement extends BaseModel

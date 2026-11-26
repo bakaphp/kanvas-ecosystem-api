@@ -22,6 +22,7 @@ use Kanvas\ActionEngine\Actions\Models\CompanyActionVisitor;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Services\EngagementUploadTokenService;
 use Kanvas\ActionEngine\Engagements\Support\EngagementReferenceMap;
 use Kanvas\ActionEngine\Engagements\Support\LeadEngagementHooks;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -117,6 +118,7 @@ class CreateEngagementAction
             }
 
             $engagement = $this->createEngagement($message);
+            $this->configureGetDocsUploads($engagement, $message);
             $newLink = $this->generateNewEngagementUrl($engagement);
 
             //update msg new action page migration link
@@ -134,6 +136,39 @@ class CreateEngagementAction
 
             return $engagement;
         });
+    }
+
+    private function configureGetDocsUploads(Engagement $engagement, Message $message): void
+    {
+        if ($this->actionSlug !== ActionEnum::GET_DOCS->value) {
+            return;
+        }
+
+        $params = array_merge($this->messageData['params'] ?? [], $this->engagementData->extraData);
+        $requestedLimit = $params['count'] ?? 1;
+        if (! is_numeric($requestedLimit) || (int) $requestedLimit < 0) {
+            return;
+        }
+
+        $maxFiles = (int) $requestedLimit;
+        $expiresAt = now()->addHours(EngagementUploadTokenService::DEFAULT_TTL_HOURS);
+        $token = new EngagementUploadTokenService()->issue($engagement, $maxFiles, $expiresAt);
+
+        $engagement->upload_count = 0;
+        $engagement->upload_limit = $maxFiles;
+        $engagement->upload_expires_at = $expiresAt;
+        $engagement->saveOrFail();
+
+        $messageData = $message->getMessage();
+        $messageData['params'] = $params;
+        $messageData['file_upload'] = [
+            'token' => $token,
+            'max_files' => $maxFiles,
+            'expires_at' => $expiresAt->toIso8601String(),
+            'endpoint' => route('engagements.uploads.store', ['uuid' => $engagement->uuid], false),
+        ];
+        $message->message = $messageData;
+        $message->saveOrFail();
     }
 
     protected function fireCreatedWorkflow(Engagement $engagement, Message $message, ModelsChannel $channel): void

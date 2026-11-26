@@ -49,7 +49,7 @@ class FilesystemServices
     /**
      * Upload a file using filesystem.
      */
-    public function upload(UploadedFile $file, Users $user): ModelsFilesystem
+    public function upload(UploadedFile $file, Users $user, bool $runWorkflow = true): ModelsFilesystem
     {
         $file = $this->optimizeBeforeUpload($file);
 
@@ -101,6 +101,7 @@ class FilesystemServices
             $this->app,
             $this->company
         );
+        $createFileSystem->runWorkflow = $runWorkflow;
 
         return $createFileSystem->execute(
             $this->storage->url($uploadedFile),

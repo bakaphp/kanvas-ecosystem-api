@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\EngagementUploadController;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\MetaReceiverController;
 use App\Http\Controllers\OAuthIntegrationController;
@@ -11,6 +12,7 @@ use Spatie\Health\Http\Controllers\SimpleHealthCheckController;
 Route::get('/', [IndexController::class, 'index']);
 Route::post('/receiver/meta', [MetaReceiverController::class, 'storeMeta']);
 Route::get('/receiver/meta', [MetaReceiverController::class, 'verifyMeta']);
+Route::post('/engagements/{uuid}/uploads', [EngagementUploadController::class, 'store'])->name('engagements.uploads.store');
 Route::post('/receiver/{uuid}', [ReceiverController::class, 'store']);
 Route::get('/receiver/{uuid}', [ReceiverController::class, 'verify']);
 Route::get('/oauth/callback', [OAuthIntegrationController::class, 'callbackByState']);
