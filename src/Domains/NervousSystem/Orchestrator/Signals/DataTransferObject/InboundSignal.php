@@ -160,13 +160,20 @@ final readonly class InboundSignal
      */
     private function summarySections(): array
     {
-        $metadata = $this->metadata;
-
         return array_values(array_filter([
-            ! empty($metadata['summary']) ? "Summary:\n" . $metadata['summary'] : null,
-            ! empty($metadata['chapters']) ? "Chapters:\n- " . implode("\n- ", (array) $metadata['chapters']) : null,
-            ! empty($metadata['action_items']) ? "Action items:\n- " . implode("\n- ", (array) $metadata['action_items']) : null,
+            ! empty($this->metadata['summary']) ? "Summary:\n" . $this->metadata['summary'] : null,
+            $this->listSection('Chapters', 'chapters'),
+            $this->listSection('Action items', 'action_items'),
+            $this->listSection('Key questions', 'key_questions'),
+            $this->listSection('Topics', 'topics'),
         ]));
+    }
+
+    private function listSection(string $label, string $key): ?string
+    {
+        $items = (array) ($this->metadata[$key] ?? []);
+
+        return $items !== [] ? "{$label}:\n- " . implode("\n- ", $items) : null;
     }
 
     /**
