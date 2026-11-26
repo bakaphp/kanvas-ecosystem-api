@@ -117,10 +117,14 @@ class PurchaseOrderGraphQLTest extends ScribeTestCase
         $rejectedId = $this->submittedOrderId($vendor);
         $this->graphQL('
             mutation ($id: ID!) {
-                rejectScribePurchaseOrder(id: $id, reason: "Wrong vendor") { document_status notes }
+                rejectScribePurchaseOrder(id: $id, reason: "Wrong vendor") { document_status notes internal_notes }
             }', ['id' => $rejectedId])
             ->assertJsonPath('data.rejectScribePurchaseOrder.document_status', 'DRAFT')
-            ->assertJsonPath('data.rejectScribePurchaseOrder.notes', 'Rejected: Wrong vendor');
+            ->assertJsonPath('data.rejectScribePurchaseOrder.notes', null)
+            ->assertJsonPath(
+                'data.rejectScribePurchaseOrder.internal_notes',
+                fn (?string $notes): bool => str_contains((string) $notes, 'Rejected: Wrong vendor')
+            );
     }
 
     public function test_an_order_without_an_approval_policy_cannot_be_submitted_through_the_api(): void

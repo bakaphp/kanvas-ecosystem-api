@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Purchasing\Actions;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderStateMachineService;
@@ -15,6 +16,8 @@ use Kanvas\Scribe\Purchasing\Services\PurchaseOrderStateMachineService;
  */
 class ApprovePurchaseOrderAction
 {
+    use LocksDocumentRow;
+
     public function __construct(
         protected readonly PurchaseOrder $order,
         protected readonly PurchaseOrderStateMachineService $stateMachine = new PurchaseOrderStateMachineService(),
@@ -23,16 +26,18 @@ class ApprovePurchaseOrderAction
 
     public function execute(): PurchaseOrder
     {
-        if ($this->order->document_status === PurchaseOrderStatusEnum::APPROVED) {
+        return $this->withRowLocked($this->order, function (): PurchaseOrder {
+            if ($this->order->document_status === PurchaseOrderStatusEnum::APPROVED) {
+                return $this->order;
+            }
+
+            $this->stateMachine->assertTransition($this->order, PurchaseOrderStatusEnum::APPROVED);
+
+            $this->order->document_status = PurchaseOrderStatusEnum::APPROVED;
+            $this->order->approved_at = Carbon::now();
+            $this->order->saveOrFail();
+
             return $this->order;
-        }
-
-        $this->stateMachine->assertTransition($this->order, PurchaseOrderStatusEnum::APPROVED);
-
-        $this->order->document_status = PurchaseOrderStatusEnum::APPROVED;
-        $this->order->approved_at = Carbon::now();
-        $this->order->saveOrFail();
-
-        return $this->order;
+        });
     }
 }

@@ -7,6 +7,7 @@ namespace Tests\Scribe\Purchasing;
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\KanvasMailable;
+use Kanvas\Scribe\Purchasing\Actions\CancelPurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Actions\SendPurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Actions\SubmitPurchaseOrderForApprovalAction;
 use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
@@ -69,7 +70,36 @@ class PurchaseOrderApprovalAndSendTest extends ScribeTestCase
 
         $rejected = $order->fresh();
         $this->assertSame(PurchaseOrderStatusEnum::DRAFT, $rejected->document_status);
-        $this->assertStringContainsString('Rejected: Wrong vendor', $rejected->notes);
+        $this->assertStringContainsString('Rejected: Wrong vendor', $rejected->internal_notes);
+    }
+
+    public function test_why_an_order_was_rejected_never_prints_on_the_vendors_document(): void
+    {
+        [$order, $approver] = $this->submittedOrder();
+        $notes = $order->notes;
+
+        $order->reject($approver, 'Too expensive, renegotiate');
+
+        $rejected = $order->fresh();
+        $this->assertSame($notes, $rejected->notes);
+        $this->assertStringNotContainsString('renegotiate', new PurchaseOrderPdfService($rejected)->render());
+    }
+
+    public function test_a_copy_loaded_before_the_order_was_cancelled_is_not_sent(): void
+    {
+        $order = $this->approvedOrder();
+        $stale = $order->fresh();
+        new CancelPurchaseOrderAction($order, 'Vendor out of stock')->execute();
+        Mail::fake();
+
+        try {
+            $this->send($stale, ['vendor@example.com']);
+            $this->fail('A cancelled order should not reach the vendor.');
+        } catch (InvalidPurchaseOrderTransitionException) {
+            $this->assertSame(PurchaseOrderStatusEnum::CANCELLED, $order->fresh()->document_status);
+        }
+
+        Mail::assertNothingSent();
     }
 
     public function test_an_expired_approval_returns_the_order_to_draft(): void
@@ -80,7 +110,7 @@ class PurchaseOrderApprovalAndSendTest extends ScribeTestCase
 
         $expired = $order->fresh();
         $this->assertSame(PurchaseOrderStatusEnum::DRAFT, $expired->document_status);
-        $this->assertStringContainsString('expired with no decision', $expired->notes);
+        $this->assertStringContainsString('expired with no decision', $expired->internal_notes);
     }
 
     public function test_an_order_mirrored_from_an_erp_cannot_be_submitted(): void

@@ -22,7 +22,10 @@ type ScribePurchaseOrder {
     order_date: Date
     expected_date: Date
     currency: String
+    "Printed on the document the vendor receives."
     notes: String
+    "Staff notes, never printed: why an order was rejected or its approval expired."
+    internal_notes: String
     approved_at: DateTime
     "When the order was emailed to the vendor, and to whom."
     sent_at: DateTime
@@ -110,7 +113,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@approve"
         )
-    "Rejects an order pending approval; it goes back to draft with the reason in its notes."
+    "Rejects an order pending approval; it goes back to draft with the reason in its internal notes."
     rejectScribePurchaseOrder(id: ID!, reason: String!): ScribePurchaseOrder!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderMutation@reject"

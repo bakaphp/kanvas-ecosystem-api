@@ -143,9 +143,13 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   generic approvals engine: `SubmitPurchaseOrderForApprovalAction` opens an `approve_purchase_order` request with the
   vendor's approvers (it refuses when the company has no policy, which `SeedScribeApprovalPoliciesAction` now seeds
   with `ApprovePurchaseOrderHandler`: approving moves the order to approved, rejecting back to draft, and an expired
-  request returns it to draft). `SendPurchaseOrderAction` renders the PDF (`PurchaseOrderPdfService`, the
+  request returns it to draft; the reason goes to `internal_notes` (`PurchaseOrder::returnToDraft()`), never to
+  `notes`, which prints on the vendor's PDF). These actions lock the order row like the others. `SendPurchaseOrderAction` renders the PDF (`PurchaseOrderPdfService`, the
   `scribe-purchase-order` Twig row with a packaged fallback), emails it to the given addresses through the company's
-  SMTP settings, and only then marks the order sent; a sent order can be sent again. Tools
+  SMTP settings, and only then marks the order sent; a sent order can be sent again. The AP agent holds
+  `send_purchase_order` only while a person is asking, like its other tools that act on an inbound email's word,
+  and the tool sends only to the email on file of a person linked to the order's vendor (or an admin-allowed
+  domain): one address outside that refuses the whole send. The GraphQL mutation takes the addresses a user types. Tools
   `submit_purchase_order_for_approval`, `send_purchase_order` and `generate_purchase_order_pdf` (approving is the
   existing `approve_pending_item`); GraphQL `submitScribePurchaseOrderForApproval`, `approveScribePurchaseOrder`,
   `rejectScribePurchaseOrder`, `sendScribePurchaseOrder` and `generateScribePurchaseOrderPdf`. Receiving is the next
