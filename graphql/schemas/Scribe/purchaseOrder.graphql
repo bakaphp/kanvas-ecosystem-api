@@ -139,12 +139,12 @@ extend type Mutation @guard {
         notes: String
     ): ScribePurchaseOrderReceipt!
         @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptResolver@receive"
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptMutation@receive"
         )
     "Links a vendor bill to the purchase order it bills, once the three-way match finds nothing to explain."
     linkScribeBillToPurchaseOrder(bill_id: ID!, purchase_order_id: ID!): ScribeBill!
         @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptResolver@link"
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptMutation@link"
         )
     "Cancels a purchase order the company issued, as long as no goods have arrived against it."
     cancelScribePurchaseOrder(id: ID!, reason: String): ScribePurchaseOrder!
@@ -195,7 +195,7 @@ extend type Query @guard {
     "The three-way match of a vendor bill with a purchase order and what was received against it."
     matchScribeBillToPurchaseOrder(bill_id: ID!, purchase_order_id: ID!): ScribePurchaseOrderMatch!
         @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Purchasing\\PurchaseOrderReceiptResolver@match"
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Purchasing\\PurchaseOrderMatchQuery@match"
         )
     scribePurchaseOrders(
         where: _

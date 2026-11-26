@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\FindsPurchaseOrderByNumber;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Ledger\Exceptions\InvalidDocumentTransitionException;
 use Kanvas\Scribe\Purchasing\Actions\LinkBillToPurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderMatchService;
 use NeuronAI\Tools\PropertyType;
@@ -17,7 +19,6 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-/** The three-way match of a vendor bill with a purchase order and what was received; optionally links them. */
 #[AgentTool(name: 'Match Bill To Purchase Order', category: 'accounting')]
 class MatchBillToPurchaseOrderTool extends Tool
 {
@@ -49,7 +50,8 @@ class MatchBillToPurchaseOrderTool extends Tool
             new ToolProperty(
                 name: 'bill_number',
                 type: PropertyType::STRING,
-                description: 'The vendor\'s bill number, as entered on the bill. It is looked up among this order\'s vendor\'s bills.',
+                description: 'The vendor\'s bill number, as entered on the bill. It is looked up among this '
+                    . 'order\'s vendor\'s bills.',
                 required: true,
             ),
             new ToolProperty(
@@ -64,7 +66,7 @@ class MatchBillToPurchaseOrderTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $order_number, string $bill_number, bool $link = false): array
+    public function __invoke(string $order_number, string $bill_number, ?bool $link = null): array
     {
         $order = $this->purchaseOrderByNumber($order_number);
 
@@ -84,20 +86,23 @@ class MatchBillToPurchaseOrderTool extends Tool
             return [
                 'found' => false,
                 'reason' => 'bill_not_found',
-                'message' => "No bill numbered {$bill_number} from the vendor of purchase order {$order->order_number}.",
+                'message' => "No bill numbered {$bill_number} from the vendor of purchase order "
+                    . "{$order->order_number}.",
             ];
         }
 
         $match = new PurchaseOrderMatchService()->match($order, $bill);
         $result = ['order_number' => $order->order_number, 'bill_number' => $bill->bill_number] + $match->toArray();
 
-        if (! $link) {
+        if ($link !== true || ! $match->matched()) {
             return $result + ['linked' => false];
         }
 
         try {
             new LinkBillToPurchaseOrderAction($bill, $order)->execute();
         } catch (Throwable $e) {
+            report_unless($e instanceof ValidationException || $e instanceof InvalidDocumentTransitionException, $e);
+
             return $result + ['linked' => false, 'message' => $e->getMessage()];
         }
 

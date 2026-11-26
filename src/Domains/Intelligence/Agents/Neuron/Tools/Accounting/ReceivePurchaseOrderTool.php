@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\FindsPurchaseOrderByNumber;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Ledger\Exceptions\InvalidDocumentTransitionException;
 use Kanvas\Scribe\Purchasing\Actions\ReceivePurchaseOrderAction;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
@@ -18,7 +21,6 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-/** Records goods received against a sent purchase order. */
 #[AgentTool(name: 'Receive Purchase Order', category: 'accounting')]
 class ReceivePurchaseOrderTool extends Tool
 {
@@ -109,15 +111,28 @@ class ReceivePurchaseOrderTool extends Tool
         }
 
         try {
+            $receivedOn = $received_on === null ? Carbon::today() : Carbon::parse($received_on);
+        } catch (InvalidFormatException) {
+            return [
+                'received' => false,
+                'order_number' => $order->order_number,
+                'reason' => 'invalid_received_on',
+                'message' => "\"{$received_on}\" is not a date. Pass received_on as YYYY-MM-DD, or leave it out for today.",
+            ];
+        }
+
+        try {
             $receipt = new ReceivePurchaseOrderAction(
                 order: $order,
                 user: $this->user,
-                receivedOn: $received_on === null ? Carbon::today() : Carbon::parse($received_on),
+                receivedOn: $receivedOn,
                 lines: $lines,
                 reference: $reference,
                 notes: $notes,
             )->execute();
         } catch (Throwable $e) {
+            report_unless($e instanceof ValidationException || $e instanceof InvalidDocumentTransitionException, $e);
+
             return [
                 'received' => false,
                 'order_number' => $order->order_number,

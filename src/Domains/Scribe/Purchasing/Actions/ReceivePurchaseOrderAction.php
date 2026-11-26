@@ -6,10 +6,10 @@ namespace Kanvas\Scribe\Purchasing\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderConfigurationEnum;
 use Kanvas\Scribe\Purchasing\Enums\PurchaseOrderStatusEnum;
 use Kanvas\Scribe\Purchasing\Exceptions\InvalidPurchaseOrderTransitionException;
@@ -17,7 +17,7 @@ use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderLine;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderReceipt;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderStateMachineService;
-use Kanvas\Scribe\Purchasing\Support\PlainNumber;
+use Kanvas\Scribe\Support\PlainNumber;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -28,6 +28,8 @@ use Kanvas\Users\Models\Users;
  */
 class ReceivePurchaseOrderAction
 {
+    use LocksDocumentRow;
+
     public const string NUMBER_PREFIX = 'GR-';
 
     /**
@@ -47,10 +49,11 @@ class ReceivePurchaseOrderAction
 
     public function execute(): PurchaseOrderReceipt
     {
-        $this->assertReceivable();
-        $quantities = $this->quantitiesByLine();
+        // Two receipts of one order take turns: each is checked against what the one before left open.
+        return $this->withRowLocked($this->order, function (): PurchaseOrderReceipt {
+            $this->assertReceivable();
+            $quantities = $this->quantitiesByLine();
 
-        return DB::connection('accounting')->transaction(function () use ($quantities): PurchaseOrderReceipt {
             $receipt = new PurchaseOrderReceipt();
             $receipt->apps_id = $this->order->apps_id;
             $receipt->companies_id = $this->order->companies_id;
@@ -100,7 +103,8 @@ class ReceivePurchaseOrderAction
 
         if (! in_array($this->order->document_status, $receivable, true)) {
             throw new InvalidPurchaseOrderTransitionException(
-                "Purchase order {$this->order->order_number} is {$this->order->document_status->value}: goods can only be received against a sent order."
+                "Purchase order {$this->order->order_number} is {$this->order->document_status->value}: "
+                . 'goods can only be received against a sent order.'
             );
         }
     }
@@ -116,7 +120,9 @@ class ReceivePurchaseOrderAction
             throw new ValidationException('A receipt needs at least one line.');
         }
 
-        $tolerance = (float) $this->order->company->get(PurchaseOrderConfigurationEnum::OVER_RECEIPT_TOLERANCE_PERCENT->value);
+        $tolerance = (float) $this->order->company->get(
+            PurchaseOrderConfigurationEnum::OVER_RECEIPT_TOLERANCE_PERCENT->value
+        );
         $orderLines = $this->order->lines->keyBy('line_number');
         $quantities = [];
 
@@ -154,7 +160,9 @@ class ReceivePurchaseOrderAction
     private function moveOrder(): void
     {
         $everythingArrived = $this->order->lines()->where('open_qty', '>', 0)->doesntExist();
-        $target = $everythingArrived ? PurchaseOrderStatusEnum::RECEIVED : PurchaseOrderStatusEnum::PARTIALLY_RECEIVED;
+        $target = $everythingArrived
+            ? PurchaseOrderStatusEnum::RECEIVED
+            : PurchaseOrderStatusEnum::PARTIALLY_RECEIVED;
 
         $this->stateMachine->assertTransition($this->order, $target);
 

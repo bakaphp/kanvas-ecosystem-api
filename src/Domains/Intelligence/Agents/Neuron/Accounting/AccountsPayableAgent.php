@@ -143,7 +143,6 @@ class AccountsPayableAgent extends SystemUserAgent
             new CancelPurchaseOrderTool(),
             new SubmitPurchaseOrderForApprovalTool(),
             new GeneratePurchaseOrderPdfTool(),
-            new ReceivePurchaseOrderTool(),
             new MatchBillToPurchaseOrderTool(),
             new IssuePurchaseEcfTool(),
             new VoidApBillTool(),
@@ -206,6 +205,7 @@ class AccountsPayableAgent extends SystemUserAgent
             $tools[] = new SubmitApBillTool()->withContext($this->app, $this->company, $person);
             $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
             $tools[] = new SendPurchaseOrderTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new ReceivePurchaseOrderTool()->withContext($this->app, $this->company, $person);
         }
 
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.

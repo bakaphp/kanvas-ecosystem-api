@@ -34,6 +34,9 @@ return new class () extends Migration {
 
             $table->unique(['apps_id', 'companies_id', 'receipt_number'], 'por_app_company_number_uq');
             $table->index('purchase_order_id', 'por_order_idx');
+            $table->index(['uuid'], 'por_uuid_idx');
+            $table->index(['apps_id', 'companies_id', 'received_on'], 'por_app_company_received_idx');
+            $table->index(['apps_id', 'companies_id', 'reference'], 'por_app_company_reference_idx');
         });
 
         Schema::connection('accounting')->create('purchase_order_receipt_lines', function (Blueprint $table): void {
@@ -46,6 +49,11 @@ return new class () extends Migration {
             $table->index('purchase_order_line_id', 'porl_line_idx');
         });
 
+        // The match reads the other bills linked to an order; the column was reserved without an index.
+        Schema::connection('accounting')->table('bills', function (Blueprint $table): void {
+            $table->index('purchase_order_id', 'bills_purchase_order_idx');
+        });
+
         $this->setSequenceTypes([...$this->sequenceTypes(), self::SEQUENCE_TYPE]);
     }
 
@@ -54,7 +62,14 @@ return new class () extends Migration {
         Schema::connection('accounting')->dropIfExists('purchase_order_receipt_lines');
         Schema::connection('accounting')->dropIfExists('purchase_order_receipts');
 
-        DB::connection('accounting')->table('document_sequences')->where('document_type', self::SEQUENCE_TYPE)->delete();
+        Schema::connection('accounting')->table('bills', function (Blueprint $table): void {
+            $table->dropIndex('bills_purchase_order_idx');
+        });
+
+        DB::connection('accounting')
+            ->table('document_sequences')
+            ->where('document_type', self::SEQUENCE_TYPE)
+            ->delete();
 
         $this->setSequenceTypes(array_values(array_diff($this->sequenceTypes(), [self::SEQUENCE_TYPE])));
     }

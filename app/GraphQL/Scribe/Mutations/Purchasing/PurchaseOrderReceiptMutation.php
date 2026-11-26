@@ -11,9 +11,8 @@ use Kanvas\Scribe\Purchasing\Actions\LinkBillToPurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Actions\ReceivePurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderReceipt;
-use Kanvas\Scribe\Purchasing\Services\PurchaseOrderMatchService;
 
-class PurchaseOrderReceiptResolver
+class PurchaseOrderReceiptMutation
 {
     use ResolvesActingContext;
 
@@ -27,14 +26,6 @@ class PurchaseOrderReceiptResolver
             reference: $request['reference'] ?? null,
             notes: $request['notes'] ?? null,
         )->execute();
-    }
-
-    public function match(mixed $rootValue, array $request): array
-    {
-        return new PurchaseOrderMatchService()->match(
-            $this->order($request['purchase_order_id']),
-            $this->bill($request['bill_id'])
-        )->toArray();
     }
 
     public function link(mixed $rootValue, array $request): Bill
