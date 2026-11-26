@@ -108,32 +108,30 @@ class SendEventEmailsAction
 
     /**
      * Emails are the one place with no client to convert for us, so the times have to be rendered
-     * in the resource's own timezone here — otherwise a 9 AM booking in Santo Domingo reads as
-     * 13:00 to the customer.
+     * in the event's own timezone here — otherwise a 9 AM booking in Santo Domingo reads as
+     * 1:00 PM to the customer.
      */
     protected function localizedDates(Event $event): array
     {
         $firstDate = $this->eventVersion->dates->first();
-
-        $firstStartTime = DateHelper::normalizeTime((string) $firstDate?->start_time, self::TIME_FORMAT);
         $firstEndTime = DateHelper::normalizeTime((string) $firstDate?->end_time, self::TIME_FORMAT);
 
         if ($this->eventVersion->start_at === null) {
             return [
                 'start_date' => $firstDate?->event_date?->format('Y-m-d'),
-                'start_time' => $firstStartTime,
+                'start_time' => DateHelper::normalizeTime((string) $firstDate?->start_time, self::TIME_FORMAT),
                 'end_time' => $firstEndTime,
             ];
         }
 
         $timezone = $event->getTimezone();
         $startAt = $this->eventVersion->start_at->clone()->setTimezone($timezone);
+        $endAt = $this->eventVersion->end_at?->clone()->setTimezone($timezone);
 
         return [
             'start_date' => $startAt->format('Y-m-d'),
             'start_time' => $startAt->format(self::TIME_FORMAT),
-            'end_time' => $this->eventVersion->end_at?->clone()->setTimezone($timezone)->format(self::TIME_FORMAT)
-                ?? $firstEndTime,
+            'end_time' => $endAt?->format(self::TIME_FORMAT) ?? $firstEndTime,
             'timezone' => $timezone,
         ];
     }
