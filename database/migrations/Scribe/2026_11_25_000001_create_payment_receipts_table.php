@@ -47,7 +47,14 @@ return new class () extends Migration {
 
             $table->unique(['payment_id'], 'pr_payment_uq');
             $table->unique(['apps_id', 'companies_id', 'receipt_number'], 'pr_app_company_number_uq');
-            $table->index(['apps_id', 'companies_id', 'customer_organization_id'], 'pr_app_company_customer_idx');
+            $table->index(['uuid'], 'pr_uuid_idx');
+            // Newest first, for the company and for one customer: the two lists a receipts screen reads.
+            $table->index(['apps_id', 'companies_id', 'issued_at'], 'pr_app_company_issued_idx');
+            $table->index(
+                ['apps_id', 'companies_id', 'customer_organization_id', 'issued_at'],
+                'pr_app_company_customer_issued_idx'
+            );
+            $table->index(['apps_id', 'companies_id', 'instrument_number'], 'pr_app_company_instrument_idx');
         });
     }
 
