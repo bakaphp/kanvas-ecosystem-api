@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules;
 
+use Baka\Support\AllowedClass;
 use Generator;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
@@ -11,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Support\TransientEntity;
 use Override;
+use Workflow\Activity;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
 
@@ -41,13 +43,21 @@ class DynamicRuleWorkflow extends Workflow
         $params['rule'] = $rule;
 
         foreach ($rule->workflowActivities as $workflowActivity) {
-            $activity = $workflowActivity->activity;
+            $activityClass = AllowedClass::resolve(
+                $workflowActivity->activity?->action?->model_name,
+                Activity::class
+            );
+
+            // An activity removed from the code is still named by the rule of a company not yet
+            // moved off it, and building a class that is gone is fatal to the whole run.
+            if ($activityClass === null) {
+                continue;
+            }
 
             if ($rule->runAsync()) {
-                $activities[] = yield ActivityStub::make($activity->actionClass(), TransientEntity::wrap($entity), $app, $params);
+                $activities[] = yield ActivityStub::make($activityClass, TransientEntity::wrap($entity), $app, $params);
             } else {
                 // The real row, so the activity's workflowId() and its history rows join back to this run.
-                $activityClass = $activity->actionClass();
                 $activity = new $activityClass(
                     index: 0,
                     now: now()->toDateTimeString(),
