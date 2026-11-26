@@ -59,7 +59,10 @@ abstract class AbstractCustomerOrderTool extends Tool
             ];
         }
 
-        return [$doneKey => true] + $this->summary($order) + ['differences' => $order->differences()];
+        return [$doneKey => true] + $this->summary($order) + [
+            'differences' => $order->differences(),
+            'documents_differences' => $order->documentsDifferences(),
+        ];
     }
 
     /**
@@ -79,7 +82,7 @@ abstract class AbstractCustomerOrderTool extends Tool
      */
     protected function summary(SalesOrder $order): array
     {
-        $open = array_column($order->openDifferences(), 'key');
+        $open = $order->openDifferenceKeys();
 
         return [
             'order_number' => $order->order_number,
@@ -90,9 +93,28 @@ abstract class AbstractCustomerOrderTool extends Tool
             'currency' => $order->currency,
             'order_total' => (float) $order->order_total,
             'open_differences' => $open,
+            'open_documents_differences' => $order->openDocumentsDifferenceKeys(),
             'etd' => $order->etd?->toDateString(),
             'eta' => $order->eta?->toDateString(),
+            'shipment' => $this->shipment($order),
             'next' => $this->nextStep($order, $open),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function shipment(SalesOrder $order): ?array
+    {
+        $shipment = $order->shipment;
+
+        return $shipment === null ? null : [
+            'bl_number' => $shipment->bl_number,
+            'bl_date' => $shipment->bl_date->toDateString(),
+            'invoice_due_date' => $shipment->due_date->toDateString(),
+            'documents_package_due_on' => $shipment->documents_package_due_on?->toDateString(),
+            'documents_package_sent' => $shipment->documents_package_sent_at !== null,
+            'delivered_on' => $shipment->delivered_on?->toDateString(),
         ];
     }
 
@@ -112,7 +134,14 @@ abstract class AbstractCustomerOrderTool extends Tool
                 . 'dates or returns it with a reason.',
             SalesOrderStatusEnum::RETURNED => 'Operations returned it: renegotiate with the customer, correct the '
                 . 'order and review it again.',
-            SalesOrderStatusEnum::ACCEPTED => 'Accepted with firm dates; it can go to purchasing and shipping.',
+            SalesOrderStatusEnum::ACCEPTED => $order->documents_checked_at === null
+                ? 'Accepted with firm dates: cross-check the shipping documents with check_shipping_documents '
+                    . 'before the bill of lading.'
+                : 'Documents checked: once every difference is clarified, record the bill of lading with '
+                    . 'record_shipment.',
+            SalesOrderStatusEnum::SHIPPED => 'Shipped: send the documents package (mark_documents_package_sent), '
+                . 'follow get_collection_plan, and confirm_delivery with the proof of delivery.',
+            SalesOrderStatusEnum::DELIVERED => 'Delivered: close_customer_order once its invoice is paid.',
             default => 'Nothing more to do on this order in this step.',
         };
     }
