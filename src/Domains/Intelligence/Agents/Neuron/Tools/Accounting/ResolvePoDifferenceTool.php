@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Scribe\SalesOrders\Actions\ResolveSalesOrderDifferenceAction;
+use Kanvas\Scribe\SalesOrders\Enums\DifferenceSourceEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
@@ -46,19 +47,46 @@ class ResolvePoDifferenceTool extends AbstractCustomerOrderTool
                 description: 'How it was clarified with the customer.',
                 required: true,
             ),
+            new ToolProperty(
+                name: 'source',
+                type: PropertyType::STRING,
+                description: 'review (the default) for a difference of review_customer_po, documents for one of '
+                    . 'check_shipping_documents.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $order_number, string $key, string $resolution): array
-    {
+    public function __invoke(
+        string $order_number,
+        string $key,
+        string $resolution,
+        ?string $source = null,
+    ): array {
+        $differenceSource = DifferenceSourceEnum::tryFrom(
+            strtolower(trim($source ?? DifferenceSourceEnum::REVIEW->value))
+        );
+
+        if ($differenceSource === null) {
+            return [
+                'resolved' => false,
+                'reason' => 'unknown_source',
+                'message' => 'The source has to be review or documents.',
+            ];
+        }
+
         return $this->actOn(
             $order_number,
             'resolved',
-            static fn (SalesOrder $order): SalesOrder => new ResolveSalesOrderDifferenceAction($order, $key, $resolution)
-                ->execute()
+            static fn (SalesOrder $order): SalesOrder => new ResolveSalesOrderDifferenceAction(
+                $order,
+                $key,
+                $resolution,
+                $differenceSource
+            )->execute()
         );
     }
 }

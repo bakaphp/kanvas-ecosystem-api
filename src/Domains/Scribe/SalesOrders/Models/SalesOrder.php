@@ -11,12 +11,15 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\SalesOrders\Enums\PoSourceEnum;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
+use Kanvas\Scribe\SalesOrders\Services\SalesOrderCollectionPlanService;
 use Override;
 
 /**
@@ -31,6 +34,7 @@ use Override;
  * @property PoSourceEnum $po_source
  * @property int $customer_organization_id
  * @property int|null $quote_id
+ * @property int|null $invoice_id
  * @property string|null $customer_po_number
  * @property Carbon|null $customer_po_date
  * @property array|null $signature_checklist
@@ -43,6 +47,8 @@ use Override;
  * @property string|null $notes
  * @property array|null $review
  * @property Carbon|null $reviewed_at
+ * @property array|null $documents_check
+ * @property Carbon|null $documents_checked_at
  * @property Carbon|null $feasibility_confirmed_at
  * @property Carbon|null $etd
  * @property Carbon|null $eta
@@ -74,6 +80,8 @@ class SalesOrder extends BaseModel
         'requested_date' => 'date',
         'review' => Json::class,
         'reviewed_at' => 'datetime',
+        'documents_check' => Json::class,
+        'documents_checked_at' => 'datetime',
         'feasibility_confirmed_at' => 'datetime',
         'etd' => 'date',
         'eta' => 'date',
@@ -100,6 +108,56 @@ class SalesOrder extends BaseModel
         return $this->belongsTo(Quote::class, 'quote_id', 'id');
     }
 
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class, 'invoice_id', 'id');
+    }
+
+    public function shipment(): HasOne
+    {
+        return $this->hasOne(SalesOrderShipment::class, 'sales_order_id', 'id');
+    }
+
+    /**
+     * The differences the cross-check of the shipping documents found.
+     *
+     * @return list<array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: string|null}>
+     */
+    public function documentsDifferences(): array
+    {
+        return $this->documents_check['differences'] ?? [];
+    }
+
+    /**
+     * The keys of the review differences nobody has clarified yet.
+     *
+     * @return list<string>
+     */
+    public function openDifferenceKeys(): array
+    {
+        return array_column($this->openDifferences(), 'key');
+    }
+
+    /**
+     * The keys of the shipping documents differences nobody has clarified yet.
+     *
+     * @return list<string>
+     */
+    public function openDocumentsDifferenceKeys(): array
+    {
+        return array_column($this->unresolved($this->documentsDifferences()), 'key');
+    }
+
+    /**
+     * What has to happen, and who does it, from the bill of lading date until the invoice is paid.
+     *
+     * @return list<array{day: int, date: string, action: string, owner: string}>
+     */
+    public function collectionPlan(): array
+    {
+        return $this->shipment === null ? [] : new SalesOrderCollectionPlanService()->plan($this->shipment);
+    }
+
     /**
      * The differences the last review found between the order and its quote.
      *
@@ -117,8 +175,20 @@ class SalesOrder extends BaseModel
      */
     public function openDifferences(): array
     {
+        return $this->unresolved($this->differences());
+    }
+
+    /**
+     * @template TDifference of array{key: string, resolution: string|null}
+     *
+     * @param list<TDifference> $differences
+     *
+     * @return list<TDifference>
+     */
+    private function unresolved(array $differences): array
+    {
         return array_values(array_filter(
-            $this->differences(),
+            $differences,
             static fn (array $difference): bool => $difference['resolution'] === null
         ));
     }
