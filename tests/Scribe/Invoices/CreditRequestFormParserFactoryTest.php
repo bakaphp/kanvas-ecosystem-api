@@ -7,8 +7,10 @@ namespace Tests\Scribe\Invoices;
 use Kanvas\Connectors\Nzxt\Services\CreditRequestFormParserService as NzxtCreditRequestFormParserService;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Invoices\Services\CreditRequestFormParserFactory;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Scribe\ScribeTestCase;
 
+#[Group('serial')]
 final class CreditRequestFormParserFactoryTest extends ScribeTestCase
 {
     private mixed $originalClientConfig = null;

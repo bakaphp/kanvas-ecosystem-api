@@ -6,8 +6,10 @@ namespace Tests\Scribe\Intelligence;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Scribe\ScribeTestCase;
 
+#[Group('serial')]
 final class ExtractCreditRequestFormToolTest extends ScribeTestCase
 {
     private mixed $originalClientConfig = null;

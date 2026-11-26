@@ -166,7 +166,9 @@ class CreateArCreditMemoTool extends Tool
             ];
         }
 
-        if (trim($invoice_number) === '') {
+        $reference = trim($invoice_number);
+
+        if ($reference === '') {
             return [
                 'created' => false,
                 'reason' => 'invoice_number_required',
@@ -216,8 +218,10 @@ class CreateArCreditMemoTool extends Tool
                 ];
             }
 
+            $description = Str::trimToNull((string) ($line['description'] ?? ''));
+
             $lineData[] = new InvoiceLineData(
-                description: Str::trimToNull((string) ($line['description'] ?? '')) ?? $accountNumber ?? trim($invoice_number),
+                description: $description ?? $accountNumber ?? $reference,
                 quantity: 1.0,
                 unit_price_native: $amount,
                 account_id: $account?->getId(),
@@ -238,8 +242,8 @@ class CreateArCreditMemoTool extends Tool
                     lines: new DataCollection(InvoiceLineData::class, $lineData),
                     currency: $currency,
                     fx_rate_to_base: 1.0,
-                    invoice_number: trim($invoice_number),
-                    notes: "Reference: {$invoice_number}" . ($notes === null ? '' : "\n{$notes}"),
+                    invoice_number: $reference,
+                    notes: "Reference: {$reference}" . ($notes === null ? '' : "\n{$notes}"),
                 ),
                 billable: $customer,
                 user: $actingUser,
