@@ -342,6 +342,32 @@ class PayWayPaymentFlowTest extends TestCase
         $this->assertStringContainsString('does not support refunds', $result['message']);
     }
 
+    public function testProcessPaymentRejectsPayWayWithoutMarkingThePaymentFailed(): void
+    {
+        $order = $this->buildOrder();
+        $payment = $this->createPendingPaymentWithPayWayMethod($order);
+
+        $response = $this->graphQL('
+            mutation($paymentId: ID!) {
+                processPayment(paymentId: $paymentId) {
+                    status
+                    message
+                }
+            }
+        ', [
+            'paymentId' => (string) $payment->id,
+        ], [], [
+            'X-Kanvas-Location' => $this->currentCompany->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $result = $response->json('data.processPayment');
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('requires 3DS', $result['message']);
+        $this->assertSame(PaymentStatusEnum::PENDING->value, $payment->fresh()->status);
+    }
+
     /**
      * Regression: the resolver used to flatten cardData as $context['card_number']/['cvc']
      * only, which matched Azul but left PayWay's nested $context['card'] lookup empty —
