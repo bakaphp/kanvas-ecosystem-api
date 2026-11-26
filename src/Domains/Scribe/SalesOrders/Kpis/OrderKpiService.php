@@ -17,20 +17,49 @@ use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
  *
  * Not measured: the hand-off to Operations within 4 business hours, because the handing over is the confirmation
  * itself and has no separate event.
+ *
+ * @phpstan-type Indicator array{
+ *     key: string,
+ *     label: string,
+ *     unit: string,
+ *     value: float|null,
+ *     target: float,
+ *     target_kind: string,
+ *     met: bool|null,
+ *     numerator: int|null,
+ *     denominator: int|null
+ * }
  */
 class OrderKpiService
 {
     public const int ACCEPTANCE_HOURS = 72;
 
     /**
-     * @return list<array{key: string, label: string, unit: string, value: float|null, target: float, target_kind: string, met: bool|null, numerator: int|null, denominator: int|null}>
+     * @return list<Indicator>
      */
     public function report(AppInterface $app, Companies $company, Carbon $from, Carbon $to): array
     {
+        $start = $from->copy()->startOfDay();
+        $end = $to->copy()->endOfDay();
+        $days = [$start->toDateString(), $end->toDateString()];
+
+        // Only orders with an event in the period: every indicator below counts one of these three dates.
         $orders = SalesOrder::query()
             ->fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
+            ->where(
+                static fn ($inPeriod) => $inPeriod
+                    ->whereBetween('confirmed_at', [$start, $end])
+                    ->orWhereHas(
+                        'shipment',
+                        static fn ($shipment) => $shipment->where(
+                            static fn ($dates) => $dates
+                                ->whereBetween('bl_date', $days)
+                                ->orWhereBetween('delivered_on', $days)
+                        )
+                    )
+            )
             ->with(['shipment', 'invoice'])
             ->get();
 
@@ -89,19 +118,29 @@ class OrderKpiService
                 'Documents packages sent by their due date',
                 95.0,
                 'min',
-                $shipped->filter(static fn (SalesOrder $order): bool => $order->shipment->documents_package_sent_at !== null
-                    && $order->shipment->documents_package_sent_at->lte($order->shipment->documents_package_due_on->copy()->endOfDay())),
-                $shipped->filter(static fn (SalesOrder $order): bool => $order->shipment->documents_package_sent_at !== null
-                    || $order->shipment->documents_package_due_on->lt(Carbon::today()))
+                $shipped->filter(
+                    static fn (SalesOrder $order): bool => $order->shipment->documents_package_sent_at !== null
+                        && $order->shipment->documents_package_sent_at->lte(
+                            $order->shipment->documents_package_due_on->copy()->endOfDay()
+                        )
+                ),
+                $shipped->filter(
+                    static fn (SalesOrder $order): bool => $order->shipment->documents_package_sent_at !== null
+                        || $order->shipment->documents_package_due_on->lt(Carbon::today())
+                )
             ),
             $this->percentage(
                 'perfect_delivery',
                 'Deliveries on time, complete and undamaged',
                 90.0,
                 'min',
-                $delivered->filter(static fn (SalesOrder $order): bool => ($order->eta === null || $order->shipment->delivered_on->lte($order->eta))
-                    && $order->shipment->delivery_discrepancies === null
-                    && ! $order->shipment->damage_reported),
+                $delivered->filter(
+                    static fn (SalesOrder $order): bool => (
+                        $order->eta === null || $order->shipment->delivered_on->lte($order->eta)
+                    )
+                        && $order->shipment->delivery_discrepancies === null
+                        && ! $order->shipment->damage_reported
+                ),
                 $delivered
             ),
             $this->percentage(
@@ -109,7 +148,11 @@ class OrderKpiService
                 'Invoices paid within the payment term counted from the bill of lading',
                 90.0,
                 'min',
-                $paid->filter(static fn (SalesOrder $order): bool => $order->invoice->paid_at->lte($order->shipment->due_date->copy()->endOfDay())),
+                $paid->filter(
+                    static fn (SalesOrder $order): bool => $order->invoice->paid_at->lte(
+                        $order->shipment->due_date->copy()->endOfDay()
+                    )
+                ),
                 $paid
             ),
             $this->averageDaysToCollect($paid),
@@ -120,7 +163,7 @@ class OrderKpiService
      * @param Collection<int, SalesOrder> $matching
      * @param Collection<int, SalesOrder> $total
      *
-     * @return array{key: string, label: string, unit: string, value: float|null, target: float, target_kind: string, met: bool|null, numerator: int|null, denominator: int|null}
+     * @return Indicator
      */
     private function percentage(
         string $key,
@@ -145,13 +188,15 @@ class OrderKpiService
     /**
      * @param Collection<int, SalesOrder> $paid
      *
-     * @return array{key: string, label: string, unit: string, value: float|null, target: float, target_kind: string, met: bool|null, numerator: int|null, denominator: int|null}
+     * @return Indicator
      */
     private function averageDaysToCollect(Collection $paid): array
     {
         $average = $paid->isEmpty() ? null : round(
             (float) $paid->avg(
-                static fn (SalesOrder $order): float => abs($order->shipment->bl_date->copy()->startOfDay()->diffInDays($order->invoice->paid_at))
+                static fn (SalesOrder $order): float => abs(
+                    $order->shipment->bl_date->copy()->startOfDay()->diffInDays($order->invoice->paid_at)
+                )
             ),
             1
         );
@@ -172,7 +217,7 @@ class OrderKpiService
     }
 
     /**
-     * @return array{key: string, label: string, unit: string, value: float|null, target: float, target_kind: string, met: bool|null, numerator: int|null, denominator: int|null}
+     * @return Indicator
      */
     private function indicator(
         string $key,

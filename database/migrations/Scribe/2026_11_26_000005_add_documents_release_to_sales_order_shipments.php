@@ -15,12 +15,15 @@ return new class () extends Migration {
     {
         Schema::connection('accounting')->table('sales_order_shipments', function (Blueprint $table): void {
             $table->dateTime('documents_released_at')->nullable()->after('documents_package_sent_at');
+
+            $table->index(['apps_id', 'companies_id', 'documents_released_at'], 'sos_app_company_released_idx');
         });
     }
 
     public function down(): void
     {
         Schema::connection('accounting')->table('sales_order_shipments', function (Blueprint $table): void {
+            $table->dropIndex('sos_app_company_released_idx');
             $table->dropColumn('documents_released_at');
         });
     }

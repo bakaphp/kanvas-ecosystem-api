@@ -127,6 +127,28 @@ class CreditTest extends ScribeTestCase
         $this->assertFalse($this->creditOf($customer)->onHold);
     }
 
+    public function test_a_hold_threshold_of_zero_holds_on_any_overdue_invoice_and_nobody_else(): void
+    {
+        $late = $this->seedTestOrganization('One Day Late Customer');
+        $this->issueTestInvoice($late, 100.0, dueDate: Carbon::today()->subDay()->toDateString());
+        $clean = $this->seedTestOrganization('Clean Customer');
+        $this->company->set(CreditConfigurationEnum::CREDIT_HOLD_DAYS->value, '0');
+
+        $this->assertTrue($this->creditOf($late)->onHold);
+        $this->assertFalse($this->creditOf($clean)->onHold);
+    }
+
+    public function test_another_companys_orders_are_not_counted_in_the_exposure(): void
+    {
+        $customer = $this->customerWithLimit(600);
+        $this->foreignConfirmedOrder($customer);
+
+        $status = $this->creditOf($customer);
+
+        $this->assertSame(0.0, $status->committedOrders);
+        $this->assertSame(600.0, $status->available());
+    }
+
     public function test_a_limit_in_another_currency_is_converted_with_the_published_rate(): void
     {
         $customer = $this->customerWithLimit(600, 'ZZZ');
@@ -228,8 +250,24 @@ class CreditTest extends ScribeTestCase
         return $customer;
     }
 
+    private function foreignConfirmedOrder(Organization $customer): SalesOrder
+    {
+        return SalesOrder::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId() + 987654,
+            'order_number' => 'SO-FOREIGN-' . uniqid(),
+            'document_status' => SalesOrderStatusEnum::CONFIRMED,
+            'po_source' => 'customer_po',
+            'customer_organization_id' => $customer->getId(),
+            'currency' => 'USD',
+            'order_total' => 9999,
+            'received_at' => Carbon::now(),
+            'confirmed_at' => Carbon::now(),
+        ]);
+    }
+
     private function creditOf(Organization $customer, ?SalesOrder $excluding = null): CustomerCreditStatus
     {
-        return new CustomerCreditService()->status($this->kanvasApp, $this->company, $customer, $excluding);
+        return new CustomerCreditService()->status($customer, $excluding);
     }
 }

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Scribe\Mutations\SalesOrders;
+namespace App\GraphQL\Scribe\Queries\SalesOrders;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\SalesOrders\Kpis\OrderKpiService;
 
-class OrderKpiResolver
+class OrderKpiQuery
 {
     use ResolvesActingContext;
 

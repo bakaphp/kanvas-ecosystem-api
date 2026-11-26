@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\SalesOrders\Credit\CustomerCreditService;
 use NeuronAI\Tools\Tool;
@@ -15,16 +16,20 @@ use NeuronAI\Tools\TrackByInputs;
  */
 abstract class AbstractCustomerCreditTool extends Tool
 {
+    use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
     protected function customerById(int $organizationId): ?Organization
     {
-        return Organization::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->whereKey($organizationId)
-            ->first();
+        $customer = $this->findTenantRecordOrNotFound(
+            Organization::class,
+            'id',
+            (string) $organizationId,
+            'customer'
+        );
+
+        return $customer instanceof Organization ? $customer : null;
     }
 
     /**
@@ -43,6 +48,6 @@ abstract class AbstractCustomerCreditTool extends Tool
      */
     protected function creditOf(Organization $customer): array
     {
-        return new CustomerCreditService()->status($this->app, $this->company, $customer)->toArray();
+        return new CustomerCreditService()->status($customer)->toArray();
     }
 }

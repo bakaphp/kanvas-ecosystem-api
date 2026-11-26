@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Scribe\SalesOrders\Actions\SetCustomerCreditLimitAction;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
@@ -15,12 +16,15 @@ use Throwable;
 #[AgentTool(name: 'Set Customer Credit Limit', category: 'accounting')]
 class SetCustomerCreditLimitTool extends AbstractCustomerCreditTool
 {
+    use GuardsAdminForTool;
+
     protected string $name = 'set_customer_credit_limit';
 
     protected ?string $description = 'Sets a customer\'s credit limit in a stated currency, or removes it when no amount is '
         . 'given. From then on, confirming an order of that customer checks it fits in what is left of the limit, and '
-        . 'releasing the shipping documents checks the customer is inside it. Use it only when the person gives the limit '
-        . 'or asks to remove it: a limit is a finance decision, never infer one.';
+        . 'releasing the shipping documents checks the customer is inside it. Only a company administrator can change a '
+        . 'limit. Use it only when the person gives the limit or asks to remove it: a limit is a finance decision, never '
+        . 'infer one.';
 
     /**
      * @return array<int, ToolProperty>
@@ -31,7 +35,7 @@ class SetCustomerCreditLimitTool extends AbstractCustomerCreditTool
         return [
             new ToolProperty(
                 name: 'customer_organization_id',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'The Kanvas organization id of the customer (find_customer returns it).',
                 required: true,
             ),
@@ -55,6 +59,14 @@ class SetCustomerCreditLimitTool extends AbstractCustomerCreditTool
      */
     public function __invoke(int $customer_organization_id, ?float $amount = null, ?string $currency = null): array
     {
+        if ($this->requireAdminOrError() !== null) {
+            return [
+                'set' => false,
+                'reason' => 'admin_required',
+                'message' => 'Only a company administrator can set or remove a credit limit.',
+            ];
+        }
+
         $customer = $this->customerById($customer_organization_id);
 
         if ($customer === null) {

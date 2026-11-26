@@ -28,7 +28,20 @@ final readonly class CustomerCreditStatus
     }
 
     /**
-     * @return array{has_limit: bool, limit: float|null, currency: string|null, open_balance: float|null, overdue_balance: float|null, overdue_invoices: int, oldest_overdue_days: int, committed_orders: float|null, available: float|null, on_hold: bool, exposure_complete: bool, missing_rates: list<string>}
+     * @return array{
+     *     has_limit: bool,
+     *     limit: float|null,
+     *     currency: string|null,
+     *     open_balance: float|null,
+     *     overdue_balance: float|null,
+     *     overdue_invoices: int,
+     *     oldest_overdue_days: int,
+     *     committed_orders: float|null,
+     *     available: float|null,
+     *     on_hold: bool,
+     *     exposure_complete: bool,
+     *     missing_rates: list<string>
+     * }
      */
     public function toArray(): array
     {

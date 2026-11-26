@@ -9,7 +9,9 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\SalesOrders\Actions\ConfirmDeliveryAction;
 use Kanvas\Scribe\SalesOrders\Actions\ConfirmSalesOrderAction;
 use Kanvas\Scribe\SalesOrders\Actions\ReturnSalesOrderAction;
+use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Kpis\OrderKpiService;
+use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\CreatesTestSalesOrder;
 
@@ -20,7 +22,10 @@ class OrderKpiTest extends ScribeTestCase
     public function test_the_indicators_count_each_order_by_its_own_event(): void
     {
         $slow = $this->createAcceptedSalesOrder($this->seedTestOrganization('Slow Customer'));
-        $slow->forceFill(['confirmed_at' => Carbon::now()->subDays(5), 'accepted_at' => Carbon::now()->subDays(5)->addHours(100)])->save();
+        $slow->forceFill([
+            'confirmed_at' => Carbon::now()->subDays(5),
+            'accepted_at' => Carbon::now()->subDays(5)->addHours(100),
+        ])->save();
 
         $returned = new ConfirmSalesOrderAction(
             $this->createReviewedSalesOrder($this->seedTestOrganization('Returned Customer')),
@@ -29,7 +34,10 @@ class OrderKpiTest extends ScribeTestCase
         new ReturnSalesOrderAction($returned, 'No container space')->execute();
 
         $shipped = $this->createShippedSalesOrder($this->seedTestOrganization('Shipped Customer'));
-        $shipped->forceFill(['confirmed_at' => Carbon::now()->subDays(5), 'accepted_at' => Carbon::now()->subDays(5)->addHours(10)])->save();
+        $shipped->forceFill([
+            'confirmed_at' => Carbon::now()->subDays(5),
+            'accepted_at' => Carbon::now()->subDays(5)->addHours(10),
+        ])->save();
         new ConfirmDeliveryAction($shipped, Carbon::parse('2026-12-28'), 'POD-1')->execute();
         $shipped->invoice->forceFill([
             'document_status' => InvoiceDocumentStatusEnum::PAID,
@@ -67,6 +75,31 @@ class OrderKpiTest extends ScribeTestCase
         $this->assertCount(8, $kpis);
         $this->assertSame([null], array_unique(array_column($kpis, 'value')));
         $this->assertSame([null], array_unique(array_column($kpis, 'met')));
+    }
+
+    public function test_another_companys_orders_are_not_counted(): void
+    {
+        SalesOrder::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId() + 987654,
+            'order_number' => 'SO-FOREIGN-' . uniqid(),
+            'document_status' => SalesOrderStatusEnum::CONFIRMED,
+            'po_source' => 'customer_po',
+            'customer_organization_id' => $this->seedTestOrganization('Foreign Customer')->getId(),
+            'currency' => 'USD',
+            'order_total' => 9999,
+            'received_at' => Carbon::now(),
+            'confirmed_at' => Carbon::now(),
+        ]);
+
+        $kpis = new OrderKpiService()->report(
+            $this->kanvasApp,
+            $this->company,
+            Carbon::today()->subDay(),
+            Carbon::today()->addDay()
+        );
+
+        $this->assertSame([null], array_unique(array_column($kpis, 'value')));
     }
 
     /**

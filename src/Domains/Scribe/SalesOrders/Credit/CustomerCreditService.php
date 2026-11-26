@@ -31,12 +31,10 @@ class CustomerCreditService
     ) {
     }
 
-    public function status(
-        AppInterface $app,
-        Companies $company,
-        Organization $customer,
-        ?SalesOrder $excluding = null,
-    ): CustomerCreditStatus {
+    public function status(Organization $customer, ?SalesOrder $excluding = null): CustomerCreditStatus
+    {
+        $app = $customer->app;
+        $company = $customer->company;
         $limit = $customer->get(CreditConfigurationEnum::CREDIT_LIMIT_AMOUNT->value);
         $currency = $customer->get(CreditConfigurationEnum::CREDIT_LIMIT_CURRENCY->value);
         $limitCurrency = $limit === null || $currency === null ? null : strtoupper((string) $currency);
@@ -48,7 +46,11 @@ class CustomerCreditService
             static fn (Invoice $invoice): bool => $invoice->due_date !== null && $invoice->due_date->lt($today)
         );
         $oldest = (int) $overdue
-            ->map(static fn (Invoice $invoice): float => abs($invoice->due_date->copy()->startOfDay()->diffInDays($today)))
+            ->map(
+                static fn (Invoice $invoice): float => abs(
+                    $invoice->due_date->copy()->startOfDay()->diffInDays($today)
+                )
+            )
             ->max();
 
         return new CustomerCreditStatus(
@@ -80,7 +82,7 @@ class CustomerCreditService
                 $today,
                 $missing
             ),
-            onHold: $oldest >= $this->holdDays($company),
+            onHold: $overdue->isNotEmpty() && $oldest >= $this->holdDays($company),
             exposureComplete: $missing === [],
             missingRates: array_values(array_unique($missing)),
         );
@@ -91,7 +93,7 @@ class CustomerCreditService
      */
     public function assertCanConfirm(SalesOrder $order): void
     {
-        $status = $this->status($order->app, $order->company, $order->customer, $order);
+        $status = $this->status($order->customer, $order);
 
         $this->assertNotOnHold($status);
 
@@ -131,7 +133,7 @@ class CustomerCreditService
      */
     public function assertCanRelease(SalesOrder $order): void
     {
-        $status = $this->status($order->app, $order->company, $order->customer);
+        $status = $this->status($order->customer);
 
         $this->assertNotOnHold($status);
 
@@ -251,9 +253,14 @@ class CustomerCreditService
         return $total;
     }
 
+    /**
+     * Zero is a real setting (hold on any overdue invoice), so only an unset value falls back to the default.
+     */
     private function holdDays(Companies $company): int
     {
-        return (int) ($company->get(CreditConfigurationEnum::CREDIT_HOLD_DAYS->value) ?: self::DEFAULT_HOLD_DAYS);
+        $days = $company->get(CreditConfigurationEnum::CREDIT_HOLD_DAYS->value);
+
+        return is_numeric($days) ? (int) $days : self::DEFAULT_HOLD_DAYS;
     }
 
     /**

@@ -9,36 +9,21 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\SalesOrders\Actions\SetCustomerCreditLimitAction;
 use Kanvas\Scribe\SalesOrders\Credit\CustomerCreditService;
 
-class CustomerCreditResolver
+class CustomerCreditMutation
 {
     use ResolvesActingContext;
-
-    public function credit(mixed $rootValue, array $request): array
-    {
-        return $this->creditOf($request);
-    }
 
     public function setLimit(mixed $rootValue, array $request): array
     {
         $ctx = $this->actingContext();
+        $customer = Organization::getByIdFromCompanyApp((int) $request['customer_id'], $ctx->company, $ctx->app);
 
         new SetCustomerCreditLimitAction(
-            Organization::getByIdFromCompanyApp((int) $request['customer_id'], $ctx->company, $ctx->app),
+            $customer,
             isset($request['amount']) ? (float) $request['amount'] : null,
             $request['currency'] ?? null,
         )->execute();
 
-        return $this->creditOf($request);
-    }
-
-    private function creditOf(array $request): array
-    {
-        $ctx = $this->actingContext();
-
-        return new CustomerCreditService()->status(
-            $ctx->app,
-            $ctx->company,
-            Organization::getByIdFromCompanyApp((int) $request['customer_id'], $ctx->company, $ctx->app)
-        )->toArray();
+        return new CustomerCreditService()->status($customer)->toArray();
     }
 }

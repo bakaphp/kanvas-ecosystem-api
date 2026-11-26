@@ -218,12 +218,12 @@ extend type Query @guard {
     "The customer's credit status: limit, open invoices, committed orders, overdue and what is left."
     scribeCustomerCredit(customer_id: ID!): ScribeCustomerCredit!
         @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\CustomerCreditResolver@credit"
+            resolver: "App\\GraphQL\\Scribe\\Queries\\SalesOrders\\CustomerCreditQuery@credit"
         )
     "The order-to-cash indicators for a period. Each order counts in the period of its own event."
     scribeOrderKpis(from: Date!, to: Date!): [ScribeOrderKpi!]!
         @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\OrderKpiResolver@report"
+            resolver: "App\\GraphQL\\Scribe\\Queries\\SalesOrders\\OrderKpiQuery@report"
         )
     scribeSalesOrders(
         where: _
@@ -365,6 +365,6 @@ extend type Mutation @guardByAdmin {
     "Sets a customer's credit limit in the given currency, or removes it when the amount is left out."
     setScribeCustomerCreditLimit(customer_id: ID!, amount: Float, currency: String): ScribeCustomerCredit!
         @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\CustomerCreditResolver@setLimit"
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\CustomerCreditMutation@setLimit"
         )
 }

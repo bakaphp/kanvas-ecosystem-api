@@ -266,6 +266,21 @@ class CustomerOrderToolsTest extends ScribeTestCase
         $this->assertFalse($removed['has_limit']);
     }
 
+    public function test_only_an_administrator_can_set_a_credit_limit(): void
+    {
+        [$customer] = $this->customerWithQuote();
+
+        $refused = $this->tool(SetCustomerCreditLimitTool::class)
+            ->forRequestingUser($this->seedTestEmployee())
+            ->__invoke(customer_organization_id: $customer->getId(), amount: 300, currency: 'USD');
+
+        $this->assertFalse($refused['set']);
+        $this->assertSame('admin_required', $refused['reason']);
+
+        $credit = $this->tool(CheckCustomerCreditTool::class)->__invoke(customer_organization_id: $customer->getId());
+        $this->assertFalse($credit['has_limit']);
+    }
+
     public function test_a_credit_limit_without_a_currency_and_an_unknown_customer_are_reported(): void
     {
         [$customer] = $this->customerWithQuote();

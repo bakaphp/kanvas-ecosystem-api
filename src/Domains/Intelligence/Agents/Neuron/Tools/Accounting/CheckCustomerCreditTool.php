@@ -29,7 +29,7 @@ class CheckCustomerCreditTool extends AbstractCustomerCreditTool
         return [
             new ToolProperty(
                 name: 'customer_organization_id',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'The Kanvas organization id of the customer (find_customer returns it).',
                 required: true,
             ),
@@ -47,6 +47,10 @@ class CheckCustomerCreditTool extends AbstractCustomerCreditTool
             return $this->customerNotFound($customer_organization_id);
         }
 
-        return ['found' => true, 'customer_organization_id' => $customer_organization_id] + $this->creditOf($customer);
+        return [
+            'found' => true,
+            'customer_organization_id' => $customer_organization_id,
+            ...$this->creditOf($customer),
+        ];
     }
 }
