@@ -12,7 +12,6 @@ use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Notifications\EventParticipantNotification;
-use Kanvas\Event\Events\Services\ResourceTimezoneService;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -127,7 +126,7 @@ class SendEventEmailsAction
             ];
         }
 
-        $timezone = $this->displayTimezone($event);
+        $timezone = $event->getTimezone();
         $startAt = $this->eventVersion->start_at->clone()->setTimezone($timezone);
 
         return [
@@ -137,19 +136,6 @@ class SendEventEmailsAction
                 ?? $firstEndTime,
             'timezone' => $timezone,
         ];
-    }
-
-    /**
-     * The schedule resolver only takes canonical IANA names, and loosening it would move already
-     * generated time slots. The agent books in whatever the company column holds (`US/Eastern`
-     * included), so the email accepts the same zones — otherwise it prints the appointment in the
-     * fallback zone, an hour off.
-     */
-    protected function displayTimezone(Event $event): string
-    {
-        return ResourceTimezoneService::find($event->resource)
-            ?? $event->company?->getTimezone()
-            ?? ResourceTimezoneService::FALLBACK;
     }
 
     protected function sendEmail(
