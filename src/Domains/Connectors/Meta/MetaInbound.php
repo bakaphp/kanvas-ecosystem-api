@@ -35,6 +35,13 @@ class MetaInbound implements InboundSource
 {
     use HasInboundDefaults;
 
+    /**
+     * Long enough to join two lines typed back to back into one turn, short enough that the answer
+     * still feels live. Setup writes these on the company; they are also what an unset one gets.
+     */
+    public const int DEFAULT_BURST_IDLE_SECONDS = 10;
+    public const int DEFAULT_BURST_JITTER_SECONDS = 3;
+
     private const array MEDIA_TYPES = [
         'image',
         'video',
@@ -246,7 +253,13 @@ class MetaInbound implements InboundSource
     {
         $sender = $inbound->fromIsVendorId ? $inbound->from : Str::digitsOnly($inbound->from);
 
-        return BurstPolicy::fromCompanySettings($company, 'meta_whatsapp', ['whatsapp:' . $sender]);
+        return BurstPolicy::fromCompanySettings(
+            company: $company,
+            prefix: 'meta_whatsapp',
+            correlationKeys: ['whatsapp:' . $sender],
+            idleSeconds: self::DEFAULT_BURST_IDLE_SECONDS,
+            jitterSeconds: self::DEFAULT_BURST_JITTER_SECONDS,
+        );
     }
 
     /**
