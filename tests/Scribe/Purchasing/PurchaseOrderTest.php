@@ -104,6 +104,29 @@ class PurchaseOrderTest extends ScribeTestCase
         new CancelPurchaseOrderAction($mirrored)->execute();
     }
 
+    public function test_editing_a_mirrored_order_with_no_linked_vendor_is_refused_not_a_crash(): void
+    {
+        $mirrored = $this->createOrder();
+        $mirrored->document_status = null;
+        $mirrored->source = 'external-erp';
+        $mirrored->vendor_organization_id = null;
+        $mirrored->save();
+
+        $this->expectException(InvalidPurchaseOrderTransitionException::class);
+        $this->expectExceptionMessage('comes from an external system');
+
+        $this->update($mirrored, ['notes' => 'Should not land']);
+    }
+
+    public function test_sending_an_empty_expected_date_clears_it(): void
+    {
+        $order = $this->update($this->createOrder(), ['expected_date' => '2026-12-15']);
+
+        $cleared = $this->update($order, ['expected_date' => null]);
+
+        $this->assertNull($cleared->expected_date);
+    }
+
     public function test_cancelling_records_when_and_why_and_a_second_cancel_changes_nothing(): void
     {
         $order = $this->createOrder();
@@ -147,7 +170,7 @@ class PurchaseOrderTest extends ScribeTestCase
         $vendor = $this->seedTestOrganization('Test Vendor');
 
         return new CreatePurchaseOrderAction(
-            PurchaseOrderData::fromMultiple(
+            PurchaseOrderData::from(
                 $this->kanvasApp,
                 static::$cachedUser,
                 $this->company,

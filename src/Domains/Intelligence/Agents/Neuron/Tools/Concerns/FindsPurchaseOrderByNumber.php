@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Concerns;
 
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 
 /**
@@ -12,14 +13,18 @@ use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
  */
 trait FindsPurchaseOrderByNumber
 {
+    use FindsTenantRecordForTool;
+
     protected function purchaseOrderByNumber(string $orderNumber): ?PurchaseOrder
     {
-        return PurchaseOrder::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where('order_number', trim($orderNumber))
-            ->first();
+        $order = $this->findTenantRecordOrNotFound(
+            PurchaseOrder::class,
+            'order_number',
+            $orderNumber,
+            'purchase order'
+        );
+
+        return $order instanceof PurchaseOrder ? $order : null;
     }
 
     /**
