@@ -45,13 +45,15 @@ class CustomerOrderToolsTest extends ScribeTestCase
         $this->assertStringContainsString('review_customer_po', $registered['next']);
 
         $orderNumber = $registered['order_number'];
-        $reviewed = $this->tool(ReviewCustomerPoTool::class)->__invoke(order_number: $orderNumber, agreed_incoterm: 'CIF');
+        $reviewed = $this->tool(ReviewCustomerPoTool::class)
+            ->__invoke(order_number: $orderNumber, agreed_incoterm: 'CIF');
 
         $this->assertTrue($reviewed['reviewed']);
         $this->assertSame(['incoterm'], $reviewed['open_differences']);
         $this->assertStringContainsString('resolve_po_difference', $reviewed['next']);
 
-        $blocked = $this->tool(ConfirmCustomerOrderTool::class)->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
+        $blocked = $this->tool(ConfirmCustomerOrderTool::class)
+            ->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
         $this->assertFalse($blocked['confirmed']);
         $this->assertStringContainsString('Still open: incoterm', $blocked['message']);
 
@@ -62,7 +64,8 @@ class CustomerOrderToolsTest extends ScribeTestCase
         );
         $this->assertSame([], $resolved['open_differences']);
 
-        $confirmed = $this->tool(ConfirmCustomerOrderTool::class)->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
+        $confirmed = $this->tool(ConfirmCustomerOrderTool::class)
+            ->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
         $this->assertTrue($confirmed['confirmed']);
         $this->assertSame('confirmed', $confirmed['document_status']);
 
@@ -86,9 +89,11 @@ class CustomerOrderToolsTest extends ScribeTestCase
         [$customer, $quote] = $this->customerWithQuote();
         $orderNumber = $this->register($customer, $quote)['order_number'];
         $this->tool(ReviewCustomerPoTool::class)->__invoke(order_number: $orderNumber);
-        $this->tool(ConfirmCustomerOrderTool::class)->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
+        $this->tool(ConfirmCustomerOrderTool::class)
+            ->__invoke(order_number: $orderNumber, feasibility_confirmed: true);
 
-        $noReason = $this->tool(AnswerCustomerOrderTool::class)->__invoke(order_number: $orderNumber, decision: 'return');
+        $noReason = $this->tool(AnswerCustomerOrderTool::class)
+            ->__invoke(order_number: $orderNumber, decision: 'return');
         $this->assertFalse($noReason['answered']);
 
         $returned = $this->tool(AnswerCustomerOrderTool::class)->__invoke(
@@ -98,7 +103,8 @@ class CustomerOrderToolsTest extends ScribeTestCase
         );
         $this->assertSame('returned', $returned['document_status']);
 
-        $listed = $this->tool(ListCustomerOrdersTool::class)->__invoke(status: 'returned', customer_organization_id: $customer->getId());
+        $listed = $this->tool(ListCustomerOrdersTool::class)
+            ->__invoke(status: 'returned', customer_organization_id: $customer->getId());
         $this->assertSame([$orderNumber], array_column($listed['sales_orders'], 'order_number'));
     }
 
@@ -107,7 +113,8 @@ class CustomerOrderToolsTest extends ScribeTestCase
         [$customer, $quote] = $this->customerWithQuote();
         $orderNumber = $this->register($customer, $quote)['order_number'];
 
-        $result = $this->tool(AnswerCustomerOrderTool::class)->__invoke(order_number: $orderNumber, decision: 'maybe');
+        $result = $this->tool(AnswerCustomerOrderTool::class)
+            ->__invoke(order_number: $orderNumber, decision: 'maybe');
 
         $this->assertFalse($result['answered']);
         $this->assertStringContainsString('accept or return', $result['message']);
@@ -118,7 +125,8 @@ class CustomerOrderToolsTest extends ScribeTestCase
         [$customer, $quote] = $this->customerWithQuote();
         $orderNumber = $this->register($customer, $quote)['order_number'];
 
-        $result = $this->tool(CancelCustomerOrderTool::class)->__invoke(order_number: $orderNumber, reason: 'Customer withdrew');
+        $result = $this->tool(CancelCustomerOrderTool::class)
+            ->__invoke(order_number: $orderNumber, reason: 'Customer withdrew');
 
         $this->assertTrue($result['cancelled']);
         $this->assertSame('cancelled', $result['document_status']);
@@ -128,8 +136,14 @@ class CustomerOrderToolsTest extends ScribeTestCase
     {
         [$customer, $quote] = $this->customerWithQuote();
 
-        $noCustomer = $this->tool(RegisterCustomerPoTool::class)->__invoke(customer_organization_id: 999999999, po_source: 'customer_po');
-        $noQuote = $this->register($customer, $quote, [], quoteNumber: 'NO-SUCH-QUOTE');
+        $noCustomer = $this->tool(RegisterCustomerPoTool::class)
+            ->__invoke(customer_organization_id: 999999999, po_source: 'customer_po');
+        $noQuote = $this->register(
+            $customer,
+            $quote,
+            [],
+            quoteNumber: 'NO-SUCH-QUOTE'
+        );
         $noOrder = $this->tool(FindCustomerOrderTool::class)->__invoke(order_number: 'SO-999999999');
 
         $this->assertSame('customer_not_found', $noCustomer['reason']);

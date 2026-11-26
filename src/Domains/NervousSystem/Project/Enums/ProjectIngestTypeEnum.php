@@ -44,4 +44,14 @@ enum ProjectIngestTypeEnum: string
             self::MENTION => 'message',
         };
     }
+
+    /**
+     * A transcript is long enough to bury the thread it lands on and to be cut by any LLM step on the
+     * way, so its full text is kept as a file and the message only summarizes it. An email or a
+     * mention is the message.
+     */
+    public function isStoredAsFile(): bool
+    {
+        return $this === self::TRANSCRIPT;
+    }
 }

@@ -70,7 +70,7 @@ class ConfirmDeliveryTool extends AbstractCustomerOrderTool
         string $delivered_on,
         string $pod_reference,
         ?string $discrepancies = null,
-        bool $damage_reported = false,
+        ?bool $damage_reported = null,
     ): array {
         return $this->actOn(
             $order_number,
@@ -81,7 +81,7 @@ class ConfirmDeliveryTool extends AbstractCustomerOrderTool
                     deliveredOn: Carbon::parse($delivered_on),
                     podReference: $pod_reference,
                     discrepancies: $discrepancies,
-                    damageReported: $damage_reported,
+                    damageReported: $damage_reported ?? false,
                 )->execute();
 
                 return $order->fresh();

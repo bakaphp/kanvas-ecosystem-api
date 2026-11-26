@@ -6,6 +6,7 @@ namespace Kanvas\Event\Participants\Models;
 
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Passes\Enums\PassScanResultEnum;
+use Kanvas\Event\Passes\Enums\PassScanSourceEnum;
 use Override;
 
 class ParticipantPassScan extends BaseModel
@@ -18,6 +19,7 @@ class ParticipantPassScan extends BaseModel
     {
         return [
             'result' => PassScanResultEnum::class,
+            'source' => PassScanSourceEnum::class,
             'scanned_at' => 'datetime',
             'is_deleted' => 'boolean',
         ];

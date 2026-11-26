@@ -53,6 +53,7 @@ class SalesOrder extends Data
         CompanyInterface $company,
         array $data,
     ): self {
+        $customer = Organization::getByIdFromCompanyApp((int) $data['customer_id'], $company, $app);
         $quote = isset($data['quote_id'])
             ? Quote::getByIdFromCompanyApp((int) $data['quote_id'], $company, $app)
             : null;
@@ -65,24 +66,26 @@ class SalesOrder extends Data
             app: $app,
             company: $company,
             user: $user,
-            customer: Organization::getByIdFromCompanyApp((int) $data['customer_id'], $company, $app),
+            customer: $customer,
             po_source: $source,
             currency: strtoupper((string) $currency),
             lines: isset($data['lines']) ? self::linesFrom($data['lines']) : self::linesFromQuote($quote),
             quote: $quote,
-            customer_po_number: Str::trimToNull($data['customer_po_number'] ?? null) ?? ($signedProforma ? $quote?->quote_number : null),
-            customer_po_date: isset($data['customer_po_date']) ? Carbon::parse((string) $data['customer_po_date']) : null,
+            customer_po_number: Str::trimToNull($data['customer_po_number'] ?? null)
+                ?? ($signedProforma ? $quote?->quote_number : null),
+            customer_po_date: self::dateFrom($data['customer_po_date'] ?? null),
             signature_checklist: $data['signature_checklist'] ?? null,
             incoterm: Str::trimToNull($data['incoterm'] ?? null),
             consignee: Str::trimToNull($data['consignee'] ?? null),
-            payment_terms_days: isset($data['payment_terms_days']) ? (int) $data['payment_terms_days'] : null,
-            requested_date: isset($data['requested_date']) ? Carbon::parse((string) $data['requested_date']) : null,
+            payment_terms_days: self::intFrom($data['payment_terms_days'] ?? null),
+            requested_date: self::dateFrom($data['requested_date'] ?? null),
             notes: Str::trimToNull($data['notes'] ?? null),
         );
     }
 
     /**
-     * The order's current values with the given changes laid over them, so a partial update keeps the rest.
+     * The order's current values with the given changes laid over them, so a partial update keeps the rest. A
+     * null sent for an optional field clears it; the PO number, its date and the checklist can only be replaced.
      *
      * @param array<string, mixed> $changes
      */
@@ -110,14 +113,32 @@ class SalesOrder extends Data
                 ))->all(),
             quote: $order->quote,
             customer_po_number: Str::trimToNull($changes['customer_po_number'] ?? null) ?? $order->customer_po_number,
-            customer_po_date: isset($changes['customer_po_date']) ? Carbon::parse((string) $changes['customer_po_date']) : $order->customer_po_date,
+            customer_po_date: self::dateFrom($changes['customer_po_date'] ?? null) ?? $order->customer_po_date,
             signature_checklist: $changes['signature_checklist'] ?? $order->signature_checklist,
-            incoterm: Str::trimToNull($changes['incoterm'] ?? null) ?? $order->incoterm,
-            consignee: Str::trimToNull($changes['consignee'] ?? null) ?? $order->consignee,
-            payment_terms_days: isset($changes['payment_terms_days']) ? (int) $changes['payment_terms_days'] : $order->payment_terms_days,
-            requested_date: isset($changes['requested_date']) ? Carbon::parse((string) $changes['requested_date']) : $order->requested_date,
-            notes: Str::trimToNull($changes['notes'] ?? null) ?? $order->notes,
+            incoterm: array_key_exists('incoterm', $changes)
+                ? Str::trimToNull($changes['incoterm'])
+                : $order->incoterm,
+            consignee: array_key_exists('consignee', $changes)
+                ? Str::trimToNull($changes['consignee'])
+                : $order->consignee,
+            payment_terms_days: array_key_exists('payment_terms_days', $changes)
+                ? self::intFrom($changes['payment_terms_days'])
+                : $order->payment_terms_days,
+            requested_date: array_key_exists('requested_date', $changes)
+                ? self::dateFrom($changes['requested_date'])
+                : $order->requested_date,
+            notes: array_key_exists('notes', $changes) ? Str::trimToNull($changes['notes']) : $order->notes,
         );
+    }
+
+    private static function dateFrom(mixed $value): ?Carbon
+    {
+        return $value === null ? null : Carbon::parse((string) $value);
+    }
+
+    private static function intFrom(mixed $value): ?int
+    {
+        return $value === null ? null : (int) $value;
     }
 
     /**

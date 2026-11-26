@@ -81,7 +81,7 @@ final class RetryPaymentReversalJob implements ShouldQueue
 
         $payment = $this->payment->fresh();
 
-        if (in_array($payment->status, [PaymentStatusEnum::REVERSED->value, PaymentStatusEnum::PAID->value], true)) {
+        if (in_array($payment->status, [PaymentStatusEnum::REVERSED->value, PaymentStatusEnum::PAID->value, PaymentStatusEnum::CANCELLED->value], true)) {
             return;
         }
 

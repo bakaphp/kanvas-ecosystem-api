@@ -1,0 +1,68 @@
+enum EventBookingStatus {
+    BOOKED @enum(value: "booked")
+    ADMITTED @enum(value: "admitted")
+}
+
+enum EventBookingAdmissionSource {
+    QR @enum(value: "qr")
+    MANUAL @enum(value: "manual")
+}
+
+type EventBooking {
+    reference: String
+    pass_code: String
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@passCode"
+        )
+    guest: String
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@guest"
+        )
+    arrival_hour: String
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@arrivalHour"
+        )
+    plate: String
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@plate"
+        )
+    lot: String
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@lot"
+        )
+    date: String
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@date"
+        )
+    status: EventBookingStatus!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@status"
+        )
+    admitted_at: String
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@admittedAt"
+        )
+    admitted_via: EventBookingAdmissionSource
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Booking\\EventBookingFields@admittedVia"
+        )
+}
+
+extend type Query @guard {
+    eventBookings(
+        event_id: ID!
+        product_id: ID
+        date: Date
+        reference: String
+    ): [EventBooking!]!
+        @paginate(
+            defaultCount: 100
+            maxCount: 500
+            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventBookingBuilder@getBookings"
+        )
+
+    eventInviteStats(event_id: ID!): EventInviteStats!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Stats\\EventInviteStatsQuery"
+        )
+}

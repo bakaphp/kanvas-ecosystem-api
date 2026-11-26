@@ -101,11 +101,16 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
         $this->company->setEncrypted(ConfigurationEnum::ACCESS_TOKEN->value, $accessToken);
         $this->company->set(ConfigurationEnum::WABA_ID->value, $wabaId);
 
-        // Answered at once: no window collecting a flurry into one turn, no random delay. A window
-        // the company already chose is left alone.
-        foreach ([ConfigurationEnum::BURST_IDLE_SECONDS, ConfigurationEnum::BURST_JITTER_SECONDS] as $window) {
-            if ($this->company->get($window->value) === null) {
-                $this->company->set($window->value, 0);
+        // Without a window every line of a flurry is its own turn, and two quick messages get two
+        // answers. A window the company already chose is left alone.
+        $windows = [
+            ConfigurationEnum::BURST_IDLE_SECONDS->value => MetaInbound::DEFAULT_BURST_IDLE_SECONDS,
+            ConfigurationEnum::BURST_JITTER_SECONDS->value => MetaInbound::DEFAULT_BURST_JITTER_SECONDS,
+        ];
+
+        foreach ($windows as $setting => $seconds) {
+            if ($this->company->get($setting) === null) {
+                $this->company->set($setting, $seconds);
             }
         }
 

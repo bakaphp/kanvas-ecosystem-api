@@ -75,7 +75,7 @@ class SalesOrderTest extends ScribeTestCase
         [$customer, $quote] = $this->customerWithQuote();
 
         $order = new RegisterCustomerPoAction(
-            SalesOrderData::fromMultiple(
+            SalesOrderData::from(
                 $this->kanvasApp,
                 static::$cachedUser,
                 $this->company,
@@ -146,7 +146,8 @@ class SalesOrderTest extends ScribeTestCase
             $this->assertStringContainsString('Still open: incoterm', $e->getMessage());
         }
 
-        $order = new ResolveSalesOrderDifferenceAction($order, 'incoterm', 'Customer agreed to FOB by email')->execute();
+        $order = new ResolveSalesOrderDifferenceAction($order, 'incoterm', 'Customer agreed to FOB by email')
+            ->execute();
 
         $this->assertSame(
             SalesOrderStatusEnum::CONFIRMED,
@@ -169,7 +170,7 @@ class SalesOrderTest extends ScribeTestCase
     {
         [$customer, $quote] = $this->customerWithQuote();
         $order = new RegisterCustomerPoAction(
-            SalesOrderData::fromMultiple(
+            SalesOrderData::from(
                 $this->kanvasApp,
                 static::$cachedUser,
                 $this->company,
@@ -192,7 +193,8 @@ class SalesOrderTest extends ScribeTestCase
     public function test_a_customer_po_without_the_authorized_signature_is_not_valid(): void
     {
         [$customer, $quote] = $this->customerWithQuote();
-        $order = new ReviewSalesOrderAction($this->register($customer, $quote, ['signature_checklist' => []]))->execute();
+        $order = new ReviewSalesOrderAction($this->register($customer, $quote, ['signature_checklist' => []]))
+            ->execute();
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('authorized_signer');
@@ -215,7 +217,8 @@ class SalesOrderTest extends ScribeTestCase
     {
         $order = $this->confirmedOrder();
 
-        $accepted = new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-28'))->execute();
+        $accepted = new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-28'))
+            ->execute();
 
         $this->assertSame(SalesOrderStatusEnum::ACCEPTED, $accepted->document_status);
         $this->assertSame('2026-12-10', $accepted->etd->toDateString());
@@ -230,7 +233,8 @@ class SalesOrderTest extends ScribeTestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('before the departure');
 
-        new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-01'))->execute();
+        new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-01'))
+            ->execute();
     }
 
     public function test_an_order_that_was_not_confirmed_cannot_be_accepted(): void
@@ -240,7 +244,8 @@ class SalesOrderTest extends ScribeTestCase
 
         $this->expectException(InvalidSalesOrderTransitionException::class);
 
-        new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-28'))->execute();
+        new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-28'))
+            ->execute();
     }
 
     public function test_a_returned_order_needs_a_reason_and_goes_back_to_commercial_when_edited(): void
@@ -254,7 +259,8 @@ class SalesOrderTest extends ScribeTestCase
             $this->assertStringContainsString('Say why', $e->getMessage());
         }
 
-        $returned = new ReturnSalesOrderAction($order, 'Cannot fill the container by the requested date')->execute();
+        $returned = new ReturnSalesOrderAction($order, 'Cannot fill the container by the requested date')
+            ->execute();
         $this->assertSame(SalesOrderStatusEnum::RETURNED, $returned->document_status);
 
         $edited = new UpdateSalesOrderAction(
@@ -292,6 +298,26 @@ class SalesOrderTest extends ScribeTestCase
         $this->assertNull($edited->reviewed_at);
         $this->assertSame('20.0000', $edited->order_total);
         $this->assertCount(1, $edited->lines);
+    }
+
+    public function test_sending_an_empty_optional_field_clears_it_and_leaving_it_out_keeps_it(): void
+    {
+        [$customer, $quote] = $this->customerWithQuote();
+        $order = $this->register($customer, $quote, ['incoterm' => 'FOB', 'notes' => 'Handle with care']);
+
+        $edited = new UpdateSalesOrderAction(
+            $order,
+            SalesOrderData::forUpdate(
+                $order,
+                $this->kanvasApp,
+                static::$cachedUser,
+                $this->company,
+                ['notes' => null]
+            )
+        )->execute();
+
+        $this->assertNull($edited->notes);
+        $this->assertSame('FOB', $edited->incoterm);
     }
 
     public function test_a_confirmed_order_cannot_be_edited(): void
@@ -362,7 +388,7 @@ class SalesOrderTest extends ScribeTestCase
     private function register(Organization $customer, Quote $quote, array $overrides = []): SalesOrder
     {
         return new RegisterCustomerPoAction(
-            SalesOrderData::fromMultiple(
+            SalesOrderData::from(
                 $this->kanvasApp,
                 static::$cachedUser,
                 $this->company,

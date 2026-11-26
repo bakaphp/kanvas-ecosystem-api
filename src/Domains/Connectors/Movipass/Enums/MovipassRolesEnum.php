@@ -16,6 +16,7 @@ enum MovipassRolesEnum: string
     case PARKING_MANAGER = 'Parqueos';
     case PARKING_OPERATOR = 'ParkingSales';
     case INSURER = 'Aseguradora';
+    case EVENT_VIEWER = 'EventViewer';
 
     public function description(): string
     {
@@ -32,6 +33,7 @@ enum MovipassRolesEnum: string
             self::PARKING_MANAGER => 'Administrador de parqueo: gestiona órdenes, cancela, ajusta montos y configura su empresa.',
             self::PARKING_OPERATOR => 'Operador de parqueo (ventas): registra y actualiza órdenes, observaciones y pagos.',
             self::INSURER => 'Aseguradora: ve órdenes y reportes de seguros.',
+            self::EVENT_VIEWER => 'Solo lectura de eventos: consulta estadísticas de invitaciones, ocupación y la lista de reservas, sin cambiar nada.',
         };
     }
 }

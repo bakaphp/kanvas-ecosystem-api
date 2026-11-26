@@ -33,7 +33,7 @@ trait CreatesTestSalesOrder
         $quote = $this->createTestQuote($customer);
 
         $order = new RegisterCustomerPoAction(
-            SalesOrderData::fromMultiple(
+            SalesOrderData::from(
                 $this->kanvasApp,
                 static::$cachedUser,
                 $this->company,
@@ -59,7 +59,8 @@ trait CreatesTestSalesOrder
             feasibilityConfirmed: true
         )->execute();
 
-        return new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-28'))->execute();
+        return new AcceptSalesOrderAction($order, Carbon::parse('2026-12-10'), Carbon::parse('2026-12-28'))
+            ->execute();
     }
 
     protected function createShippedSalesOrder(Organization $customer): SalesOrder

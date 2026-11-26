@@ -107,7 +107,7 @@ class InviteOnlyBookingTest extends TestCase
 
         $second = $this->bookWithInvite($this->days[0]['slot'], $code);
 
-        $this->assertStringContainsString('Invalid access code', (string) $second->json('errors.0.message'));
+        $this->assertStringContainsString('Access code already used.', (string) $second->json('errors.0.message'));
         $this->assertSame(1, EventVersion::where('time_slot_id', $this->days[0]['slot']->id)->count());
     }
 
@@ -168,7 +168,7 @@ class InviteOnlyBookingTest extends TestCase
 
         $response = $this->bookWithInvite($this->days[0]['slot'], $lateCode);
 
-        $this->assertStringContainsString('enough available capacity', (string) $response->json('errors.0.message'));
+        $this->assertStringContainsString('No capacity left for this day.', (string) $response->json('errors.0.message'));
         $latePass = ParticipantPass::where('event_version_id', $this->days[0]['version']->getId())
             ->whereNull('redeemed_at')
             ->first();
@@ -190,16 +190,16 @@ class InviteOnlyBookingTest extends TestCase
         $this->assertNull($rebook->json('errors'), json_encode($rebook->json('errors')));
     }
 
-    public function testCancelMutationReleasesTheCodeForItsOwner(): void
+    public function testTheGuestCannotCancelAnInviteBooking(): void
     {
         $code = $this->issueInvite($this->days[0]['version']);
         $bookingId = $this->bookWithInvite($this->days[0]['slot'], $code)->json('data.bookTimeSlot.id');
 
         $response = $this->cancelBooking($bookingId);
 
-        $this->assertNull($response->json('errors'), json_encode($response->json('errors')));
-        $this->assertNull($this->redeemedBy(EventVersion::findOrFail($bookingId)));
-        $this->assertSame(0, $this->days[0]['slot']->refresh()->getBookedSlotsCount());
+        $this->assertSame('Invite bookings cannot be cancelled.', $response->json('errors.0.message'));
+        $this->assertNotNull($this->redeemedBy(EventVersion::findOrFail($bookingId)));
+        $this->assertSame(1, $this->days[0]['slot']->refresh()->getBookedSlotsCount());
     }
 
     public function testAnInviteBookingCannotBeMovedToAnotherSlot(): void
@@ -228,15 +228,15 @@ class InviteOnlyBookingTest extends TestCase
         $response = $this->verifyInviteCode($code);
 
         $this->assertTrue($response->json('data.verifyInviteCode.valid'));
-        $this->assertSame((string) $this->days[1]['slot']->id, $response->json('data.verifyInviteCode.time_slot.id'));
-        $this->assertSame(2, $response->json('data.verifyInviteCode.time_slot.available_slots'));
+        $this->assertSame((string) $this->days[1]['slot']->id, $response->json('data.verifyInviteCode.time_slots.0.id'));
+        $this->assertSame(2, $response->json('data.verifyInviteCode.time_slots.0.available_slots'));
         $this->assertNull(ParticipantPass::where('event_version_id', $this->days[1]['version']->getId())->first()->redeemed_at);
 
         $book = $this->bookWithInvite($this->days[1]['slot'], $code);
         $this->assertNull($book->json('errors'), json_encode($book->json('errors')));
     }
 
-    public function testVerifyAnswersInvalidWithoutSayingWhy(): void
+    public function testVerifyAnswersTheReasonOfEachFailure(): void
     {
         $usedCode = $this->issueInvite($this->days[0]['version']);
         $this->bookWithInvite($this->days[0]['slot'], $usedCode);
@@ -245,8 +245,76 @@ class InviteOnlyBookingTest extends TestCase
         $used = $this->verifyInviteCode($usedCode);
 
         $this->assertFalse($unknown->json('data.verifyInviteCode.valid'));
+        $this->assertSame('INVALID', $unknown->json('data.verifyInviteCode.reason'));
         $this->assertFalse($used->json('data.verifyInviteCode.valid'));
-        $this->assertNull($used->json('data.verifyInviteCode.time_slot'));
+        $this->assertSame('USED', $used->json('data.verifyInviteCode.reason'));
+        $this->assertSame([], $used->json('data.verifyInviteCode.time_slots'));
+        $this->assertSame(0, $used->json('data.verifyInviteCode.remaining_uses'));
+    }
+
+    public function testVerifyAnswersFullWithoutConsumingTheCodeAndKeepsTheSlot(): void
+    {
+        $this->days[0]['slot']->update(['initial_capacity' => 1]);
+        $firstCode = $this->issueInvite($this->days[0]['version']);
+        $lateCode = $this->issueInvite($this->days[0]['version']);
+        $this->bookWithInvite($this->days[0]['slot'], $firstCode);
+
+        $response = $this->verifyInviteCode($lateCode);
+
+        $this->assertFalse($response->json('data.verifyInviteCode.valid'));
+        $this->assertSame('FULL', $response->json('data.verifyInviteCode.reason'));
+        $this->assertSame((string) $this->days[0]['slot']->id, $response->json('data.verifyInviteCode.time_slots.0.id'));
+        $this->assertNull(ParticipantPass::where('event_version_id', $this->days[0]['version']->getId())->get()->first(fn (ParticipantPass $pass) => $pass->plainCode() === $lateCode)->redeemed_at);
+        $this->assertSame(0, RateLimiter::attempts('invite-code:user:' . $this->user->getId()));
+    }
+
+    public function testVerifyAnswersValidReason(): void
+    {
+        $response = $this->verifyInviteCode($this->issueInvite($this->days[0]['version']));
+
+        $this->assertSame('VALID', $response->json('data.verifyInviteCode.reason'));
+    }
+
+    public function testACodePastTheRedeemDeadlineIsInvalid(): void
+    {
+        $this->buildGatedProduct($this->gatedEvent, [
+            'event_id' => $this->gatedEvent->getId(),
+            'redeem_until' => now()->subMinute()->toIso8601String(),
+        ]);
+        $slot = $this->makeDaySlot($this->gatedVariant, $this->days[0]['start']->copy(), 2);
+        $code = $this->issueInvite($this->days[0]['version']);
+
+        $book = $this->bookWithInvite($slot, $code);
+        $verify = $this->verifyInviteCode($code, (string) $this->gatedProduct->getId());
+
+        $this->assertStringContainsString('Invalid access code', (string) $book->json('errors.0.message'));
+        $this->assertSame('INVALID', $verify->json('data.verifyInviteCode.reason'));
+    }
+
+    public function testACodeBeforeTheRedeemDeadlineStillBooks(): void
+    {
+        $this->buildGatedProduct($this->gatedEvent, [
+            'event_id' => $this->gatedEvent->getId(),
+            'redeem_until' => now()->addDay()->toIso8601String(),
+        ]);
+        $slot = $this->makeDaySlot($this->gatedVariant, $this->days[0]['start']->copy(), 2);
+
+        $book = $this->bookWithInvite($slot, $this->issueInvite($this->days[0]['version']));
+
+        $this->assertNull($book->json('errors'), json_encode($book->json('errors')));
+    }
+
+    public function testAMalformedRedeemDeadlineLocksTheProduct(): void
+    {
+        $this->buildGatedProduct($this->gatedEvent, [
+            'event_id' => $this->gatedEvent->getId(),
+            'redeem_until' => 'not a date',
+        ]);
+        $slot = $this->makeDaySlot($this->gatedVariant, $this->days[0]['start']->copy(), 2);
+
+        $book = $this->bookWithInvite($slot, $this->issueInvite($this->days[0]['version']));
+
+        $this->assertStringContainsString('Invalid access code', (string) $book->json('errors.0.message'));
     }
 
     public function testVerifyFailuresShareTheBookingRateLimit(): void
@@ -363,7 +431,9 @@ class InviteOnlyBookingTest extends TestCase
             query verify($product_id: ID!, $code: String!) {
                 verifyInviteCode(product_id: $product_id, code: $code) {
                     valid
-                    time_slot { id available_slots }
+                    reason
+                    remaining_uses
+                    time_slots { id available_slots }
                 }
             }
         ', [

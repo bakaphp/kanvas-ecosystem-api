@@ -15,9 +15,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\BankStatementCoverageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\BuildPaymentRunTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CategorizeExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckRncTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreatePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\EcfStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
@@ -47,6 +49,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RespondToVendorEcfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SettleFromSuspenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\UpdatePurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
@@ -130,6 +133,9 @@ class AccountsPayableAgent extends SystemUserAgent
             new AddOrganizationApproverTool(),
             new ImportVendorApproversTool(),
             new CreateApBillTool(),
+            new CreatePurchaseOrderTool(),
+            new UpdatePurchaseOrderTool(),
+            new CancelPurchaseOrderTool(),
             new IssuePurchaseEcfTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
@@ -245,6 +251,9 @@ class AccountsPayableAgent extends SystemUserAgent
             . '(set only_overdue for past-due focus).',
             '- "What has vendor X got on order" / matching an invoice to a PO → find_vendor to resolve '
             . 'organization_id, then list_open_purchase_orders with vendor_organization_id.',
+            '- "Order X from vendor Y" → find_vendor to resolve organization_id, then create_purchase_order '
+            . '(it stays a draft, never approved or sent by you); "change that order" → update_purchase_order '
+            . 'with the PO number; "cancel that order" → cancel_purchase_order with the PO number and the reason.',
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '

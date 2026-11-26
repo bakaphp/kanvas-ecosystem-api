@@ -93,9 +93,16 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
             new Channel(Str::sanitizeChannelName($appPrefix . $channelSlug)),
         ];
 
-        if (! empty($entityNamespace)) {
-            $entityNamespace = SystemModules::convertLegacySystemModules($entityNamespace);
-            $entitySlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
+        if (empty($entityNamespace)) {
+            return $channels;
+        }
+
+        // An entity with no slug has no entity-scoped subscribers; the two pushes above still go out.
+        $entitySlug = SystemModules::findSlugBySystemModuleNameSpace(
+            SystemModules::convertLegacySystemModules($entityNamespace)
+        );
+
+        if ($entitySlug !== null) {
             array_unshift(
                 $channels,
                 new Channel('new-message-channel-' . $entitySlug . '-' . ($entityId ?? $channelId)),

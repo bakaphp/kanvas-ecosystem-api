@@ -84,6 +84,8 @@ enum WorkflowEnum: string
     case APPROVED = 'approved';
     case REJECTED = 'rejected';
     case CORPORATE_APPLICATION_APPROVED = 'corporate-application-approved';
+    case PASS_SCAN_REQUESTED = 'pass-scan-requested';
+    case PASS_SCANNED = 'pass-scanned';
 
     /**
      * Get the enum case by its value.

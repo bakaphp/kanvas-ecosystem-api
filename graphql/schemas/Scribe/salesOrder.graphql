@@ -235,6 +235,10 @@ extend type Query @guard {
                     "customer_po_number"
                     "customer_organization_id"
                     "currency"
+                    "received_at"
+                    "confirmed_at"
+                    "accepted_at"
+                    "returned_at"
                     "etd"
                     "eta"
                 ]
@@ -248,6 +252,8 @@ extend type Query @guard {
                     "received_at"
                     "confirmed_at"
                     "accepted_at"
+                    "returned_at"
+                    "etd"
                     "eta"
                 ]
             )

@@ -88,7 +88,8 @@ class BookingEmailTimezoneTest extends TestCase
         $this->company->timezone = 'UTC';
         $this->company->saveOrFail();
 
-        $this->variant->set(ResourceTimezoneService::CUSTOM_FIELD, 'America/Santo_Domingo');
+        // Not the resolver's fallback zone, so the test fails when the resource is never read.
+        $this->variant->set(ResourceTimezoneService::CUSTOM_FIELD, 'America/New_York');
 
         new Setup($this->apps, $this->user, $this->company)->run();
     }
@@ -105,7 +106,7 @@ class BookingEmailTimezoneTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-08-05 12:00:00', 'UTC'));
         Notification::fake();
 
-        // 13:00 UTC is 09:00 in Santo Domingo — the hour the venue actually opens.
+        // 13:00 UTC is 09:00 in New York (EDT) — the hour the venue actually opens.
         $timeSlot = TimeSlots::create([
             'apps_id' => $this->apps->getId(),
             'companies_id' => $this->company->getId(),
@@ -167,9 +168,9 @@ class BookingEmailTimezoneTest extends TestCase
                 $data = $notification->getData();
 
                 return $data['start_date'] === '2026-08-06'
-                    && $data['start_time'] === '09:00'
-                    && $data['end_time'] === '10:00'
-                    && $data['timezone'] === 'America/Santo_Domingo';
+                    && $data['start_time'] === '9:00 AM'
+                    && $data['end_time'] === '10:00 AM'
+                    && $data['timezone'] === 'America/New_York';
             }
         );
     }

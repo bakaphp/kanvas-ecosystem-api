@@ -12,6 +12,7 @@ use App\Console\Commands\Connectors\Dhl\PollDhlTrackingCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
+use App\Console\Commands\Connectors\Movipass\ExpireUnusedParkingVisitsCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Connectors\SalesAssist\Supervisor\DispatchSupervisorReviewsCommand;
@@ -113,6 +114,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping(120);
+        $schedule->command(ExpireUnusedParkingVisitsCommand::class)->everyFiveMinutes()->withoutOverlapping(10)->onOneServer();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
         $schedule->command(CheckoutReconcileCommand::class)->everyFiveMinutes()->withoutOverlapping(10)->onOneServer();
 

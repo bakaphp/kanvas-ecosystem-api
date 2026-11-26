@@ -50,7 +50,8 @@ class CancelCustomerOrderTool extends AbstractCustomerOrderTool
         return $this->actOn(
             $order_number,
             'cancelled',
-            static fn (SalesOrder $order): SalesOrder => new CancelSalesOrderAction($order, $reason)->execute()
+            static fn (SalesOrder $order): SalesOrder => new CancelSalesOrderAction($order, $reason)
+                ->execute()
         );
     }
 }

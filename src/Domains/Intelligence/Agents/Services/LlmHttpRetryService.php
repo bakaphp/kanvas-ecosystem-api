@@ -47,6 +47,20 @@ class LlmHttpRetryService
      */
     private const int MAX_RETRY_AFTER_SECONDS = 10;
 
+    private const int MODEL_TIMEOUT = 408;
+
+    private const int RATE_LIMITED = 429;
+
+    /**
+     * The provider's fault and not the request's, so another model or a later attempt answers it. Wider
+     * than RETRYABLE_STATUS_CODES on purpose: a 500 or Bedrock's 408 model timeout is worth a failover
+     * and an "ask again", not an immediate replay against the same model.
+     */
+    public static function isTransientStatus(int $status): bool
+    {
+        return $status === self::MODEL_TIMEOUT || $status === self::RATE_LIMITED || $status >= 500;
+    }
+
     /**
      * @param (callable(RequestInterface, array): PromiseInterface)|null $handler Underlying
      *        transport; tests pass a MockHandler.

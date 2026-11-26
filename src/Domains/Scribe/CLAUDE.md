@@ -118,7 +118,16 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   trait and `@cacheRedis` serves the pre-upload payload forever. Guarded by
   `ScribeGraphQLSurfaceTest::test_every_scribe_document_exposing_files_is_wired_for_cache_invalidation`.
   `JournalEntry` is deliberately out — it extends `EloquentModel` directly, not the Scribe `BaseModel`,
-  so it has no `HasFilesystemTrait`; `PurchaseOrder` and `BankTransaction` have no GraphQL type at all yet.
+  so it has no `HasFilesystemTrait`; `BankTransaction` has no GraphQL type at all yet.
+- **A purchase order is either mirrored from an ERP or issued by the company.** The mirror (`source` not `kanvas`,
+  `document_status` null) stays read-only reference data for bill matching. An order the company issues has
+  `source = kanvas`, a `document_status` (`PurchaseOrderStatusEnum`, gated by `PurchaseOrderStateMachineService`:
+  draft → pending_approval/approved → sent → partially_received → received, cancelled only before goods arrive) and a
+  number from its own `purchase_order` sequence (`PO-` prefix). `Create/Update/CancelPurchaseOrderAction` only touch
+  orders where `isIssuedByCompany()`; editing is draft-only and replaces the lines as a whole. The AP agent drives them
+  with `create_purchase_order`, `update_purchase_order` and `cancel_purchase_order`; GraphQL is
+  `createScribePurchaseOrder`, `updateScribePurchaseOrder` and `cancelScribePurchaseOrder`. Approving, sending and
+  receiving are the next layers; the status graph already has their states.
 - **A sales order is what a customer committed to buy, and it passes two gates before anything ships.** It is the
   customer's own purchase order (`customer_po`) or our proforma returned signed and stamped (`signed_proforma`, which
   takes its lines, currency and number from the quote). `RegisterCustomerPoAction` numbers it from its own `sales_order`

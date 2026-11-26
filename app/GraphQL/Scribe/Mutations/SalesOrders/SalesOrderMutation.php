@@ -35,7 +35,7 @@ class SalesOrderMutation
         $ctx = $this->actingContext();
 
         return new RegisterCustomerPoAction(
-            SalesOrderData::fromMultiple(
+            SalesOrderData::from(
                 $ctx->app,
                 $ctx->user,
                 $ctx->company,
@@ -72,13 +72,14 @@ class SalesOrderMutation
             $this->order($request),
             (string) $request['key'],
             (string) $request['resolution'],
-            DifferenceSourceEnum::from((string) $request['source']),
+            DifferenceSourceEnum::from((string) ($request['source'] ?? DifferenceSourceEnum::REVIEW->value)),
         )->execute();
     }
 
     public function confirm(mixed $rootValue, array $request): SalesOrder
     {
-        return new ConfirmSalesOrderAction($this->order($request), (bool) $request['feasibility_confirmed'])->execute();
+        return new ConfirmSalesOrderAction($this->order($request), (bool) $request['feasibility_confirmed'])
+            ->execute();
     }
 
     public function accept(mixed $rootValue, array $request): SalesOrder

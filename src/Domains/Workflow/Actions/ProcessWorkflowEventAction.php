@@ -22,6 +22,9 @@ class ProcessWorkflowEventAction
     /** @var list<int> */
     private array $startedWorkflowIds = [];
 
+    /** @var list<WorkflowStub> */
+    private array $startedSyncWorkflows = [];
+
     public function __construct(
         protected Apps $app,
         protected Model $entity,
@@ -32,6 +35,7 @@ class ProcessWorkflowEventAction
     {
         $params['currentEventTypeName'] = strtolower($event);
         $this->startedWorkflowIds = [];
+        $this->startedSyncWorkflows = [];
 
         // Matched here, before a `workflows` row exists for the rule: most events match nothing,
         // and a row per non-match is what filled the table.
@@ -65,12 +69,23 @@ class ProcessWorkflowEventAction
                     $params
                 );
                 $lastSyncWorkflow = $workflow;
+                $this->startedSyncWorkflows[] = $workflow;
             }
 
             $this->startedWorkflowIds[] = (int) $workflow->id();
         });
 
         return $lastSyncWorkflow;
+    }
+
+    /**
+     * @return list<WorkflowStub>
+     */
+    public function executeAndCollectSyncWorkflows(string $event, array $params = []): array
+    {
+        $this->execute($event, $params);
+
+        return $this->startedSyncWorkflows;
     }
 
     /**

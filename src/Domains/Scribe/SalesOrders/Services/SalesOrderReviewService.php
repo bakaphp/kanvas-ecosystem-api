@@ -56,8 +56,9 @@ class SalesOrderReviewService
         $orderLines = $order->lines()->orderBy('line_number')->get()->values();
         $quoteLines = $quote->lines()->orderBy('sort_order')->get()->values();
         $found = [];
+        $count = max($orderLines->count(), $quoteLines->count());
 
-        foreach (range(0, max($orderLines->count(), $quoteLines->count()) - 1) as $index) {
+        for ($index = 0; $index < $count; $index++) {
             $number = $index + 1;
             $orderLine = $orderLines[$index] ?? null;
             $quoteLine = $quoteLines[$index] ?? null;
@@ -110,6 +111,11 @@ class SalesOrderReviewService
             return null;
         }
 
-        return $this->difference($key, $key, $orderValue, $agreedValue);
+        return $this->difference(
+            $key,
+            $key,
+            $orderValue,
+            $agreedValue
+        );
     }
 }
