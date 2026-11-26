@@ -8,21 +8,27 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AbstractCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckShippingDocumentsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CloseCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmDeliveryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetCollectionPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListCustomerOrdersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MarkDocumentsPackageSentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordShipmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RegisterCustomerPoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResolvePoDifferenceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ReviewCustomerPoTool;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
-use Tests\Traits\CreatesTestQuote;
+use Tests\Traits\CreatesTestSalesOrder;
 
 class CustomerOrderToolsTest extends ScribeTestCase
 {
     use AssertsToolRunKeys;
-    use CreatesTestQuote;
+    use CreatesTestSalesOrder;
 
     public function test_the_agent_takes_a_customer_po_through_both_gates(): void
     {
@@ -134,12 +140,99 @@ class CustomerOrderToolsTest extends ScribeTestCase
         $this->assertSame('unknown_status', $result['reason']);
     }
 
+    public function test_the_agent_ships_an_accepted_order_and_follows_it_to_delivery(): void
+    {
+        $customer = $this->seedTestOrganization('Shipping Tool Customer');
+        $orderNumber = $this->createAcceptedSalesOrder($customer)->order_number;
+        $invoice = $this->issueInvoiceWithLines($customer, [
+            ['quantity' => 10, 'unit_price' => 20],
+            ['quantity' => 5, 'unit_price' => 30],
+        ]);
+
+        $checked = $this->tool(CheckShippingDocumentsTool::class)->__invoke(
+            order_number: $orderNumber,
+            invoice_number: $invoice->invoice_number,
+            packing_list: [['quantity' => 10], ['quantity' => 5]],
+            bl_total_quantity: 15,
+        );
+        $this->assertTrue($checked['checked']);
+        $this->assertSame([], $checked['documents_differences']);
+        $this->assertStringContainsString('record_shipment', $checked['next']);
+
+        $shipped = $this->tool(RecordShipmentTool::class)->__invoke(
+            order_number: $orderNumber,
+            bl_number: 'BL-4401',
+            bl_date: '2026-12-10',
+            vessel: 'Test Vessel',
+            containers: ['CONT-1', 'CONT-2'],
+        );
+        $this->assertTrue($shipped['shipped']);
+        $this->assertSame('shipped', $shipped['document_status']);
+        $this->assertSame('2027-01-29', $shipped['shipment']['invoice_due_date']);
+        $this->assertContains(50, array_column($shipped['collection_plan'], 'day'));
+
+        $sent = $this->tool(MarkDocumentsPackageSentTool::class)->__invoke(order_number: $orderNumber);
+        $this->assertTrue($sent['recorded']);
+        $this->assertTrue($sent['shipment']['documents_package_sent']);
+
+        $plan = $this->tool(GetCollectionPlanTool::class)->__invoke(order_number: $orderNumber);
+        $this->assertCount(8, $plan['collection_plan']);
+
+        $delivered = $this->tool(ConfirmDeliveryTool::class)->__invoke(
+            order_number: $orderNumber,
+            delivered_on: '2026-12-28',
+            pod_reference: 'POD-4401',
+        );
+        $this->assertTrue($delivered['delivered']);
+
+        $closed = $this->tool(CloseCustomerOrderTool::class)->__invoke(order_number: $orderNumber);
+        $this->assertFalse($closed['closed']);
+        $this->assertStringContainsString('until its invoice is paid', $closed['message']);
+    }
+
+    public function test_shipping_tools_report_what_is_missing(): void
+    {
+        $customer = $this->seedTestOrganization('Missing Shipping Customer');
+        $orderNumber = $this->createAcceptedSalesOrder($customer)->order_number;
+
+        $noInvoice = $this->tool(CheckShippingDocumentsTool::class)->__invoke(
+            order_number: $orderNumber,
+            invoice_number: 'NO-SUCH-INVOICE',
+            packing_list: [['quantity' => 1]],
+            bl_total_quantity: 1,
+        );
+        $notChecked = $this->tool(RecordShipmentTool::class)->__invoke(
+            order_number: $orderNumber,
+            bl_number: 'BL-1',
+            bl_date: '2026-12-10',
+        );
+        $noPlan = $this->tool(GetCollectionPlanTool::class)->__invoke(order_number: $orderNumber);
+        $badSource = $this->tool(ResolvePoDifferenceTool::class)->__invoke(
+            order_number: $orderNumber,
+            key: 'x',
+            resolution: 'y',
+            source: 'elsewhere',
+        );
+
+        $this->assertSame('invoice_not_found', $noInvoice['reason']);
+        $this->assertFalse($notChecked['shipped']);
+        $this->assertStringContainsString('Cross-check the shipping documents', $notChecked['message']);
+        $this->assertSame('not_shipped', $noPlan['reason']);
+        $this->assertSame('unknown_source', $badSource['reason']);
+    }
+
     public function test_the_sales_order_tools_key_their_run_budget_by_inputs(): void
     {
         foreach ([
             RegisterCustomerPoTool::class,
             ReviewCustomerPoTool::class,
             ResolvePoDifferenceTool::class,
+            CheckShippingDocumentsTool::class,
+            RecordShipmentTool::class,
+            MarkDocumentsPackageSentTool::class,
+            ConfirmDeliveryTool::class,
+            CloseCustomerOrderTool::class,
+            GetCollectionPlanTool::class,
             ConfirmCustomerOrderTool::class,
             AnswerCustomerOrderTool::class,
             CancelCustomerOrderTool::class,

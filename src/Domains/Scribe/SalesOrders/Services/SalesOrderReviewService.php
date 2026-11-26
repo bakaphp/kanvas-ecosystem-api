@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\SalesOrders\Services;
 
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
+use Kanvas\Scribe\SalesOrders\Services\Concerns\BuildsDifferences;
 
 /**
  * Compares a sales order with its quote, and with the agreed terms when they are given, and lists every
@@ -13,6 +14,8 @@ use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
  */
 class SalesOrderReviewService
 {
+    use BuildsDifferences;
+
     /**
      * @param array{incoterm?: string|null, payment_terms_days?: int|null} $agreement
      *
@@ -101,14 +104,6 @@ class SalesOrderReviewService
     /**
      * @return array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}|null
      */
-    private function ifChanged(string $key, string $field, ?string $orderValue, ?string $quoteValue): ?array
-    {
-        return $orderValue === $quoteValue ? null : $this->difference($key, $field, $orderValue, $quoteValue);
-    }
-
-    /**
-     * @return array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}|null
-     */
     private function ifAgreedDiffers(string $key, ?string $orderValue, ?string $agreedValue): ?array
     {
         if ($agreedValue === null || strcasecmp((string) $orderValue, $agreedValue) === 0) {
@@ -116,24 +111,5 @@ class SalesOrderReviewService
         }
 
         return $this->difference($key, $key, $orderValue, $agreedValue);
-    }
-
-    /**
-     * @return array{key: string, field: string, po_value: string|null, quote_value: string|null, resolution: null}
-     */
-    private function difference(string $key, string $field, ?string $orderValue, ?string $quoteValue): array
-    {
-        return [
-            'key' => $key,
-            'field' => $field,
-            'po_value' => $orderValue,
-            'quote_value' => $quoteValue,
-            'resolution' => null,
-        ];
-    }
-
-    private function number(float $value): string
-    {
-        return rtrim(rtrim(number_format($value, 4, '.', ''), '0'), '.');
     }
 }

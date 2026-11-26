@@ -18,7 +18,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachQuoteFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckRncTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckShippingDocumentsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CloseCustomerOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmCustomerOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConfirmDeliveryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
@@ -36,6 +39,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetCollectionPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetExchangeRateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
@@ -45,10 +49,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListCustomerOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListPaymentTermsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MarkDocumentsPackageSentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordShipmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RegisterCustomerPoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResolvePoDifferenceTool;
@@ -200,6 +206,12 @@ class AccountsReceivableAgent extends SystemUserAgent
             new CancelCustomerOrderTool(),
             new FindCustomerOrderTool(),
             new ListCustomerOrdersTool(),
+            new CheckShippingDocumentsTool(),
+            new RecordShipmentTool(),
+            new MarkDocumentsPackageSentTool(),
+            new ConfirmDeliveryTool(),
+            new CloseCustomerOrderTool(),
+            new GetCollectionPlanTool(),
             new GenerateQuotePdfTool(),
             new GenerateInvoicePdfTool(),
             new AttachQuoteFileTool(),
@@ -349,6 +361,12 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'find_customer_order, list_customer_orders (find_sales_order and list_open_sales_orders read the orders '
             . 'synced from the ERP, which are a different thing). Never confirm, accept or cancel an order on your '
             . 'own initiative.',
+            '- Shipping a customer order: before the bill of lading, check_shipping_documents cross-checks the order, '
+            . 'the commercial invoice, the packing list and the draft BL; clarify each difference with '
+            . 'resolve_po_difference (source documents), then record_shipment once the person says the BL was issued. '
+            . 'The invoice then falls due the payment term after the BL date, not the invoice date: say so, and read '
+            . 'get_collection_plan for the follow-up. mark_documents_package_sent only records that the package went out. '
+            . 'confirm_delivery needs the proof-of-delivery reference; close_customer_order needs the invoice paid.',
             '- "Send me the quote/invoice as a PDF" / "I need a copy to forward" → generate_quote_pdf or '
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
             . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '

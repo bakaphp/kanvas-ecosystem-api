@@ -25,6 +25,40 @@ type ScribePoDifference {
     resolution: String
 }
 
+"Which check of the order a difference belongs to."
+enum ScribeDifferenceSource {
+    REVIEW @enum(value: "review")
+    DOCUMENTS @enum(value: "documents")
+}
+
+"One step of the follow-up from the bill of lading date until the invoice is paid."
+type ScribeCollectionStep {
+    day: Int!
+    date: Date!
+    action: String!
+    owner: String!
+}
+
+"The bill of lading of an order, the invoice due date it sets, the documents package and the delivery."
+type ScribeSalesOrderShipment {
+    id: ID!
+    bl_number: String!
+    bl_date: Date!
+    vessel: String
+    containers: Mixed
+    payment_terms_days: Int!
+    "The bill of lading date plus the payment term."
+    due_date: Date!
+    "The earlier of 3 business days after the bill of lading and 5 days before the arrival."
+    documents_package_due_on: Date
+    documents_package_sent_at: DateTime
+    delivered_on: Date
+    pod_reference: String
+    delivery_discrepancies: String
+    damage_reported: Boolean!
+    recorded_at: DateTime!
+}
+
 type ScribeSalesOrderLine {
     id: ID!
     line_number: Int!
@@ -57,6 +91,13 @@ type ScribeSalesOrder {
     "From the last review against the quote; empty until the order is reviewed."
     differences: [ScribePoDifference!]! @method(name: "differences")
     reviewed_at: DateTime
+    "The invoice chosen at the cross-check of the shipping documents; it falls due from the bill of lading date."
+    invoice: ScribeInvoice @belongsTo(relation: "invoice")
+    "From the cross-check of the order, invoice, packing list and draft bill of lading."
+    documents_differences: [ScribePoDifference!]! @method(name: "documentsDifferences")
+    documents_checked_at: DateTime
+    shipment: ScribeSalesOrderShipment @hasOne(relation: "shipment")
+    collection_plan: [ScribeCollectionStep!]! @method(name: "collectionPlan")
     feasibility_confirmed_at: DateTime
     etd: Date
     eta: Date
@@ -124,6 +165,16 @@ input ScribeSalesOrderAgreementInput {
     payment_terms_days: Int
 }
 
+input ScribePackingListLineInput {
+    sku: String
+    description: String
+    quantity: Float!
+}
+
+input ScribeBlDraftInput {
+    total_quantity: Float!
+}
+
 extend type Query @guard {
     scribeSalesOrders(
         where: _
@@ -176,7 +227,12 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@review"
         )
     "Writes down how one difference of the review was clarified with the customer."
-    resolveScribeSalesOrderDifference(id: ID!, key: String!, resolution: String!): ScribeSalesOrder!
+    resolveScribeSalesOrderDifference(
+        id: ID!
+        key: String!
+        resolution: String!
+        source: ScribeDifferenceSource = REVIEW
+    ): ScribeSalesOrder!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@resolveDifference"
         )
@@ -199,5 +255,48 @@ extend type Mutation @guard {
     cancelScribeSalesOrder(id: ID!, reason: String): ScribeSalesOrder!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@cancel"
+        )
+    "Before the bill of lading: cross-checks the order, the commercial invoice, the packing list and the draft bill of lading, and records every difference."
+    checkScribeShippingDocuments(
+        id: ID!
+        invoice_id: ID!
+        packing_list: [ScribePackingListLineInput!]!
+        bl_draft: ScribeBlDraftInput!
+    ): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@checkDocuments"
+        )
+    "Records the bill of lading of an accepted order. The invoice falls due the payment term after the bill of lading date."
+    recordScribeShipment(
+        id: ID!
+        bl_number: String!
+        bl_date: Date!
+        vessel: String
+        containers: [String!]
+        eta: Date
+    ): ScribeSalesOrderShipment!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@recordShipment"
+        )
+    "Records that the documents package and the due-date notice went to the customer."
+    markScribeDocumentsPackageSent(id: ID!): ScribeSalesOrderShipment!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@markPackageSent"
+        )
+    "Records the delivery against the signed proof of delivery."
+    confirmScribeDelivery(
+        id: ID!
+        delivered_on: Date!
+        pod_reference: String!
+        discrepancies: String
+        damage_reported: Boolean = false
+    ): ScribeSalesOrderShipment!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@confirmDelivery"
+        )
+    "Closes a delivered order once its invoice is paid."
+    closeScribeSalesOrder(id: ID!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@close"
         )
 }

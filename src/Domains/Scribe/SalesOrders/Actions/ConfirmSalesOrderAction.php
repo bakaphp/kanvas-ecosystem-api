@@ -33,15 +33,11 @@ class ConfirmSalesOrderAction
             throw new ValidationException("Review sales order {$this->order->order_number} against its quote before confirming it.");
         }
 
-        $open = array_filter(
-            $this->order->differences(),
-            static fn (array $difference): bool => $difference['resolution'] === null
-        );
+        $open = $this->order->openDifferenceKeys();
 
         if ($open !== []) {
             throw new ValidationException(
-                'Clarify every difference in writing before confirming. Still open: '
-                . implode(', ', array_column($open, 'key')) . '.'
+                'Clarify every difference in writing before confirming. Still open: ' . implode(', ', $open) . '.'
             );
         }
 
