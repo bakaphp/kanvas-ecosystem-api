@@ -6,16 +6,16 @@ namespace App\GraphQL\Event\Queries\Booking;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Support\IPInfo;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Events\Services\ResourceTimezoneService;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Passes\DataTransferObject\EventAccess;
+use Kanvas\Event\Passes\Enums\InviteCodeCheckReasonEnum;
 use Kanvas\Event\Passes\Services\InviteCodeGate;
 use Kanvas\Event\Passes\Services\PassAttemptLimiter;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Variants\Models\Variants;
 
 class InviteCodeQuery
 {
@@ -28,7 +28,7 @@ class InviteCodeQuery
         $access = EventAccess::forResource($product);
 
         if ($access === null) {
-            return ['valid' => false, 'time_slot' => null];
+            return $this->answer(InviteCodeCheckReasonEnum::INVALID);
         }
 
         $gate = new InviteCodeGate(
@@ -37,40 +37,57 @@ class InviteCodeQuery
             $product->company,
             new PassAttemptLimiter('invite-code', $ctx->user->getId(), IPInfo::getClientIp())
         );
-        $pass = $gate->inspect($args['code']);
+        $check = $gate->check($args['code']);
 
+        if (! $check->isValid()) {
+            return $this->answer($check->reason);
+        }
+
+        $timeSlots = $this->slotsOfTheDaysLeft($product, $check->pass, $ctx->app);
+        $allFull = $timeSlots->isNotEmpty() && $timeSlots->every(fn (TimeSlots $slot) => $slot->isFullyBooked());
+
+        return $this->answer(
+            $allFull ? InviteCodeCheckReasonEnum::FULL : InviteCodeCheckReasonEnum::VALID,
+            $check->pass->remainingUses(),
+            $timeSlots
+        );
+    }
+
+    private function answer(
+        InviteCodeCheckReasonEnum $reason,
+        int $remainingUses = 0,
+        ?Collection $timeSlots = null
+    ): array {
         return [
-            'valid' => $pass !== null,
-            'time_slot' => $pass === null ? null : $this->slotOfTheCodeDay($product, $pass, $ctx->app),
+            'valid' => $reason === InviteCodeCheckReasonEnum::VALID,
+            'reason' => $reason->value,
+            'remaining_uses' => $remainingUses,
+            'time_slots' => $timeSlots?->all() ?? [],
         ];
     }
 
-    private function slotOfTheCodeDay(Products $product, ParticipantPass $pass, Apps $app): ?TimeSlots
+    private function slotsOfTheDaysLeft(Products $product, ParticipantPass $pass, Apps $app): Collection
     {
-        $variantIds = $product->variants()->pluck('id');
         $timezone = ResourceTimezoneService::resolve($product);
-        $day = $pass->eventVersion->start_at->toDateString();
+        $daysLeft = array_diff($pass->allowedDays(), $pass->bookedDays());
 
+        return collect($daysLeft)
+            ->map(fn (string $day) => $this->slotOfDay($product, $day, $timezone, $app))
+            ->filter()
+            ->values();
+    }
+
+    private function slotOfDay(
+        Products $product,
+        string $day,
+        string $timezone,
+        Apps $app
+    ): ?TimeSlots {
         return TimeSlots::query()
             ->fromApp($app)
             ->where('companies_id', $product->companies_id)
-            ->whereBetween('start_at', [
-                Carbon::parse($day, $timezone)->startOfDay()->utc(),
-                Carbon::parse($day, $timezone)->endOfDay()->utc(),
-            ])
-            ->where(
-                fn ($query) => $query
-                    ->where(
-                        fn ($resource) => $resource
-                            ->where('resources_type', $product->getMorphClass())
-                            ->where('resources_id', $product->getId())
-                    )
-                    ->orWhere(
-                        fn ($resource) => $resource
-                            ->where('resources_type', new Variants()->getMorphClass())
-                            ->whereIn('resources_id', $variantIds)
-                    )
-            )
+            ->onLocalDay($day, $timezone)
+            ->forProduct($product)
             ->orderBy('start_at')
             ->first();
     }

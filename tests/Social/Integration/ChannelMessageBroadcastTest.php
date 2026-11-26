@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -19,6 +21,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /** The channel-level push carries an id, never the body, so it must be enough to fetch and route. */
@@ -109,6 +112,59 @@ final class ChannelMessageBroadcastTest extends TestCase
         foreach ($names as $name) {
             $this->assertMatchesRegularExpression('/\A[-a-zA-Z0-9_=@,.;]+\z/', $name);
         }
+    }
+
+    /**
+     * A quote or invoice engagement opens a channel on the document itself, so the document needs
+     * a slug like any other channel entity (KANVAS-ECOSYSTEM-6XB).
+     */
+    #[DataProvider('engageableDocuments')]
+    public function testEngageableDocumentBroadcastsOnItsEntityChannel(string $namespace, string $slug): void
+    {
+        $names = $this->channelNamesFor($namespace);
+
+        $this->assertContains('new-message-channel-' . $slug . '-7', $names);
+    }
+
+    /**
+     * @return array<string, array{class-string, string}>
+     */
+    public static function engageableDocuments(): array
+    {
+        return [
+            'quote' => [Quote::class, 'scribe_quote'],
+            'invoice' => [Invoice::class, 'scribe_invoice'],
+        ];
+    }
+
+    public function testEntityWithoutASlugStillBroadcastsOnTheChannelScopedNames(): void
+    {
+        $appPrefix = 'app-' . $this->currentApp->getId();
+
+        $this->assertSame(
+            [
+                $appPrefix . '-new-message-channel-some-channel-42',
+                $appPrefix . 'some-channel',
+            ],
+            $this->channelNamesFor(self::class)
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function channelNamesFor(string $entityNamespace): array
+    {
+        return array_map(
+            fn (BroadcastChannel $broadcastChannel): string => $broadcastChannel->name,
+            ChannelMessageCreatedEvent::pusherChannelNames(
+                $this->currentApp->getId(),
+                42,
+                'some-channel',
+                $entityNamespace,
+                7
+            )
+        );
     }
 
     private function makeChannel(): Channel

@@ -51,7 +51,7 @@ class ArtifactsTool extends Tool
         return [
             'crm' => [
                 'status' => $lead->status()->first()?->name,
-                'stage' => $lead->stage->name,
+                'stage' => $lead->stage?->name,
                 'tags' => $lead->tags->pluck('name')->toArray(),
                 'last_notes' => $this->recentNotes($lead),
                 'forms' => [

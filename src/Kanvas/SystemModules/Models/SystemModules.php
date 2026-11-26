@@ -29,6 +29,8 @@ use Kanvas\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Models\Plan as NervousSystemPlan;
 use Kanvas\NervousSystem\Project\Models\Project as NervousSystemProject;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -57,6 +59,32 @@ class SystemModules extends BaseModel
 {
     use SlugTrait;
     use UuidTrait;
+
+    /**
+     * Wider than getSystemModuleNameSpaceBySlug() on purpose: that one resolves client input, so a
+     * model listed there becomes reachable from the workflow, list and booking mutations.
+     */
+    private const array SLUGS_BY_MODEL = [
+        Lead::class => 'lead',
+        Deal::class => 'deal',
+        People::class => 'people',
+        Organization::class => 'organization',
+        Message::class => 'message',
+        Products::class => 'product',
+        Variants::class => 'variant',
+        Order::class => 'order',
+        Users::class => 'user',
+        Companies::class => 'company',
+        CompaniesBranches::class => 'branch',
+        Regions::class => 'region',
+        Engagement::class => 'engagement',
+        NervousSystemPlan::class => 'nervous_system_plan',
+        NervousSystemProject::class => 'nervous_system_project',
+        AgentSwarm::class => 'agent_swarm',
+        Employee::class => 'employee',
+        Quote::class => 'scribe_quote',
+        Invoice::class => 'scribe_invoice',
+    ];
 
     protected $table = 'system_modules';
 
@@ -166,27 +194,13 @@ class SystemModules extends BaseModel
 
     public static function getSlugBySystemModuleNameSpace(string $namespace): string
     {
-        $internalMapping = [
-            Lead::class => 'lead',
-            Deal::class => 'deal',
-            People::class => 'people',
-            Organization::class => 'organization',
-            Message::class => 'message',
-            Products::class => 'product',
-            Variants::class => 'variant',
-            Order::class => 'order',
-            Users::class => 'user',
-            Companies::class => 'company',
-            CompaniesBranches::class => 'branch',
-            Regions::class => 'region',
-            Engagement::class => 'engagement',
-            NervousSystemPlan::class => 'nervous_system_plan',
-            NervousSystemProject::class => 'nervous_system_project',
-            AgentSwarm::class => 'agent_swarm',
-            Employee::class => 'employee',
-        ];
+        return self::findSlugBySystemModuleNameSpace($namespace)
+            ?? throw new InvalidArgumentException('Namespace ' . $namespace . ' not found');
+    }
 
-        return $internalMapping[$namespace] ?? throw new InvalidArgumentException('Namespace ' . $namespace . ' not found');
+    public static function findSlugBySystemModuleNameSpace(string $namespace): ?string
+    {
+        return self::SLUGS_BY_MODEL[$namespace] ?? null;
     }
 
     public function abilities(): BelongsToMany

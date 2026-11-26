@@ -6,28 +6,19 @@ namespace Tests\Intelligence\NervousSystem\Orchestrator;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Jobs\WakeAgentInSessionJob;
-use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
 use Kanvas\NervousSystem\Orchestrator\Routing\Approval\ProjectRoutingApprovalHandler;
 use Kanvas\NervousSystem\Orchestrator\Webhooks\ProcessOrchestratorSignalJob;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
-use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
-use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Actions\CreateReceiverWebhookAction;
-use Kanvas\Workflow\DataTransferObject\ReceiverWebhook as ReceiverWebhookData;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Models\ReceiverWebhookCall;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Laravel\Ai\StructuredAnonymousAgent;
 use Tests\Intelligence\NervousSystem\Orchestrator\Concerns\MakesMeetingRoutingFixtures;
 use Tests\TestCase;
@@ -39,6 +30,13 @@ class ProcessOrchestratorSignalJobTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'crm', 'hr', 'intelligence', 'social', 'workflow'];
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->fakeFileStorage();
+    }
+
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
      */
@@ -49,59 +47,6 @@ class ProcessOrchestratorSignalJobTest extends TestCase
         $user = auth()->user();
 
         return [$app, $user->getCurrentCompany(), $user];
-    }
-
-    private function makeProject(Apps $app, Companies $company, Users $owner, string $title): Project
-    {
-        $agent = Agent::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->create(['user_id' => $owner->getId(), 'is_active' => true]);
-
-        return new CreateProjectAction(
-            ProjectData::from($app, $owner, $company, [
-                'title' => $title,
-                'objective' => "Deliver {$title}",
-                'agent_id' => $agent->id,
-            ]),
-        )->execute();
-    }
-
-    /**
-     * @param array<string, mixed> $configuration
-     */
-    private function orchestratorReceiver(Apps $app, Companies $company, Users $user, array $configuration): ReceiverWebhook
-    {
-        $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessOrchestratorSignalJob::class],
-            ['name' => 'Orchestrator Signal Ingest'],
-        );
-
-        return new CreateReceiverWebhookAction(
-            new ReceiverWebhookData(
-                app: $app,
-                company: $company,
-                user: $user,
-                action: $action,
-                name: 'Orchestrator ingest',
-                description: 'Unlabeled signal routing',
-                configuration: $configuration,
-                is_active: true,
-                run_async: true,
-            ),
-        )->execute();
-    }
-
-    private function callFor(ReceiverWebhook $receiver, array $payload): ReceiverWebhookCall
-    {
-        return ReceiverWebhookCall::create([
-            'receiver_webhooks_id' => $receiver->getId(),
-            'uuid' => Str::uuid()->toString(),
-            'url' => '/receiver/' . $receiver->uuid,
-            'payload' => $payload,
-            'raw_payload' => json_encode($payload),
-            'status' => 'pending',
-        ]);
     }
 
     public function testForwardsToProjectWhenAttendeeIsAMember(): void
@@ -334,22 +279,6 @@ class ProcessOrchestratorSignalJobTest extends TestCase
         $result = new ProcessOrchestratorSignalJob($this->callFor($receiver, ['session_id' => 'x', 'title' => 'Empty']))->execute();
 
         $this->assertSame('ignored', $result['status']);
-    }
-
-    /**
-     * @param list<string> $emails
-     *
-     * @return array<string, mixed>
-     */
-    private function meetingPayload(array $emails): array
-    {
-        return [
-            'session_id' => 'sess_' . Str::random(10),
-            'trigger' => 'meeting_end',
-            'title' => 'Pricing call',
-            'participants' => array_map(static fn (string $email): array => ['name' => 'X', 'email' => $email], $emails),
-            'transcript' => ['speaker_blocks' => [['speaker' => ['name' => 'Buyer'], 'words' => 'We want the pro plan.']]],
-        ];
     }
 
     public function testALeadMeetingIsRoutedToTheSalesManager(): void

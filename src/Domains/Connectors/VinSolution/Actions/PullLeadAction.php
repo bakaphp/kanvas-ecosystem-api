@@ -37,6 +37,7 @@ use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -52,9 +53,10 @@ class PullLeadAction
     public function execute(
         ?ModelsLead $lead = null,
         ?int $leadId = null,
-        bool $triggerFirstMessage = false
+        bool $triggerFirstMessage = false,
+        bool $skipUnimportedServiceLeads = false
     ): array {
-        return DB::transaction(function () use ($lead, $leadId, $triggerFirstMessage) {
+        return DB::transaction(function () use ($lead, $leadId, $triggerFirstMessage, $skipUnimportedServiceLeads) {
             $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
             $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
@@ -99,6 +101,13 @@ class PullLeadAction
                     $this->user
                 );
 
+                if ($skipUnimportedServiceLeads
+                    && $lead === null
+                    && $this->isUnimportedServiceLead($vinLead->type_id, $currentLead['LeadId'])
+                ) {
+                    return [];
+                }
+
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
 
                 //set communication channel
@@ -140,6 +149,21 @@ class PullLeadAction
 
             return [];
         });
+    }
+
+    /**
+     * Decided on the type the lead would be filed under, not the raw VinSolutions type: a lead
+     * source can carry its own Kanvas type, and that one wins when the lead is saved.
+     */
+    protected function isUnimportedServiceLead(int $leadTypeId, int $vinLeadId): bool
+    {
+        $leadTypeName = LeadType::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('id', $leadTypeId)
+            ->value('name');
+
+        return LeadsEnumsConfigurationEnum::skipsCrmServiceLead($this->company, $leadTypeName)
+            && ModelsLead::getByCustomFieldTransactionSafe(CustomFieldEnum::LEADS->value, $vinLeadId, $this->company) === null;
     }
 
     private function isWithin10Minutes(string $dateString): bool

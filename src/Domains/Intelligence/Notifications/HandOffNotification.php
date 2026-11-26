@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Notifications;
 
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\HandOffTemplateEnum;
 use Kanvas\Notifications\Notification;
 
 class HandOffNotification extends Notification
@@ -21,9 +22,9 @@ class HandOffNotification extends Notification
         $this->setTemplateName($templateName);
         $this->setData($data);
         $this->setSubject('Lead Handoff Notification - ' . $lead->people->name);
-        $this->setPushTemplateName('lead_handoff_push_notification');
-        $this->setSmsTemplateName('lead_handoff_sms_notification');
-        $this->setDatabaseTemplateName('lead_handoff_sms_notification');
+        $this->setPushTemplateName(HandOffTemplateEnum::PUSH->value);
+        $this->setSmsTemplateName(HandOffTemplateEnum::SMS->value);
+        $this->setDatabaseTemplateName(HandOffTemplateEnum::SMS->value);
     }
 
     public function setChannelOnlyPush(): void

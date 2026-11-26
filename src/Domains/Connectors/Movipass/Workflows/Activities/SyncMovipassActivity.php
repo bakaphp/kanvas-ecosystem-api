@@ -14,6 +14,7 @@ use Kanvas\Connectors\Movipass\Actions\ApplyFreeParkingTierAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Parking\Actions\DispatchParkingPaymentConfirmationAction;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
@@ -101,6 +102,8 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                 }
 
                 if ($eventName === WorkflowEnum::UPDATED->value) {
+                    new DispatchParkingPaymentConfirmationAction($order)->execute();
+
                     $endAt = $order->metadata['data']['end_at'] ?? null;
                     $isManual = $order->metadata['data']['is_manual'] ?? false;
 

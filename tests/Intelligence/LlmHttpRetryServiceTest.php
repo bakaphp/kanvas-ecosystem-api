@@ -17,6 +17,17 @@ use Tests\TestCase;
 
 final class LlmHttpRetryServiceTest extends TestCase
 {
+    public function testATransientStatusIsTheProvidersFaultAndAClientErrorIsNot(): void
+    {
+        foreach ([408, 429, 500, 503, 529] as $status) {
+            $this->assertTrue(LlmHttpRetryService::isTransientStatus($status), "HTTP {$status}");
+        }
+
+        foreach ([400, 401, 403, 404, 422] as $status) {
+            $this->assertFalse(LlmHttpRetryService::isTransientStatus($status), "HTTP {$status}");
+        }
+    }
+
     public function testRetriesOverloadedResponseAndSucceeds(): void
     {
         $mock = new MockHandler([

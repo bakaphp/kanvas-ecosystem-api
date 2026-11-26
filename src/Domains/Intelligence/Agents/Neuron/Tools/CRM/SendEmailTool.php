@@ -60,8 +60,19 @@ class SendEmailTool extends Tool
                 description: 'The email body, written to the prospect in the first person on behalf of the business. '
                     . 'Markdown is supported (headings, bold, lists, links) and is rendered to HTML. '
                     . 'Do not add a greeting header image, a signature, or "Sent by AI" — the template handles branding. '
-                    . 'For internal assistants, the sender’s enabled email signature is added automatically, never the customer-facing agent’s signature.',
+                    . 'For internal assistants, the signature is added automatically: the business agent’s by default, or the saved signature of the person you are talking with when sign_as_me is true.',
                 required: true,
+            ),
+            new ToolProperty(
+                name: 'sign_as_me',
+                type: PropertyType::BOOLEAN,
+                description: 'Internal assistants only. Whose email this is. true = it is written as the person you are '
+                    . 'talking with (they asked you to send it as them, in their name or voice): their own saved email '
+                    . 'signature closes it. false or omitted = it is written as the business or its customer-facing '
+                    . 'assistant (e.g. "send it as Sally"): the business agent’s own signature closes it, never their '
+                    . 'personal one. '
+                    . 'Never set it to true for an email written in someone else’s name.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'cc',
@@ -84,9 +95,11 @@ class SendEmailTool extends Tool
         string $subject,
         string $body,
         ?string $cc = null,
+        ?bool $sign_as_me = null,
     ): array {
         $subject = trim($subject);
         $body = trim($body);
+        $signAsMe = $sign_as_me ?? false;
 
         if ($subject === '' || $body === '') {
             return [
@@ -119,14 +132,17 @@ class SendEmailTool extends Tool
         $ccResult = $this->resolveCcRecipients($this->ccCandidatePeopleIds($lead), $cc, $contact->value);
 
         try {
-            $sent = new SendMessageToLeadAction($lead)->withSignatureOwner($this->signatureOwner())->execute(
-                channel: LeadCommunicationChannelEnum::EMAIL->value,
-                message: $body,
-                title: $subject,
-                to: $contact->value,
-                cc: $ccResult['accepted'],
-                fromAgent: $this->contextAgent(),
-            );
+            $sent = new SendMessageToLeadAction($lead)
+                ->withSignatureOwner($this->signatureOwner($signAsMe))
+                ->withAgentSignature(! $signAsMe)
+                ->execute(
+                    channel: LeadCommunicationChannelEnum::EMAIL->value,
+                    message: $body,
+                    title: $subject,
+                    to: $contact->value,
+                    cc: $ccResult['accepted'],
+                    fromAgent: $this->contextAgent(),
+                );
         } catch (Throwable $e) {
             report($e);
 

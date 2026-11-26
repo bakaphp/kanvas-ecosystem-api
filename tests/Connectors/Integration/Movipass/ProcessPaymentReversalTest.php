@@ -88,8 +88,8 @@ final class ProcessPaymentReversalTest extends TestCase
         new ReflectionProperty(PortalPaymentProcessor::class, 'client')->setValue($processor, $client);
 
         $redisFull = true;
-        Payments::updated(function () use (&$redisFull) {
-            if ($redisFull) {
+        Payments::updated(function (Payments $updated) use (&$redisFull) {
+            if ($redisFull && $updated->status === PaymentStatusEnum::PAID->value) {
                 $redisFull = false;
 
                 throw new RuntimeException("OOM command not allowed when used memory > 'maxmemory'.");
@@ -100,6 +100,7 @@ final class ProcessPaymentReversalTest extends TestCase
             ->execute($this->consumerAuthentication());
 
         $this->assertSame('success', $result['status']);
+        $this->assertFalse($redisFull);
 
         $payment->refresh();
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
@@ -170,6 +171,26 @@ final class ProcessPaymentReversalTest extends TestCase
         $job->handle();
 
         $this->assertSame(PaymentStatusEnum::REVERSED->value, $payment->fresh()->status);
+    }
+
+    public function testRetryJobSkipsPaymentsAlreadyCancelledByAVoid(): void
+    {
+        [$app, $order, $payment] = $this->makeAuthorizedOrder([RetryPaymentReversalJob::PENDING_KEY => true]);
+        $payment->update(['status' => PaymentStatusEnum::CANCELLED->value]);
+
+        $processor = Mockery::mock(PortalPaymentProcessor::class);
+        $processor->shouldNotReceive('reversePayment');
+
+        $job = new RetryPaymentReversalJob(
+            $app,
+            $payment,
+            $order,
+            'retry'
+        );
+        $job->paymentProcessor = $processor;
+        $job->handle();
+
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
     }
 
     /**

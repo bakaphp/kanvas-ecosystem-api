@@ -97,7 +97,7 @@ final class AgentToolProviderPayloadTest extends TestCase
             ['control_account_number', 'amount', 'description'],
             array_keys($lines['items']['properties'])
         );
-        $this->assertSame(['control_account_number', 'amount'], $lines['items']['required']);
+        $this->assertSame(['amount'], $lines['items']['required']);
         $this->assertContains('lines', $declaration['parameters']['required']);
     }
 

@@ -36,4 +36,9 @@ class ConsumerAuthentication extends Data
         public readonly ?string $acsOperatorID,
     ) {
     }
+
+    public function resolvedEci(): ?string
+    {
+        return $this->eci ?? $this->eciRaw;
+    }
 }

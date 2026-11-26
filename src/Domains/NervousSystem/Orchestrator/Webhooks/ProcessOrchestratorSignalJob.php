@@ -23,6 +23,7 @@ use Kanvas\NervousSystem\Orchestrator\Routing\DataTransferObject\RoutingDecision
 use Kanvas\NervousSystem\Orchestrator\Routing\Enums\RoutingOutcomeEnum;
 use Kanvas\NervousSystem\Orchestrator\Routing\Enums\RoutingTargetTypeEnum;
 use Kanvas\NervousSystem\Orchestrator\Routing\Enums\SignalDeliveryStatusEnum;
+use Kanvas\NervousSystem\Orchestrator\Signals\Actions\StoreSignalFileAction;
 use Kanvas\NervousSystem\Orchestrator\Signals\DataTransferObject\InboundSignal;
 use Kanvas\NervousSystem\Orchestrator\Signals\Enums\SignalSourceEnum;
 use Kanvas\NervousSystem\Project\Actions\IngestToProjectAction;
@@ -59,6 +60,9 @@ class ProcessOrchestratorSignalJob extends ProcessWebhookJob
      */
     private bool $internalOnly = false;
 
+    /** The whole signal's file, shared by every message it is routed to — segments included. */
+    private ?StoreSignalFileAction $archive = null;
+
     #[Override]
     public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
     {
@@ -87,6 +91,8 @@ class ProcessOrchestratorSignalJob extends ProcessWebhookJob
         if ($signal === null) {
             return ['status' => 'ignored', 'reason' => 'empty content'];
         }
+
+        $this->archive = new StoreSignalFileAction($signal, $this->receiver);
 
         $candidates = $this->candidateProjects($config);
         $records = $this->matchRecords($signal, $config);
@@ -289,6 +295,8 @@ class ProcessOrchestratorSignalJob extends ProcessWebhookJob
             );
         }
 
+        $file = $this->archive?->execute();
+
         $request = new RequestAgentApprovalAction(
             channel: $inbox->defaultChannel,
             author: $author,
@@ -300,12 +308,18 @@ class ProcessOrchestratorSignalJob extends ProcessWebhookJob
                 'suggested_project_id' => $suggested,
                 'ingest_type' => $signal->kind->value,
                 'content' => $signal->content,
+                'body' => $file !== null ? $signal->digest($file) : null,
+                'filesystem_id' => $file?->getId(),
                 'external_id' => $signal->externalId,
                 'source' => $signal->source->value,
             ],
             verb: 'orchestrator-approval',
             entity: $inbox,
         )->execute();
+
+        if ($file !== null) {
+            $request->addFile($file, $file->name);
+        }
 
         $this->emit(
             "orchestrator.signal.{$status}",
@@ -430,10 +444,14 @@ class ProcessOrchestratorSignalJob extends ProcessWebhookJob
             return $this->deliverToRecord($signal, $decision);
         }
 
+        $file = $this->archive?->execute();
+
         $ingest = new IngestToProjectAction(
             project: $project,
             type: $signal->kind,
             content: $signal->content,
+            body: $file !== null ? $signal->digest($file) : null,
+            storedFiles: $file !== null ? [$file] : [],
         );
         $message = $ingest->execute();
 
@@ -466,7 +484,7 @@ class ProcessOrchestratorSignalJob extends ProcessWebhookJob
         /** @var RoutingCandidate $target */
         $target = $decision->target;
 
-        $delivery = new DeliverSignalToRecordAction($target, $signal)->execute();
+        $delivery = new DeliverSignalToRecordAction($target, $signal, $this->archive)->execute();
 
         $eventType = match ($delivery->status) {
             SignalDeliveryStatusEnum::DELIVERED,

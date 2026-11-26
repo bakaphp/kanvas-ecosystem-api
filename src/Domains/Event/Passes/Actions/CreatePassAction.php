@@ -30,6 +30,10 @@ class CreatePassAction
         private ?Carbon $expirationDate = null,
         private PassFormatEnum $format = PassFormatEnum::NUMERIC_PIN,
         private ?int $codeLength = null,
+        private ?int $maxUses = null,
+        private ?array $payload = null,
+        private ?string $prefix = null,
+        private bool $eventWide = false,
     ) {
         if ($this->codeLength !== null && $this->codeLength < self::MIN_CODE_LENGTH) {
             throw new InvalidArgumentException('Pass code length must be at least ' . self::MIN_CODE_LENGTH . '.');
@@ -83,6 +87,9 @@ class CreatePassAction
             'users_id' => $this->eventVersion->users_id,
             'expiration_date' => $this->expirationDate ?? $this->eventVersion->end_at ?? now()->addDays(30),
             'used_date' => null,
+            'max_uses' => $this->maxUses,
+            'payload' => $this->payload === null ? null : json_encode($this->payload),
+            'event_wide' => $this->eventWide,
             'scope' => $this->participantId
                 ? EventPassScopeEnum::PARTICIPANT->value
                 : EventPassScopeEnum::EVENT->value,
@@ -116,6 +123,10 @@ class CreatePassAction
                 $this->expirationDate,
                 $this->format,
                 $this->codeLength,
+                $this->maxUses,
+                $this->payload,
+                $this->prefix,
+                $this->eventWide,
             )->execute();
 
             $passes[$participant->getId()] = $plainCode;
@@ -129,6 +140,10 @@ class CreatePassAction
             $this->expirationDate,
             $this->format,
             $this->codeLength,
+            $this->maxUses,
+            $this->payload,
+            $this->prefix,
+            $this->eventWide,
         )->execute();
 
         $passes['event'] = $plainCode;
@@ -154,6 +169,7 @@ class CreatePassAction
             for ($i = 0; $i < $length; $i++) {
                 $code .= $alphabet[random_int(0, $lastIndex)];
             }
+            $code = ($this->prefix === null ? '' : $this->prefix . '-') . $code;
             $lookup = new GenerateLookupAction(
                 $this->event->app,
                 $this->event->company,
