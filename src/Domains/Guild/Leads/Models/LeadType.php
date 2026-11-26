@@ -15,6 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
 use Kanvas\Guild\Models\BaseModel;
+use Override;
 
 /**
  * Class LeadType.
@@ -24,7 +25,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $companies_id
  * @property string $uuid
  * @property string $name
- * @property string $description
+ * @property string|null $description
  * @property int $is_active
  * @property int $is_default
  * @property string $created_at
@@ -42,6 +43,7 @@ class LeadType extends BaseModel
     protected $table = 'leads_types';
     protected $guarded = [];
 
+    #[Override]
     protected function casts(): array
     {
         return [
@@ -68,6 +70,7 @@ class LeadType extends BaseModel
         ];
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
