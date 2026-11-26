@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Actions;
 
+use Baka\Support\DateHelper;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Event\Events\Enums\ConfigurationEnum;
@@ -18,6 +19,8 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class SendEventEmailsAction
 {
+    private const string TIME_FORMAT = 'g:i A';
+
     private array $channels = ['mail'];
 
     public function __construct(
@@ -33,7 +36,9 @@ class SendEventEmailsAction
             return;
         }
 
-        // Load necessary relations to ensure they're available in email templates
+        // Load necessary relations to ensure they're available in email templates.
+        // `event.resource` stays out: Event::resource() is morphTo('resources'), so an eager load
+        // files the result under `resources` and leaves `resource` null. Lazy loading reads it fine.
         $this->eventVersion->load([
             'event.eventStatus',
             'event.eventCategory',
@@ -41,7 +46,6 @@ class SendEventEmailsAction
             'event.eventClass',
             'event.theme',
             'event.themeArea',
-            'event.resource',
             'event.resources',
             'dates',
             'participants.people',
@@ -112,24 +116,40 @@ class SendEventEmailsAction
     {
         $firstDate = $this->eventVersion->dates->first();
 
+        $firstStartTime = DateHelper::normalizeTime((string) $firstDate?->start_time, self::TIME_FORMAT);
+        $firstEndTime = DateHelper::normalizeTime((string) $firstDate?->end_time, self::TIME_FORMAT);
+
         if ($this->eventVersion->start_at === null) {
             return [
                 'start_date' => $firstDate?->event_date?->format('Y-m-d'),
-                'start_time' => $firstDate?->start_time,
-                'end_time' => $firstDate?->end_time,
+                'start_time' => $firstStartTime,
+                'end_time' => $firstEndTime,
             ];
         }
 
-        $timezone = ResourceTimezoneService::resolve($event->resource);
+        $timezone = $this->displayTimezone($event);
         $startAt = $this->eventVersion->start_at->clone()->setTimezone($timezone);
 
         return [
             'start_date' => $startAt->format('Y-m-d'),
-            'start_time' => $startAt->format('H:i'),
-            'end_time' => $this->eventVersion->end_at?->clone()->setTimezone($timezone)->format('H:i')
-                ?? $firstDate?->end_time,
+            'start_time' => $startAt->format(self::TIME_FORMAT),
+            'end_time' => $this->eventVersion->end_at?->clone()->setTimezone($timezone)->format(self::TIME_FORMAT)
+                ?? $firstEndTime,
             'timezone' => $timezone,
         ];
+    }
+
+    /**
+     * The schedule resolver only takes canonical IANA names, and loosening it would move already
+     * generated time slots. The agent books in whatever the company column holds (`US/Eastern`
+     * included), so the email accepts the same zones — otherwise it prints the appointment in the
+     * fallback zone, an hour off.
+     */
+    protected function displayTimezone(Event $event): string
+    {
+        return ResourceTimezoneService::find($event->resource)
+            ?? $event->company?->getTimezone()
+            ?? ResourceTimezoneService::FALLBACK;
     }
 
     protected function sendEmail(
