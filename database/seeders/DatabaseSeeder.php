@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             ScribeDocumentTemplateSeeder::class,
             ScribeEmailTemplateSeeder::class,
             EventBookingEmailTemplateSeeder::class,
+            LeadHandOffTemplateSeeder::class,
             CustomFieldsTypesSeeder::class,
             MessageActivityTypeSeeder::class,
             NotificationChannelsSeeder::class,
