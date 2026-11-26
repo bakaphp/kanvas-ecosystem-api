@@ -43,23 +43,22 @@ class UpdatePurchaseOrderAction
                 );
             }
 
-            $sent = [
-                'vendor_id' => fn () => $order->vendor_organization_id = $this->data->vendor->getId(),
-                'currency' => fn () => $order->currency = $this->data->currency,
-                'order_date' => fn () => $order->order_date = $this->data->order_date,
-                'expected_date' => fn () => $order->expected_date = $this->data->expected_date,
-                'notes' => fn () => $order->notes = $this->data->notes,
-            ];
+            $order->forceFill($this->data->sent([
+                'currency' => $this->data->currency,
+                'order_date' => $this->data->order_date,
+                'expected_date' => $this->data->expected_date,
+                'notes' => $this->data->notes,
+            ]));
 
-            foreach ($sent as $field => $apply) {
-                if ($this->data->changes($field)) {
-                    $apply();
-                }
+            if ($this->data->changes('vendor_id')) {
+                $order->vendor_organization_id = $this->data->vendor->getId();
             }
 
-            $this->data->changes('lines')
-                ? $this->persistLines($order, $this->data)
-                : $order->saveOrFail();
+            if ($this->data->changes('lines')) {
+                $this->persistLines($order, $this->data);
+            } else {
+                $order->saveOrFail();
+            }
 
             return $order->fresh(['lines']);
         });

@@ -106,7 +106,7 @@ class FindPurchaseOrderTool extends Tool
      */
     private function codes(string $model, Collection $ids, string $column): Collection
     {
-        $ids = $ids->filter(static fn (?int $id): bool => $id !== null)->unique();
+        $ids = $ids->filter()->unique();
 
         if ($ids->isEmpty()) {
             return new Collection();

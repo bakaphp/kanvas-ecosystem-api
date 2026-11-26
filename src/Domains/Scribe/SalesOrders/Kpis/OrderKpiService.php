@@ -68,14 +68,13 @@ class OrderKpiService
             ->get();
 
         $confirmed = $orders->filter(fn (SalesOrder $order): bool => $this->within($order->confirmed_at, $from, $to));
-        $answered = $confirmed->filter(
-            static fn (SalesOrder $order): bool => $order->accepted_at !== null || $order->returned_at !== null
-        );
+        $isAnswered = static fn (SalesOrder $order): bool => $order->accepted_at !== null
+            || $order->returned_at !== null;
+        $answered = $confirmed->filter($isAnswered);
         // An order still waiting past the window has already missed it, so it counts against the target now
         // instead of dropping out until someone answers.
         $dueForAnswer = $confirmed->filter(
-            static fn (SalesOrder $order): bool => $order->accepted_at !== null
-                || $order->returned_at !== null
+            static fn (SalesOrder $order): bool => $isAnswered($order)
                 || $order->confirmed_at->diffInHours(Carbon::now()) > self::ACCEPTANCE_HOURS
         );
         $shipped = $orders->filter(

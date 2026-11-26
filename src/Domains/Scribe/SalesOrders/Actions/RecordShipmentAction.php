@@ -19,8 +19,9 @@ use Kanvas\Users\Models\Users;
 
 /**
  * Records the bill of lading of an accepted order: the shipping documents must be cross-checked with every difference
- * clarified, and the invoice issued, so nothing about it can change once the goods left. The invoice falls due the order's payment term after the bill of lading date, and the documents package
- * is due within 3 business days of it and at least 5 days before the arrival, whichever comes first.
+ * clarified, and the invoice issued, so nothing about it can change once the goods left. The invoice falls due the
+ * order's payment term after the bill of lading date, and the documents package is due within 3 business days of it
+ * and at least 5 days before the arrival, whichever comes first.
  */
 class RecordShipmentAction
 {

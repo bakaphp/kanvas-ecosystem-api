@@ -19,8 +19,8 @@ class ReviewCustomerPoTool extends AbstractCustomerOrderTool
 
     protected ?string $description = 'Reviews a received sales order against its quote (and the agreed terms, when given) '
         . 'and records every difference: currency, total, and each line\'s product, quantity and unit price, plus the '
-        . 'Incoterm and payment term when the agreed values are passed. Every difference has to be clarified with the customer in '
-        . 'writing before the order can be confirmed. Run it again after any correction.';
+        . 'Incoterm and payment term when the agreed values are passed. Every difference has to be clarified with the '
+        . 'customer in writing before the order can be confirmed. Run it again after any correction.';
 
     /**
      * @return array<int, ToolProperty>

@@ -248,14 +248,16 @@ class CustomerCreditService
             ->whereIn('sales_orders.invoice_id', $overdue->pluck('id'))
             ->pluck('sales_order_shipments.bl_date', 'sales_orders.invoice_id');
 
-        return $overdue->contains(static function (Invoice $invoice) use ($billOfLadingDates, $holdDays, $today): bool {
+        $pastHoldDays = static function (Invoice $invoice) use ($billOfLadingDates, $holdDays, $today): bool {
             $billOfLading = $billOfLadingDates[$invoice->id] ?? null;
             $termStart = $billOfLading !== null
                 ? Carbon::parse($billOfLading)
                 : ($invoice->issued_date ?? $invoice->due_date);
 
             return abs($termStart->copy()->startOfDay()->diffInDays($today)) >= $holdDays;
-        });
+        };
+
+        return $overdue->contains($pastHoldDays);
     }
 
     /**
@@ -288,10 +290,7 @@ class CustomerCreditService
                         'invoice',
                         static fn ($invoice) => $invoice->whereNotIn(
                             'document_status',
-                            array_map(
-                                static fn (InvoiceDocumentStatusEnum $status): string => $status->value,
-                                InvoiceDocumentStatusEnum::effective()
-                            )
+                            InvoiceDocumentStatusEnum::effective()
                         )
                     )
             )

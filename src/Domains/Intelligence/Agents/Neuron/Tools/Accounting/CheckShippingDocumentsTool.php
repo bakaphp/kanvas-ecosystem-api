@@ -23,8 +23,8 @@ class CheckShippingDocumentsTool extends AbstractCustomerOrderTool
     protected ?string $description = 'Before the bill of lading is issued, cross-checks the four documents of an accepted '
         . 'customer order: the order (PO or proforma), the commercial invoice, the packing list and the draft bill of '
         . 'lading. It lists every difference in total, products and quantities. The invoice should follow what was really '
-        . 'loaded, so a difference with the order has to be explained; every difference must be clarified (resolve_po_difference with '
-        . 'source documents) before record_shipment works. The invoice chosen here is the one that falls due from the '
+        . 'loaded, so a difference with the order has to be explained; every difference must be clarified '
+        . '(resolve_po_difference with source documents) before record_shipment works. The invoice chosen here is the one that falls due from the '
         . 'bill of lading date. It may still be a draft while it is checked and corrected, and has to be issued before '
         . 'record_shipment.';
 

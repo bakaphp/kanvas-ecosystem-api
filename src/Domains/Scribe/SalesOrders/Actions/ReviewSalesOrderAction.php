@@ -35,12 +35,15 @@ class ReviewSalesOrderAction
         return $this->withRowLocked($this->order, function (): SalesOrder {
             if ($this->order->document_status !== SalesOrderStatusEnum::RECEIVED) {
                 throw new InvalidSalesOrderTransitionException(
-                    "Sales order {$this->order->order_number} is {$this->order->document_status->value}: only a received order can be reviewed."
+                    "Sales order {$this->order->order_number} is {$this->order->document_status->value}: "
+                    . 'only a received order can be reviewed.'
                 );
             }
 
             if ($this->order->quote === null) {
-                throw new ValidationException("Sales order {$this->order->order_number} has no quote to be reviewed against.");
+                throw new ValidationException(
+                    "Sales order {$this->order->order_number} has no quote to be reviewed against."
+                );
             }
 
             $this->order->review = [

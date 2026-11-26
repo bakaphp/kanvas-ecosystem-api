@@ -368,8 +368,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'the answer. confirm_customer_order needs the person to tell you Operations confirmed the order is '
             . 'feasible. Operations\' answer is recorded with answer_customer_order (accept with firm etd and eta, or '
             . 'return with the reason). An order that is wrong, or that Operations returned, is corrected with '
-            . 'update_customer_order and reviewed again. "Where is customer order SO-12" / "what is waiting on Operations" → '
-            . 'find_customer_order, list_customer_orders (find_sales_order and list_open_sales_orders read the orders '
+            . 'update_customer_order and reviewed again. '
+            . '"Where is customer order SO-12" / "what is waiting on Operations" → find_customer_order, '
+            . 'list_customer_orders (find_sales_order and list_open_sales_orders read the orders '
             . 'synced from the ERP, which are a different thing). Never confirm, accept or cancel an order on your '
             . 'own initiative.',
             '- Shipping a customer order: before the bill of lading, check_shipping_documents cross-checks the order, '

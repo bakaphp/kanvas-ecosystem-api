@@ -43,7 +43,9 @@ class ResolveSalesOrderDifferenceAction
             }
 
             if (! $found) {
-                throw new ValidationException("Sales order {$this->order->order_number} has no difference \"{$this->key}\".");
+                throw new ValidationException(
+                    "Sales order {$this->order->order_number} has no difference \"{$this->key}\"."
+                );
             }
 
             $this->order->{$column} = $check;

@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Concerns\TracksSentFields;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\SalesOrders\Enums\PoSourceEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder as SalesOrderModel;
@@ -18,6 +19,8 @@ use Spatie\LaravelData\Data;
 
 class SalesOrder extends Data
 {
+    use TracksSentFields;
+
     private const array CLEARABLE = ['incoterm', 'consignee', 'payment_terms_days', 'requested_date', 'notes'];
 
     /**
@@ -141,29 +144,8 @@ class SalesOrder extends Data
                 ? self::dateFrom($changes['requested_date'])
                 : $order->requested_date,
             notes: array_key_exists('notes', $changes) ? Str::trimToNull($changes['notes']) : $order->notes,
-            changed: self::changedFields($changes),
+            changed: self::sentFields($changes, self::CLEARABLE),
         );
-    }
-
-    public function changes(string $field): bool
-    {
-        return in_array($field, $this->changed, true);
-    }
-
-    /**
-     * The fields an update really sets: a null only counts for a field a null clears.
-     *
-     * @param array<string, mixed> $changes
-     *
-     * @return list<string>
-     */
-    private static function changedFields(array $changes): array
-    {
-        return array_keys(array_filter(
-            $changes,
-            static fn (mixed $value, string $field): bool => $value !== null || in_array($field, self::CLEARABLE, true),
-            ARRAY_FILTER_USE_BOTH
-        ));
     }
 
     /**

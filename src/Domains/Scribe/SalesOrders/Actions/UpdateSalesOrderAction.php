@@ -48,31 +48,26 @@ class UpdateSalesOrderAction
                 $order->document_status = SalesOrderStatusEnum::RECEIVED;
             }
 
-            $sent = [
-                'quote_id' => fn () => $order->quote_id = $this->data->quote?->getId(),
-                'customer_po_number' => fn () => $order->customer_po_number = $this->data->customer_po_number,
-                'customer_po_date' => fn () => $order->customer_po_date = $this->data->customer_po_date,
-                'signature_checklist' => fn () => $order->signature_checklist = $this->data->signature_checklist,
-                'currency' => fn () => $order->currency = $this->data->currency,
-                'incoterm' => fn () => $order->incoterm = $this->data->incoterm,
-                'consignee' => fn () => $order->consignee = $this->data->consignee,
-                'payment_terms_days' => fn () => $order->payment_terms_days = $this->data->payment_terms_days,
-                'requested_date' => fn () => $order->requested_date = $this->data->requested_date,
-                'notes' => fn () => $order->notes = $this->data->notes,
-            ];
-
-            foreach ($sent as $field => $apply) {
-                if ($this->data->changes($field)) {
-                    $apply();
-                }
-            }
-
+            $order->forceFill($this->data->sent([
+                'quote_id' => $this->data->quote?->getId(),
+                'customer_po_number' => $this->data->customer_po_number,
+                'customer_po_date' => $this->data->customer_po_date,
+                'signature_checklist' => $this->data->signature_checklist,
+                'currency' => $this->data->currency,
+                'incoterm' => $this->data->incoterm,
+                'consignee' => $this->data->consignee,
+                'payment_terms_days' => $this->data->payment_terms_days,
+                'requested_date' => $this->data->requested_date,
+                'notes' => $this->data->notes,
+            ]));
             $order->review = null;
             $order->reviewed_at = null;
 
-            $this->data->changes('lines')
-                ? $this->persistLines($order, $this->data)
-                : $order->saveOrFail();
+            if ($this->data->changes('lines')) {
+                $this->persistLines($order, $this->data);
+            } else {
+                $order->saveOrFail();
+            }
 
             return $order->fresh(['lines']);
         });
