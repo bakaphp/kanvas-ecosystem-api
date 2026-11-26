@@ -81,7 +81,7 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $service = $this->portalServiceWithRealMockClient();
         $service->shouldNotReceive('capturePayment');
         $service->shouldReceive('reversePayment')->once()->andThrow(new Exception('gateway down'));
-        [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
+        [$payment] = $this->authorizedPasoRapidoPayment($service);
         $rejecting = Mockery::mock(PasoRapidoService::class);
         $rejecting->shouldReceive('confirmPayment')->once()->andThrow(new Exception('Tag rejected'));
         Queue::fake();
@@ -99,7 +99,7 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $service = $this->portalServiceWithRealMockClient();
         $service->shouldReceive('capturePayment')->once()->andThrow(new Exception('gateway down'));
         $service->shouldNotReceive('reversePayment');
-        [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
+        [$payment] = $this->authorizedPasoRapidoPayment($service);
         Bus::fake([RetryPaymentCaptureJob::class]);
 
         try {
@@ -299,7 +299,8 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $order = Order::find($payment->payable_id);
         $order->setOrderType(OrderTypeEnum::MOVIPASS->value);
 
-        $result = $this->settleActivity()->execute($order->fresh(), $this->apps, ['payment_id' => $payment->getId()]);
+        $result = $this->settleActivity()
+            ->execute($order->fresh(), $this->apps, ['payment_id' => $payment->getId()]);
 
         $this->assertSame('success', $result['status'], $result['message'] ?? '');
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);

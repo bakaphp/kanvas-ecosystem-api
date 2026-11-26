@@ -140,6 +140,8 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             $merchant = $this->setupMerchantAuthentication($payment, $order);
             $response = $this->service->capturePayment($input, $merchant);
         } catch (ConnectException $e) {
+            // A timeout usually means the gateway captured and only the response was lost, so the
+            // payment is marked paid and flagged backup_capture for reconciliation.
             report($e);
 
             $payment->addLog('payment_capture_timeout', [
@@ -787,15 +789,20 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         ?AuthorizationStatusEnum $authorizationStatus,
         int $responseTimeMs
     ): ThreeDSResult {
+        $failure = $this->authorizationFailure($response, $authorizationStatus);
+
         if ($authorizationStatus === null) {
-            report(new UnexpectedValueException('Unmapped EchoPay authorization status: ' . ($response['status'] ?? 'missing')));
+            report(new UnexpectedValueException($failure->message));
         }
 
         $reversal = $authorizationStatus?->holdsFunds()
-            ? $this->reverseUnacceptableHold($payment, $order, $response, $authorizationStatus)
+            ? $this->reverseUnacceptableHold(
+                $payment,
+                $order,
+                $response,
+                $authorizationStatus
+            )
             : null;
-
-        $failure = $this->authorizationFailure($response, $authorizationStatus);
 
         $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
         $payment->addLog(
@@ -1251,8 +1258,8 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 'message_body' => $this->resolveGatewayMessageBody($e),
             ];
 
-        $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
         $payment->addMetadata(['data' => $failureMetadata]);
+        $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
         $payment->addLog(
             $logEvent,
             [

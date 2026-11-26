@@ -113,6 +113,22 @@ class PortalAuthorizationOutcomesTest extends PortalMockFlowCase
         $this->assertCount(0, $reported);
     }
 
+    public function testAuthorizeDeclineKeepsTheGatewayErrorOnThePaymentMetadata(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('authorizePayment')->once()->andThrow($this->insufficientFundsDecline());
+        $this->bindPortalProcessor($service);
+        [$paymentId] = $this->createPortalPaymentOnFreshOrder();
+        $this->startChallenge($paymentId);
+
+        $this->finalizeChallenge($paymentId);
+
+        $payment = Payments::find($paymentId);
+        $gatewayError = $payment->getMetadata('echopay_error');
+        $this->assertSame('INSUFFICIENT_FUND', $gatewayError['data']['errorInformation']['reason']);
+        $this->assertSame(__('payment_errors.INSUFFICIENT_FUND', [], 'es'), $payment->getMetadata('user_message'));
+    }
+
     #[DataProvider('gatewayFailureCodes')]
     public function testOnlyGatewayFailuresAreReported(int $statusCode, bool $expectedReported): void
     {
@@ -166,7 +182,8 @@ class PortalAuthorizationOutcomesTest extends PortalMockFlowCase
         $this->assertSame(PaymentStatusEnum::FAILED->value, $finalize['status']);
         $this->assertSame(__('payment_errors.SERVER_TIMEOUT', [], 'es'), $finalize['message']);
         $this->assertStringNotContainsString('cURL', $finalize['message']);
-        $this->assertSame($rawError, $this->logsOf($paymentId, '3ds_authorize_failed')->firstOrFail()->error_message);
+        $log = $this->logsOf($paymentId, '3ds_authorize_failed')->firstOrFail();
+        $this->assertSame($rawError, $log->error_message);
     }
 
     public static function gatewayFailureCodes(): array
@@ -251,14 +268,16 @@ class PortalAuthorizationOutcomesTest extends PortalMockFlowCase
             $this->assertFalse($finalize['success']);
             $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
             $this->assertTrue($payment->metadata[RetryPaymentReversalJob::PENDING_KEY]);
-            $this->assertFalse($this->logsOf($paymentId, '3ds_authorize_declined')->firstOrFail()->metadata['hold_reversed']);
+            $declined = $this->logsOf($paymentId, '3ds_authorize_declined')->firstOrFail();
+            $this->assertFalse($declined->metadata['hold_reversed']);
             $this->assertTrue($this->logsOf($paymentId, 'payment_error')->exists());
             Bus::assertDispatched(
                 RetryPaymentReversalJob::class,
                 fn (RetryPaymentReversalJob $job): bool => $job->payment->getId() === $payment->getId()
             );
         } finally {
-            Cache::lock(UniqueLock::getKey(new RetryPaymentReversalJob($this->apps, Payments::find($paymentId))))->forceRelease();
+            Cache::lock(UniqueLock::getKey(new RetryPaymentReversalJob($this->apps, Payments::find($paymentId))))
+                ->forceRelease();
         }
     }
 
@@ -284,7 +303,9 @@ class PortalAuthorizationOutcomesTest extends PortalMockFlowCase
     {
         $reported = $this->collectReportedExceptions();
         $service = $this->portalServiceWithRealMockClient();
-        $service->shouldReceive('authorizePayment')->once()->andReturn(['id' => 'intent-1', 'status' => 'SOMETHING_NEW']);
+        $service->shouldReceive('authorizePayment')
+            ->once()
+            ->andReturn(['id' => 'intent-1', 'status' => 'SOMETHING_NEW']);
         $service->shouldNotReceive('reversePayment');
         $this->bindPortalProcessor($service);
         [$paymentId] = $this->createPortalPaymentOnFreshOrder();

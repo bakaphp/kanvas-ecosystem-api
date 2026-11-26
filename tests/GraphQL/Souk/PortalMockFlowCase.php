@@ -34,15 +34,19 @@ abstract class PortalMockFlowCase extends OrderBase
         $this->apps->set('ECHO_PAY_MERCHANT_SECRET', 'mock-secret');
         $this->apps->set(ConfigurationEnum::REDIRECT_URL->value, 'https://test.local/3ds/return');
 
-        $productResponse = $this->createProduct(attributes: [
-            ['name' => 'slots', 'value' => 100],
-        ])->json()['data']['createProduct'];
+        $productResponse = $this->graphQLData(
+            $this->createProduct(attributes: [['name' => 'slots', 'value' => 100]]),
+            'createProduct'
+        );
 
-        $variantResponse = $this->createVariant(
-            productId: $productResponse['id'],
-            warehouseData: ['id' => $this->warehouseResponse['id']],
-            attributes: [['name' => 'timezone', 'value' => 'America/New_York']],
-        )->json()['data']['createVariant'];
+        $variantResponse = $this->graphQLData(
+            $this->createVariant(
+                productId: $productResponse['id'],
+                warehouseData: ['id' => $this->warehouseResponse['id']],
+                attributes: [['name' => 'timezone', 'value' => 'America/New_York']],
+            ),
+            'createVariant'
+        );
 
         $this->addVariantToChannel(
             variantId: $variantResponse['id'],
