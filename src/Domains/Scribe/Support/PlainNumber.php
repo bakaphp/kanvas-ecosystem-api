@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\Purchasing\Support;
+namespace Kanvas\Scribe\Support;
 
 /**
  * A quantity or price as plain text for a message or a comparison: no thousands separator and no trailing zeros,
@@ -10,8 +10,8 @@ namespace Kanvas\Scribe\Purchasing\Support;
  */
 final class PlainNumber
 {
-    public static function format(float $value): string
+    public static function format(float $value, int $decimals = 6): string
     {
-        return rtrim(rtrim(number_format($value, 6, '.', ''), '0'), '.');
+        return rtrim(rtrim(number_format($value, $decimals, '.', ''), '0'), '.');
     }
 }

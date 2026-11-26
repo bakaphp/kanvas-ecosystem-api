@@ -160,7 +160,10 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   vendor bill with the order and what was received: same vendor and currency, every bill line on the order (paired by
   SKU, else description), none billing more than was received, and unit prices within
   `scribe-po-price-tolerance-percent`. It lists every discrepancy; `LinkBillToPurchaseOrderAction` links the bill
-  (`bills.purchase_order_id`) only on a clean match. Bills already linked are not counted against what was received.
+  (`bills.purchase_order_id`) only on a clean match. What the other bills linked to the order already bill counts against what was received, so
+  the same goods are not billed twice. Receiving and linking run under the order's row lock. The AP agent holds
+  `receive_purchase_order` only while a person is asking: a receipt is what a bill is matched against, so a vendor's
+  own email saying the goods arrived must not record one.
   Tools `receive_purchase_order` and `match_bill_to_purchase_order` (`find_purchase_order` now lists the receipts);
   GraphQL `receiveScribePurchaseOrder`, `matchScribeBillToPurchaseOrder` and `linkScribeBillToPurchaseOrder`.
 - **A sales order is what a customer committed to buy, and it passes two gates before anything ships.** It is the

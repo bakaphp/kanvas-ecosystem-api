@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\Purchasing\Services;
+namespace Kanvas\Scribe\Purchasing\DataTransferObject;
 
 /**
  * The result of matching a vendor bill with a purchase order and what was received against it.

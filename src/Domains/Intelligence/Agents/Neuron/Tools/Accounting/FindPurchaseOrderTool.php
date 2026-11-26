@@ -96,13 +96,16 @@ class FindPurchaseOrderTool extends Tool
                 'gl_account' => $accounts[$l->expense_account_id] ?? null,
                 'subaccount' => $subaccounts[$l->subaccount_id] ?? null,
             ])->all(),
-            'receipts' => $po->receipts()->orderBy('received_on')->orderBy('id')->get()->map(
-                static fn (PurchaseOrderReceipt $receipt): array => [
+            'receipts' => $po->receipts()
+                ->orderBy('received_on')
+                ->orderBy('id')
+                ->get()
+                ->map(static fn (PurchaseOrderReceipt $receipt): array => [
                     'receipt_number' => $receipt->receipt_number,
                     'received_on' => $receipt->received_on->toDateString(),
                     'reference' => $receipt->reference,
-                ]
-            )->all(),
+                ])
+                ->all(),
         ];
     }
 

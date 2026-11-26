@@ -207,6 +207,38 @@ class PurchaseOrderReceiveAndMatchTest extends ScribeTestCase
         $this->assertTrue(new PurchaseOrderMatchService()->match($order->fresh(), $bill)->matched());
     }
 
+    public function test_a_second_bill_for_goods_already_billed_does_not_match(): void
+    {
+        $order = $this->sentOrder();
+        $this->receive($order, [['line_number' => 1, 'quantity' => 10]]);
+        $line = ['description' => 'Pallet of paper', 'quantity' => 10, 'unit_price' => 12.5, 'sku' => 'PAP-1'];
+        new LinkBillToPurchaseOrderAction($this->createBillFor($order->vendor, [$line]), $order->fresh())->execute();
+        $again = $this->createBillFor($order->vendor, [$line]);
+
+        $match = new PurchaseOrderMatchService()->match($order->fresh(), $again);
+
+        $this->assertSame(['line_1_billed_more_than_received'], $match->keys());
+        $this->assertSame('20', $match->discrepancies[0]['billed_value']);
+        $this->assertStringContainsString('already on other bills', $match->discrepancies[0]['message']);
+    }
+
+    public function test_a_receipt_from_a_copy_loaded_earlier_counts_what_arrived_meanwhile(): void
+    {
+        $order = $this->sentOrder();
+        $stale = $order->fresh();
+        $this->receive($order, [['line_number' => 1, 'quantity' => 10]]);
+
+        try {
+            $this->receive($stale, [['line_number' => 1, 'quantity' => 10]]);
+            $this->fail('The second receipt should see that nothing is open on the line.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('only 0 is open', $e->getMessage());
+        }
+
+        $this->assertSame(1, PurchaseOrderReceipt::query()->where('purchase_order_id', $order->getId())->count());
+        $this->assertSame('10.000000', (string) $order->lines()->where('line_number', 1)->value('received_qty'));
+    }
+
     public function test_a_matching_bill_is_linked_and_one_that_does_not_match_is_refused(): void
     {
         $order = $this->sentOrder();

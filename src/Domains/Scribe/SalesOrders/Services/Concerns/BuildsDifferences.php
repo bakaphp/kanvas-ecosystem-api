@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\SalesOrders\Services\Concerns;
 
 use Baka\Support\Str;
+use Kanvas\Scribe\Support\PlainNumber;
 
 /**
  * The shape of one difference between two documents about the same order. `po_value` is the value on the document
@@ -86,6 +87,6 @@ trait BuildsDifferences
 
     private function number(float $value): string
     {
-        return rtrim(rtrim(number_format($value, 4, '.', ''), '0'), '.');
+        return PlainNumber::format($value, 4);
     }
 }
