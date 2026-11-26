@@ -23,6 +23,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
+use Kanvas\Event\Events\Services\ResourceTimezoneService;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
@@ -108,6 +109,20 @@ class Event extends BaseModel implements ReadableAtLocation
     public function resources(): HasMany
     {
         return $this->hasMany(EventResource::class);
+    }
+
+    /**
+     * The zone this event's times are shown in: the resource's own, else the company's.
+     *
+     * The company step takes legacy names (`US/Eastern`) that ResourceTimezoneService rejects, because
+     * the agent books in whatever the company column holds; loosening the resolver itself would move
+     * already generated time slots.
+     */
+    public function getTimezone(): string
+    {
+        return ResourceTimezoneService::find($this->resource)
+            ?? $this->company?->getTimezone()
+            ?? ResourceTimezoneService::FALLBACK;
     }
 
     public function latestVersion(): ?EventVersion

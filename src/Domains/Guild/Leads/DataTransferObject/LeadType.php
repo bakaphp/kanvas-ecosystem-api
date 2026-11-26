@@ -14,7 +14,7 @@ class LeadType extends Data
         public Apps $apps,
         public Companies $companies,
         public string $name,
-        public string $description,
+        public ?string $description,
         public int $is_active,
         public ?array $config = null,
     ) {

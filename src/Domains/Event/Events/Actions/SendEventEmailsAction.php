@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Actions;
 
+use Baka\Support\DateHelper;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Event\Events\Enums\ConfigurationEnum;
@@ -11,13 +12,14 @@ use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Notifications\EventParticipantNotification;
-use Kanvas\Event\Events\Services\ResourceTimezoneService;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class SendEventEmailsAction
 {
+    private const string TIME_FORMAT = 'g:i A';
+
     private array $channels = ['mail'];
 
     public function __construct(
@@ -33,7 +35,9 @@ class SendEventEmailsAction
             return;
         }
 
-        // Load necessary relations to ensure they're available in email templates
+        // Load necessary relations to ensure they're available in email templates.
+        // `event.resource` stays out: Event::resource() is morphTo('resources'), so an eager load
+        // files the result under `resources` and leaves `resource` null. Lazy loading reads it fine.
         $this->eventVersion->load([
             'event.eventStatus',
             'event.eventCategory',
@@ -41,7 +45,6 @@ class SendEventEmailsAction
             'event.eventClass',
             'event.theme',
             'event.themeArea',
-            'event.resource',
             'event.resources',
             'dates',
             'participants.people',
@@ -105,29 +108,30 @@ class SendEventEmailsAction
 
     /**
      * Emails are the one place with no client to convert for us, so the times have to be rendered
-     * in the resource's own timezone here — otherwise a 9 AM booking in Santo Domingo reads as
-     * 13:00 to the customer.
+     * in the event's own timezone here — otherwise a 9 AM booking in Santo Domingo reads as
+     * 1:00 PM to the customer.
      */
     protected function localizedDates(Event $event): array
     {
         $firstDate = $this->eventVersion->dates->first();
+        $firstEndTime = DateHelper::normalizeTime((string) $firstDate?->end_time, self::TIME_FORMAT);
 
         if ($this->eventVersion->start_at === null) {
             return [
                 'start_date' => $firstDate?->event_date?->format('Y-m-d'),
-                'start_time' => $firstDate?->start_time,
-                'end_time' => $firstDate?->end_time,
+                'start_time' => DateHelper::normalizeTime((string) $firstDate?->start_time, self::TIME_FORMAT),
+                'end_time' => $firstEndTime,
             ];
         }
 
-        $timezone = ResourceTimezoneService::resolve($event->resource);
+        $timezone = $event->getTimezone();
         $startAt = $this->eventVersion->start_at->clone()->setTimezone($timezone);
+        $endAt = $this->eventVersion->end_at?->clone()->setTimezone($timezone);
 
         return [
             'start_date' => $startAt->format('Y-m-d'),
-            'start_time' => $startAt->format('H:i'),
-            'end_time' => $this->eventVersion->end_at?->clone()->setTimezone($timezone)->format('H:i')
-                ?? $firstDate?->end_time,
+            'start_time' => $startAt->format(self::TIME_FORMAT),
+            'end_time' => $endAt?->format(self::TIME_FORMAT) ?? $firstEndTime,
             'timezone' => $timezone,
         ];
     }

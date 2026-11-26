@@ -1,0 +1,370 @@
+enum ScribeSalesOrderStatus {
+    RECEIVED @enum(value: "received")
+    CONFIRMED @enum(value: "confirmed")
+    ACCEPTED @enum(value: "accepted")
+    RETURNED @enum(value: "returned")
+    SHIPPED @enum(value: "shipped")
+    DELIVERED @enum(value: "delivered")
+    CLOSED @enum(value: "closed")
+    CANCELLED @enum(value: "cancelled")
+}
+
+"What the customer committed with: their own purchase order, or our proforma signed and stamped by them."
+enum ScribePoSource {
+    CUSTOMER_PO @enum(value: "customer_po")
+    SIGNED_PROFORMA @enum(value: "signed_proforma")
+}
+
+"One thing the order says differently from its quote or the agreed terms. It stays open until it has a resolution."
+type ScribePoDifference {
+    key: String!
+    field: String!
+    po_value: String
+    quote_value: String
+    "How it was clarified with the customer; empty while the difference is open."
+    resolution: String
+}
+
+"Which check of the order a difference belongs to."
+enum ScribeDifferenceSource {
+    REVIEW @enum(value: "review")
+    DOCUMENTS @enum(value: "documents")
+}
+
+"One step of the follow-up from the bill of lading date until the invoice is paid."
+type ScribeCollectionStep {
+    day: Int!
+    date: Date!
+    action: String!
+    owner: String!
+}
+
+"Where a customer stands against their credit limit. Amounts are in the limit's currency."
+type ScribeCustomerCredit {
+    has_limit: Boolean!
+    limit: Float
+    currency: String
+    "What the customer owes on open invoices."
+    open_balance: Float
+    overdue_balance: Float
+    overdue_invoices: Int!
+    oldest_overdue_days: Int!
+    "Confirmed or accepted orders that have no invoice yet."
+    committed_orders: Float
+    "The limit minus the open balance and the committed orders; empty without a limit or while a rate is missing."
+    available: Float
+    "An invoice is overdue past the hold days: the customer's new orders are not confirmed or released."
+    on_hold: Boolean!
+    "False when an amount could not be converted for lack of a published rate."
+    exposure_complete: Boolean!
+    missing_rates: [String!]!
+}
+
+"One indicator of the order-to-cash flow, with its target."
+type ScribeOrderKpi {
+    key: String!
+    label: String!
+    "% or days."
+    unit: String!
+    "Empty when no order falls in the period."
+    value: Float
+    target: Float!
+    "min: the value has to reach the target; max: stay at or below it."
+    target_kind: String!
+    met: Boolean
+    numerator: Int
+    denominator: Int
+}
+
+"The bill of lading of an order, the invoice due date it sets, the documents package and the delivery."
+type ScribeSalesOrderShipment {
+    id: ID!
+    bl_number: String!
+    bl_date: Date!
+    vessel: String
+    containers: Mixed
+    payment_terms_days: Int!
+    "The bill of lading date plus the payment term."
+    due_date: Date!
+    "The earlier of 3 business days after the bill of lading and 5 days before the arrival."
+    documents_package_due_on: Date
+    documents_package_sent_at: DateTime
+    "When Operations released the original bill of lading or the telex release (gate 3)."
+    documents_released_at: DateTime
+    delivered_on: Date
+    pod_reference: String
+    delivery_discrepancies: String
+    damage_reported: Boolean!
+    recorded_at: DateTime!
+}
+
+type ScribeSalesOrderLine {
+    id: ID!
+    line_number: Int!
+    sku: String
+    description: String!
+    quantity: Float!
+    unit_price: Float!
+    line_total: Money!
+}
+
+type ScribeSalesOrder {
+    id: ID!
+    uuid: String!
+    order_number: String!
+    document_status: ScribeSalesOrderStatus!
+    po_source: ScribePoSource!
+    customer: Organization! @belongsTo(relation: "customer")
+    quote: ScribeQuote @belongsTo(relation: "quote")
+    customer_po_number: String
+    customer_po_date: Date
+    "Which validity checks on the customer's commitment are confirmed."
+    signature_checklist: Mixed
+    currency: String!
+    order_total: Money!
+    incoterm: String
+    consignee: String
+    payment_terms_days: Int
+    requested_date: Date
+    notes: String
+    "From the last review against the quote; empty until the order is reviewed."
+    differences: [ScribePoDifference!]! @method(name: "differences")
+    reviewed_at: DateTime
+    "The invoice chosen at the cross-check of the shipping documents; it falls due from the bill of lading date."
+    invoice: ScribeInvoice @belongsTo(relation: "invoice")
+    "From the cross-check of the order, invoice, packing list and draft bill of lading."
+    documents_differences: [ScribePoDifference!]! @method(name: "documentsDifferences")
+    documents_checked_at: DateTime
+    shipment: ScribeSalesOrderShipment @hasOne(relation: "shipment")
+    collection_plan: [ScribeCollectionStep!]! @method(name: "collectionPlan")
+    feasibility_confirmed_at: DateTime
+    etd: Date
+    eta: Date
+    received_at: DateTime!
+    confirmed_at: DateTime
+    accepted_at: DateTime
+    returned_at: DateTime
+    return_reason: String
+    cancelled_at: DateTime
+    cancel_reason: String
+    company: Company! @belongsTo(relation: "company")
+    lines: [ScribeSalesOrderLine!]! @hasMany(relation: "lines")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input ScribeSignatureChecklistInput {
+    authorized_signer: Boolean
+    legible_stamp_and_date: Boolean
+    matching_legal_name_and_tax_id: Boolean
+    all_pages_initialed: Boolean
+}
+
+input ScribeSalesOrderLineInput {
+    description: String!
+    quantity: Float!
+    unit_price: Float!
+    sku: String
+}
+
+"A signed proforma may leave out the lines, the currency and the number: they come from the quote."
+input ScribeCustomerPoInput {
+    customer_id: ID!
+    po_source: ScribePoSource!
+    quote_id: ID
+    customer_po_number: String
+    customer_po_date: Date
+    currency: String
+    lines: [ScribeSalesOrderLineInput!]
+    signature_checklist: ScribeSignatureChecklistInput
+    incoterm: String
+    consignee: String
+    payment_terms_days: Int
+    requested_date: Date
+    notes: String
+}
+
+"Only what is sent changes; sending lines replaces all of them."
+input UpdateScribeSalesOrderInput {
+    customer_po_number: String
+    customer_po_date: Date
+    currency: String
+    lines: [ScribeSalesOrderLineInput!]
+    signature_checklist: ScribeSignatureChecklistInput
+    incoterm: String
+    consignee: String
+    payment_terms_days: Int
+    requested_date: Date
+    notes: String
+}
+
+"The terms agreed with the customer, when the quote does not carry them."
+input ScribeSalesOrderAgreementInput {
+    incoterm: String
+    payment_terms_days: Int
+}
+
+input ScribePackingListLineInput {
+    sku: String
+    description: String
+    quantity: Float!
+}
+
+input ScribeBlDraftInput {
+    total_quantity: Float!
+}
+
+extend type Query @guard {
+    "The customer's credit status: limit, open invoices, committed orders, overdue and what is left."
+    scribeCustomerCredit(customer_id: ID!): ScribeCustomerCredit!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\SalesOrders\\CustomerCreditQuery@credit"
+        )
+    "The order-to-cash indicators for a period. Each order counts in the period of its own event."
+    scribeOrderKpis(from: Date!, to: Date!): [ScribeOrderKpi!]!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\SalesOrders\\OrderKpiQuery@report"
+        )
+    scribeSalesOrders(
+        where: _
+            @whereConditions(
+                columns: [
+                    "order_number"
+                    "document_status"
+                    "po_source"
+                    "customer_po_number"
+                    "customer_organization_id"
+                    "currency"
+                    "received_at"
+                    "confirmed_at"
+                    "accepted_at"
+                    "returned_at"
+                    "etd"
+                    "eta"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "order_number"
+                    "order_total"
+                    "received_at"
+                    "confirmed_at"
+                    "accepted_at"
+                    "returned_at"
+                    "etd"
+                    "eta"
+                ]
+            )
+    ): [ScribeSalesOrder!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\SalesOrders\\Models\\SalesOrder"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guard {
+    "Registers what a customer committed to buy as a received sales order."
+    registerScribeCustomerPo(input: ScribeCustomerPoInput!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@register"
+        )
+    "Edits a received or returned order; editing voids the last review."
+    updateScribeSalesOrder(id: ID!, input: UpdateScribeSalesOrderInput!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@update"
+        )
+    "Compares the order with its quote and the agreed terms and records every difference."
+    reviewScribeSalesOrder(id: ID!, agreement: ScribeSalesOrderAgreementInput): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@review"
+        )
+    "Writes down how one difference of the review was clarified with the customer."
+    resolveScribeSalesOrderDifference(
+        id: ID!
+        key: String!
+        resolution: String!
+        source: ScribeDifferenceSource = REVIEW
+    ): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@resolveDifference"
+        )
+    "Gate 1: Commercial confirms the order. Needs a review with no open difference, a valid commitment and feasibility confirmed."
+    confirmScribeSalesOrder(id: ID!, feasibility_confirmed: Boolean!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@confirm"
+        )
+    "Gate 2: Operations accepts the confirmed order with firm departure and arrival dates."
+    acceptScribeSalesOrder(id: ID!, etd: Date!, eta: Date!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@accept"
+        )
+    "Gate 2: Operations returns the order to Commercial, with the reason."
+    returnScribeSalesOrder(id: ID!, reason: String!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@returnToCommercial"
+        )
+    "Cancels an order that has not shipped."
+    cancelScribeSalesOrder(id: ID!, reason: String): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@cancel"
+        )
+    "Before the bill of lading: cross-checks the order, the commercial invoice, the packing list and the draft bill of lading, and records every difference."
+    checkScribeShippingDocuments(
+        id: ID!
+        invoice_id: ID!
+        packing_list: [ScribePackingListLineInput!]!
+        bl_draft: ScribeBlDraftInput!
+    ): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@checkDocuments"
+        )
+    "Records the bill of lading of an accepted order. The invoice falls due the payment term after the bill of lading date."
+    recordScribeShipment(
+        id: ID!
+        bl_number: String!
+        bl_date: Date!
+        vessel: String
+        containers: [String!]
+        eta: Date
+    ): ScribeSalesOrderShipment!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@recordShipment"
+        )
+    "Records that the documents package and the due-date notice went to the customer."
+    markScribeDocumentsPackageSent(id: ID!): ScribeSalesOrderShipment!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@markPackageSent"
+        )
+    "Records the delivery against the signed proof of delivery."
+    confirmScribeDelivery(
+        id: ID!
+        delivered_on: Date!
+        pod_reference: String!
+        discrepancies: String
+        damage_reported: Boolean = false
+    ): ScribeSalesOrderShipment!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@confirmDelivery"
+        )
+    "Closes a delivered order once its invoice is paid."
+    closeScribeSalesOrder(id: ID!): ScribeSalesOrder!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@close"
+        )
+    "Gate 3: releases the original bill of lading or the telex release, only to a customer inside their limit and without overdue invoices."
+    releaseScribeDocuments(id: ID!): ScribeSalesOrderShipment!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@releaseDocuments"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    "Sets a customer's credit limit in the given currency, or removes it when the amount is left out."
+    setScribeCustomerCreditLimit(customer_id: ID!, amount: Float, currency: String): ScribeCustomerCredit!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\CustomerCreditMutation@setLimit"
+        )
+}

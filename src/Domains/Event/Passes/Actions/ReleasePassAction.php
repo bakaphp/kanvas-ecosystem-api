@@ -17,12 +17,31 @@ class ReleasePassAction
 
     public function execute(): int
     {
-        return ParticipantPass::query()
+        $passes = ParticipantPass::query()
             ->fromApp($this->app)
-            ->where('redeemed_event_version_id', $this->bookingVersionId)
-            ->update([
-                'redeemed_at' => null,
-                'redeemed_event_version_id' => null,
-            ]);
+            ->redeemedByBooking($this->bookingVersionId)
+            ->get();
+
+        foreach ($passes as $pass) {
+            $this->release($pass);
+        }
+
+        return $passes->count();
+    }
+
+    private function release(ParticipantPass $pass): void
+    {
+        $pass->redemptions()->where('booking_event_version_id', $this->bookingVersionId)->delete();
+
+        if ((int) $pass->redeemed_event_version_id === $this->bookingVersionId) {
+            $pass->redeemed_event_version_id = null;
+        }
+
+        $liveBookingId = $pass->liveBookingIds()->first();
+
+        $pass->update([
+            'redeemed_at' => $liveBookingId === null ? null : $pass->redeemed_at,
+            'redeemed_event_version_id' => $liveBookingId,
+        ]);
     }
 }

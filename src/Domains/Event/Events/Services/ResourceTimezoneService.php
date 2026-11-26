@@ -19,8 +19,16 @@ class ResourceTimezoneService
 
     public static function resolve(?Model $resource): string
     {
+        return self::find($resource) ?? self::FALLBACK;
+    }
+
+    /**
+     * Null instead of FALLBACK, for a caller that has somewhere better to look first.
+     */
+    public static function find(?Model $resource): ?string
+    {
         if ($resource === null) {
-            return self::FALLBACK;
+            return null;
         }
 
         $candidates = [
@@ -35,7 +43,7 @@ class ResourceTimezoneService
             }
         }
 
-        return self::FALLBACK;
+        return null;
     }
 
     protected static function fromCustomField(Model $resource): ?string

@@ -12,8 +12,12 @@ use Kanvas\Workflow\DataTransferObject\WedgedWorkflow;
 use Kanvas\Workflow\Enums\WedgedWorkflowCauseEnum;
 use RuntimeException;
 use Throwable;
+use Workflow\Activity;
+use Workflow\ChildWorkflow;
+use Workflow\Exception as ExceptionJob;
 use Workflow\Middleware\WithoutOverlappingMiddleware;
 use Workflow\Models\StoredWorkflow;
+use Workflow\Signal;
 use Workflow\States\WorkflowPendingStatus;
 use Workflow\States\WorkflowWaitingStatus;
 use Workflow\Workflow;
@@ -32,6 +36,25 @@ class WedgedWorkflowService
     public const int DEFAULT_MIN_ATTEMPTS = 100;
 
     private const int SCAN_LIMIT = 500;
+
+    /**
+     * Each of these takes the workflow's own lock and is released while activity locks are held.
+     */
+    private const array WAITS_ON_WORKFLOW_LOCK = [
+        Workflow::class,
+        Signal::class,
+        ExceptionJob::class,
+    ];
+
+    /**
+     * The last two wait for the workflow lock to be free instead, so a held activity lock is not
+     * what blocks them and neither repair applies.
+     */
+    private const array ENGINE_JOBS = [
+        ...self::WAITS_ON_WORKFLOW_LOCK,
+        Activity::class,
+        ChildWorkflow::class,
+    ];
 
     public function __construct(
         private readonly QueueFactory $queues,
@@ -57,12 +80,42 @@ class WedgedWorkflowService
      */
     public function find(array $queueNames, int $minAttempts = self::DEFAULT_MIN_ATTEMPTS): array
     {
+        return $this->scan($queueNames, $minAttempts)[0];
+    }
+
+    /**
+     * The wedged workflows, then what countSpinningJobs() counts and no stored workflow explains: a
+     * job that is not the engine's, or one whose workflow row is gone, grouped by job and queue with
+     * the highest attempts seen. One pass for both, because tying a payload to its workflow decrypts
+     * it and loads its models.
+     *
+     * @param list<string> $queueNames
+     *
+     * @return array{0: list<WedgedWorkflow>, 1: list<array{job: string, queue: string, jobs: int, attempts: int}>}
+     */
+    public function scan(array $queueNames, int $minAttempts = self::DEFAULT_MIN_ATTEMPTS): array
+    {
         $wedged = [];
+        $others = [];
 
         foreach ($this->spinningPayloads($queueNames, $minAttempts) as [$queueName, $payload]) {
             $storedWorkflow = $this->storedWorkflowFrom($payload);
+            $attempts = (int) $payload['attempts'];
 
-            if ($storedWorkflow === null || isset($wedged[$storedWorkflow->id])) {
+            if ($storedWorkflow === null) {
+                $job = (string) ($payload['displayName'] ?? 'unknown');
+                $key = $queueName . '|' . $job;
+                $others[$key] = [
+                    'job' => $job,
+                    'queue' => $queueName,
+                    'jobs' => ($others[$key]['jobs'] ?? 0) + 1,
+                    'attempts' => max($others[$key]['attempts'] ?? 0, $attempts),
+                ];
+
+                continue;
+            }
+
+            if (isset($wedged[$storedWorkflow->id])) {
                 continue;
             }
 
@@ -70,14 +123,17 @@ class WedgedWorkflowService
 
             $wedged[$storedWorkflow->id] = new WedgedWorkflow(
                 storedWorkflow: $storedWorkflow,
+                job: $payload['displayName'],
                 queue: $queueName,
-                attempts: (int) $payload['attempts'],
+                attempts: $attempts,
                 activityLocks: $locks,
-                cause: $this->diagnose($storedWorkflow, $locks),
+                cause: $this->isOneOf($payload, self::WAITS_ON_WORKFLOW_LOCK)
+                    ? $this->diagnose($storedWorkflow, $locks)
+                    : WedgedWorkflowCauseEnum::UNKNOWN,
             );
         }
 
-        return array_values($wedged);
+        return [array_values($wedged), array_values($others)];
     }
 
     /**
@@ -146,7 +202,8 @@ class WedgedWorkflowService
     {
         $command = $payload['data']['command'] ?? null;
 
-        if (! is_string($command) || ! is_a($payload['displayName'] ?? '', Workflow::class, true)) {
+        // Any other job is left serialized: restoring it would load whatever models it carries.
+        if (! is_string($command) || ! $this->isOneOf($payload, self::ENGINE_JOBS)) {
             return null;
         }
 
@@ -157,7 +214,22 @@ class WedgedWorkflowService
             return null;
         }
 
-        return $job instanceof Workflow ? $job->storedWorkflow : null;
+        // A child reports back to its parent, and the parent's lock is the one it waits on.
+        $storedWorkflow = $job instanceof ChildWorkflow
+            ? $job->parentWorkflow
+            : ($job->storedWorkflow ?? null);
+
+        return $storedWorkflow instanceof StoredWorkflow ? $storedWorkflow : null;
+    }
+
+    /**
+     * @param list<class-string> $classes
+     */
+    private function isOneOf(array $payload, array $classes): bool
+    {
+        $job = $payload['displayName'] ?? '';
+
+        return is_string($job) && array_any($classes, fn (string $class): bool => is_a($job, $class, true));
     }
 
     /**

@@ -10,10 +10,10 @@ use Baka\Support\Str;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Connectors\Acumatica\Approvals\ApproveAndPushBillHandler;
-use Kanvas\Connectors\Acumatica\Approvals\IssueAndPushInvoiceHandler;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Approvals\ApproveExpenseHandler;
 use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Invoices\Approvals\IssueInvoiceHandler;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Purchasing\Approvals\ApprovePurchaseOrderHandler;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
@@ -54,7 +54,7 @@ class SeedScribeApprovalPoliciesAction
         // control, an expense is review of money already spent.
         $definitions = [
             [Bill::class, 'approve_bill', 'vendor', ApproveAndPushBillHandler::class, false],
-            [Invoice::class, 'approve_invoice', 'customer', IssueAndPushInvoiceHandler::class, false],
+            [Invoice::class, 'approve_invoice', 'customer', IssueInvoiceHandler::class, false],
             [Expense::class, 'approve_expense', 'vendor', ApproveExpenseHandler::class, true],
             [PurchaseOrder::class, 'approve_purchase_order', 'vendor', ApprovePurchaseOrderHandler::class, false],
         ];
