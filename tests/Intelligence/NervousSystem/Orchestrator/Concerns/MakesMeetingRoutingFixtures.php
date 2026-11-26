@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem\Orchestrator\Concerns;
 
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -18,8 +21,18 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Orchestrator\Signals\DataTransferObject\InboundSignal;
 use Kanvas\NervousSystem\Orchestrator\Signals\Enums\SignalSourceEnum;
+use Kanvas\NervousSystem\Orchestrator\Webhooks\ProcessOrchestratorSignalJob;
+use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
+use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Enums\ProjectIngestTypeEnum;
+use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Actions\CreateReceiverWebhookAction;
+use Kanvas\Workflow\DataTransferObject\ReceiverWebhook as ReceiverWebhookData;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Kanvas\Workflow\Models\WorkflowAction;
+use Mockery;
 
 /**
  * A fresh company per test: meeting-agent settings live in Redis, which no transaction rolls back,
@@ -161,5 +174,108 @@ trait MakesMeetingRoutingFixtures
             ->create(['agent_type_id' => $type->getId(), 'is_active' => $active]);
 
         return $agent;
+    }
+
+    /**
+     * Every routed transcript is uploaded, so a test that routes one without this writes to the app's
+     * real bucket.
+     */
+    private function fakeFileStorage(): FilesystemAdapter
+    {
+        $disk = Storage::fake('signal-files');
+
+        $storage = Storage::partialMock();
+        $storage->shouldReceive('build')->andReturn($disk)->byDefault();
+        $storage->set(FilesystemServices::PLATFORM_DISK, $disk);
+
+        return $disk;
+    }
+
+    private function refuseFileStorage(): void
+    {
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('exists')->andReturn(false);
+        $disk->shouldReceive('put', 'putFileAs')->andReturn(false);
+
+        $storage = Storage::partialMock();
+        $storage->shouldReceive('build')->andReturn($disk);
+        $storage->set(FilesystemServices::PLATFORM_DISK, $disk);
+    }
+
+    private function makeProject(
+        Apps $app,
+        Companies $company,
+        Users $owner,
+        string $title
+    ): Project {
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $owner->getId(), 'is_active' => true]);
+
+        return new CreateProjectAction(
+            ProjectData::from($app, $owner, $company, [
+                'title' => $title,
+                'objective' => "Deliver {$title}",
+                'agent_id' => $agent->id,
+            ]),
+        )->execute();
+    }
+
+    /**
+     * @param array<string, mixed> $configuration
+     */
+    private function orchestratorReceiver(
+        Apps $app,
+        Companies $company,
+        Users $user,
+        array $configuration
+    ): ReceiverWebhook {
+        $action = WorkflowAction::firstOrCreate(
+            ['model_name' => ProcessOrchestratorSignalJob::class],
+            ['name' => 'Orchestrator Signal Ingest'],
+        );
+
+        return new CreateReceiverWebhookAction(
+            new ReceiverWebhookData(
+                app: $app,
+                company: $company,
+                user: $user,
+                action: $action,
+                name: 'Orchestrator ingest',
+                description: 'Unlabeled signal routing',
+                configuration: $configuration,
+                is_active: true,
+                run_async: true,
+            ),
+        )->execute();
+    }
+
+    private function callFor(ReceiverWebhook $receiver, array $payload): ReceiverWebhookCall
+    {
+        return ReceiverWebhookCall::create([
+            'receiver_webhooks_id' => $receiver->getId(),
+            'uuid' => Str::uuid()->toString(),
+            'url' => '/receiver/' . $receiver->uuid,
+            'payload' => $payload,
+            'raw_payload' => json_encode($payload),
+            'status' => 'pending',
+        ]);
+    }
+
+    /**
+     * @param list<string> $emails
+     *
+     * @return array<string, mixed>
+     */
+    private function meetingPayload(array $emails): array
+    {
+        return [
+            'session_id' => 'sess_' . Str::random(10),
+            'trigger' => 'meeting_end',
+            'title' => 'Pricing call',
+            'participants' => array_map(static fn (string $email): array => ['name' => 'X', 'email' => $email], $emails),
+            'transcript' => ['speaker_blocks' => [['speaker' => ['name' => 'Buyer'], 'words' => 'We want the pro plan.']]],
+        ];
     }
 }

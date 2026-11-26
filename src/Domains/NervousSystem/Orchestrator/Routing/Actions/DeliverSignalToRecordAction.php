@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Orchestrator\Routing\Actions;
 
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -18,15 +19,19 @@ use Kanvas\NervousSystem\Orchestrator\Routing\DataTransferObject\SignalDeliveryR
 use Kanvas\NervousSystem\Orchestrator\Routing\Enums\MeetingAgentEnum;
 use Kanvas\NervousSystem\Orchestrator\Routing\Enums\SignalDeliveryStatusEnum;
 use Kanvas\NervousSystem\Orchestrator\Routing\Services\MeetingAgentLocatorService;
+use Kanvas\NervousSystem\Orchestrator\Signals\Actions\StoreSignalFileAction;
 use Kanvas\NervousSystem\Orchestrator\Signals\DataTransferObject\InboundSignal;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * Hands a routed signal to a lead (Sales Manager) or an organization (PM): its content is written
- * whole as an internal note on the record, and the agent is woken with a short instruction pointing
- * at that note. The wording follows the signal's kind (meeting, email, ...), so nothing here is
- * specific to transcripts. The agent pages through it with read_message_content rather than carrying it in its
- * prompt, and the `internal` verb keeps it out of a customer-facing agent's history.
+ * Hands a routed signal to a lead (Sales Manager) or an organization (PM): it is written as an
+ * internal note on the record, and the agent is woken with a short instruction pointing at it. The
+ * wording follows the signal's kind (meeting, email, ...), so nothing here is specific to transcripts.
+ * The `internal` verb keeps the note out of a customer-facing agent's history.
+ *
+ * A signal stored as a file leaves a digest in the note and the full text in the attachment, which
+ * the agent pages through with read_file. Without a file the note carries the full text and the agent
+ * reads it with read_message_content.
  *
  * Nothing is written when the company has no agent for the role: a signal nobody will read is
  * left in the webhook request and the routing log instead.
@@ -36,9 +41,12 @@ class DeliverSignalToRecordAction
     private const int LOCK_SECONDS = 30;
     private const int LOCK_WAIT_SECONDS = 10;
 
+    private ?Filesystem $file = null;
+
     public function __construct(
         private readonly RoutingCandidate $target,
-        private readonly InboundSignal $signal
+        private readonly InboundSignal $signal,
+        private readonly ?StoreSignalFileAction $archive = null
     ) {
         if ($target->project() !== null) {
             throw new InvalidArgumentException('Only a lead or an organization is delivered here.');
@@ -137,41 +145,15 @@ class DeliverSignalToRecordAction
             : new RecordOrganizationNoteAction($record);
 
         $kind = $this->signal->kind;
+        $this->file = $this->archive?->execute();
 
         return $recorder->execute(
-            body: $this->noteBody(),
+            body: $this->file !== null ? $this->signal->digest($this->file) : $this->signal->document(),
             tag: $kind->noun() . '-' . $kind->bodyLabel(),
             messageTypeVerb: LeadMessageTypeEnum::INTERNAL->value,
             slug: $slug,
+            files: $this->file !== null ? [$this->file] : [],
         );
-    }
-
-    private function noteBody(): string
-    {
-        $metadata = $this->signal->metadata;
-        $kind = $this->signal->kind;
-
-        $people = array_map(
-            static fn (array $actor): string => trim($actor['name'] . ($actor['email'] !== null ? " <{$actor['email']}>" : '')),
-            $this->signal->actors
-        );
-
-        $sections = [
-            sprintf(
-                '%s: "%s"%s',
-                ucfirst($kind->noun()),
-                $this->signal->title,
-                $this->signal->occurredAt !== null ? " ({$this->signal->occurredAt})" : ''
-            ),
-            $people !== [] ? 'Participants: ' . implode(', ', $people) : null,
-            ! empty($metadata['report_url']) ? 'Report: ' . $metadata['report_url'] : null,
-            ! empty($metadata['summary']) ? "Summary:\n" . $metadata['summary'] : null,
-            ! empty($metadata['chapters']) ? "Chapters:\n- " . implode("\n- ", (array) $metadata['chapters']) : null,
-            ! empty($metadata['action_items']) ? "Action items:\n- " . implode("\n- ", (array) $metadata['action_items']) : null,
-            ucfirst($kind->bodyLabel()) . ":\n" . $this->signal->content,
-        ];
-
-        return implode("\n\n", array_filter($sections));
     }
 
     private function instruction(Message $note): string
@@ -182,13 +164,29 @@ class DeliverSignalToRecordAction
         $body = $this->signal->kind->bodyLabel();
         $noteTool = $isLead ? 'add_lead_note' : 'add_organization_note';
 
+        [$where, $read] = $this->file !== null
+            ? [
+                sprintf(
+                    'Its summary is message_id %d on that record\'s activity thread, and its full %s is the file '
+                    . '"%s" attached to it (filesystem_id %d).',
+                    (int) $note->getId(),
+                    $body,
+                    $this->file->name,
+                    $this->file->getId()
+                ),
+                sprintf('read_file(filesystem_id: %d)', $this->file->getId()),
+            ]
+            : [
+                sprintf('Its full %s is message_id %d on that record\'s activity thread.', $body, (int) $note->getId()),
+                sprintf('read_message_content(message_id: %d)', (int) $note->getId()),
+            ];
+
         return sprintf(
-            'A new %1$s was just routed to the %3$s "%4$s" (%5$s_id %6$d). Its full %2$s is message_id %7$d on that '
-            . "record's activity thread.\n\n"
-            . "1. Read the whole %2\$s with read_message_content(message_id: %7\$d), paging until has_more is false.\n"
-            . '2. Write ONE note with %8$s: what was discussed, decisions, objections or risks, and the next steps '
+            'A new %1$s was just routed to the %3$s "%4$s" (%5$s_id %6$d). %7$s' . "\n\n"
+            . "1. Read the whole %2\$s with %8\$s, paging until has_more is false.\n"
+            . '2. Write ONE note with %9$s: what was discussed, decisions, objections or risks, and the next steps '
             . "with an owner and a date when the %1\$s gave one.\n"
-            . '%9$s'
+            . '%10$s'
             . 'Do not contact the customer from this turn. If a follow-up message is needed, draft it inside the '
             . 'note for a person to send.',
             $noun,
@@ -197,7 +195,8 @@ class DeliverSignalToRecordAction
             $this->target->label(),
             $this->target->type->value,
             $this->target->id(),
-            (int) $note->getId(),
+            $where,
+            $read,
             $noteTool,
             $isLead
                 ? "3. Update the lead (status, description, fields) only where the {$noun} clearly changed it.\n"
