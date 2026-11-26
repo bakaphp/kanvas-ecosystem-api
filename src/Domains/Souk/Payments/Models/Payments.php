@@ -167,6 +167,11 @@ class Payments extends BaseModel
         return $this->status === PaymentStatusEnum::PAID->value;
     }
 
+    public function processorName(): ?string
+    {
+        return $this->paymentMethod?->processor ?? $this->processor;
+    }
+
     public static function cardKey(?string $brand, ?string $lastFour): ?string
     {
         if (! $brand || ! $lastFour) {

@@ -25,6 +25,7 @@ class ProductsTypes extends Data
         public int $weight = 0,
         public bool $isPublished = true,
         public ?string $slug = null,
+        public ?bool $excludeFromReceipt = null,
     ) {
     }
 
@@ -40,7 +41,8 @@ class ProductsTypes extends Data
             $request['description'] ?? null,
             (int) $request['weight'],
             $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
-            $request['slug'] ?? null
+            $request['slug'] ?? null,
+            isset($request['exclude_from_receipt']) ? (bool) $request['exclude_from_receipt'] : null
         );
     }
 }

@@ -72,7 +72,7 @@ class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
         return [
             'message' => '3DS method notification received for payment_id: ' . ($paymentId ?? 'unknown'),
             'received' => ! empty($methodData),
-            'html' => $this->notifyParent($transId),
+            'html_response' => $this->notifyParent($transId),
         ];
     }
 

@@ -44,6 +44,7 @@ class CreateProductTypeAction
             'weight' => $this->data->weight,
             'users_id' => $this->user->getId(),
             'is_published' => $this->data->isPublished,
+            'exclude_from_receipt' => $this->data->excludeFromReceipt ?? false,
         ]);
     }
 }

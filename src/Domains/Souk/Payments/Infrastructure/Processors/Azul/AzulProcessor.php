@@ -20,6 +20,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
+use Kanvas\Souk\Payments\Contracts\ReleasesHoldInterface;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
@@ -34,6 +35,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Concerns\OpensProcessorRefunds;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Support\AutoSubmitChallengeForm;
+use Throwable;
 
 /**
  * Azul payment processor (Banco Popular, Dominican Republic).
@@ -54,11 +56,12 @@ use Kanvas\Souk\Payments\Support\AutoSubmitChallengeForm;
  *   - finalizeChallenge() : called after the cardholder completes the browser challenge; uses
  *                           VerifyPayment to confirm the final status.
  */
-class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ThreeDSProcessorInterface
+class AzulProcessor implements PaymentProcessorInterface, ReleasesHoldInterface, TokenizationProcessorInterface, ThreeDSProcessorInterface
 {
     use OpensProcessorRefunds;
 
     private const string THREE_DS_HOLD_KEY = 'three_ds_use_hold';
+    private const string METHOD_NOTIFICATION_NOT_RECEIVED = 'EXPECTED_BUT_NOT_RECEIVED';
 
     protected AzulService $service;
 
@@ -87,16 +90,16 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      *            Call capture() within 7 days to settle, or void() to release.
      *
      * Mode resolution (first match wins):
-     *   1. $context['use_hold'] (per-transaction override)
-     *   2. AZUL_USE_HOLD app config (default for all transactions in the app)
+     *   1. Order type processor_use_hold (cannot be overridden by the caller)
+     *   2. $context['use_hold'] (per-transaction override)
+     *   3. Payment metadata use_hold
+     *   4. AZUL_USE_HOLD app config (default for all transactions in the app)
      */
     public function authorize(Payments $payment, Order $order, array $context = []): AuthorizeResult
     {
         $this->assertSupportedCurrency($order);
 
-        $useHold = array_key_exists('use_hold', $context)
-            ? (bool) $context['use_hold']
-            : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
+        $useHold = $this->resolveHold($payment, $order, $context);
         $request = $this->buildSaleRequest($payment, $order);
         $start = hrtime(true);
 
@@ -224,54 +227,23 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
+        if (! $payment->claimForSettlement()) {
+            return new CaptureResult(
+                success: false,
+                message: 'Payment is already being captured or settled.',
+                transactionId: '',
+                skipped: true,
+            );
+        }
+
         $captureAmount = $amount ?? $order->getTotalDueAmount();
         $request = $this->buildCaptureRequest($azulOrderId, $captureAmount, $order);
         $start = hrtime(true);
 
         try {
             $response = $this->service->capture($request);
-            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
-
-            $payment->authorization_code = $response->authorizationCode;
-            $payment->number = $response->ticket;
-            $payment->captured_amount = $captureAmount;
-
-            if (! empty($response->dateTime)) {
-                $payment->payment_date = Carbon::createFromFormat('YmdHis', $response->dateTime)->toDateString();
-            }
-
-            $payment->markAsPaid([
-                'data' => [
-                    'capture_azul_order_id' => $response->azulOrderId,
-                    'authorization_code' => $response->authorizationCode,
-                    'response_message' => $response->responseMessage,
-                    'response_code' => $response->responseCode,
-                    'iso_code' => $response->isoCode,
-                    'ticket' => $response->ticket,
-                    'rrn' => $response->rrn,
-                    'lot_number' => $response->lotNumber,
-                    'datetime' => $response->dateTime,
-                ],
-            ]);
-
-            $payment->addLog('capture_success', [
-                'processor' => $this->name(),
-                'order_id' => $order->id,
-                'hold_azul_order_id' => $azulOrderId,
-                'capture_azul_order_id' => $response->azulOrderId,
-                'amount' => $captureAmount,
-                'response_time_ms' => $responseTimeMs,
-                'request' => $request->toArray(),
-                'response' => $response->toArray(),
-            ]);
-
-            return new CaptureResult(
-                success: true,
-                message: $response->responseMessage,
-                transactionId: $response->azulOrderId,
-                raw: $response->raw,
-            );
         } catch (AzulException $e) {
+            $payment->releaseSettlementClaim();
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->addLog('capture_failed', [
@@ -288,8 +260,58 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 message: $e->getMessage(),
                 transactionId: '',
                 raw: $e->getErrorBody(),
+                retryable: $e->getErrorBody() === [],
+            );
+        } catch (Throwable $e) {
+            $payment->releaseSettlementClaim();
+
+            throw $e;
+        }
+
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+        $payment->addLog('capture_success', [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'hold_azul_order_id' => $azulOrderId,
+            'capture_azul_order_id' => $response->azulOrderId,
+            'amount' => $captureAmount,
+            'response_time_ms' => $responseTimeMs,
+            'request' => $request->toArray(),
+            'response' => $response->toArray(),
+        ]);
+
+        $payment->authorization_code = $response->authorizationCode;
+        $payment->number = $response->ticket;
+        $payment->captured_amount = $captureAmount;
+
+        if (! empty($response->dateTime)) {
+            $payment->payment_date = rescue(
+                fn () => Carbon::createFromFormat('YmdHis', $response->dateTime)->toDateString(),
+                $payment->payment_date
             );
         }
+
+        $payment->markAsCaptured([
+            'data' => [
+                'capture_azul_order_id' => $response->azulOrderId,
+                'authorization_code' => $response->authorizationCode,
+                'response_message' => $response->responseMessage,
+                'response_code' => $response->responseCode,
+                'iso_code' => $response->isoCode,
+                'ticket' => $response->ticket,
+                'rrn' => $response->rrn,
+                'lot_number' => $response->lotNumber,
+                'datetime' => $response->dateTime,
+            ],
+        ]);
+
+        return new CaptureResult(
+            success: true,
+            message: $response->responseMessage,
+            transactionId: $response->azulOrderId,
+            raw: $response->raw,
+        );
     }
 
     public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult
@@ -374,6 +396,15 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      * - Hold (AUTHORIZED): no time limit.
      * - Sale or Post (PAID): within 20 minutes of approval only (Azul enforces this window).
      */
+    public function releaseHold(
+        Payments $payment,
+        Order $order,
+        float $amount,
+        string $reason
+    ): VoidResult {
+        return $this->void($payment, $order, ['reason' => $reason]);
+    }
+
     public function void(Payments $payment, Order $order, array $context = []): VoidResult
     {
         $azulOrderId = (string) ($payment->payment_intent_id ?? '');
@@ -383,6 +414,17 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 success: false,
                 message: 'AzulOrderId not found on payment. Cannot void.',
                 transactionId: '',
+            );
+        }
+
+        $releasesHold = $payment->status === PaymentStatusEnum::AUTHORIZED->value;
+
+        if ($releasesHold && ! $payment->claimForSettlement()) {
+            return new VoidResult(
+                success: false,
+                message: 'Payment is already being captured or settled.',
+                transactionId: '',
+                skipped: true,
             );
         }
 
@@ -419,6 +461,10 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 raw: $response->raw,
             );
         } catch (AzulException $e) {
+            if ($releasesHold) {
+                $payment->releaseSettlementClaim();
+            }
+
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->addLog('void_failed', [
@@ -436,6 +482,12 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 transactionId: '',
                 raw: $e->getErrorBody(),
             );
+        } catch (Throwable $e) {
+            if ($releasesHold) {
+                $payment->releaseSettlementClaim();
+            }
+
+            throw $e;
         }
     }
 
@@ -519,7 +571,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      *   redirect the cardholder to `data['acs_url']` with `data['pa_req']`.
      *
      * Context keys:
-     *   - use_hold (bool)                     : use Hold instead of Sale (default: payment metadata use_hold, then AZUL_USE_HOLD config)
+     *   - use_hold (bool)                     : use Hold instead of Sale (ignored when the order type forces Hold; default: payment metadata use_hold, then AZUL_USE_HOLD config)
      *   - requestor_challenge_indicator (string): Azul challenge preference (default: '01' = no preference)
      *   - card_holder_info (array)             : optional CardHolderInfo block (billing/shipping/contact)
      */
@@ -527,13 +579,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     {
         $this->assertSupportedCurrency($order);
 
-        $useHold = $this->resolveChallengeHold($payment, $context);
+        $useHold = $this->resolveHold($payment, $order, $context);
         $payment->addMetadata(['data' => [self::THREE_DS_HOLD_KEY => $useHold]]);
-
-        $baseTermUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
-        $termUrl = $baseTermUrl
-            ? $baseTermUrl . (str_contains($baseTermUrl, '?') ? '&' : '?') . 'payment_id=' . $payment->id
-            : '';
 
         $request = $this->build3DSSaleRequest($payment, $order, $context);
         $start = hrtime(true);
@@ -612,38 +659,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             }
 
             if ($response->is3DSChallenge()) {
-                // 3DS challenge required — issuer demands cardholder authentication.
-                // This can happen in two ways:
-                //   (A) After the 3DS method (fingerprinting) step was completed first.
-                //   (B) Directly, when the issuer skips the method step entirely.
-                // In both cases, redirect the cardholder to acs_url with pa_req.
-                $payment->update(['status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
-
-                $payment->addLog('3ds_challenge_initiated', [
-                    'processor' => $this->name(),
-                    'order_id' => $order->id,
-                    'azul_order_id' => $response->azulOrderId,
-                    'acs_url' => $response->acsUrl,
-                    'response_time_ms' => $responseTimeMs,
-                ]);
-
-                return new ThreeDSResult(
-                    success: true,
-                    message: '3DS challenge required — redirect cardholder to acs_url',
-                    status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
-                    data: [
-                        'azul_order_id' => $response->azulOrderId,
-                        'acs_url' => $response->acsUrl,
-                        'pa_req' => $response->paReq,
-                        'term_url' => $termUrl,
-                        'three_ds_trans_id' => $response->threeDSTransId,
-                        'challenge_form' => AutoSubmitChallengeForm::render(
-                            $response->acsUrl,
-                            ['creq' => $response->paReq, 'TermUrl' => $termUrl]
-                        ),
-                    ],
-                    raw: $response->raw,
-                );
+                return $this->challengeRequired($payment, $order, $response, ['response_time_ms' => $responseTimeMs]);
             }
 
             // Unrecognized response — treat as failure
@@ -684,8 +700,58 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         }
     }
 
-    private function resolveChallengeHold(Payments $payment, array $context): bool
+    private function challengeRequired(
+        Payments $payment,
+        Order $order,
+        AzulPaymentResponse $response,
+        array $logContext
+    ): ThreeDSResult {
+        $payment->update(['status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
+
+        $payment->addLog('3ds_challenge_initiated', [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'azul_order_id' => $response->azulOrderId,
+            'acs_url' => $response->acsUrl,
+            ...$logContext,
+        ]);
+
+        $termUrl = $this->termUrl($payment);
+
+        return new ThreeDSResult(
+            success: true,
+            message: '3DS challenge required — redirect cardholder to acs_url',
+            status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            data: [
+                'azul_order_id' => $response->azulOrderId,
+                'acs_url' => $response->acsUrl,
+                'pa_req' => $response->paReq,
+                'term_url' => $termUrl,
+                'three_ds_trans_id' => $response->threeDSTransId,
+                'challenge_form' => AutoSubmitChallengeForm::render(
+                    $response->acsUrl,
+                    ['creq' => $response->paReq, 'TermUrl' => $termUrl]
+                ),
+            ],
+            raw: $response->raw,
+        );
+    }
+
+    private function termUrl(Payments $payment): string
     {
+        $baseTermUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
+
+        return $baseTermUrl
+            ? $baseTermUrl . (str_contains($baseTermUrl, '?') ? '&' : '?') . 'payment_id=' . $payment->id
+            : '';
+    }
+
+    private function resolveHold(Payments $payment, Order $order, array $context): bool
+    {
+        if ($order->orderType?->forcesProcessorHold()) {
+            return true;
+        }
+
         if (array_key_exists('use_hold', $context)) {
             return (bool) $context['use_hold'];
         }
@@ -733,6 +799,13 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
         $methodNotificationStatus = $payment->getMetadata('3ds_method_notification_status');
 
+        if (empty($methodNotificationStatus)
+            && $payment->status === PaymentStatusEnum::WAITING_DEVICE_DATA->value
+            && ($context['method_notification_status'] ?? null) === self::METHOD_NOTIFICATION_NOT_RECEIVED
+        ) {
+            $methodNotificationStatus = self::METHOD_NOTIFICATION_NOT_RECEIVED;
+        }
+
         if (empty($cRes) && empty($methodNotificationStatus)) {
             return new ThreeDSResult(
                 success: false,
@@ -752,6 +825,10 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 methodNotificationStatus: $methodNotificationStatus,
                 cRes: $cRes,
             );
+
+            if ($response->is3DSChallenge()) {
+                return $this->challengeRequired($payment, $order, $response, ['request' => $requestData]);
+            }
 
             $responseData = [
                 'data' => [
@@ -984,10 +1061,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             ?? $this->normalizeExpiration($paymentMethod->expiration_date ?? '')
         );
 
-        $baseTermUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
-        $termUrl = $baseTermUrl
-            ? $baseTermUrl . (str_contains($baseTermUrl, '?') ? '&' : '?') . 'payment_id=' . $payment->id
-            : '';
+        $termUrl = $this->termUrl($payment);
         $baseMethodUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_METHOD_NOTIFICATION_URL->value) ?? '');
         $methodUrl = $baseMethodUrl
             ? $baseMethodUrl . (str_contains($baseMethodUrl, '?') ? '&' : '?') . 'payment_id=' . $payment->id
@@ -1184,7 +1258,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
     private function toCents(float $amount): string
     {
-        return (string) (int) round($amount * 100);
+        return str_pad((string) (int) round($amount * 100), 3, '0', STR_PAD_LEFT);
     }
 
     /**
