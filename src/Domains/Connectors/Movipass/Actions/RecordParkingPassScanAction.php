@@ -12,8 +12,8 @@ use Kanvas\Connectors\Movipass\Parking\Support\ParkingMetadata;
 use Kanvas\Connectors\Movipass\Parking\Support\ParkingQuotePayment;
 use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\SendPaymentReceiptAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Throwable;
 
 class RecordParkingPassScanAction
 {
@@ -121,10 +121,6 @@ class RecordParkingPassScanAction
             return;
         }
 
-        try {
-            new SendPaymentReceiptAction($this->order, $payment, $payment->user)->execute();
-        } catch (Throwable $e) {
-            report($e);
-        }
+        SendPaymentReceiptAction::trySend($this->order, $payment);
     }
 }

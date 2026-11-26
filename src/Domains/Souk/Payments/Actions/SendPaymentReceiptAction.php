@@ -29,11 +29,7 @@ class SendPaymentReceiptAction
     public static function trySend(Order $order, Payments $payment): void
     {
         try {
-            new self(
-                $order,
-                $payment,
-                $payment->user
-            )->execute();
+            new self($order, $payment, $payment->user)->execute();
         } catch (Throwable $e) {
             report($e);
         }

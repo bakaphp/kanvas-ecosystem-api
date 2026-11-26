@@ -49,9 +49,9 @@ class SetupPortalSettleRuleCommand extends Command
     {
         $removed = Rule::query()
             ->where('name', self::RULE_NAME)
-            ->where('apps_id', $app->getId())
+            ->fromApp($app)
             ->where('companies_id', 0)
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->update(['is_deleted' => 1]);
 
         $this->info("Removed {$removed} rule(s)");

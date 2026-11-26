@@ -157,10 +157,6 @@ final class SettleAuthorizedPaymentAction
             );
         }
 
-        return [
-            'status' => PaymentStatusEnum::FAILED->value,
-            'message' => $result->message . ' - ' . $reason,
-            'data' => ['order' => $this->order->getId(), 'payment' => $this->payment->getId()],
-        ];
+        return $this->recoveryResult(PaymentStatusEnum::FAILED->value, $result->message . ' - ' . $reason);
     }
 }
