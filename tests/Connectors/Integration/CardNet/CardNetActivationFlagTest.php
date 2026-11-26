@@ -78,7 +78,22 @@ final class CardNetActivationFlagTest extends TestCase
         $this->assertArrayNotHasKey(CustomFieldEnum::PAYMENT_PROFILE_ID->value, $result->raw);
     }
 
-    public function testSuccessfulActivationClearsThePendingFlag(): void
+    public function testActivationIsConfirmedAgainstTheCardNetProfile(): void
+    {
+        $paymentMethod = $this->pendingPaymentMethod();
+
+        $service = $this->serviceActivating();
+        $service->shouldReceive('getCustomer')->once()->with(555)->andReturn($this->customerWithProfile(enabled: true));
+
+        $result = $this->processor($service)->activatePaymentMethod($paymentMethod, 'Z2R78V');
+
+        $paymentMethod->refresh();
+        $this->assertTrue($result->success);
+        $this->assertFalse($paymentMethod->getMetadata(CustomFieldEnum::REQUIRES_ACTIVATION->value));
+        $this->assertSame(126577, $paymentMethod->getMetadata(CustomFieldEnum::PAYMENT_PROFILE_ID->value));
+    }
+
+    public function testActivationReadsTheProfileFromTheCustomerCardNetReturns(): void
     {
         $paymentMethod = $this->pendingPaymentMethod();
 
@@ -87,14 +102,43 @@ final class CardNetActivationFlagTest extends TestCase
         $service->shouldReceive('activatePaymentProfile')
             ->once()
             ->with(555, 'CT__TOKEN', 'Z2R78V')
-            ->andReturn(['PaymentProfileId' => 42]);
+            ->andReturn($this->customerWithProfile(enabled: true));
+        $service->shouldNotReceive('getCustomer');
 
         $result = $this->processor($service)->activatePaymentMethod($paymentMethod, 'Z2R78V');
 
         $paymentMethod->refresh();
         $this->assertTrue($result->success);
         $this->assertFalse($paymentMethod->getMetadata(CustomFieldEnum::REQUIRES_ACTIVATION->value));
-        $this->assertSame(42, $paymentMethod->getMetadata(CustomFieldEnum::PAYMENT_PROFILE_ID->value));
+        $this->assertSame(126577, $paymentMethod->getMetadata(CustomFieldEnum::PAYMENT_PROFILE_ID->value));
+    }
+
+    public function testAcceptedActivationOfAProfileStillDisabledKeepsThePendingFlag(): void
+    {
+        $paymentMethod = $this->pendingPaymentMethod();
+
+        $service = $this->serviceActivating();
+        $service->shouldReceive('getCustomer')->once()->andReturn($this->customerWithProfile(enabled: false));
+
+        $result = $this->processor($service)->activatePaymentMethod($paymentMethod, 'Z2R78V');
+
+        $paymentMethod->refresh();
+        $this->assertFalse($result->success);
+        $this->assertTrue($paymentMethod->getMetadata(CustomFieldEnum::REQUIRES_ACTIVATION->value));
+    }
+
+    public function testAcceptedActivationOfATokenCardNetNoLongerHasDisablesTheCard(): void
+    {
+        $paymentMethod = $this->pendingPaymentMethod();
+
+        $service = $this->serviceActivating();
+        $service->shouldReceive('getCustomer')->once()->andReturn(['CustomerId' => 555, 'PaymentProfiles' => []]);
+
+        $result = $this->processor($service)->activatePaymentMethod($paymentMethod, 'Z2R78V');
+
+        $paymentMethod->refresh();
+        $this->assertFalse($result->success);
+        $this->assertTrue($paymentMethod->getMetadata(CustomFieldEnum::DISABLED->value));
     }
 
     public function testRejectedActivationCodeKeepsThePendingFlag(): void
@@ -106,13 +150,32 @@ final class CardNetActivationFlagTest extends TestCase
         $service->shouldReceive('activatePaymentProfile')
             ->once()
             ->andThrow(new CardNetException('TK009 INVALID_ACTIVATION_CODE'));
+        $service->shouldReceive('getCustomer')->once()->andReturn($this->customerWithProfile(enabled: false));
 
         $result = $this->processor($service)->activatePaymentMethod($paymentMethod, 'WRONG1');
 
         $paymentMethod->refresh();
         $this->assertFalse($result->success);
         $this->assertTrue($paymentMethod->getMetadata(CustomFieldEnum::REQUIRES_ACTIVATION->value));
-        $this->assertNull($paymentMethod->getMetadata(CustomFieldEnum::PAYMENT_PROFILE_ID->value));
+        $this->assertNull($paymentMethod->getMetadata(CustomFieldEnum::DISABLED->value));
+    }
+
+    public function testRejectedActivationThatRemovedTheTokenDisablesTheCard(): void
+    {
+        $paymentMethod = $this->pendingPaymentMethod();
+
+        /** @var MockInterface&CardNetService $service */
+        $service = Mockery::mock(CardNetService::class);
+        $service->shouldReceive('activatePaymentProfile')
+            ->once()
+            ->andThrow(new CardNetException('TK009 INVALID_ACTIVATION_CODE'));
+        $service->shouldReceive('getCustomer')->once()->andReturn(['CustomerId' => 555, 'PaymentProfiles' => []]);
+
+        $result = $this->processor($service)->activatePaymentMethod($paymentMethod, 'WRONG3');
+
+        $paymentMethod->refresh();
+        $this->assertFalse($result->success);
+        $this->assertTrue($paymentMethod->getMetadata(CustomFieldEnum::DISABLED->value));
     }
 
     public function testActivationErrorsReturnedWithASuccessfulStatusKeepThePendingFlag(): void
@@ -128,6 +191,10 @@ final class CardNetActivationFlagTest extends TestCase
                 'Response' => null,
                 'Errors' => [['ErrorCode' => 'TK012', 'Message' => 'Error en la Activación del Token']],
             ]);
+        $client->shouldReceive('get')
+            ->once()
+            ->with('v1/api/customer/555')
+            ->andReturn(['Response' => $this->customerWithProfile(enabled: true), 'Errors' => []]);
 
         $result = $this->processor(new CardNetService($client))->activatePaymentMethod($paymentMethod, 'ZZZZZZ');
 
@@ -135,6 +202,18 @@ final class CardNetActivationFlagTest extends TestCase
         $this->assertFalse($result->success);
         $this->assertSame('TK012 Error en la Activación del Token', $result->message);
         $this->assertTrue($paymentMethod->getMetadata(CustomFieldEnum::REQUIRES_ACTIVATION->value));
+    }
+
+    private function serviceActivating(): MockInterface&CardNetService
+    {
+        /** @var MockInterface&CardNetService $service */
+        $service = Mockery::mock(CardNetService::class);
+        $service->shouldReceive('activatePaymentProfile')
+            ->once()
+            ->with(555, 'CT__TOKEN', 'Z2R78V')
+            ->andReturn([]);
+
+        return $service;
     }
 
     private function processor(CardNetService $service): CardNetProcessor
