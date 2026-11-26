@@ -505,6 +505,8 @@ final class FactoryStageTest extends TestCase
         $this->assertContains('start_factory_ticket', $tools);
         $this->assertContains('start_factory_release', $tools);
         $this->assertContains('start_factory_learn', $tools);
+        // The finished-Learn fact names this tool for the answer; read_plan_activity cuts a long one.
+        $this->assertContains('get_nervous_system_task', $tools);
         $this->assertContains('answer_self_hosted_coding_permission', $tools);
         $this->assertContains('answer_self_hosted_coding_question', $tools);
     }
@@ -764,7 +766,8 @@ final class FactoryStageTest extends TestCase
         new UpdateTaskStatusAction($read, TaskStatusEnum::IN_PROGRESS, fromSync: true)->execute();
         new WakeAgentForTaskJob($read->refresh())->handle();
 
-        Queue::assertNotPushed(RunTaskWorkerJob::class, null, 'a Learn already running is not paid for twice');
+        // A Learn already running is not paid for twice.
+        Queue::assertNotPushed(RunTaskWorkerJob::class);
     }
 
     public function testALearnAnswerIsKeptWholeWhereAnotherWorkersIsCut(): void
