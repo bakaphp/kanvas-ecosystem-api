@@ -18,6 +18,8 @@ use Spatie\LaravelData\Data;
 
 class SalesOrder extends Data
 {
+    private const array CLEARABLE = ['incoterm', 'consignee', 'payment_terms_days', 'requested_date', 'notes'];
+
     /**
      * @param list<SalesOrderLine> $lines
      * @param array<string, bool>|null $signature_checklist
@@ -39,6 +41,8 @@ class SalesOrder extends Data
         public readonly ?int $payment_terms_days = null,
         public readonly ?Carbon $requested_date = null,
         public readonly ?string $notes = null,
+        /** @var list<string> the input fields an update sets; empty on a new order */
+        public readonly array $changed = [],
     ) {
     }
 
@@ -54,9 +58,12 @@ class SalesOrder extends Data
         array $data,
     ): self {
         $customer = Organization::getByIdFromCompanyApp((int) $data['customer_id'], $company, $app);
-        $quote = isset($data['quote_id'])
-            ? Quote::getByIdFromCompanyApp((int) $data['quote_id'], $company, $app)
-            : null;
+        $quote = self::quoteFor(
+            $data['quote_id'] ?? null,
+            $customer,
+            $company,
+            $app
+        );
         $source = PoSourceEnum::from((string) $data['po_source']);
         $signedProforma = $source === PoSourceEnum::SIGNED_PROFORMA;
         $currency = $data['currency'] ?? $quote?->currency
@@ -85,7 +92,8 @@ class SalesOrder extends Data
 
     /**
      * The order's current values with the given changes laid over them, so a partial update keeps the rest. A
-     * null sent for an optional field clears it; the PO number, its date and the checklist can only be replaced.
+     * null sent for an optional field clears it; the PO number, its date, the checklist and the quote can only be
+     * replaced. Only the fields in `changed` are written: the rest is a snapshot that may be older than the row.
      *
      * @param array<string, mixed> $changes
      */
@@ -111,7 +119,12 @@ class SalesOrder extends Data
                     unit_price: (float) $line->unit_price,
                     sku: $line->sku,
                 ))->all(),
-            quote: $order->quote,
+            quote: self::quoteFor(
+                $changes['quote_id'] ?? null,
+                $order->customer,
+                $company,
+                $app
+            ) ?? $order->quote,
             customer_po_number: Str::trimToNull($changes['customer_po_number'] ?? null) ?? $order->customer_po_number,
             customer_po_date: self::dateFrom($changes['customer_po_date'] ?? null) ?? $order->customer_po_date,
             signature_checklist: $changes['signature_checklist'] ?? $order->signature_checklist,
@@ -128,7 +141,54 @@ class SalesOrder extends Data
                 ? self::dateFrom($changes['requested_date'])
                 : $order->requested_date,
             notes: array_key_exists('notes', $changes) ? Str::trimToNull($changes['notes']) : $order->notes,
+            changed: self::changedFields($changes),
         );
+    }
+
+    public function changes(string $field): bool
+    {
+        return in_array($field, $this->changed, true);
+    }
+
+    /**
+     * The fields an update really sets: a null only counts for a field a null clears.
+     *
+     * @param array<string, mixed> $changes
+     *
+     * @return list<string>
+     */
+    private static function changedFields(array $changes): array
+    {
+        return array_keys(array_filter(
+            $changes,
+            static fn (mixed $value, string $field): bool => $value !== null || in_array($field, self::CLEARABLE, true),
+            ARRAY_FILTER_USE_BOTH
+        ));
+    }
+
+    /**
+     * A quote issued to a person has no customer organization, so only a quote of another organization is refused.
+     */
+    private static function quoteFor(
+        mixed $quoteId,
+        Organization $customer,
+        CompanyInterface $company,
+        AppInterface $app
+    ): ?Quote {
+        if ($quoteId === null) {
+            return null;
+        }
+
+        $quote = Quote::getByIdFromCompanyApp((int) $quoteId, $company, $app);
+        $owner = $quote->customer_organization_id;
+
+        if ($owner !== null && (int) $owner !== $customer->getId()) {
+            throw new ValidationException(
+                'Quote ' . ($quote->quote_number ?? '#' . $quote->getId()) . ' belongs to another customer.'
+            );
+        }
+
+        return $quote;
     }
 
     private static function dateFrom(mixed $value): ?Carbon

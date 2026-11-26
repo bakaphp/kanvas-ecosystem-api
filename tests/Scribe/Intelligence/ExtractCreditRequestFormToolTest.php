@@ -9,10 +9,13 @@ use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Scribe\Invoices\Stubs\FakeCreditRequestFormParser;
 use Tests\Scribe\ScribeTestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 #[Group('serial')]
 final class ExtractCreditRequestFormToolTest extends ScribeTestCase
 {
+    use AssertsToolRunKeys;
+
     private mixed $originalClientConfig = null;
 
     protected function setUp(): void
@@ -54,5 +57,10 @@ final class ExtractCreditRequestFormToolTest extends ScribeTestCase
 
         $this->assertFalse($result['success']);
         $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_each_attached_form_has_its_own_run_budget(): void
+    {
+        $this->assertRunKeyFollowsInputs(new ExtractCreditRequestFormTool());
     }
 }

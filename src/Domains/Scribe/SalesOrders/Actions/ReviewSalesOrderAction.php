@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\SalesOrders\Actions;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Exceptions\InvalidSalesOrderTransitionException;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
@@ -17,6 +18,8 @@ use Kanvas\Scribe\SalesOrders\Services\SalesOrderReviewService;
  */
 class ReviewSalesOrderAction
 {
+    use LocksDocumentRow;
+
     /**
      * @param array{incoterm?: string|null, payment_terms_days?: int|null} $agreement
      */
@@ -29,23 +32,25 @@ class ReviewSalesOrderAction
 
     public function execute(): SalesOrder
     {
-        if ($this->order->document_status !== SalesOrderStatusEnum::RECEIVED) {
-            throw new InvalidSalesOrderTransitionException(
-                "Sales order {$this->order->order_number} is {$this->order->document_status->value}: only a received order can be reviewed."
-            );
-        }
+        return $this->withRowLocked($this->order, function (): SalesOrder {
+            if ($this->order->document_status !== SalesOrderStatusEnum::RECEIVED) {
+                throw new InvalidSalesOrderTransitionException(
+                    "Sales order {$this->order->order_number} is {$this->order->document_status->value}: only a received order can be reviewed."
+                );
+            }
 
-        if ($this->order->quote === null) {
-            throw new ValidationException("Sales order {$this->order->order_number} has no quote to be reviewed against.");
-        }
+            if ($this->order->quote === null) {
+                throw new ValidationException("Sales order {$this->order->order_number} has no quote to be reviewed against.");
+            }
 
-        $this->order->review = [
-            'agreement' => $this->agreement,
-            'differences' => $this->review->differences($this->order, $this->order->quote, $this->agreement),
-        ];
-        $this->order->reviewed_at = Carbon::now();
-        $this->order->saveOrFail();
+            $this->order->review = [
+                'agreement' => $this->agreement,
+                'differences' => $this->review->differences($this->order, $this->order->quote, $this->agreement),
+            ];
+            $this->order->reviewed_at = Carbon::now();
+            $this->order->saveOrFail();
 
-        return $this->order;
+            return $this->order;
+        });
     }
 }

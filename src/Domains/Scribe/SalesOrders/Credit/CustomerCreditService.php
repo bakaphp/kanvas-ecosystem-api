@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\SalesOrders\Credit;
 
 use Baka\Contracts\AppInterface;
+use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -16,18 +18,22 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\SalesOrders\Enums\CreditConfigurationEnum;
 use Kanvas\Scribe\SalesOrders\Enums\SalesOrderStatusEnum;
 use Kanvas\Scribe\SalesOrders\Models\SalesOrder;
+use Kanvas\Scribe\SalesOrders\Models\SalesOrderShipment;
 
 /**
- * A customer's exposure against their credit limit: what they owe on open invoices, plus what is committed on orders
- * that have no invoice yet, converted to the limit's currency with the published rates. Checks gate 1 (confirming an
- * order) and gate 3 (releasing the shipping documents).
+ * A customer's exposure against their credit limit: what they owe on open invoices, plus orders whose amount is not
+ * carried by an effective invoice, converted to the limit's currency with the published rates. Checks gate 1
+ * (confirming an order) and gate 3 (releasing the shipping documents).
  */
 class CustomerCreditService
 {
     public const int DEFAULT_HOLD_DAYS = 80;
+    private const int DECISION_LOCK_SECONDS = 30;
+    private const int DECISION_RETRY_MICROSECONDS = 250_000;
 
     public function __construct(
         private readonly FxRateService $rates = new FxRateService(),
+        private readonly int $decisionWaitSeconds = 5,
     ) {
     }
 
@@ -82,10 +88,56 @@ class CustomerCreditService
                 $today,
                 $missing
             ),
-            onHold: $overdue->isNotEmpty() && $oldest >= $this->holdDays($company),
+            onHold: $this->isOnHold($overdue, self::holdDaysFor($company), $today),
             exposureComplete: $missing === [],
             missingRates: array_values(array_unique($missing)),
         );
+    }
+
+    /**
+     * Two orders of one customer confirmed at the same moment would each see the limit without the other, so a
+     * decision that commits credit runs alone per customer. A second one waits a few seconds, then is refused.
+     *
+     * @template TResult
+     *
+     * @param Closure(): TResult $decision
+     *
+     * @return TResult
+     */
+    public function oneDecisionAtATime(Organization $customer, Closure $decision): mixed
+    {
+        $lock = Cache::lock(
+            "scribe-credit:{$customer->apps_id}:{$customer->companies_id}:{$customer->getId()}",
+            self::DECISION_LOCK_SECONDS
+        );
+
+        // Not Lock::block(): it times its wait with now(), so under a frozen clock it never gives up.
+        $giveUpAt = hrtime(true) + $this->decisionWaitSeconds * 1_000_000_000;
+
+        while (! $lock->get()) {
+            if (hrtime(true) >= $giveUpAt) {
+                throw new ValidationException(
+                    'Another order of this customer is being confirmed right now. Try again in a moment.'
+                );
+            }
+
+            usleep(self::DECISION_RETRY_MICROSECONDS);
+        }
+
+        try {
+            return $decision();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * The first day, counted from day 0 of the term, on which an unpaid invoice holds the customer: the hold days,
+     * but never before the invoice is overdue.
+     */
+    public static function firstHoldDay(int $holdDays, int $paymentTermsDays): int
+    {
+        return max($holdDays, $paymentTermsDays + 1);
     }
 
     /**
@@ -175,11 +227,40 @@ class CustomerCreditService
                 InvoiceDocumentStatusEnum::SENT->value,
             ])
             ->where('balance_due_native', '>', 0)
-            ->get(['currency', 'balance_due_native', 'due_date']);
+            ->get(['id', 'currency', 'balance_due_native', 'issued_date', 'due_date']);
     }
 
     /**
-     * Confirmed or accepted orders that have no invoice yet; once invoiced, the invoice carries the amount.
+     * The hold counts from day 0 of the payment term, the same day the collection plan counts from: the bill of
+     * lading date when the invoice belongs to a shipped order, the invoice date otherwise. An invoice that is not
+     * overdue yet never holds a customer, however long its term.
+     *
+     * @param Collection<int, Invoice> $overdue
+     */
+    private function isOnHold(Collection $overdue, int $holdDays, Carbon $today): bool
+    {
+        if ($overdue->isEmpty()) {
+            return false;
+        }
+
+        $billOfLadingDates = SalesOrderShipment::query()
+            ->join('sales_orders', 'sales_orders.id', '=', 'sales_order_shipments.sales_order_id')
+            ->whereIn('sales_orders.invoice_id', $overdue->pluck('id'))
+            ->pluck('sales_order_shipments.bl_date', 'sales_orders.invoice_id');
+
+        return $overdue->contains(static function (Invoice $invoice) use ($billOfLadingDates, $holdDays, $today): bool {
+            $billOfLading = $billOfLadingDates[$invoice->id] ?? null;
+            $termStart = $billOfLading !== null
+                ? Carbon::parse($billOfLading)
+                : ($invoice->issued_date ?? $invoice->due_date);
+
+            return abs($termStart->copy()->startOfDay()->diffInDays($today)) >= $holdDays;
+        });
+    }
+
+    /**
+     * Orders the company is committed to whose amount no invoice carries yet: no invoice at all, or one that is
+     * still a draft or was voided. Once the invoice is issued its balance carries the amount instead.
      *
      * @return Collection<int, SalesOrder>
      */
@@ -197,8 +278,23 @@ class CustomerCreditService
             ->whereIn('document_status', [
                 SalesOrderStatusEnum::CONFIRMED->value,
                 SalesOrderStatusEnum::ACCEPTED->value,
+                SalesOrderStatusEnum::SHIPPED->value,
+                SalesOrderStatusEnum::DELIVERED->value,
             ])
-            ->whereNull('invoice_id')
+            ->where(
+                static fn ($uninvoiced) => $uninvoiced
+                    ->whereNull('invoice_id')
+                    ->orWhereHas(
+                        'invoice',
+                        static fn ($invoice) => $invoice->whereNotIn(
+                            'document_status',
+                            array_map(
+                                static fn (InvoiceDocumentStatusEnum $status): string => $status->value,
+                                InvoiceDocumentStatusEnum::effective()
+                            )
+                        )
+                    )
+            )
             ->when($excluding !== null, static fn ($query) => $query->where('id', '!=', $excluding->getId()))
             ->get(['currency', 'order_total']);
     }
@@ -256,7 +352,7 @@ class CustomerCreditService
     /**
      * Zero is a real setting (hold on any overdue invoice), so only an unset value falls back to the default.
      */
-    private function holdDays(Companies $company): int
+    public static function holdDaysFor(Companies $company): int
     {
         $days = $company->get(CreditConfigurationEnum::CREDIT_HOLD_DAYS->value);
 

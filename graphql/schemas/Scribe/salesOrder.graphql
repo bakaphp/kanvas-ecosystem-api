@@ -49,11 +49,11 @@ type ScribeCustomerCredit {
     overdue_balance: Float
     overdue_invoices: Int!
     oldest_overdue_days: Int!
-    "Confirmed or accepted orders that have no invoice yet."
+    "Orders confirmed, accepted, shipped or delivered whose amount no issued invoice carries yet."
     committed_orders: Float
     "The limit minus the open balance and the committed orders; empty without a limit or while a rate is missing."
     available: Float
-    "An invoice is overdue past the hold days: the customer's new orders are not confirmed or released."
+    "An overdue invoice is past the hold days, counted from its bill of lading or invoice date: the customer's new orders are not confirmed or released."
     on_hold: Boolean!
     "False when an amount could not be converted for lack of a published rate."
     exposure_complete: Boolean!
@@ -186,6 +186,8 @@ input ScribeCustomerPoInput {
 
 "Only what is sent changes; sending lines replaces all of them."
 input UpdateScribeSalesOrderInput {
+    "The quote to review the order against, when it has none or the wrong one. It has to be this customer's."
+    quote_id: ID
     customer_po_number: String
     customer_po_date: Date
     currency: String
@@ -321,7 +323,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesOrders\\SalesOrderMutation@checkDocuments"
         )
-    "Records the bill of lading of an accepted order. The invoice falls due the payment term after the bill of lading date."
+    "Records the bill of lading of an accepted order. Its invoice has to be issued, not a draft, and falls due the payment term after the bill of lading date."
     recordScribeShipment(
         id: ID!
         bl_number: String!
