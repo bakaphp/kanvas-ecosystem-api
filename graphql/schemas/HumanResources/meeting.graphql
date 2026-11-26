@@ -1,0 +1,189 @@
+enum MeetingStatus {
+    AWAITING_UPLOAD @enum(value: "awaiting_upload")
+    UPLOADED @enum(value: "uploaded")
+    TRANSCRIBING @enum(value: "transcribing")
+    COMPLETED @enum(value: "completed")
+    FAILED @enum(value: "failed")
+}
+
+enum MeetingTranscriptStatus {
+    PENDING @enum(value: "pending")
+    PROCESSING @enum(value: "processing")
+    COMPLETED @enum(value: "completed")
+    FAILED @enum(value: "failed")
+}
+
+enum MeetingNoteKind {
+    MANUAL @enum(value: "manual")
+    ENHANCED @enum(value: "enhanced")
+}
+
+type Meeting {
+    id: ID!
+    uuid: String!
+    title: String!
+    status: MeetingStatus!
+    started_at: DateTime
+    ended_at: DateTime
+    user: User! @belongsTo(relation: "user")
+    company: Company! @belongsTo(relation: "company")
+    people: People @belongsTo(relation: "people")
+    recording: MeetingRecording @hasOne(relation: "recording")
+    transcripts: [MeetingTranscript!]! @hasMany(relation: "transcripts")
+    latest_transcript: MeetingTranscript @hasOne(relation: "latestTranscript")
+    notes: [MeetingNote!]! @hasMany(relation: "notes")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+# Where the audio is stored (disk and key) stays server-side.
+type MeetingRecording {
+    id: ID!
+    mime_type: String!
+    # Float because a GraphQL Int is 32-bit and a long recording passes 2 GB.
+    size_bytes: Float!
+    sha256: String!
+    duration_ms: Float
+    channel_map: Mixed
+    uploaded_at: DateTime!
+    purged_at: DateTime
+    meeting: Meeting! @belongsTo(relation: "meeting")
+}
+
+type MeetingTranscript {
+    id: ID!
+    version: Int!
+    provider: String!
+    model: String!
+    provider_job_id: String
+    status: MeetingTranscriptStatus!
+    error_code: String
+    meeting: Meeting! @belongsTo(relation: "meeting")
+    speakers: [MeetingTranscriptSpeaker!]! @hasMany(relation: "speakers")
+    segments: [MeetingTranscriptSegment!]!
+        @hasMany(relation: "segments", type: PAGINATOR, defaultCount: 100)
+    created_at: DateTime!
+    updated_at: DateTime!
+    completed_at: DateTime
+}
+
+type MeetingTranscriptSpeaker {
+    id: ID!
+    source_key: String!
+    provider_label: String!
+    display_name: String
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type MeetingTranscriptSegment {
+    id: ID!
+    position: Int!
+    start_ms: Float
+    end_ms: Float
+    channel: Int
+    text: String!
+    speaker: MeetingTranscriptSpeaker @belongsTo(relation: "speaker")
+}
+
+type MeetingNote {
+    id: ID!
+    kind: MeetingNoteKind!
+    body: String!
+    transcript: MeetingTranscript @belongsTo(relation: "transcript")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input MeetingInput {
+    uuid: String! @rules(apply: ["uuid"])
+    title: String! @rules(apply: ["max:255"])
+    started_at: DateTime
+    ended_at: DateTime
+    people_id: ID
+}
+
+input UpdateMeetingInput {
+    title: String @rules(apply: ["max:255"])
+    started_at: DateTime
+    ended_at: DateTime
+    # Sent as null it unassigns the person; left out it keeps the one assigned.
+    people_id: ID
+}
+
+# The server stores the file and mints its storage key; the size is read from the file itself.
+input MeetingRecordingUploadInput {
+    mime_type: String! @rules(apply: ["in:audio/webm"])
+    sha256: String! @rules(apply: ["regex:/^[A-Fa-f0-9]{64}$/"])
+    duration_ms: Float @rules(apply: ["integer", "min:0"])
+    channel_map: Mixed
+}
+
+input MeetingTranscriptInput {
+    provider: String! @rules(apply: ["max:64"])
+    model: String! @rules(apply: ["max:128"])
+    provider_job_id: String @rules(apply: ["max:255"])
+}
+
+input MeetingTranscriptStatusInput {
+    status: MeetingTranscriptStatus!
+    error_code: String @rules(apply: ["max:64"])
+    provider_job_id: String @rules(apply: ["max:255"])
+}
+
+input MeetingTranscriptSegmentInput {
+    # 16000 characters always fit the TEXT column, whatever the bytes per character.
+    text: String! @rules(apply: ["max:16000"])
+    speaker_label: String @rules(apply: ["max:64"])
+    source_key: String @rules(apply: ["max:64"])
+    start_ms: Float @rules(apply: ["integer", "min:0"])
+    end_ms: Float @rules(apply: ["integer", "min:0"])
+    channel: Int @rules(apply: ["integer", "between:0,32767"])
+}
+
+input MeetingNoteInput {
+    kind: MeetingNoteKind
+    body: String!
+    transcript_id: ID
+}
+
+extend type Mutation @guard {
+    createMeeting(input: MeetingInput!): Meeting!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingMutation@create")
+    updateMeeting(id: ID!, input: UpdateMeetingInput!): Meeting!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingMutation@update")
+    uploadMeetingRecording(
+        meeting_id: ID!
+        # 512 MB, the request size Octane accepts (config/octane.php package_max_length).
+        file: Upload! @rules(apply: ["file", "max:524288"])
+        input: MeetingRecordingUploadInput!
+    ): MeetingRecording!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingMutation@uploadRecording")
+    createMeetingTranscript(meeting_id: ID!, input: MeetingTranscriptInput!): MeetingTranscript!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingTranscriptMutation@create")
+    updateMeetingTranscriptStatus(id: ID!, input: MeetingTranscriptStatusInput!): MeetingTranscript!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingTranscriptMutation@updateStatus")
+    storeMeetingTranscriptSegments(id: ID!, segments: [MeetingTranscriptSegmentInput!]!): MeetingTranscript!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingTranscriptMutation@storeSegments")
+    updateMeetingTranscriptSpeaker(id: ID!, display_name: String @rules(apply: ["max:255"])): MeetingTranscriptSpeaker!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingTranscriptMutation@updateSpeaker")
+    saveMeetingNote(meeting_id: ID!, input: MeetingNoteInput!): MeetingNote!
+        @field(resolver: "App\\GraphQL\\HumanResources\\Mutations\\Meeting\\MeetingNoteMutation@save")
+}
+
+extend type Query @guard {
+    meetings(
+        where: _ @whereConditions(columns: ["id", "uuid", "title", "status", "started_at", "people_id"])
+        orderBy: _ @orderBy(columns: ["id", "started_at", "created_at", "updated_at"])
+    ): [Meeting!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Meetings\\Models\\Meeting"
+            scopes: ["fromApp", "fromCompany", "fromUser"]
+            defaultCount: 25
+        )
+    meetingTranscriptSegments(transcript_id: ID!): [MeetingTranscriptSegment!]!
+        @paginate(
+            builder: "App\\GraphQL\\HumanResources\\Queries\\Meeting\\MeetingTranscriptQuery@segments"
+            defaultCount: 100
+        )
+}
