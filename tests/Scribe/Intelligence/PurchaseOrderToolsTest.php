@@ -52,7 +52,8 @@ class PurchaseOrderToolsTest extends ScribeTestCase
         $found = $this->findTool()->__invoke(order_number: $created['order_number']);
         $this->assertSame('draft', $found['status']);
 
-        $cancelled = $this->cancelTool()->__invoke(order_number: $created['order_number'], reason: 'Not needed');
+        $cancelled = $this->cancelTool()
+            ->__invoke(order_number: $created['order_number'], reason: 'Not needed');
 
         $this->assertTrue($cancelled['cancelled']);
         $this->assertSame('cancelled', $cancelled['document_status']);
@@ -61,8 +62,10 @@ class PurchaseOrderToolsTest extends ScribeTestCase
     public function test_a_cancelled_order_is_no_longer_listed_as_open(): void
     {
         $vendor = $this->seedTestOrganization('Listed Vendor');
-        $open = $this->createTool()->__invoke($vendor->getId(), 'USD', [['description' => 'Kept', 'quantity' => 1, 'unit_cost' => 5]]);
-        $gone = $this->createTool()->__invoke($vendor->getId(), 'USD', [['description' => 'Dropped', 'quantity' => 1, 'unit_cost' => 5]]);
+        $open = $this->createTool()
+            ->__invoke($vendor->getId(), 'USD', [['description' => 'Kept', 'quantity' => 1, 'unit_cost' => 5]]);
+        $gone = $this->createTool()
+            ->__invoke($vendor->getId(), 'USD', [['description' => 'Dropped', 'quantity' => 1, 'unit_cost' => 5]]);
         $this->cancelTool()->__invoke(order_number: $gone['order_number']);
 
         $listed = collect($this->listTool()->__invoke(vendor_organization_id: $vendor->getId())['purchase_orders'])
@@ -101,14 +104,18 @@ class PurchaseOrderToolsTest extends ScribeTestCase
 
     public function test_an_unknown_order_number_is_reported(): void
     {
-        $this->assertSame('purchase_order_not_found', $this->updateTool()->__invoke(order_number: 'PO-999999999')['reason']);
-        $this->assertSame('purchase_order_not_found', $this->cancelTool()->__invoke(order_number: 'PO-999999999')['reason']);
+        $updated = $this->updateTool()->__invoke(order_number: 'PO-999999999');
+        $cancelled = $this->cancelTool()->__invoke(order_number: 'PO-999999999');
+
+        $this->assertSame('purchase_order_not_found', $updated['reason']);
+        $this->assertSame('purchase_order_not_found', $cancelled['reason']);
     }
 
     public function test_an_order_that_cannot_be_edited_says_why(): void
     {
         $vendor = $this->seedTestOrganization('Locked Tool Vendor');
-        $order = $this->createTool()->__invoke($vendor->getId(), 'USD', [['description' => 'Item', 'quantity' => 1, 'unit_cost' => 5]]);
+        $order = $this->createTool()
+            ->__invoke($vendor->getId(), 'USD', [['description' => 'Item', 'quantity' => 1, 'unit_cost' => 5]]);
         $this->cancelTool()->__invoke(order_number: $order['order_number']);
 
         $result = $this->updateTool()->__invoke(order_number: $order['order_number'], notes: 'Too late');
@@ -182,26 +189,31 @@ class PurchaseOrderToolsTest extends ScribeTestCase
 
     private function createTool(): CreatePurchaseOrderTool
     {
-        return new CreatePurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        return new CreatePurchaseOrderTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser);
     }
 
     private function updateTool(): UpdatePurchaseOrderTool
     {
-        return new UpdatePurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        return new UpdatePurchaseOrderTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser);
     }
 
     private function cancelTool(): CancelPurchaseOrderTool
     {
-        return new CancelPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        return new CancelPurchaseOrderTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser);
     }
 
     private function findTool(): FindPurchaseOrderTool
     {
-        return new FindPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        return new FindPurchaseOrderTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser);
     }
 
     private function listTool(): ListOpenPurchaseOrdersTool
     {
-        return new ListOpenPurchaseOrdersTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        return new ListOpenPurchaseOrdersTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser);
     }
 }

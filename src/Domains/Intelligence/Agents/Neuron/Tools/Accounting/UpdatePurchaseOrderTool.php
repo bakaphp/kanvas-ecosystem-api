@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DescribesPurchaseOrderLines;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsPurchaseOrderByNumber;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\DescribesPurchaseOrderLines;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\FindsPurchaseOrderByNumber;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Purchasing\Actions\UpdatePurchaseOrderAction;
 use Kanvas\Scribe\Purchasing\DataTransferObject\PurchaseOrder as PurchaseOrderData;
@@ -64,7 +64,7 @@ class UpdatePurchaseOrderTool extends Tool
             ),
             new ToolProperty(
                 name: 'vendor_organization_id',
-                type: PropertyType::NUMBER,
+                type: PropertyType::INTEGER,
                 description: 'Move the order to another vendor (find_vendor returns the id).',
                 required: false,
             ),

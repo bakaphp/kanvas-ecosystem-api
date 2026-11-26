@@ -24,7 +24,7 @@ class PurchaseOrderMutation
         $ctx = $this->actingContext();
 
         return new CreatePurchaseOrderAction(
-            PurchaseOrderData::fromMultiple(
+            PurchaseOrderData::from(
                 $ctx->app,
                 $ctx->user,
                 $ctx->company,
