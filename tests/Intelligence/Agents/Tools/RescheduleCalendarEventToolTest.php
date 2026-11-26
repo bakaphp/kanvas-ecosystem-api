@@ -261,12 +261,15 @@ class RescheduleCalendarEventToolTest extends TestCase
     }
 
     /**
-     * `US/Central` is a zone PHP accepts and the booking tool books in, but not a canonical IANA name,
-     * so the schedule resolver rejects it. Falling back to Santo Domingo here reads 4:00 PM for a 3 PM call.
+     * `EST` is a zone PHP accepts and the booking tool books in, but not a canonical IANA name, so the
+     * schedule resolver rejects it. Falling back to Santo Domingo here reads 4:00 PM for a 3 PM call.
+     *
+     * Not `US/Central`: legacy link names only exist when the PHP build's tzdata ships them, and CI's
+     * does not.
      */
-    public function testEmailUsesACompanyTimezoneSavedUnderItsLegacyName(): void
+    public function testEmailUsesACompanyTimezoneOutsideTheCanonicalList(): void
     {
-        [, , $lead] = $this->bootstrap(timezone: 'US/Central');
+        [, , $lead] = $this->bootstrap(timezone: 'EST');
         $lead->email = 'prospect-' . uniqid() . '@example.com';
         $lead->saveQuietly();
 
@@ -280,7 +283,7 @@ class RescheduleCalendarEventToolTest extends TestCase
 
                 return $data['start_time'] === '3:00 PM'
                     && $data['end_time'] === '3:15 PM'
-                    && $data['timezone'] === 'US/Central';
+                    && $data['timezone'] === 'EST';
             }
         );
     }
