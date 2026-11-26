@@ -45,12 +45,16 @@ enum FactoryProjectSettingEnum: string
     /**
      * The Learn agent reads Amplitude and Sentry through its own tools in Kanvas, so it is an agent of the
      * project's tenant that does NOT work on the Mac: a factory agent has no data tools, only a checkout.
+     * It also has to be able to take a task at all: `WakeAgentForTaskJob` drops one given to a machine
+     * runtime or a CRM-type agent without a word, and the Learn would sit open for good.
      */
     public static function learnAgentFor(Project $project): ?Agent
     {
         $agent = self::LEARN_AGENT->activeAgentOf($project);
 
-        return $agent !== null && ! CodingChatSettingEnum::isEnabledFor($agent) ? $agent : null;
+        return $agent !== null && ! CodingChatSettingEnum::isEnabledFor($agent) && $agent->canExecuteBoardWork()
+            ? $agent
+            : null;
     }
 
     /** A custom field is free text, so it is quoted into the task with its directives defused. */

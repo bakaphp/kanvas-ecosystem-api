@@ -28,6 +28,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
@@ -662,11 +663,10 @@ final class FactoryStageTest extends TestCase
     {
         Queue::fake();
         [$project] = $this->factoryProject();
-        $foreign = $this->makeAgent();
-        $foreign->update(['is_active' => true]);
+        $foreign = $this->kanvasAgent();
         $foreign->companies_id = Companies::factory()->create()->getId();
         $foreign->saveQuietly();
-        $inactive = $this->makeAgent();
+        $inactive = $this->kanvasAgent();
         $inactive->update(['is_active' => false]);
         $results = [];
 
@@ -679,6 +679,23 @@ final class FactoryStageTest extends TestCase
             $this->assertFalse($result['success']);
             $this->assertStringContainsString(FactoryProjectSettingEnum::LEARN_AGENT->value, json_encode($result));
         }
+        Queue::assertNotPushed(WakeAgentForTaskJob::class);
+    }
+
+    /** `WakeAgentForTaskJob` drops a task given to such an agent without a word, and the Learn sat open for good. */
+    public function testALearnAgentThatCannotTakeBoardWorkIsRefusedInsteadOfStartedAndDropped(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $crmType = $this->makeAgent();
+        $crmType->update(['is_active' => true]);
+        $project->set(FactoryProjectSettingEnum::LEARN_AGENT->value, $crmType->getId());
+
+        $result = $this->learn()($project->getId(), 'example-app');
+
+        $this->assertFalse($crmType->canExecuteBoardWork());
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString(FactoryProjectSettingEnum::LEARN_AGENT->value, json_encode($result));
         Queue::assertNotPushed(WakeAgentForTaskJob::class);
     }
 
@@ -697,7 +714,117 @@ final class FactoryStageTest extends TestCase
             fn (WakeAgentForProjectJob $job): bool => $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
                 && str_contains((string) $job->triggerMessage, 'start_factory_ticket')
                 && str_contains((string) $job->triggerMessage, trim(FactoryStage::IMPROVEMENT_HEADING))
+                // read_plan_activity cuts the middle out of a long result, and the improvements are the tickets.
+                && str_contains(
+                    (string) $job->triggerMessage,
+                    'result of task ' . $read->getId() . ', with get_nervous_system_task'
+                )
         );
+    }
+
+    /** "Learn: …" is a title anyone types, and the Learn fact starts tickets and a release without asking. */
+    public function testAPlanThatIsOnlyTitledLikeALearnStartsNoTickets(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $plan = $this->makePlan(['title' => 'Learn: customer interview takeaways']);
+        $plan->project_id = $project->getId();
+        $plan->created_by_agent_id = $this->orchestrator->getId();
+        $plan->saveOrFail();
+        $task = $this->makeTask($plan);
+
+        new UpdateTaskStatusAction($task, TaskStatusEnum::DONE)->execute();
+
+        Queue::assertPushed(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => str_contains(
+                (string) $job->triggerMessage,
+                'Every task on plan ' . $plan->getId()
+            ) && ! str_contains((string) $job->triggerMessage, 'start_factory_ticket')
+        );
+    }
+
+    /**
+     * A board turn posts its reply on the project channel and wakes the orchestrator at the status change,
+     * before the reply exists: the improvements were nowhere the orchestrator was told to read.
+     */
+    public function testTheLearnStepRunsAsAWorkerSoItsAnswerIsItsResult(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+        $result = $this->learn()($project->getId(), 'example-app');
+        [$read] = $this->stepsOf((int) $result['plan_id']);
+
+        new WakeAgentForTaskJob($read)->handle();
+
+        Queue::assertPushed(RunTaskWorkerJob::class, fn (RunTaskWorkerJob $job): bool => $job->task->is($read));
+
+        Queue::fake();
+        new UpdateTaskStatusAction($read, TaskStatusEnum::IN_PROGRESS, fromSync: true)->execute();
+        new WakeAgentForTaskJob($read->refresh())->handle();
+
+        Queue::assertNotPushed(RunTaskWorkerJob::class, null, 'a Learn already running is not paid for twice');
+    }
+
+    public function testALearnAnswerIsKeptWholeWhereAnotherWorkersIsCut(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+        $result = $this->learn()($project->getId(), 'example-app');
+        [$read] = $this->stepsOf((int) $result['plan_id']);
+        $other = $this->makeTask($this->makePlan());
+        $answer = FactoryStage::IMPROVEMENT_HEADING . '1: first snap' . str_repeat(' evidence', 800);
+
+        foreach ([$read, $other] as $task) {
+            $job = new RunTaskWorkerJob($task);
+            new ReflectionMethod($job, 'markDone')->invoke($job, $answer);
+        }
+
+        $this->assertSame($answer, $read->refresh()->result['worker_summary']);
+        $this->assertLessThan(strlen($answer), strlen($other->refresh()->result['worker_summary']));
+    }
+
+    /** The Learn plan has no owner, so a step that blocked or threw woke nobody and the plan stayed open for good. */
+    public function testALearnStepThatBlocksIsToldToTheOrchestrator(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+        $result = $this->learn()($project->getId(), 'example-app');
+        $plan = Plan::getById((int) $result['plan_id']);
+        [$read] = $this->stepsOf($plan->getId());
+        $job = new RunTaskWorkerJob($read);
+
+        new ReflectionMethod($job, 'markBlocked')->invoke($job, 'BLOCKED: the Amplitude tool answered 401.');
+        new ReflectionMethod($job, 'wakeOrchestratorIfUnbatched')->invoke($job);
+        $wake = collect(Queue::pushed(WakeAgentForPlanJob::class))->sole();
+        Queue::fake();
+        $wake->handle();
+
+        $this->assertNull($plan->agent_id);
+        Queue::assertPushed(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->wakeAgent?->is($this->orchestrator)
+                && str_contains((string) $job->triggerMessage, 'is now blocked')
+                && ! str_contains((string) $job->triggerMessage, 'worked by')
+        );
+    }
+
+    /** Only a step's outcome: a comment on a plan nobody owns is not the creator's to answer. */
+    public function testAnyOtherWakeOnAPlanWithNoOwnerStillWakesNobody(): void
+    {
+        Queue::fake();
+        [$project] = $this->factoryProject();
+        $this->learnAgent($project);
+        $result = $this->learn()($project->getId(), 'example-app');
+        $plan = Plan::getById((int) $result['plan_id']);
+        Queue::fake();
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_COMMENT, 'How is it going?')->handle();
+
+        Queue::assertNothingPushed();
     }
 
     public function testStartingTheSameLearnAgainReturnsTheOneOnTheBoard(): void
@@ -815,11 +942,20 @@ final class FactoryStageTest extends TestCase
 
     private function learnAgent(Project $project): Agent
     {
-        $agent = $this->makeAgent();
-        $agent->update(['is_active' => true]);
+        $agent = $this->kanvasAgent();
         $project->set(FactoryProjectSettingEnum::LEARN_AGENT->value, $agent->getId());
 
         return $agent;
+    }
+
+    /** Active and on a handler that takes board work (`Agent::canExecuteBoardWork()`), which `makeAgent()` is not. */
+    private function kanvasAgent(): Agent
+    {
+        $agent = $this->makeAgent();
+        $agent->update(['is_active' => true]);
+        $agent->type->update(['handler' => ProjectManagerAgent::class]);
+
+        return $agent->refresh();
     }
 
     private function learn(): StartFactoryLearnTool

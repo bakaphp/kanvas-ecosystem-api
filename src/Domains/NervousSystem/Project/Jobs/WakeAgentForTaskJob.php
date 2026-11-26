@@ -12,10 +12,12 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\ClaudeAgent\Actions\StartHostedTaskSessionAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
@@ -99,6 +101,17 @@ class WakeAgentForTaskJob implements ShouldQueue
 
         if ($agent->isHostedRuntime()) {
             $this->startHostedRun($agent, $project);
+
+            return;
+        }
+
+        // A board turn posts its reply on the project channel and wakes the orchestrator when the agent
+        // flips the status, before that reply exists. The worker saves the reply as the task's result and
+        // only then closes it, and a turn that throws blocks the task instead of leaving it pending.
+        if (FactoryStage::isLearnStep($this->task)) {
+            if ($this->task->status === TaskStatusEnum::PENDING->value) {
+                RunTaskWorkerJob::dispatch($this->task);
+            }
 
             return;
         }

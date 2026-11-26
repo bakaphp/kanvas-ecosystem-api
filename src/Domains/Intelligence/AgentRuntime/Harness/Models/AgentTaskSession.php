@@ -232,9 +232,6 @@ class AgentTaskSession extends BaseModel
         return $this->launch_stage === null ? null : LaunchStageEnum::tryFrom($this->launch_stage);
     }
 
-    /**
-     * Saved quietly: a stage change is progress, not an outcome, and nothing should fire on it.
-     */
     public function launchStaleMinutes(): int
     {
         return $this->launchStage()?->staleMinutes(self::STALE_MINUTES) ?? self::STALE_MINUTES;
@@ -248,6 +245,9 @@ class AgentTaskSession extends BaseModel
         return $lastSeen !== null && $lastSeen->gte(Carbon::now()->subMinutes($minutes));
     }
 
+    /**
+     * Saved quietly: a stage change is progress, not an outcome, and nothing should fire on it.
+     */
     public function markLaunchStage(?LaunchStageEnum $stage): void
     {
         $this->launch_stage = $stage?->value;

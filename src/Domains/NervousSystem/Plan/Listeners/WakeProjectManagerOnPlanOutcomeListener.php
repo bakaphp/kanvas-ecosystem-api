@@ -188,20 +188,22 @@ class WakeProjectManagerOnPlanOutcomeListener
      */
     private function nextFactoryStage(Plan $plan): string
     {
-        if (FactoryStage::isLearn($plan)) {
-            return ' This was the app\'s Learn stage. Right away, without asking anyone: read its answer with '
-                . 'read_plan_activity, then start each "' . trim(FactoryStage::IMPROVEMENT_HEADING) . '" it lists '
-                . 'with start_factory_ticket, in its order and one at a time, numbered after the app\'s last '
-                . 'ticket, with the improvement\'s whole text as the ticket and has_screens from its "Has screens" '
-                . 'line; after the last, call start_factory_release. Pass every "## Reading" and "Needs a person" '
-                . 'line to the person. "No improvement" ends the round: say so and start nothing.';
+        $steps = $plan->tasks()->whereNull('parent_task_id')->get();
+        $learn = $steps->first(fn (Task $task): bool => FactoryStage::isLearnStep($task));
+
+        // The whole answer is on the task: read_plan_activity cuts the middle out of a long result, and
+        // the improvements become the tickets word for word.
+        if ($learn !== null) {
+            return ' This was the app\'s Learn stage. Right away, without asking anyone: read its whole answer, the '
+                . 'result of task ' . $learn->getId() . ', with get_nervous_system_task, then start each "'
+                . trim(FactoryStage::IMPROVEMENT_HEADING) . '" it lists with start_factory_ticket, in its order and '
+                . 'one at a time, numbered after the app\'s last ticket, with the improvement\'s whole text as the '
+                . 'ticket and has_screens from its "Has screens" line; after the last, call start_factory_release. '
+                . 'Pass every "## Reading" and "Needs a person" line to the person. "No improvement" ends the round: '
+                . 'say so and start nothing.';
         }
 
-        $landed = $plan->tasks()->whereNull('parent_task_id')->get()->contains(
-            fn (Task $task): bool => FactoryStage::landsOnIntegration($task->fullText())
-        );
-
-        if (! $landed) {
+        if (! $steps->contains(fn (Task $task): bool => FactoryStage::landsOnIntegration($task->fullText()))) {
             return '';
         }
 

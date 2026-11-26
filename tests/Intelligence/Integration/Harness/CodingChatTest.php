@@ -53,6 +53,7 @@ use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
@@ -65,6 +66,7 @@ use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Users\Models\Users;
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use RuntimeException;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
@@ -1315,24 +1317,58 @@ class CodingChatTest extends TestCase
         Queue::assertNotPushed(WakeAgentForProjectJob::class);
     }
 
-    public function testAnApprovedPlanOfAFactoryAgentWithNoMessageIsSkippedAndRecorded(): void
+    /** Held for sign-off, its tasks cannot run when it is assigned, and the approval is the only wake after. */
+    public function testApprovingAPlanOfAFactoryAgentHandsItsPendingTasksToTheFactory(): void
     {
         Queue::fake();
         $builder = $this->factoryAgent();
         $plan = $this->planAFactoryAgentOwns($builder);
+        $pending = $plan->tasks()->sole();
 
         new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_APPROVED)->handle();
 
+        Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($pending));
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+        $this->assertTrue(
+            Event::query()
+                ->where('event_type', 'plan.agent.handed_to_factory')
+                ->where('source_entity_id', $plan->getId())
+                ->exists()
+        );
+    }
+
+    #[DataProvider('plansThatTakeNoWork')]
+    public function testAPlanThatCannotRunHandsNothingToTheFactoryAndRecordsTheSkip(PlanStatusEnum $status): void
+    {
+        Queue::fake();
+        $builder = $this->factoryAgent();
+        $plan = $this->planAFactoryAgentOwns($builder);
+        $plan->status = $status->value;
+        $plan->saveQuietly();
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_PLAN_ASSIGNED)->handle();
+
         Queue::assertNotPushed(WakeAgentForProjectJob::class);
         Queue::assertNotPushed(WakeAgentForTaskJob::class);
-        Queue::assertNotPushed(LaunchCodingChatJob::class);
         $skipped = Event::query()
             ->where('event_type', 'plan.agent.wake_skipped')
             ->where('source_entity_id', $plan->getId())
             ->first();
         $this->assertNotNull($skipped, 'a skip that told nobody is still on the ledger');
-        $this->assertSame(WakeAgentForPlanJob::REASON_APPROVED, $skipped->payload['reason']);
+        $this->assertSame(WakeAgentForPlanJob::REASON_PLAN_ASSIGNED, $skipped->payload['reason']);
         $this->assertFalse($skipped->payload['forwarded_to_creator']);
+    }
+
+    /**
+     * @return array<string, array{0: PlanStatusEnum}>
+     */
+    public static function plansThatTakeNoWork(): array
+    {
+        return [
+            'waiting on sign-off' => [PlanStatusEnum::AWAITING_APPROVAL],
+            'already done' => [PlanStatusEnum::DONE],
+            'cancelled' => [PlanStatusEnum::CANCELLED],
+        ];
     }
 
     /**

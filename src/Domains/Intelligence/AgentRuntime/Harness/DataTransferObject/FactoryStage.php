@@ -10,7 +10,6 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\FactoryProjectSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Support\TaskDirectives;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Models\Project;
 
@@ -32,6 +31,9 @@ final readonly class FactoryStage
     private const string RELEASE_TITLE = 'Release: ';
 
     private const string LEARN_TITLE = 'Learn: ';
+
+    /** How the Learn step's text starts: what tells that step apart, since anyone can title a plan "Learn: …". */
+    private const string LEARN_OPENING = 'Learn & improve: what should ';
 
     /** How each improvement starts in the Learn agent's answer, so the orchestrator can count them. */
     public const string IMPROVEMENT_HEADING = '## Improvement ';
@@ -356,7 +358,7 @@ final readonly class FactoryStage
         $date = now()->toDateString();
 
         $text = implode("\n", array_filter([
-            'Learn & improve: what should ' . $repository . ' improve next, judged from what its users do and the '
+            self::LEARN_OPENING . $repository . ' improve next, judged from what its users do and the '
                 . 'errors they hit in production. You read and decide; the orchestrator builds what you name.',
             '',
             'Sources (read only: never change a flag, an issue or any data):',
@@ -403,8 +405,9 @@ final readonly class FactoryStage
                 . 'answer exactly "No improvement: <why, and what data would change that>".',
             '',
             'Never create, assign, approve or merge anything: the orchestrator turns each improvement into a ticket. '
-                . 'Every number must come from a tool call you made in this task; write "unknown" for anything you '
-                . 'could not fetch.',
+                . 'Leave this task\'s status alone too: your answer is saved as its result and closes it. Every '
+                . 'number must come from a tool call you made in this task; write "unknown" for anything you could '
+                . 'not fetch.',
         ], fn (?string $line): bool => $line !== null));
 
         return new self(
@@ -416,10 +419,13 @@ final readonly class FactoryStage
         );
     }
 
-    /** A finished Learn tells the orchestrator to start its improvements, not the next planned ticket. */
-    public static function isLearn(Plan $plan): bool
+    /**
+     * Told by the text `learn()` wrote, never by the plan's title: the orchestrator is told to start tickets
+     * and a release from this step's answer without asking anyone, and "Learn: …" is a title anyone types.
+     */
+    public static function isLearnStep(Task $task): bool
     {
-        return str_starts_with((string) $plan->title, self::LEARN_TITLE);
+        return $task->parent_task_id === null && str_starts_with((string) $task->description, self::LEARN_OPENING);
     }
 
     /**

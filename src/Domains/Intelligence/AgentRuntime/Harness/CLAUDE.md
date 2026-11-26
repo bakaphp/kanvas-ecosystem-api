@@ -207,8 +207,12 @@ workflow handed the agent a task (`RunTaskWorkerJob`, `WakeAgentForTaskJob`), th
 child, and its first turn closes it — the reply becomes `worker_summary`, the child's outcome resumes the
 worker, which closes the task from that answer instead of running the factory again. **Plan-owner wakes never
 reach the factory either** (see the bullet on factory-owned plans below): a fact goes to the plan's creator,
-and an assignment (`plan_assigned`) hands the plan's pending tasks to `WakeAgentForTaskJob`, ledger
-`plan.agent.handed_to_factory`; every other wake is recorded as `plan.agent.wake_skipped`. Other paths (`VerifyPlanAction`, receivers, "run agent on record") are not
+and an assignment or an approval (`plan_assigned`, `approved`) hands the pending tasks of a plan that can
+run (open, not held for a brief or a sign-off) to `WakeAgentForTaskJob`, ledger
+`plan.agent.handed_to_factory`; every other wake is recorded as `plan.agent.wake_skipped`. The unassigned
+tasks are claimed in one conditional `UPDATE`, never read and then saved: a stage plan gets its owner before
+`StartFactoryStageAction` has handed each step to its own agent, and a save after a stale read put the
+designer on the builder's step. Other paths (`VerifyPlanAction`, receivers, "run agent on record") are not
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
@@ -307,6 +311,18 @@ Things that bite:
   (improvements skip the go/no-go gate) and then `start_factory_release`; the next Learn reads what they
   did. Starting it while one is open returns the open one. Its plan has no owning agent (a plan owner that
   is not a factory agent is woken on the plan on top of its task), so only the task wake runs the Learn agent.
+  - **The step runs as a worker, not a board turn** (`WakeAgentForTaskJob` → `RunTaskWorkerJob`). A board
+    turn posts its reply on the project channel and wakes the orchestrator when the agent flips the status,
+    before that reply exists; the worker saves the reply as the task's `worker_summary`, whole, and only
+    then closes the task. The orchestrator is pointed at `get_nervous_system_task` for it:
+    `read_plan_activity` cuts the middle out of a result over 4,000 characters.
+  - **A Learn step is told by its text, never by the plan's title** (`FactoryStage::isLearnStep()`):
+    "Learn: …" is a title anyone types, and the fact that follows starts tickets and a release unasked.
+  - **A step that blocks or throws reaches the orchestrator**: with no plan owner, `WakeAgentForPlanJob`
+    forwards a task outcome (`task_completed` only) to the plan's creator. That also covers a kickoff,
+    ticket or release whose first step belongs to a `CODING_FACTORY_TASKS` agent, which is ownerless too.
+  - **The Learn agent must be able to take board work** (`Agent::canExecuteBoardWork()`): a machine runtime
+    or a CRM-type agent is refused by `start_factory_learn`, because its task would be dropped unrun.
 - **Mixed plans: a Kanvas step waits for the factory step ahead of it** (`Task::waitsOnEarlierFactoryWork()`),
   and the factory worker that finishes starts it. A reopened task on a factory-owned plan, or one that runs
   on the Mac, is woken as a task; its blocked plan unblocks itself (`Plan::resumeIfNothingBlocks()`), only

@@ -15,6 +15,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryStage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
@@ -451,15 +452,18 @@ class RunTaskWorkerJob implements ShouldQueue
     /**
      * A model worker's summary is read back into prompts, so it is capped. A factory answer is kept whole:
      * whoever it answers is pointed here for the full text (`RecordChildOutcomeAction`), and a cut copy
-     * only sends them back to the factory to ask again.
+     * only sends them back to the factory to ask again. A Learn's answer too: its improvements become the
+     * tickets word for word.
      *
      * @return array<string, mixed>
      */
     private function resultWithSummary(string $text): array
     {
+        $keptWhole = $this->task->runsInFactory() || FactoryStage::isLearnStep($this->task);
+
         return [
             ...(is_array($this->task->result) ? $this->task->result : []),
-            'worker_summary' => $this->task->runsInFactory() ? $text : Str::limit($text, 4000),
+            'worker_summary' => $keptWhole ? $text : Str::limit($text, 4000),
         ];
     }
 

@@ -271,7 +271,8 @@ class LaunchCodingChatJob implements ShouldQueue
             $this->app,
             $this->sessionId,
             $this->instruction,
-            lookups: $this->lookups + 1,
+            $this->retriedAfterRelease,
+            $this->lookups + 1,
         )->delay(Carbon::now()->addSeconds(self::MISSING_ROW_DELAY_SECONDS));
     }
 
