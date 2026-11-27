@@ -17,7 +17,7 @@ use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Actions\HandOffAction;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
-use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyAiModeAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Throwable;
 
@@ -131,7 +131,7 @@ final class ApplyDoNotContactAction
 
         // AI_MODE alone does not hold: resolveAiMode() lets the lead-type config outrank the stored
         // mode unless the manual flag is set, so a muted lead would quietly start replying again.
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
 
         return $isNewlyFlagged;
     }

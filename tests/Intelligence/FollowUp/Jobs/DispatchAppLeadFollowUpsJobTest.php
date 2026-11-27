@@ -19,7 +19,7 @@ use Kanvas\Intelligence\FollowUp\Actions\SetLeadFollowUpPlanAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
-use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyAiModeAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Channels\Models\Channel;
@@ -208,7 +208,7 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
         $pinned = $this->createLead($stage);
         $untouched = $this->createLead($stage);
 
-        new ApplyLeadAiModeAction($pinned, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+        new ApplyAiModeAction($pinned, TriggersEnum::FOLLOW_UP_ON->value)->execute();
         $company->set(
             IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value,
             Carbon::now()->subDays(5)->toDateTimeString(),
@@ -231,8 +231,8 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
         $company = auth()->user()->getCurrentCompany();
         $lead = $this->createLead($this->createStage(intervalMinutes: 60));
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
         $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, 1);
         $company->set(
             IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value,

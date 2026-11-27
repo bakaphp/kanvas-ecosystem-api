@@ -81,6 +81,8 @@ final class RevokeDoNotContactAction
         }
 
         $this->people->set(ConsentConfigurationEnum::DO_NOT_CONTACT->value, 0);
+        // The person carries the pin their lead was silenced with (ApplyAiModeAction).
+        $this->people->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, false);
 
         return [$contactsOptedIn, $leadsCleared];
     }

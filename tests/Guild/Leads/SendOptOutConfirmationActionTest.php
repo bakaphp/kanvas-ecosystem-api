@@ -16,6 +16,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\Communication\SendOptOutConfirmationAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -162,6 +163,10 @@ final class SendOptOutConfirmationActionTest extends TestCase
         $this->assertNull(
             $lead->refresh()->get(ConsentConfigurationEnum::CONFIRMATION_SENT_AT->value),
             'a re-subscribe must clear the stamp.',
+        );
+        $this->assertFalse(
+            (bool) $lead->people->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value),
+            'the person carries no pin once the lead is cleared.',
         );
 
         new ApplyDoNotContactAction(

@@ -94,7 +94,7 @@ Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows av
 ## The agent never terminally exhausts a lead
 
 The lead's `ai_follow_up` custom field (set by `TriggerLeadIntelligenceAction` via
-`ApplyLeadAiModeAction`) gates only once it exists. An absent value means the triggers
+`ApplyAiModeAction`) gates only once it exists. An absent value means the triggers
 never configured the lead, so the remaining gates run. Once present it must be explicitly
 on per `Lead::isAiFollowUpEnabled()` — the shapes the legacy engine accepted — so OFF (`0`)
 and a `FollowUpTypeEnum::NO_FOLLOW_UP` (`3`) type both skip with `lead_follow_up_disabled`.
