@@ -103,7 +103,7 @@ final class SmsTransportTest extends TestCase
             $this->assertSame($isNonFixed ? 'Non Fixed Voip' : 'VOIP without SMS', $result->error);
 
             // Each line is looked up as a number seen for the first time.
-            $delivery->request->people->contacts->each->del('nonfixed_voip');
+            $delivery->request->people->contacts()->update(['is_nonfixed_voip' => false]);
         }
     }
 

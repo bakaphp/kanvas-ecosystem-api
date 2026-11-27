@@ -42,7 +42,7 @@ the Messages API.
   not a setting); no carrier name is a refusal. That refusal's reason is exactly `VOIP without SMS`
   (code `voip_without_sms`) — it is what the person who wrote the text reads, so do not add the
   number or the carrier to it. A refused `nonFixedVoip` line reads `Non Fixed Voip` instead
-  (code `non_fixed_voip`) and is marked on its phone contacts (custom field `nonfixed_voip`,
+  (code `non_fixed_voip`) and is marked on its phone contacts (column `peoples_contacts.is_nonfixed_voip`,
   `People::markPhoneNonFixedVoip`): every later text to it is refused with that reason before the
   Lookup, and nothing in the SMS flow clears the mark. A refused `fixedVoip` line is not marked. A
   reply is not looked up: someone who texted us is reachable on that number.

@@ -581,7 +581,8 @@ class People extends BaseModel implements ExposesTemplateData
     {
         return $this->phoneContactsMatching($phoneNumber)
             ->each(function (Contact $contact): void {
-                $contact->set(ContactCustomFieldEnum::NONFIXED_VOIP->value, true);
+                $contact->is_nonfixed_voip = true;
+                $contact->saveOrFail();
             })
             ->count();
     }
