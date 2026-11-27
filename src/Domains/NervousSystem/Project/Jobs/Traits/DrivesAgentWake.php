@@ -54,6 +54,8 @@ trait DrivesAgentWake
         array $tools = [],
         array $images = [],
         array $documents = [],
+        bool $unattended = true,
+        ?Users $conversationHuman = null,
     ): ?array {
         $startedAt = microtime(true);
 
@@ -74,6 +76,8 @@ trait DrivesAgentWake
                 // failure it is, not be posted on the board as "I ran into a hiccup" and counted as a
                 // turn. A busy thread in particular has to reach the catch below to be deferred.
                 fallbackOnFailure: false,
+                unattended: $unattended,
+                conversationHuman: $conversationHuman,
             )->execute();
         } catch (RunInFlightException $e) {
             // Another turn is alive on this thread: not a failed wake, one that runs once the thread

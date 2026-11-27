@@ -471,12 +471,29 @@ class Plan extends BaseModel implements HandlesAgentMention
     }
 
     /**
-     * The channel the plan was asked for in, when there was one.
-     *
-     * Distinct from `socialChannels`, which are the channels the plan OWNS. This one belongs to a
-     * conversation that existed first and outlives the plan — it is where a person is actually
-     * listening, so it is where the outcome has to be reported.
+     * Asked on a channel or board other people also ask in: the session there belongs to whoever
+     * opened it, so its stored user is not the person who asked for this plan.
      */
+    public function askedInASharedConversation(): bool
+    {
+        $sessionUser = $this->originSession?->user;
+        $sessionUserId = is_array($sessionUser) ? (int) ($sessionUser['id'] ?? 0) : 0;
+
+        return $this->origin_users_id !== null && $sessionUserId !== (int) $this->origin_users_id;
+    }
+
+    /**
+     * Put on a board by an agent that does not run it: its outcome is that agent's to report, to the
+     * person who asked, and nobody watching the board is that person.
+     */
+    public function wasHandedOffByItsCreator(): bool
+    {
+        $creator = $this->createdByAgent;
+
+        return $creator !== null && (bool) $this->project?->isHandedOffBy($creator);
+    }
+
+    /** The conversation's channel, distinct from the activity channels owned by this plan. */
     public function originChannel(): BelongsTo
     {
         return $this->belongsTo(Channel::class, 'origin_channel_id');
@@ -498,15 +515,17 @@ class Plan extends BaseModel implements HandlesAgentMention
      * only onto its own Activities channel, which nobody is subscribed to. `users_id` is the plan's
      * OWNER, another agent on agent-created work, so the human who was talking comes from the session.
      */
-    public function rememberOrigin(?Session $session): void
+    public function rememberOrigin(?Session $session, ?Users $asker = null): void
     {
         $this->origin_channel_id = $session?->channel_id;
         $this->origin_session_id = $session?->getId();
 
+        // A session is not always one person's: a channel or project mention runs on a shared one whose
+        // stored user is whoever it was opened for. A caller that knows who asked says so.
         $sessionUser = $session?->user;
-        $this->origin_users_id = is_array($sessionUser) && isset($sessionUser['id'])
+        $this->origin_users_id = $asker?->getId() ?? (is_array($sessionUser) && isset($sessionUser['id'])
             ? (int) $sessionUser['id']
-            : null;
+            : null);
 
         $this->saveQuietly();
     }

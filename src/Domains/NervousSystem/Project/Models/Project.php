@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
@@ -99,6 +100,9 @@ class Project extends BaseModel implements HandlesAgentMention
     /** The ceiling a project may pick for that backoff; 0 turns it off (re-wake on every heartbeat). */
     public const array ALLOWED_HEARTBEAT_MAX_BACKOFF = [0, 60, 240, 1440];
 
+    /** `metadata` key marking the one board a company's assistant hands work out on. */
+    public const string OPERATIONS_MARKER = 'company_operations';
+
     protected $table = 'nervous_system_projects';
 
     protected $cascadeDeletes = ['plans', 'children', 'members'];
@@ -175,6 +179,26 @@ class Project extends BaseModel implements HandlesAgentMention
                 implode(', ', self::ALLOWED_HEARTBEAT_MAX_BACKOFF),
             ));
         }
+    }
+
+    public function isCompanyOperations(): bool
+    {
+        return (bool) ($this->metadata[self::OPERATIONS_MARKER] ?? false);
+    }
+
+    /**
+     * Whether a plan this agent put here sits outside the project's own PM loop: on the company's
+     * Operations board, or on a project some other agent manages. Its outcome then concerns one plan and
+     * the one person who asked for it, never the board as a whole.
+     */
+    public function isHandedOffBy(Agent $agent): bool
+    {
+        return $this->isCompanyOperations() || $this->agent_id !== $agent->getId();
+    }
+
+    public function scopeCompanyOperations(Builder $query): Builder
+    {
+        return $query->where('metadata->' . self::OPERATIONS_MARKER, true);
     }
 
     public function workspace(): BelongsTo

@@ -44,6 +44,8 @@ class AgentReceiverJob extends ProcessWebhookJob
                 session: null,
                 message: $message,
                 user: $this->receiver->user,
+                // A webhook payload, run as whoever set the receiver up: nobody is asking.
+                unattended: true,
             )->execute();
         } catch (AgentReplySkippedException $e) {
             return [

@@ -17,13 +17,9 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Services\BlockOutcomeDeliveryService;
 
-/**
- * Tell the person who owns a project-less plan that it is blocked.
- *
- * A plan in a project has a PM watching it; one created on its own has nobody, so it is the plans
- * least supervised that most need this.
- */
+/** A deterministic block report when no project PM or delegated creator can answer the asker. */
 class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
 {
     use AnnouncesPlanOutcome;
@@ -38,8 +34,21 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
     /** Enough to see the shape of the blockage without pasting the whole board into an alert. */
     private const int REASON_TASKS = 3;
 
+    /** How long a coordinated alert waits between looks at an agent that is still answering. */
+    private const int WAIT_FOR_CREATOR_SECONDS = 30;
+
+    /** Enough 30-second waits to outlast the hour an agent is given to answer. */
+    public int $tries = 125;
+
+    public int $maxExceptions = 3;
+
+    /**
+     * @param string|null $blockOutcomeId the block cycle this alert is the fallback for, when the plan was
+     *        handed off by an agent that answers first; null keeps the uncoordinated alert
+     */
     public function __construct(
         public readonly Plan $plan,
+        public readonly ?string $blockOutcomeId = null,
     ) {
     }
 
@@ -61,10 +70,43 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
 
         $this->overwriteAppService($plan->app);
 
+        if ($this->blockOutcomeId !== null) {
+            $this->announceUnlessTheCreatorDoes($plan, $this->blockOutcomeId);
+
+            return;
+        }
+
         if (! Cache::add('ns:plan:' . $plan->getId() . ':blocked-alert', true, now()->addMinutes(self::THROTTLE_MINUTES))) {
             return;
         }
 
+        $this->announce($plan);
+    }
+
+    /**
+     * The fallback for a plan an agent handed off. That agent answers first; this speaks only when it
+     * did not, could not, or ran out of time, and never on top of it.
+     */
+    private function announceUnlessTheCreatorDoes(Plan $plan, string $cycle): void
+    {
+        $delivery = new BlockOutcomeDeliveryService($plan);
+
+        if (! $delivery->isAwaitingAnAnswer($cycle)) {
+            return;
+        }
+
+        // Back on the queue before any claim is taken, so the wait costs the fallback nothing.
+        if ($delivery->creatorIsPending($cycle)) {
+            $this->release(self::WAIT_FOR_CREATOR_SECONDS);
+
+            return;
+        }
+
+        $delivery->claimDelivery($cycle, asCreator: false, deliver: fn (): bool => $this->announce($plan));
+    }
+
+    private function announce(Plan $plan): bool
+    {
         $why = $this->whyBlocked($plan);
 
         // No mention here — each destination addresses a different person; see the done alert.
@@ -81,11 +123,13 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
             'plan_blocked',
         );
 
-        $this->alsoPostToOriginConversation($plan, $body, 'plan-blocked-alert');
+        $posted = $this->alsoPostToOriginConversation($plan, $body, 'plan-blocked-alert');
 
         // The mention above can be dropped for an agent-classified user; this reaches the person
         // who asked regardless, and costs no model tokens.
         $this->notifyTheAsker($plan, 'Needs you', sprintf('%s is blocked: %s', $plan->title, $why));
+
+        return $posted !== null;
     }
 
     /**

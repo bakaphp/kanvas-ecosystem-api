@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
@@ -11,9 +12,15 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Company\CompanyBrainAgent;
 use ReflectionMethod;
 use Tests\TestCase;
+use Tests\Traits\MakesEmployees;
 
 class CompanyBrainAgentPersonaTest extends TestCase
 {
+    use DatabaseTransactions;
+    use MakesEmployees;
+
+    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+
     private function makeBrainAgent(): Agent
     {
         $app = app(Apps::class);
@@ -22,7 +29,9 @@ class CompanyBrainAgentPersonaTest extends TestCase
         return Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($user->getCurrentCompany()->getId())
-            ->create(['user_id' => $user->getId()]);
+            // Its own user, as in production. On the acting human's login the brain cannot tell that
+            // person from itself, and treats the turn as one nobody is present for.
+            ->create();
     }
 
     public function testInstructionsCarryTheBrainDoctrineAndTheAgentIdentity(): void
@@ -48,7 +57,8 @@ class CompanyBrainAgentPersonaTest extends TestCase
         $agent = $this->makeBrainAgent();
 
         $handler = new CompanyBrainAgent();
-        $handler->setConfiguration(agent: $agent, user: auth()->user());
+        // A person, not the acting test user: hiring is offered only to someone who is there.
+        $handler->setConfiguration(agent: $agent, user: $this->makeAdmin());
 
         /** @var array<int, object> $tools */
         $tools = new ReflectionMethod($handler, 'tools')->invoke($handler);
@@ -87,6 +97,39 @@ class CompanyBrainAgentPersonaTest extends TestCase
         foreach (['send_lead_sms', 'send_lead_email', 'send_batch_message', 'reassign_lead_owner'] as $forbidden) {
             $this->assertNotContains($forbidden, $names, "Brain must NOT hardcode {$forbidden}");
         }
+    }
+
+    public function testInstructionsTellItToDoTheWorkItselfAndHandOffWithoutAskingForAProject(): void
+    {
+        $handler = new CompanyBrainAgent();
+        $handler->setConfiguration(agent: $this->makeBrainAgent(), user: auth()->user());
+
+        $instructions = $handler->instructions();
+
+        $this->assertStringContainsString('## Getting work done', $instructions);
+        $this->assertStringContainsString('do it yourself', $instructions);
+        $this->assertStringContainsString('Never ask the person which project', $instructions);
+        $this->assertStringContainsString('create_nervous_system_plan', $instructions);
+    }
+
+    /**
+     * A tenant's Brain in production carries its own persona and acts with tools it was granted. The
+     * delegation block must sit beside that, not replace it or talk the Brain out of its own tools.
+     */
+    public function testATenantsOwnPersonaSurvivesBesideTheDelegationBlock(): void
+    {
+        $agent = $this->makeBrainAgent();
+        $agent->role = ['background' => ['You are B.R.A.I.N., the company brain for INTRAS.']];
+        $agent->saveOrFail();
+
+        $handler = new CompanyBrainAgent();
+        $handler->setConfiguration(agent: $agent->refresh(), user: auth()->user());
+
+        $instructions = $handler->instructions();
+
+        $this->assertStringContainsString('You are B.R.A.I.N., the company brain for INTRAS.', $instructions);
+        $this->assertStringContainsString('## Getting work done', $instructions);
+        $this->assertStringContainsString('exactly as your instructions for this company', $instructions);
     }
 
     public function testReturnsNoBundleWhenUnconfigured(): void
