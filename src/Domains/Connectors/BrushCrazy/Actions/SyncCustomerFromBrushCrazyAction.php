@@ -460,6 +460,7 @@ class SyncCustomerFromBrushCrazyAction
             'value' => $value,
             'validation_status' => ContactValidationStatusEnum::VALID,
             'bounced_at' => null,
+            'is_nonfixed_voip' => false,
         ]);
 
         $contact->del(ContactCustomFieldEnum::IS_LANDLINE->value);
