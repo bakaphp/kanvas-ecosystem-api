@@ -17,7 +17,11 @@ class PaymentReceiptNotification extends Notification
         Payments $payment,
         array $data,
     ) {
-        parent::__construct($order, $data);
+        parent::__construct($order, [
+            ...$data,
+            'app' => $order->app,
+            'company' => $order->company,
+        ]);
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setTemplateName(OrderTypes::DEFAULT_PAYMENT_RECEIPT_TEMPLATE);
         $this->setData($data);

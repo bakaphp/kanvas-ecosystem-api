@@ -186,16 +186,12 @@ class AzulProcessor implements PaymentProcessorInterface, ReleasesHoldInterface,
                 'request' => $this->sanitizeRequest($request->toArray()),
             ]);
 
-            $errorBody = $e->getErrorBody();
-            $detail = $errorBody['ErrorDescription'] ?? $errorBody['error_description'] ?? null;
-            $message = $e->getMessage() . ($detail ? ' | ' . $detail : '');
-
             return new AuthorizeResult(
                 success: false,
-                message: $message,
+                message: $this->failureMessage($e),
                 transactionId: '',
                 paymentStatus: PaymentStatusEnum::FAILED,
-                raw: $errorBody,
+                raw: $e->getErrorBody(),
             );
         }
     }
@@ -693,7 +689,7 @@ class AzulProcessor implements PaymentProcessorInterface, ReleasesHoldInterface,
 
             return new ThreeDSResult(
                 success: false,
-                message: $e->getMessage(),
+                message: $this->failureMessage($e),
                 status: PaymentStatusEnum::FAILED->value,
                 raw: $e->getErrorBody(),
             );
@@ -846,6 +842,7 @@ class AzulProcessor implements PaymentProcessorInterface, ReleasesHoldInterface,
             }
 
             $payment->number = $response->ticket;
+            $payment->authorization_code = $response->authorizationCode;
             $settledStatus = $this->settleApproval(
                 $payment,
                 $responseData,
@@ -883,11 +880,21 @@ class AzulProcessor implements PaymentProcessorInterface, ReleasesHoldInterface,
 
             return new ThreeDSResult(
                 success: false,
-                message: $e->getMessage(),
+                message: $this->failureMessage($e),
                 status: PaymentStatusEnum::FAILED->value,
                 raw: $e->getErrorBody(),
             );
         }
+    }
+
+    private function failureMessage(AzulException $e): string
+    {
+        $errorBody = $e->getErrorBody();
+        $detail = $errorBody['ErrorDescription'] ?? $errorBody['error_description'] ?? null;
+
+        return $detail && $detail !== $e->getMessage()
+            ? $e->getMessage() . ' | ' . $detail
+            : $e->getMessage();
     }
 
     // -------------------------------------------------------------------------
@@ -925,7 +932,7 @@ class AzulProcessor implements PaymentProcessorInterface, ReleasesHoldInterface,
         } catch (AzulException $e) {
             return new TokenizeResult(
                 success: false,
-                message: $e->getMessage(),
+                message: $this->failureMessage($e),
                 token: '',
                 lastFour: '',
                 brand: '',
