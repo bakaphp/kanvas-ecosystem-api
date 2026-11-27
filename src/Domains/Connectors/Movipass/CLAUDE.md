@@ -57,3 +57,33 @@ shared roadside flow untouched; `RoadsideAuditTrail::forOrder()` is a no-op for 
 - `Order::transitionToStatus()` silently ignores an undeclared transition — add it to
   `RoadsideAssistanceStatusMap` and re-run the setup command.
 - Distance and geofences: `Baka\Support\Geo` is the one haversine; don't add another.
+
+## Vehicle retentions: the payer owns the paid order
+
+An operator creates the `impound_lot` order, so until it is paid it belongs to the operator.
+`Activities\AssignImpoundOrderToPayerActivity` moves a paid retention to the user of its latest `paid`
+payment (`users_id`) and that user's person (`people_id`, found by email in the order's company, then
+the user's app profile, otherwise created), through `AssignCorporateOrderOwnerAction`. Other order
+types, unpaid retentions and retentions already owned by the payer are skipped. Each move is logged as
+`IMPOUND_ORDER_ASSIGNED_TO_PAYER`. The release PDF (`SyncMovipassImpoundActivity` on `released`) is not
+emailed: it is attached to the order, and the user who released it (the status transition's `who`) is
+its uploader and the log actor, falling back to the order owner.
+
+It does not need the MOVIPASS integration row (no `executeIntegration`), but it only runs through a
+workflow rule, created per app from the admin (Workflow rules), not by a command:
+
+| Field | Value |
+|---|---|
+| Event (rule type) | `after-payment-intent` (fired by `Order::markAsPaid`, which every processor reaches when a payment is paid) |
+| Module | Order (`Kanvas\Souk\Orders\Models\Order`) |
+| Company | the app's (global rule, `companies_id = 0`) |
+| Activity | `Movipass: assign paid retention to its payer` |
+
+The activity row exists only after `kanvas:workflow-sync-actions` (runs on deploy). Without the rule a
+paid retention stays in the operator's name.
+
+Retentions paid before the rule existed: `kanvas-movipass:backfill-impound-payer {app_id} --dry-run`
+lists what would move (order, current user, payer); without `--dry-run` it moves them through the same
+`Actions\AssignImpoundOrderToPayerAction`. Idempotent (owned-by-payer retentions are skipped), one
+failed order is reported and does not stop the run, `--limit=` caps a first pass. A retention paid at
+the counter in the operator's name has the operator as payer and stays as is.

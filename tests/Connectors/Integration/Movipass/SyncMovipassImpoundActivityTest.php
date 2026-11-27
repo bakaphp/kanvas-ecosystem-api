@@ -17,6 +17,7 @@ use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Jobs\GenerateOrderReceiptPdfJob;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
@@ -351,9 +352,12 @@ final class SyncMovipassImpoundActivityTest extends TestCase
 
         Bus::fake([GenerateOrderReceiptPdfJob::class]);
 
+        $releasedBy = Users::factory()->create();
+
         $result = $activity->execute($order, $app, [
             'currentEventTypeName' => WorkflowEnum::STATUS_TRANSITION->value,
             'to_status' => MovipassOrderStatusEnum::RELEASED->value,
+            'who' => $releasedBy,
         ]);
 
         $order->refresh();
@@ -362,6 +366,7 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             GenerateOrderReceiptPdfJob::class,
             fn (GenerateOrderReceiptPdfJob $job) => $job->order->is($order)
                 && $job->receipt == OrderTypeEnum::IMPOUND_LOT->pdfReceipt()
+                && $job->user->getId() === $releasedBy->getId()
         );
     }
 }
