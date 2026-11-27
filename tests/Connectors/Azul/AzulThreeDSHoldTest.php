@@ -38,6 +38,7 @@ final class AzulThreeDSHoldTest extends TestCase
         $this->assertTrue($result->success);
         $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $result->status);
         $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $payment->status);
+        $this->assertSame('AUTH-1', $payment->authorization_code);
     }
 
     public function testFinalizeMarksAnUnheldPaymentPaid(): void
@@ -49,6 +50,7 @@ final class AzulThreeDSHoldTest extends TestCase
 
         $this->assertTrue($result->success);
         $this->assertSame(PaymentStatusEnum::PAID->value, $result->status);
+        $this->assertSame('AUTH-1', $payment->authorization_code);
     }
 
     public function testChallengeHoldPrefersTheCallContextThenThePaymentFlagThenTheAppDefault(): void
@@ -147,6 +149,7 @@ final class AzulThreeDSHoldTest extends TestCase
             azulOrderId: 'AZ-1',
             isoCode: '00',
             responseMessage: 'APROBADA',
+            authorizationCode: 'AUTH-1',
             ticket: 'T-1',
         ));
 
