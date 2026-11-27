@@ -309,6 +309,7 @@ class SyncSaleFromBrushCrazyAction
         $saleKey = (string) $sale->id();
         $brushcrazy = SaleMapper::map($sale, $refunds, $pricer)['order']['metadata']['brushcrazy'];
         $refundMoves = SaleMapper::kanvasRefundMoves($sale, $refunds);
+        $paidInBrushCrazy = SaleMapper::paidInBrushCrazy($sale);
         $voidedAt = $sale->sale->deleted_at ?? null;
 
         $duplicate = $this->orders[$saleKey] ?? null;
@@ -316,7 +317,7 @@ class SyncSaleFromBrushCrazyAction
             ? $duplicate
             : null;
 
-        $ledger = DB::connection('commerce')->transaction(function () use ($order, $sale, $saleKey, $brushcrazy, $refundMoves, $voidedAt, $duplicate) {
+        $ledger = DB::connection('commerce')->transaction(function () use ($order, $sale, $saleKey, $brushcrazy, $refundMoves, $paidInBrushCrazy, $voidedAt, $duplicate) {
             // The refund job writes this row's ledger too; read it under the lock, not from preload.
             $locked = Order::withTrashed()->whereKey($order->getId())->lockForUpdate()->first();
 
@@ -345,7 +346,7 @@ class SyncSaleFromBrushCrazyAction
                 'refunds' => $ledger,
             ];
 
-            Order::withoutEvents(function () use ($order, $brushcrazy, $voidedAt, $previous, $privateMetadata, $duplicate, $cardRefunded) {
+            Order::withoutEvents(function () use ($order, $brushcrazy, $voidedAt, $previous, $privateMetadata, $duplicate, $cardRefunded, $paidInBrushCrazy) {
                 $order->private_metadata = $privateMetadata;
 
                 if ($voidedAt !== null) {
@@ -363,6 +364,14 @@ class SyncSaleFromBrushCrazyAction
                     // and never once Kanvas returned the money to the card.
                     $order->payment_status = PaymentStatusEnum::PAID->value;
                     $order->paid_at = $brushcrazy['completed_at'] ?? $order->paid_at;
+                } elseif ($paidInBrushCrazy
+                    && $order->payment_status !== PaymentStatusEnum::PAID->value
+                    && $order->payment_status !== PaymentStatusEnum::REVERSED->value) {
+                    // A site checkout BrushCrazy charged: Kanvas took no money, so the draft order
+                    // only becomes paid here. Quietly, like the rest: markAsPaid() would fire
+                    // AFTER_PAYMENT_INTENT and push the sale back to BrushCrazy.
+                    $order->payment_status = PaymentStatusEnum::PAID->value;
+                    $order->paid_at = $brushcrazy['completed_at'] ?? now();
                 }
 
                 if ($order->isDirty()) {
