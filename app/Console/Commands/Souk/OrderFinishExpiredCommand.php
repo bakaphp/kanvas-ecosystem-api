@@ -18,6 +18,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Orders\Notifications\OrderExpirationNotification;
+use Throwable;
 
 class OrderFinishExpiredCommand extends Command
 {
@@ -50,7 +51,7 @@ class OrderFinishExpiredCommand extends Command
             ])->select('apps_id')->get()->pluck('apps_id');
             $this->info('Checking ' . $appsIds->count() . ' apps');
             foreach ($appsIds as $appsId) {
-                $this->checkApps($appsId);
+                $this->isolated('App ' . $appsId, fn () => $this->checkApps($appsId));
                 $this->info('Checked ' . $appsId);
             }
         }
@@ -60,6 +61,12 @@ class OrderFinishExpiredCommand extends Command
     {
         if (count($order->items) === 0) {
             $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name);
+
+            return;
+        }
+
+        if ($order->user === null) {
+            $this->warn('Order ' . $order->id . ' has no user, skipped');
 
             return;
         }
@@ -95,16 +102,15 @@ class OrderFinishExpiredCommand extends Command
         $ordersInProgress = $query->get();
         $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);
         foreach ($ordersInProgress as $order) {
-            $orderEndTime = $order->metadata['data']['end_at'];
+            $this->isolated('Order ' . $order->id, function () use ($order): void {
+                $orderEndTime = Carbon::parse($order->metadata['data']['end_at'], $this->resolveOrderTimezone($order));
 
-            $timezone = $this->resolveOrderTimezone($order);
-            $orderEndTime = Carbon::parse($orderEndTime, $timezone);
-
-            if ($orderEndTime->isPast()) {
-                $this->finishOrdersExpiredOrder($order);
-            } else {
-                $this->sendExpiringOrderNotification($order, $orderEndTime);
-            }
+                if ($orderEndTime->isPast()) {
+                    $this->finishOrdersExpiredOrder($order);
+                } else {
+                    $this->sendExpiringOrderNotification($order, $orderEndTime);
+                }
+            });
         }
 
         OrderTypes::query()
@@ -142,10 +148,22 @@ class OrderFinishExpiredCommand extends Command
             ->whereRaw('JSON_VALID(metadata)')
             ->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(metadata, ?)) is not null', ['$.' . $rule['date_path']])
             ->each(function (Order $order) use ($rule, $to): void {
-                if ($order->user !== null && $this->hasEnded($order, $rule['date_path'])) {
-                    $this->expireOrder($order, $to);
-                }
+                $this->isolated('Order ' . $order->id, function () use ($order, $rule, $to): void {
+                    if ($order->user !== null && $this->hasEnded($order, $rule['date_path'])) {
+                        $this->expireOrder($order, $to);
+                    }
+                });
             });
+    }
+
+    protected function isolated(string $what, callable $work): void
+    {
+        try {
+            $work();
+        } catch (Throwable $e) {
+            report($e);
+            $this->error($what . ' failed: ' . $e->getMessage());
+        }
     }
 
     protected function hasEnded(Order $order, string $datePath): bool
