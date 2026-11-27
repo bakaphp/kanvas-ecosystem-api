@@ -167,6 +167,7 @@ class CreateMessageFollowUpAction
             ),
             $this->lead->getId(),
         )->execute();
+        $created->addLeadAndPerson($this->lead);
         $this->createdMessage = $created;
 
         $this->session->channel->addMessage($created);

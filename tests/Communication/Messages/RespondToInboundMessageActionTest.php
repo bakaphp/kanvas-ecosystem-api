@@ -19,6 +19,7 @@ use Kanvas\Communication\Messages\Exceptions\InboundNotAnsweredException;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -89,12 +90,15 @@ final class RespondToInboundMessageActionTest extends TestCase
     public function testTheAnswerLeavesThroughTheConversationsConnection(): void
     {
         $connection = $this->defaultSmsConnection(number: '+18095550600');
-        [$channel, $inbound] = $this->inboundOn($connection, '+18095550601');
+        [$channel, $inbound, $lead] = $this->inboundOn($connection, '+18095550601');
 
         $result = $this->respond($channel, $inbound);
 
         $delivery = Delivery::query()->where('connection_id', $connection->getId())->sole();
         $reply = Message::query()->findOrFail($delivery->message_id);
+
+        $this->assertTrue($lead->is($reply->entity(Lead::class)), 'the reply is filed on the lead it answers');
+        $this->assertTrue($lead->people->is($reply->entity(People::class)), 'and on the person');
 
         // The first text to a number carries the opt-out clause.
         $this->assertSame("Hola Mundo\n\nReply STOP to opt out.", $result['response'] ?? null);
@@ -120,6 +124,24 @@ final class RespondToInboundMessageActionTest extends TestCase
         $this->assertSame('Education accelerates classroom construction in El Seibo', $reply->message['response_json']['title'] ?? null);
         $this->assertSame(['National', 'Education'], $reply->message['response_json']['categories'] ?? null);
         $this->assertSame('draft', $reply->message['response_json']['status'] ?? null);
+    }
+
+    /**
+     * The session belongs to the person, so the mode has to be read off the message's lead: read
+     * off the session's entity it was never found, and an idle lead was answered.
+     */
+    public function testALeadOnIdleIsNotAnswered(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550690');
+        [$channel, $inbound, $lead] = $this->inboundOn($connection, '+18095550691');
+        $lead->set(IntelligenceConfigurationEnum::AI_MODE->value, IntelligenceModeEnum::IDLE->value);
+        $lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
+        $this->assertTrue($lead->isAiMuted());
+
+        $result = $this->respond($channel, $inbound);
+
+        $this->assertSame([], $this->transport->sent, 'an idle lead is not answered');
+        $this->assertSame('agent_skipped', $result['reason'] ?? null);
     }
 
     public function testAConnectionNobodyOwnsIsNotAnswered(): void

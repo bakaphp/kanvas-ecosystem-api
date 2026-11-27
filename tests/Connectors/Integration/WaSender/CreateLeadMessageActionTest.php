@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
@@ -53,6 +54,7 @@ final class CreateLeadMessageActionTest extends TestCase
         $lead = $message->entity();
 
         $this->assertInstanceOf(Lead::class, $lead);
+        $this->assertTrue($lead->people->is($message->entity(People::class)), 'filed on the person too');
         $this->assertTrue($message->tags()->where('name', 'engagement')->exists());
         $this->assertTrue($lead->tags()->where('name', 'engaged')->exists());
         $this->assertSame('whatsapp', (string) $lead->get(LeadsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value));

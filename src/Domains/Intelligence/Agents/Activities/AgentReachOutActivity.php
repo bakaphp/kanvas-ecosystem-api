@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Activities;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\AgentReachOutAction;
@@ -25,9 +26,19 @@ class AgentReachOutActivity extends KanvasActivity
 {
     public $tries = 3;
 
-    public function execute(Lead $lead, Apps $app, array $params): array
+    /**
+     * Typed Model, not Lead: the queued path fills a missing class-typed argument from the container,
+     * so a rule on another entity would arrive with an empty Lead in front and every argument shifted.
+     */
+    public function execute(Model $entity, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        if (! $entity instanceof Lead) {
+            return $this->skipWorkflow('Not a lead');
+        }
+
+        $lead = $entity;
 
         return $this->executeIntegration(
             entity: $lead,
