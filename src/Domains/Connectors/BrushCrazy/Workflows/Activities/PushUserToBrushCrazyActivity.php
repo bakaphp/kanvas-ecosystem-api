@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\BrushCrazy\Actions\SyncSaleFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
+use Kanvas\Connectors\BrushCrazy\Support\AccountSync;
 use Kanvas\Connectors\BrushCrazy\Support\SiteBooking;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Users\Models\Users;
@@ -24,10 +24,14 @@ use Override;
  * BrushCrazy users are global (one account across studios) while Kanvas keeps one People per
  * studio company, so the returned user id is stamped on every unlinked People with this email in a
  * studio company. Best effort: the sale push finds or creates the same user by email anyway.
+ *
+ * Both ways: a change made on the site (sign-up, profile, password reset or change) is pushed here;
+ * a change made in BrushCrazy comes back through the customer mirror. AccountSync settles which
+ * side changed, and each side writes the other's value quietly, so nothing loops.
  */
 #[WorkflowAction(
     name: 'BrushCrazy Push User',
-    description: 'Creates or updates the site account in BrushCrazy (POST /api/kanvas/users) and links the studio People. Hang it on Users registered and updated.',
+    description: 'Keeps the customer\'s BrushCrazy account in step with the site (POST /api/kanvas/users): name, phone and password hash, and links the studio People. Hang it on Users registered, updated and after-forgot-password.',
     integration: IntegrationsEnum::BRUSHCRAZY,
     requiresConfig: [ConfigurationEnum::BRUSHCRAZY_API_URL, ConfigurationEnum::BRUSHCRAZY_API_SECRET],
 )]
@@ -58,11 +62,24 @@ class PushUserToBrushCrazyActivity extends BrushCrazyPushActivity
                     return $this->failWorkflow(['message' => 'User has no email.', 'entity' => null]);
                 }
 
-                $linked = $people->filter(fn (People $p) => ! empty($p->get(CustomFieldEnum::BRUSHCRAZY_USER_ID->value)));
-                $fromSite = $people->contains(fn (People $p) => $p->get(CustomFieldEnum::BRUSHCRAZY_ORIGIN->value) === SyncSaleFromBrushCrazyAction::ORIGIN_KANVAS);
+                // The login as the site has it: the app profile holds its password and name.
+                $profile = $user->getAppProfile($app);
+                $hash = (string) ($profile->password ?? $user->password ?? '');
+                $firstname = trim((string) ($profile->firstname ?: $user->firstname));
+                $lastname = trim((string) ($profile->lastname ?: $user->lastname));
+                $phone = Str::trimToNull((string) ($user->cell_phone_number ?: $user->phone_number));
 
-                if ($linked->isNotEmpty() && ! $fromSite) {
-                    return $this->skip('User is a mirrored BrushCrazy customer; BrushCrazy owns it.');
+                $password = AccountSync::passwordFingerprint($hash);
+                $profileFingerprint = AccountSync::profileFingerprint($firstname, $lastname, $phone, $email);
+                $brushCrazyUserId = (int) ($user->get(CustomFieldEnum::BRUSHCRAZY_USER_ID->value) ?? 0);
+
+                // `updated` fires for any change to the user (balances, last login...): only a
+                // change to what BrushCrazy keeps is worth a call. The echo of BrushCrazy's own
+                // change (applied quietly) never gets here.
+                if ($brushCrazyUserId > 0
+                    && $user->get(CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value) === $profileFingerprint
+                    && ($password === null || $user->get(CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value) === $password)) {
+                    return $this->skip('Account already in step with BrushCrazy.');
                 }
 
                 $studioId = ($paramCompany instanceof Companies ? SiteBooking::studioId($paramCompany) : null)
@@ -70,19 +87,33 @@ class PushUserToBrushCrazyActivity extends BrushCrazyPushActivity
 
                 $body = [
                     'email' => $email,
-                    'first_name' => trim((string) $user->firstname),
-                    'last_name' => trim((string) $user->lastname),
-                    'phone' => Str::trimToNull((string) ($user->cell_phone_number ?: $user->phone_number)),
+                    'user_id' => $brushCrazyUserId > 0 ? $brushCrazyUserId : null,
+                    'first_name' => $firstname,
+                    'last_name' => $lastname,
+                    'phone' => $phone,
                     'studio_id' => $studioId,
+                    // A bcrypt hash both systems check; never the password itself.
+                    'password_hash' => $password !== null ? $hash : null,
                 ];
 
                 return $this->post(
                     $app,
                     'api/kanvas/users',
                     $body,
-                    function (array $response) use ($people) {
+                    function (array $response) use ($people, $user, $password, $profileFingerprint) {
                         if (! empty($response['user_id'])) {
                             $people->each(fn (People $p) => SiteBooking::stampUser($p, (int) $response['user_id']));
+                        }
+
+                        // BrushCrazy now has this account: remember it as agreed (quietly, so this
+                        // write is not another `updated` push).
+                        $user->disableWorkflows();
+                        if (! empty($response['user_id'])) {
+                            $user->set(CustomFieldEnum::BRUSHCRAZY_USER_ID->value, (int) $response['user_id']);
+                        }
+                        $user->set(CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value, $profileFingerprint, false);
+                        if ($password !== null) {
+                            $user->set(CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value, $password, false);
                         }
 
                         return [

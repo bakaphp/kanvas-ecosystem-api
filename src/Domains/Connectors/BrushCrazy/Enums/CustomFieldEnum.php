@@ -85,6 +85,9 @@ enum CustomFieldEnum: string
      */
     case BRUSHCRAZY_REGISTRATION_METHOD = 'BRUSHCRAZY_REGISTRATION_METHOD';
     case BRUSHCRAZY_NEEDS_PASSWORD = 'BRUSHCRAZY_NEEDS_PASSWORD';
+    /** Private: fingerprints of the account last agreed with BrushCrazy (see AccountSync). */
+    case BRUSHCRAZY_SYNCED_PASSWORD = 'BRUSHCRAZY_SYNCED_PASSWORD';
+    case BRUSHCRAZY_SYNCED_PROFILE = 'BRUSHCRAZY_SYNCED_PROFILE';
 
     /** A category's GL account name, `transferable` flag and cost-to-MSRP formula tiers. */
     case BRUSHCRAZY_CATEGORY_SETTINGS = 'BRUSHCRAZY_CATEGORY_SETTINGS';
