@@ -108,7 +108,7 @@ class CreateLeadMessageAction
 
         $this->chainConsecutiveImages($channel, $message);
 
-        $message->addEntity($lead);
+        $message->addLeadAndPerson($lead);
         $message->addTag('engagement');
 
         $channel->addMessage($message);

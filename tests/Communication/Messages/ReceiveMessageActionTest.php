@@ -20,7 +20,9 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
@@ -502,6 +504,49 @@ final class ReceiveMessageActionTest extends TestCase
 
         $this->assertInstanceOf(People::class, $message->entity(People::class));
         $this->assertNull($message->entity(Lead::class));
+    }
+
+    /**
+     * An agent's own address opens no lead, but a person who has one is written to about it: the
+     * one being worked, else their latest, so the lead's AI mode and history still apply.
+     */
+    public function testAMailboxFilesAPersonOnTheLeadTheyAlreadyHave(): void
+    {
+        $person = People::factory()
+            ->withAppId($this->currentApp()->getId())
+            ->withCompanyId($this->currentCompany()->getId())
+            ->create();
+        $person->contacts()->create([
+            'contacts_types_id' => ContactTypeEnum::EMAIL->value,
+            'value' => 'past@example.com',
+            'weight' => 0,
+        ]);
+        $lead = $this->leadOf($person);
+        $closed = LeadStatus::firstOrCreate(
+            [
+                'name' => 'Lost',
+                'apps_id' => $this->currentApp()->getId(),
+                'companies_id' => $this->currentCompany()->getId(),
+            ],
+            ['is_default' => 0]
+        );
+        $lead->leads_status_id = $closed->getId();
+        $lead->saveOrFail();
+        $this->assertNull(LeadsRepository::getPeopleActiveLead($person), 'nothing is being worked');
+        $leadsBefore = $person->leads()->count();
+
+        $result = $this->receive($this->email(
+            'past@example.com',
+            'e-13',
+            'Hello again',
+            policy: InboundSenderPolicy::assistant(acceptsStrangers: false)
+        ));
+
+        $message = Message::query()->findOrFail($result['message_id']);
+
+        $this->assertTrue($person->is($message->entity()), 'the person is the first link');
+        $this->assertTrue($lead->is($message->entity(Lead::class)));
+        $this->assertSame($leadsBefore, $person->leads()->count(), 'no lead is opened');
     }
 
     public function testAChannelWithoutAnAddressBookIsNotReceivedHereYet(): void

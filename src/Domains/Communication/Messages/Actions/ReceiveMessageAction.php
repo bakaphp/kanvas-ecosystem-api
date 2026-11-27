@@ -215,7 +215,11 @@ final class ReceiveMessageAction
             return false;
         }
 
-        $this->lead = $this->policy->opensLead ? $this->lead($this->people) : $this->activeLead($this->people);
+        // An agent's own address opens no lead, but a person who has one is still written to about
+        // it: their latest when none is being worked.
+        $this->lead = $this->policy->opensLead
+            ? $this->lead($this->people)
+            : ($this->activeLead($this->people) ?? LeadsRepository::getPeopleLastLead($this->people));
 
         if ($this->lead !== null) {
             $this->remember($this->lead, LeadConfigurationEnum::IS_ENGAGEMENT->value, true);

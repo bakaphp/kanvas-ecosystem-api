@@ -63,6 +63,11 @@ Communication::for($app, $company)->isReady(ChannelTypeEnum::SMS);
 - `file: false` (sync only) is for a caller that files the message itself and links the delivery to
   it afterwards with `LinkDeliveryMessageAction` — the lead send does. Everyone else lets the
   ledger file it.
+- **A customer message about a lead is linked to the lead and to its person, always both.** The
+  ledger (`RecordSentMessageAction`) files a send on the person and on the lead the email names,
+  else the one the person has (`LeadsRepository::getPeopleCurrentLead()`). A path that files its
+  own message links both with `Message::addLeadAndPerson()`. The lead's AI mode is read off the
+  message's lead, so a message linked to the person alone is answered whatever the lead says.
 
 ## What lives here and what lives in a connector
 
@@ -166,7 +171,8 @@ the account is a customer line: whoever writes is a person, and a person with no
 `InboundSenderPolicy::assistant()` is an agent's own address, which is not a lead form: a user of
 the company is filed as themselves (no person, no lead, no consent to settle), a person on file is
 left as found and gets no new lead, and a stranger is turned away (`unknown_sender`) unless the
-mailbox is open. Which accounts are which is the provider's knowledge — Mailgun reads it off the
+mailbox is open. A person who already has a lead is still filed on it — the one being worked, else
+their latest — so that lead's AI mode and history apply to the mailbox too. Which accounts are which is the provider's knowledge — Mailgun reads it off the
 agent's mailbox access — never a check on the provider's name in this domain.
 
 ## Who answers: the agent that owns the number or mailbox

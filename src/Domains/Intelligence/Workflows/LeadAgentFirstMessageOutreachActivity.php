@@ -524,7 +524,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
         $newMessage->runWorkflow = $runWorkflow;
 
-        return $newMessage->execute();
+        $message = $newMessage->execute();
+        $message->addLeadAndPerson($lead);
+
+        return $message;
     }
 
     private function addMessageToChannel(Message $message, ?Channel $channel, Lead $lead): void
