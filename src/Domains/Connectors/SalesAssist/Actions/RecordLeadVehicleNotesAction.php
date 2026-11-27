@@ -18,10 +18,12 @@ use Throwable;
  * differently, so the value is posted untouched rather than parsed.
  *
  * Every CRM pull rewrites these custom fields with the same vehicle, so each announced vehicle is
- * fingerprinted on the lead and only one it has not seen produces a note. The fingerprint leaves out the
- * mileage, which the CRM refreshes on every pull, and the lead keeps several because a CRM with two
- * vehicles of interest sends them in turns. The lock covers two writers (a pull and the app) saving the
- * same vehicle at once.
+ * fingerprinted on the lead and only one it has not seen produces a note. The fingerprint is the VIN:
+ * everything else on the vehicle (appraisal, price, drivetrain wording, inventory data, letter case)
+ * is edited or refreshed between pulls without it being another vehicle. A vehicle the CRM sent
+ * without a VIN is told apart by its year, make and model. The lead keeps several
+ * because a CRM with two vehicles of interest sends them in turns. The lock covers two writers (a pull
+ * and the app) saving the same vehicle at once.
  */
 class RecordLeadVehicleNotesAction
 {
@@ -31,6 +33,11 @@ class RecordLeadVehicleNotesAction
     private const string DATA_VERB = 'message';
 
     private const int MAX_FINGERPRINTS = 20;
+
+    /**
+     * What tells two vehicles apart when the CRM sent no VIN.
+     */
+    private const array DESCRIPTOR_KEYS = ['year', 'yearfrom', 'yearto', 'make', 'model'];
 
     public function __construct(
         protected readonly Lead $lead,
@@ -79,8 +86,12 @@ class RecordLeadVehicleNotesAction
                     return [];
                 }
 
-                // Leads noted before fingerprints carry the md5 of the raw value instead: same vehicle, already announced.
-                if ($this->lead->get($this->kind->noteHashKey()) === md5($content)) {
+                // Leads noted before the VIN fingerprint carry one of the whole value, and older ones the md5
+                // of the raw value: same vehicle, already announced.
+                if (
+                    in_array($this->valueFingerprint($vehicle), $announced, true)
+                    || $this->lead->get($this->kind->noteHashKey()) === md5($content)
+                ) {
                     $this->rememberFingerprint($announced, $fingerprint);
 
                     return [];
@@ -106,10 +117,83 @@ class RecordLeadVehicleNotesAction
         }
     }
 
-    /**
-     * Mileage left out and keys sorted, so a fresh odometer reading or a reordered payload is the same vehicle.
-     */
     private function fingerprint(mixed $vehicle): string
+    {
+        // A list holds several vehicles, and the first one's VIN would hide a change in the others.
+        if (! is_array($vehicle) || array_is_list($vehicle)) {
+            return $this->valueFingerprint($vehicle);
+        }
+
+        $vin = $this->vin($vehicle);
+        if ($vin !== null) {
+            return 'vin:' . $vin;
+        }
+
+        $descriptors = $this->descriptors($vehicle);
+
+        return $descriptors === []
+            ? $this->valueFingerprint($vehicle)
+            : md5((string) json_encode($descriptors, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * The vehicle's own VIN before one nested in the inventory record the CRM attaches to it. Anything
+     * that is not VIN-shaped (a placeholder such as "Not Available" or a row of zeros, a stock number
+     * typed in the field) is no VIN at all, or every vehicle carrying the same placeholder would count
+     * as one.
+     */
+    private function vin(array $vehicle): ?string
+    {
+        foreach ($vehicle as $key => $item) {
+            if (is_string($key) && strtolower($key) === 'vin' && is_string($item)) {
+                $vin = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $item));
+                if (
+                    preg_match('/^(?=.*\d)[A-Z0-9]{11,17}$/', $vin) === 1
+                    && count(array_unique(str_split($vin))) > 1
+                ) {
+                    return $vin;
+                }
+            }
+        }
+
+        foreach ($vehicle as $item) {
+            $vin = is_array($item) ? $this->vin($item) : null;
+            if ($vin !== null) {
+                return $vin;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function descriptors(array $vehicle): array
+    {
+        $descriptors = [];
+        foreach ($vehicle as $key => $item) {
+            $name = is_string($key) ? strtolower($key) : null;
+            if ($name === null || ! in_array($name, self::DESCRIPTOR_KEYS, true) || ! is_scalar($item)) {
+                continue;
+            }
+
+            $text = strtolower(trim((string) $item));
+            if ($text !== '') {
+                $descriptors[$name] = $text;
+            }
+        }
+
+        ksort($descriptors);
+
+        return $descriptors;
+    }
+
+    /**
+     * The fingerprint used before the VIN one, kept to recognise the vehicles announced under it: the
+     * whole value with mileage left out and keys sorted.
+     */
+    private function valueFingerprint(mixed $vehicle): string
     {
         $normalized = is_array($vehicle) ? $this->withoutMileage($vehicle) : trim((string) $vehicle);
 
