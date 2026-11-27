@@ -83,7 +83,7 @@ final class SmsTransportTest extends TestCase
     /**
      * The reason is what the person who wrote the text reads, so it is that string and nothing more.
      */
-    public function testAVoipNumberOnAnyOtherCarrierIsRefusedAsVoipWithoutSms(): void
+    public function testAVoipNumberOnAnyOtherCarrierIsRefusedWithTheReasonOfItsLineType(): void
     {
         $delivery = $this->queuedDelivery();
         $this->messages->shouldNotReceive('create');
@@ -98,8 +98,53 @@ final class SmsTransportTest extends TestCase
             $this->line = (object) ['valid' => true, 'lineTypeIntelligence' => $intelligence, 'lineStatus' => ['status' => 'active']];
             $result = $this->transport()->send($delivery, Content::text('Hello'));
 
-            $this->assertSame('voip_without_sms', $result->errorCode);
-            $this->assertSame('VOIP without SMS', $result->error);
+            $isNonFixed = $intelligence['type'] === 'nonFixedVoip';
+            $this->assertSame($isNonFixed ? 'non_fixed_voip' : 'voip_without_sms', $result->errorCode);
+            $this->assertSame($isNonFixed ? 'Non Fixed Voip' : 'VOIP without SMS', $result->error);
+
+            // Each line is looked up as a number seen for the first time.
+            $delivery->request->people->contacts->each->del('nonfixed_voip');
+        }
+    }
+
+    public function testANonFixedVoipNumberRefusedOnceAcceptsNoMoreTexts(): void
+    {
+        $delivery = $this->queuedDelivery();
+        $people = $delivery->request->people;
+        $this->messages->shouldNotReceive('create');
+        $this->line = (object) [
+            'valid' => true,
+            'lineTypeIntelligence' => ['type' => 'nonFixedVoip', 'carrier_name' => 'Some VoIP Co'],
+            'lineStatus' => ['status' => 'active'],
+        ];
+        $transport = $this->transport();
+
+        $this->assertSame('non_fixed_voip', $transport->send($delivery, Content::text('Hello'))->errorCode);
+        $this->assertTrue($people->isPhoneNonFixedVoip('+18095550199'));
+        $this->assertFalse($people->isPhoneLandline('+18095550199'));
+
+        $again = $transport->send($delivery, Content::text('Hello'));
+
+        $this->assertSame('non_fixed_voip', $again->errorCode);
+        $this->assertSame('Non Fixed Voip', $again->error);
+        $this->assertSame(1, $transport->lookups, 'the second text is refused on the mark, not on another lookup');
+    }
+
+    public function testOnlyARefusedNonFixedVoipNumberIsMarked(): void
+    {
+        $delivery = $this->queuedDelivery();
+        $people = $delivery->request->people;
+        $this->messages->shouldReceive('create')->once()->andReturn((object) ['sid' => 'SM-voip']);
+        $lines = [
+            ['type' => 'fixedVoip', 'carrier_name' => 'Comcast'],
+            ['type' => 'nonFixedVoip', 'carrier_name' => 'Bandwidth.com CLEC, LLC - IL'],
+        ];
+
+        foreach ($lines as $intelligence) {
+            $this->line = (object) ['valid' => true, 'lineTypeIntelligence' => $intelligence, 'lineStatus' => ['status' => 'active']];
+            $this->transport()->send($delivery, Content::text('Hello'));
+
+            $this->assertFalse($people->isPhoneNonFixedVoip('+18095550199'));
         }
     }
 
