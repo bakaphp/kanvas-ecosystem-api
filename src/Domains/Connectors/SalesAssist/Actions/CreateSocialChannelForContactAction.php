@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Actions\Outreach\BootstrapChannelForLeadAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
+use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -48,12 +49,18 @@ class CreateSocialChannelForContactAction
 
         $lead = $this->leadOverride ?? LeadsRepository::getPeopleActiveLead($this->contact->people);
 
+        $communicationChannel = match ($this->contact->contacts_types_id) {
+            ContactTypeEnum::CELLPHONE->value => 'sms',
+            ContactTypeEnum::EMAIL->value => 'email',
+            default => 'unknown',
+        };
+
         if (! $lead) {
-            if (! $this->opensWhatsAppChannel()) {
+            $channel = $this->openPersonConversations($communicationChannel);
+
+            if ($channel === null) {
                 return ['error' => 'No lead associated with this contact'];
             }
-
-            $channel = $this->openWhatsAppConversation();
 
             return [
                 'success' => true,
@@ -62,12 +69,6 @@ class CreateSocialChannelForContactAction
                 'crm_note' => null,
             ];
         }
-
-        $communicationChannel = match ($this->contact->contacts_types_id) {
-            ContactTypeEnum::CELLPHONE->value => 'sms',
-            ContactTypeEnum::EMAIL->value => 'email',
-            default => 'unknown',
-        };
 
         if ($communicationChannel === 'unknown') {
             return [
@@ -97,7 +98,7 @@ class CreateSocialChannelForContactAction
             $isNewChannel = $isNewChannel || $whatsappResult['channel']->wasRecentlyCreated;
             $channel = $whatsappResult['channel'];
         } elseif ($this->opensWhatsAppChannel()) {
-            $channel = $this->openWhatsAppConversation();
+            $channel = $this->openPersonConversation('whatsapp');
             $isNewChannel = $isNewChannel || $channel->wasRecentlyCreated;
         }
 
@@ -122,17 +123,78 @@ class CreateSocialChannelForContactAction
     }
 
     /**
-     * A WhatsApp conversation is the person's, lead or no lead, so its channel and session are filed
-     * on the People.
+     * With no lead to hold them, the person's conversations are opened on the People: the text or
+     * email one their contact is for, and WhatsApp for a number on the company's integration.
      */
-    private function openWhatsAppConversation(): Channel
+    private function openPersonConversations(string $communicationChannel): ?Channel
+    {
+        $people = $this->contact->people;
+
+        if ($people === null) {
+            return null;
+        }
+
+        // A person whose leads are all closed keeps their text and email conversations on those leads.
+        $channel = $communicationChannel !== 'unknown' && LeadsRepository::getPeopleLastLead($people) === null
+            ? $this->openPersonConversation($communicationChannel)
+            : null;
+
+        return $this->opensWhatsAppChannel() ? $this->openPersonConversation('whatsapp') : $channel;
+    }
+
+    /**
+     * A conversation filed on the People, channel and session. WhatsApp always is, lead or no lead.
+     */
+    private function openPersonConversation(string $communicationChannel): Channel
     {
         return $this->createChannelAndSession(
-            channelKey: 'whatsapp',
-            communicationChannel: 'whatsapp',
+            channelKey: $communicationChannel,
+            communicationChannel: $communicationChannel,
             entity: $this->contact->people,
             agentId: (int) $this->params['agent_id']
         )['channel'];
+    }
+
+    /**
+     * The conversation a person had before their first lead becomes that lead's, the way a lead's
+     * text and email conversations are filed: a second channel on the same slug would split it.
+     * Its sessions follow, so the channel is not left answering for the person and the lead at once.
+     */
+    private function handPersonConversationToLead(
+        Lead $lead,
+        string $slug,
+        string $name
+    ): void {
+        $people = $this->contact->people;
+
+        if ($people === null || $lead->socialChannels()->fromApp($this->app)->where('slug', $slug)->exists()) {
+            return;
+        }
+
+        $channelIds = $people->socialChannels()
+            ->fromApp($this->app)
+            ->where('slug', $slug)
+            ->pluck('id');
+
+        if ($channelIds->isEmpty()) {
+            return;
+        }
+
+        Channel::whereIn('id', $channelIds)->update([
+            'entity_namespace' => Lead::class,
+            'entity_id' => $lead->getId(),
+            'name' => $name,
+        ]);
+
+        SessionModel::query()
+            ->fromApp($this->app)
+            ->whereIn('channel_id', $channelIds)
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', (string) $people->getId())
+            ->update([
+                'entity_namespace' => Lead::class,
+                'entity_id' => (string) $lead->getId(),
+            ]);
     }
 
     private function createChannelAndSession(
@@ -148,6 +210,17 @@ class CreateSocialChannelForContactAction
 
         $agent = Agent::getById($agentId);
 
+        $name = ucwords($communicationChannel) . ' ' . $entity->getId();
+        $slug = SessionChannelService::createChannelSlug($channelKey, $contactValue);
+
+        if ($entity instanceof Lead && $channelKey !== 'whatsapp') {
+            $this->handPersonConversationToLead(
+                $entity,
+                $slug,
+                $name
+            );
+        }
+
         // TODO: Remove Lead channel/session creation when SalesAssist uses the native People session flow.
         $channelDto = ChannelDto::from([
             'apps' => $this->app,
@@ -155,11 +228,8 @@ class CreateSocialChannelForContactAction
             'users' => $entity->user,
             'entity_id' => $entity->getId(),
             'entity_namespace' => $entity::class,
-            'name' => ucwords($communicationChannel) . ' ' . $entity->getId(),
-            'slug' => SessionChannelService::createChannelSlug(
-                $channelKey,
-                $contactValue
-            ),
+            'name' => $name,
+            'slug' => $slug,
         ]);
 
         $channel = new CreateChannelAction($channelDto)->execute();

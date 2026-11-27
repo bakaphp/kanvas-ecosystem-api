@@ -9,14 +9,20 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Communication\Messages\DataTransferObject\TransportResult;
 use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Actions\Communication\DeliverConversationMessageAction;
 use Kanvas\Guild\Leads\Activities\DeliverHumanReplyActivity;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
@@ -288,6 +294,126 @@ final class DeliverHumanReplyTest extends TestCase
         $this->assertCount(1, $this->notDeliveredNotes($lead));
     }
 
+    public function testAPersonWithNoLeadIsAnsweredOnTheirOwnConversation(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550721');
+        $person = $this->personWithCellphone('+18095550722');
+        $channel = $this->personConversation($person);
+        $reply = $this->writtenTo($channel, $person, 'On my way');
+
+        [$activity, $result] = $this->runActivity($channel, $reply);
+
+        $delivery = Delivery::query()->where('connection_id', $connection->getId())->sole();
+
+        $this->assertNull($activity->workflowStatus());
+        $this->assertTrue($result['delivered']);
+        $this->assertSame('+18095550722', $this->transport->sent[0]['to']);
+        $this->assertStringStartsWith('On my way', $this->transport->sent[0]['text']);
+        $this->assertSame($reply->getId(), (int) $delivery->message_id);
+        $this->assertTrue(
+            new PeopleChannelService()
+                ->findOrCreateForPeople($person, $this->currentApp(), $this->currentCompany(), auth()->user())
+                ->messages()
+                ->where('messages.id', $reply->getId())
+                ->exists(),
+            'a delivered reply joins the person\'s history'
+        );
+    }
+
+    public function testAReplyToAPersonWithNoLeadThatDidNotLeaveFailsTheRun(): void
+    {
+        $person = $this->personWithCellphone('+18095550723');
+        $channel = $this->personConversation($person);
+        $reply = $this->writtenTo($channel, $person, 'On my way');
+
+        [$activity, $result] = $this->runActivity($channel, $reply);
+
+        $this->assertSame(StatusEnum::FAILED, $activity->workflowStatus());
+        $this->assertTrue($result['failed']);
+        $this->assertSame([], $this->transport->sent);
+    }
+
+    public function testAPersonWithNoLeadWhoOptedOutIsNotWrittenToAndTheReplyIsLeftAlone(): void
+    {
+        $this->defaultSmsConnection(number: '+18095550726');
+        $person = $this->personWithCellphone('+18095550727');
+        $person->set(ConsentConfigurationEnum::DO_NOT_CONTACT->value, true);
+        $channel = $this->personConversation($person);
+        $reply = $this->writtenTo($channel, $person, 'On my way');
+
+        [$activity, $result] = $this->runActivity($channel, $reply);
+
+        $this->assertSame(StatusEnum::SKIPPED, $activity->workflowStatus());
+        $this->assertFalse($result['delivered']);
+        $this->assertSame([], $this->transport->sent);
+        $this->assertFalse($reply->fresh()->tags()->where('name', 'engagement')->exists());
+    }
+
+    public function testWhatIsWrittenOnAPersonsHistoryChannelIsNotSent(): void
+    {
+        $this->defaultSmsConnection(number: '+18095550728');
+        $person = $this->personWithCellphone('+18095550729');
+        $history = new PeopleChannelService()->findOrCreateForPeople(
+            $person,
+            $this->currentApp(),
+            $this->currentCompany(),
+            auth()->user()
+        );
+        $reply = $this->writtenTo($history, $person, 'A note to self');
+
+        $result = $this->deliver($history, $reply);
+
+        $this->assertFalse($result['delivered']);
+        $this->assertFalse($result['failed']);
+        $this->assertSame([], $this->transport->sent);
+    }
+
+    public function testAReplyToAPersonWithNoLeadLeavesFromTheNumberTheyWroteTo(): void
+    {
+        $this->defaultSmsConnection(number: '+18095550730');
+        $theirs = $this->connection('fake', '+18095550731');
+        $person = $this->personWithCellphone('+18095550732');
+        $channel = $this->personConversation($person);
+        Queue::fake();
+        $this->fileInConversation(
+            $channel,
+            $person,
+            'sms',
+            [
+                'content' => 'Is it available?',
+                'from_me' => false,
+                'communication' => ['connection_id' => $theirs->getId(), 'channel' => 'sms'],
+            ]
+        );
+        $reply = $this->writtenTo($channel, $person, 'Yes');
+
+        $this->deliver($channel, $reply);
+
+        $this->assertSame(
+            $theirs->getId(),
+            (int) Delivery::query()->where('message_id', $reply->getId())->sole()->connection_id
+        );
+    }
+
+    /**
+     * WhatsApp is filed on the person even when they have a lead: a reply written there is still
+     * the lead's, and takes it over like any other.
+     */
+    public function testAReplyOnAPersonsConversationIsTheirOpenLeads(): void
+    {
+        $this->defaultSmsConnection(number: '+18095550724');
+        $person = $this->personWithCellphone('+18095550725');
+        $lead = $this->leadOf($person);
+        $channel = $this->personConversation($person);
+        $reply = $this->writtenTo($channel, $person, 'On my way');
+
+        $result = $this->deliver($channel, $reply);
+
+        $this->assertTrue($result['delivered']);
+        $this->assertSame('Message sent to lead via sms', $result['message']);
+        $this->assertSame($lead->getId(), $reply->fresh()->entity(Lead::class)?->getId());
+    }
+
     /**
      * @return array{0: DeliverHumanReplyActivity, 1: array<string, mixed>}
      */
@@ -321,6 +447,39 @@ final class DeliverHumanReplyTest extends TestCase
                 ->where('name', DeliverConversationMessageAction::NOT_DELIVERED_TAG)
                 ->exists())
             ->values();
+    }
+
+    private function personConversation(People $person): Channel
+    {
+        SystemModules::firstOrCreate(
+            ['model_name' => People::class],
+            ['name' => 'Peoples', 'slug' => 'peoples', 'description' => 'People system module']
+        );
+
+        return new CreateChannelAction(ChannelDto::from([
+            'apps' => $this->currentApp(),
+            'companies' => $this->currentCompany(),
+            'users' => auth()->user(),
+            'entity_id' => $person->getId(),
+            'entity_namespace' => People::class,
+            'name' => 'Sms ' . $person->getId(),
+            'slug' => 'fake-people-' . $person->getId(),
+        ]))->execute();
+    }
+
+    private function writtenTo(
+        Channel $channel,
+        People $person,
+        string $text
+    ): Message {
+        Queue::fake();
+
+        return $this->fileInConversation(
+            $channel,
+            $person,
+            'sms',
+            ['content' => $text, 'from_me' => true, 'from_human' => true]
+        );
     }
 
     private function written(Channel $channel, Lead $lead, string $text): Message
