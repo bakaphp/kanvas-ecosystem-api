@@ -38,9 +38,13 @@ use Kanvas\Guild\Customers\Enums\ContactCustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -1134,6 +1138,33 @@ class People extends BaseModel implements ExposesTemplateData
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
 
         return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+    }
+
+    /**
+     * The mode kept on the person: what ApplyAiModeAction replicated from their active lead, or
+     * what was set by hand on a person with no lead.
+     */
+    public function getAiMode(): ?IntelligenceModeEnum
+    {
+        return IntelligenceModeEnum::tryFrom((string) $this->get(IntelligenceConfigurationEnum::AI_MODE->value));
+    }
+
+    /**
+     * A conversation is the person's, so its agent asks the person. Off on either side silences
+     * it: the lead the conversation is about (the person's active one unless told otherwise), or
+     * the person's own mode when it was pinned by hand. Unpinned, the person's copy is only a
+     * lead type's default for one moment of the day, and the lead is the one that resolves it.
+     */
+    public function isAiMuted(?Lead $lead = null): bool
+    {
+        $lead ??= LeadsRepository::getPeopleActiveLead($this);
+
+        if ($lead?->isAiMuted()) {
+            return true;
+        }
+
+        return (bool) $this->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value)
+            && ($this->getAiMode()?->isOff() ?? false);
     }
 
     /**

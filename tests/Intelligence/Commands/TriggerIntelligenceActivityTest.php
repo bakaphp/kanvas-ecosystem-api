@@ -21,7 +21,7 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyAiModeAction;
 use Kanvas\Intelligence\Triggers\Actions\TriggerLeadIntelligenceAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Models\Message;
@@ -208,7 +208,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
-        $result = new ApplyLeadAiModeAction($lead, TriggersEnum::AI_TAKEOVER->value)->execute();
+        $result = new ApplyAiModeAction($lead, TriggersEnum::AI_TAKEOVER->value)->execute();
 
         $this->assertFalse($result['changed']);
         $this->assertEquals(IntelligenceModeEnum::IDLE->value, $lead->get($aiModeKey));
@@ -220,7 +220,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
-        $result = new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        $result = new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertFalse($result['changed']);
         $this->assertEquals(IntelligenceModeEnum::IDLE->value, $lead->get($aiModeKey));
@@ -243,7 +243,7 @@ class TriggerIntelligenceActivityTest extends TestCase
             $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
             $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
-            $result = new ApplyLeadAiModeAction($lead, $trigger->value)->execute();
+            $result = new ApplyAiModeAction($lead, $trigger->value)->execute();
 
             $this->assertFalse($result['changed'], "Trigger {$trigger->name} should NOT override OFF mode");
             $this->assertEquals(
@@ -260,7 +260,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_FON->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_FON->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::FULL_ON->value, $lead->get($aiModeKey));
     }
@@ -271,7 +271,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_SUPPORT->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_SUPPORT->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::SUPPORT->value, $lead->get($aiModeKey));
     }
@@ -282,7 +282,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::IDLE->value, $lead->get($aiModeKey));
     }
@@ -292,7 +292,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead = $this->createLead('Internet');
         $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get($followUpKey));
     }
@@ -303,7 +303,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::OFF()->value, $lead->get($followUpKey));
     }
@@ -314,7 +314,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::IDLE->value, $lead->get($aiModeKey));
     }
@@ -324,7 +324,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead = $this->createLead('Showroom');
         $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get($followUpKey));
     }
@@ -335,7 +335,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::OFF()->value, $lead->get($followUpKey));
     }
@@ -346,7 +346,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::IDLE->value, $lead->get($aiModeKey));
     }
@@ -356,7 +356,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead = $this->createLead('Phone');
         $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get($followUpKey));
     }
@@ -367,7 +367,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::OFF()->value, $lead->get($followUpKey));
     }
@@ -380,7 +380,7 @@ class TriggerIntelligenceActivityTest extends TestCase
             $lead = $this->createLead($typeName);
             $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
-            new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+            new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
             $this->assertEquals(
                 FollowUpValueEnum::ON()->value,
@@ -388,7 +388,7 @@ class TriggerIntelligenceActivityTest extends TestCase
                 "{$typeName} lead should write to {$followUpKey}"
             );
 
-            new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+            new ApplyAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
 
             $this->assertEquals(
                 FollowUpValueEnum::OFF()->value,
@@ -441,7 +441,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $this->setLeadTypeConfig($lead, [$aiModeDefaultKey => IntelligenceModeEnum::FULL_ON->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::SUPPORT->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::FULL_ON->value, $lead->get($aiModeKey));
     }
@@ -455,7 +455,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $this->setLeadTypeConfig($lead, [$aiModeDefaultKey => IntelligenceModeEnum::SUPPORT->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::SUPPORT->value, $lead->get($aiModeKey));
     }
@@ -469,7 +469,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $this->setLeadTypeConfig($lead, [$aiModeDefaultKey => IntelligenceModeEnum::FULL_ON->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::SUPPORT->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::FULL_ON->value, $lead->get($aiModeKey));
     }
@@ -485,7 +485,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
         $lead->company->set($followUpKey, FollowUpValueEnum::OFF()->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get($followUpKey));
     }
@@ -501,7 +501,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
         $lead->company->set($followUpKey, FollowUpValueEnum::OFF()->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get($followUpKey));
     }
@@ -517,7 +517,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
         $lead->company->set($followUpKey, FollowUpValueEnum::OFF()->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get($followUpKey));
     }
@@ -531,7 +531,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead->company->set($aiModeKey, IntelligenceModeEnum::SUPPORT->value);
         $lead->company->set($followUpKey, FollowUpValueEnum::ON()->value);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
 
         $this->assertEquals(IntelligenceModeEnum::SUPPORT->value, $lead->get($aiModeKey));
         $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get($followUpKey));
@@ -547,7 +547,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
         $this->createLockedFirstMessageForLead($lead);
 
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
         $this->assertEquals(IntelligenceModeEnum::IDLE->value, $lead->get($aiModeKey));
 
         $this->artisan('kanvas:intelligence:send-delay-message', ['app_id' => $app->getId()])
@@ -560,7 +560,7 @@ class TriggerIntelligenceActivityTest extends TestCase
             'Lead that was turned OFF must remain OFF after delay cron'
         );
 
-        $result = new ApplyLeadAiModeAction($lead, TriggersEnum::AI_TAKEOVER->value)->execute();
+        $result = new ApplyAiModeAction($lead, TriggersEnum::AI_TAKEOVER->value)->execute();
         $this->assertFalse($result['changed']);
         $this->assertEquals(
             IntelligenceModeEnum::IDLE->value,
