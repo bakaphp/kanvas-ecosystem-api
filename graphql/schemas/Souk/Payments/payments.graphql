@@ -447,7 +447,7 @@ extend type Query @guard {
         orderBy: PaymentMethodOrderByInput
         where: _
             @whereConditions(
-                columns: ["id", "payment_methods_brand", "users_id"]
+                columns: ["id", "payment_methods_brand", "users_id", "processor"]
             )
     ): [PaymentMethod!]!
         @paginate(
