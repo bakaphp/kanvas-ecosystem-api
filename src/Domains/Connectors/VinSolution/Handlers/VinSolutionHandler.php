@@ -40,7 +40,10 @@ class VinSolutionHandler extends BaseIntegration
     #[Override]
     protected function companySettingKeys(): array
     {
-        return [ConfigurationEnum::COMPANY->value];
+        return [
+            ConfigurationEnum::COMPANY->value,
+            ConfigurationEnum::SESSION_COOKIES->value,
+        ];
     }
 
     #[Override]

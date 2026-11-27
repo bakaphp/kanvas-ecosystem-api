@@ -26,4 +26,5 @@ enum CustomFieldEnum: string
     case ESIGN_INFO_KEY = 'esign-docs';
     case LEAD_CO_BUYER_PROCESSED = 'processCoBuyer';
     case VEHICLE_OF_INTEREST = 'vehicle_of_interest';
+    case APPOINTMENT_ID = 'VIN_SOLUTION_APPOINTMENT_ID';
 }
