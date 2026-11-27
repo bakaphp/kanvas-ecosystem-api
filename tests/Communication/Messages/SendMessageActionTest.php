@@ -6,6 +6,7 @@ namespace Tests\Communication\Messages;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
+use Kanvas\Communication\Messages\DataTransferObject\Operation;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\DataTransferObject\TransportResult;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
@@ -13,6 +14,7 @@ use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Jobs\DispatchDeliveryJob;
 use Kanvas\Communication\Messages\Models\Request;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;
@@ -101,6 +103,35 @@ final class SendMessageActionTest extends TestCase
         $this->assertFalse($userMessage->message['from_ia']);
         $this->assertSame(auth()->user()->getId(), (int) $byUser->request->users_id);
         $this->assertSame(auth()->user()->getId(), (int) $userMessage->users_id);
+    }
+
+    /**
+     * A send is addressed to a person. When they have a lead it is about that lead too, so it is
+     * filed on both, the person first, as an inbound message is.
+     */
+    public function testAMessageToAPersonWithALeadIsFiledOnBoth(): void
+    {
+        $this->useFakeProvider();
+        $this->defaultSmsConnection();
+        $withLead = $this->personWithCellphone('+18095550133');
+        $lead = $this->leadOf($withLead);
+        $alone = $this->personWithCellphone('+18095550134');
+
+        $onLead = $this->filedMessageOf(
+            $this->communication()->send($withLead, 'Your quote is ready', channels: ['sms'])
+        );
+        $onPerson = $this->filedMessageOf(
+            $this->communication()->send($alone, 'Your order shipped', channels: ['sms'])
+        );
+        $onLeadHistory = $onLead->channels()
+            ->where('slug', 'lead-channel-' . $lead->getId())
+            ->exists();
+
+        $this->assertTrue($withLead->is($onLead->entity()), 'the person is the first link');
+        $this->assertTrue($lead->is($onLead->entity(Lead::class)));
+        $this->assertTrue($onLeadHistory, 'on the lead\'s history');
+        $this->assertTrue($alone->is($onPerson->entity(People::class)));
+        $this->assertNull($onPerson->entity(Lead::class), 'a person with no lead stays on the person alone');
     }
 
     public function testIdempotencyKeyDedupes(): void
@@ -270,5 +301,10 @@ final class SendMessageActionTest extends TestCase
         $this->assertSame(DeliveryStatusEnum::FAILED, $operation->delivery(ChannelTypeEnum::EMAIL)->status);
         $this->assertSame(DeliveryStatusEnum::ACCEPTED, $operation->delivery(ChannelTypeEnum::SMS)->status);
         $this->assertCount(2, $transport->sent);
+    }
+
+    private function filedMessageOf(Operation $operation): Message
+    {
+        return Message::query()->findOrFail($operation->delivery(ChannelTypeEnum::SMS)->message_id);
     }
 }

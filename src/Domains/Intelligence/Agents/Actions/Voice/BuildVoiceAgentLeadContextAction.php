@@ -80,7 +80,7 @@ class BuildVoiceAgentLeadContextAction
 
         return [
             $person,
-            LeadsRepository::getPeopleActiveLead($person) ?? LeadsRepository::getPeopleLastLead($person),
+            LeadsRepository::getPeopleCurrentLead($person),
         ];
     }
 

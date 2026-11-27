@@ -79,6 +79,15 @@ class LeadsRepository
     }
 
     /**
+     * The lead a conversation with this person is about when nothing names one: the one being
+     * worked, else the most recent.
+     */
+    public static function getPeopleCurrentLead(People $people): ?Lead
+    {
+        return self::getPeopleActiveLead($people) ?? self::getPeopleLastLead($people);
+    }
+
+    /**
      * "Not active", not "terminal": a status in neither list (Reynolds' "Open") satisfies both
      * this and getPeopleNonClosedLeads().
      */

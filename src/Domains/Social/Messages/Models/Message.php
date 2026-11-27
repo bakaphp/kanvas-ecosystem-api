@@ -376,6 +376,19 @@ class Message extends BaseModel
     }
 
     /**
+     * A message of a lead's customer conversation is the person's as well: their history and the
+     * agent's memory of them are read off the person, across every lead they ever had.
+     */
+    public function addLeadAndPerson(Lead $lead): void
+    {
+        $this->addEntity($lead);
+
+        if ($lead->people !== null) {
+            $this->addEntity($lead->people);
+        }
+    }
+
+    /**
      * Only real SMS/email/WhatsApp/voice conversations carry a person. The in-app assistant
      * (ai-chat / ai-control) also writes from_me, so the sender type alone is not enough.
      */
