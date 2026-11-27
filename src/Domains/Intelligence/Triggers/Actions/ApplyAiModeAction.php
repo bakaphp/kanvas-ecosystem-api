@@ -131,11 +131,10 @@ class ApplyAiModeAction
             return;
         }
 
-        $aiModeKey = new LeadConfigurationService()->getAiModeKey($this->lead);
-        $aiMode = $this->lead->get($aiModeKey);
+        $aiMode = $this->lead->get(new LeadConfigurationService()->getAiModeKey($this->lead));
 
-        if ($aiMode !== null && $this->people->get($aiModeKey) !== $aiMode) {
-            $this->people->set($aiModeKey, $aiMode);
+        if ($aiMode !== null && $this->people->get(ConfigurationEnum::AI_MODE->value) !== $aiMode) {
+            $this->people->set(ConfigurationEnum::AI_MODE->value, $aiMode);
         }
 
         // The pin is mirrored both ways: left standing from an older lead, it would silence the

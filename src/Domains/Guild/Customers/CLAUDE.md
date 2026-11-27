@@ -38,6 +38,9 @@ State written by an opt-out, keyed by `Enums/ConsentConfigurationEnum`:
 - the `People` row → `do_not_contact` (+ reason / at / source)
 - every existing `Lead` of that person → the same, plus `ai_mode = idle` **and**
   `lead_ai_mode_is_manual = true`
+- the `People` row also carries the `ai_mode` and `lead_ai_mode_is_manual` of their active lead
+  (`ApplyAiModeAction` replicates them, and `People::isAiMuted()` reads them), so
+  `RevokeDoNotContactAction` drops the pin on the person as well as on the leads
 
 **The manual pin is not optional.** `Lead::resolveAiMode()` lets the lead-type config outrank the
 stored mode unless that flag is set, so setting `ai_mode` alone leaves a silenced lead free to start
