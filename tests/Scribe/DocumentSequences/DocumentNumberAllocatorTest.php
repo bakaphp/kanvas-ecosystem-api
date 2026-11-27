@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\DocumentSequences;
 
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Models\DocumentSequence;
 use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
@@ -47,6 +49,39 @@ class DocumentNumberAllocatorTest extends TestCase
 
         $this->assertNotNull($row);
         $this->assertSame(2, (int) $row->next_value, 'next_value advances by 1 after first allocation.');
+    }
+
+    public function test_a_first_number_asked_for_while_another_request_creates_the_sequence_follows_it(): void
+    {
+        $companyId = random_int(1_000_000_000, 2_000_000_000);
+        $raced = false;
+        DB::listen(static function (QueryExecuted $query) use ($companyId, &$raced): void {
+            $firstRead = ! $raced
+                && str_starts_with(strtolower($query->sql), 'select')
+                && str_contains($query->sql, 'document_sequences')
+                && in_array($companyId, $query->bindings, true);
+
+            if ($firstRead) {
+                $raced = true;
+                DB::connection('accounting')->table('document_sequences')->insert([
+                    'apps_id' => self::APPS_ID,
+                    'companies_id' => $companyId,
+                    'document_type' => DocumentTypeEnum::INVOICE->value,
+                    'prefix' => 'RACE-',
+                    'next_value' => 2,
+                ]);
+            }
+        });
+
+        $number = new DocumentNumberAllocatorService()->allocate(
+            self::APPS_ID,
+            $companyId,
+            DocumentTypeEnum::INVOICE,
+            'RACE-'
+        );
+
+        $this->assertTrue($raced);
+        $this->assertSame('RACE-2', $number);
     }
 
     public function test_consecutive_calls_return_consecutive_numbers(): void

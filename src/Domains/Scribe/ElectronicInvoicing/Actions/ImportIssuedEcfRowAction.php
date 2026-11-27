@@ -139,7 +139,7 @@ class ImportIssuedEcfRowAction
      */
     private function import(?Organization $organization, ?string $issuer, string $identityKey): array
     {
-        $data = $this->invoiceData($organization);
+        $data = $this->invoiceData($organization, $identityKey);
 
         if ($this->row->isRejected()) {
             // VoidInvoiceAction reverses a posted journal entry; a number the authority rejected never had one.
@@ -183,7 +183,7 @@ class ImportIssuedEcfRowAction
         return [$invoice->refresh(), $fiscal];
     }
 
-    private function invoiceData(?Organization $organization): InvoiceData
+    private function invoiceData(?Organization $organization, string $identityKey): InvoiceData
     {
         $line = new InvoiceLineData(
             description: 'Factura ' . $this->row->encf . ($this->row->reference !== null ? " ({$this->row->reference})" : ''),
@@ -215,7 +215,9 @@ class ImportIssuedEcfRowAction
                 ], static fn (mixed $value): bool => $value !== null),
             ],
             source: self::INVOICE_SOURCE,
-            external_id: $this->row->encf,
+            // Every issuer starts each e-CF type at the same number, and external ids are unique per app: the
+            // bare e-NCF of a second company would collide with the first one's.
+            external_id: $identityKey,
             billable_display_name: $this->row->customerName,
             billable_tax_id: $this->row->customerTaxId,
         );

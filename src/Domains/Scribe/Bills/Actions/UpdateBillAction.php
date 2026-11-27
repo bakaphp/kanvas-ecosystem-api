@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Bills\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Bills\Actions\Concerns\KeepsPurchaseOrderLinkMatched;
 use Kanvas\Scribe\Bills\Actions\Concerns\PersistsBillLines;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
@@ -14,10 +15,13 @@ use Kanvas\Scribe\Bills\Exceptions\InvalidBillTransitionException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Bills\Models\BillTaxLine;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdateBillAction
 {
+    use KeepsPurchaseOrderLinkMatched;
+    use LocksDocumentRow;
     use PersistsBillLines;
 
     public function __construct(
@@ -38,6 +42,15 @@ class UpdateBillAction
         }
 
         $bill = DB::connection('accounting')->transaction(function (): Bill {
+            $this->lockPurchaseOrders($this->bill->purchase_order_id, $this->data->purchase_order_id);
+
+            if (! $this->lockedStatusIsUnchanged($this->bill)) {
+                throw new InvalidBillTransitionException(
+                    "Bill {$this->bill->id} was received or changed by another request while it was being edited. "
+                    . 'Only draft bills are editable: reload it.'
+                );
+            }
+
             $bill = $this->bill;
             [$totals, $baseTotals] = $this->computeTotals($this->data);
             $fxRate = $this->data->fx_rate_to_base;
@@ -70,10 +83,7 @@ class UpdateBillAction
             $bill->purchase_order_id = $this->data->purchase_order_id;
             $bill->metadata = $this->data->metadata;
 
-            // Vendor reference — allow swap (or clear) while in draft. This is the primary motivator
-            // for this Action: PDF-ingested drafts land without a resolved vendor; operators need to
-            // attach one before Receive. Don't update display_name/legal_name/tax_id/email — those
-            // freeze at Receive time from the Guild Org snapshot.
+            // PDF-ingested drafts may have no resolved vendor; one must be attached before receiving.
             if ($this->data->vendor !== null) {
                 $bill->vendor_organization_id = $this->data->vendor->getPayeeId();
             } else {
@@ -88,12 +98,12 @@ class UpdateBillAction
 
             $bill->save();
 
-            // Lines + tax lines — replace wholesale
             BillLine::query()->where('bill_id', $bill->id)->delete();
             BillTaxLine::query()->where('bill_id', $bill->id)->delete();
 
             $this->persistLines($bill, $this->data);
             $this->persistTaxLines($bill, $this->data);
+            $this->reconcilePurchaseOrderLink($bill);
 
             $bill->load(['lines', 'taxLines']);
 

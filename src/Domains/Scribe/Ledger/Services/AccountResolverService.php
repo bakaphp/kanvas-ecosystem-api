@@ -17,7 +17,6 @@ use RuntimeException;
  * hard-coding ids — the ids are tenant-specific because each company has its own COA seeded by
  * ChartOfAccountsSeederService.
  *
- * Accepts AccountSubTypeEnum (type-safe) — string-based lookups went away when the enum was introduced.
  * Throws if a required system account is missing — that means the company didn't get a COA seed and the
  * tenant onboarding flow has a bug.
  */
@@ -28,12 +27,7 @@ class AccountResolverService
         CompanyInterface $company,
         AccountSubTypeEnum $subType
     ): Account {
-        $account = Account::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('account_sub_type', $subType->value)
-            ->where('is_active', true)
-            ->first();
+        $account = $this->bySubTypeOrNull($app, $company, $subType);
 
         if ($account === null) {
             throw new RuntimeException(
@@ -44,6 +38,17 @@ class AccountResolverService
         }
 
         return $account;
+    }
+
+    /**
+     * The currency the company keeps its books in: the one its chart of accounts was seeded with, read off the
+     * receivables account. Null for a company with no chart yet.
+     */
+    public function ledgerCurrency(AppInterface $app, CompanyInterface $company): ?string
+    {
+        $currency = $this->bySubTypeOrNull($app, $company, AccountSubTypeEnum::ACCOUNTS_RECEIVABLE)?->currency;
+
+        return $currency === null ? null : strtoupper($currency);
     }
 
     /**

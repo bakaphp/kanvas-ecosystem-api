@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Scribe;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -288,7 +289,7 @@ class TestPdfIngestCommand extends Command
             ['id', $log->id],
             ['status', $log->status->value],
             ['document_type', $log->document_type?->value ?? '—'],
-            ['confidence', $log->confidence !== null ? number_format((float) $log->confidence, 3) : '—'],
+            ['confidence', $log->confidence !== null ? Number::format((float) $log->confidence, precision: 3) : '—'],
             ['reasoning', $this->truncate($log->reasoning)],
             ['linked_entity_type', $log->linked_entity_type ?? '—'],
             ['linked_entity_id', $log->linked_entity_id ?? '—'],

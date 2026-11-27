@@ -425,6 +425,12 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
+            // The ledger is guarded by row locks, and a lock only helps if what is read under it is current.
+            // MySQL's default (REPEATABLE READ) answers from the snapshot the transaction took at its first
+            // read, so a guard nested in a caller's transaction misses what another request committed since.
+            // READ COMMITTED gives each statement a fresh snapshot; gap locks remain for foreign-key and
+            // duplicate-key checks.
+            'isolation_level' => env('DB_ACCOUNTING_ISOLATION_LEVEL', 'READ COMMITTED'),
             'engine' => 'InnoDB',
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),

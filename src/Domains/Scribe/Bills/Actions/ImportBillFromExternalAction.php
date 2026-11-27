@@ -62,9 +62,11 @@ class ImportBillFromExternalAction
     private function applyFinancialState(Bill $bill): void
     {
         $fxRate = (float) $this->data->fx_rate_to_base;
-        $paidNative = round($this->paidNative, 4);
-        $totalNative = (float) $bill->total_native;
-        $balanceNative = round(max($totalNative - $paidNative, 0.0), 4);
+        $paidNative = Money::stored($this->paidNative);
+        $balanceNative = max(
+            0.0,
+            Money::stored(Money::of((float) $bill->total_native)->minus(Money::of($paidNative)))
+        );
 
         $bill->paid_native = $paidNative;
         $bill->paid_base = Money::toBase($paidNative, $fxRate);
@@ -77,9 +79,8 @@ class ImportBillFromExternalAction
             : BillDocumentStatusEnum::RECEIVED;
         $bill->collection_state = $isPaid ? null : $this->collectionState($bill);
 
-        if ($isPaid && $bill->paid_at === null) {
-            $bill->paid_at = Carbon::now();
-        }
+        // A refund upstream reopens the bill: a paid day left behind would say it is still settled.
+        $bill->paid_at = $isPaid ? ($bill->paid_at ?? Carbon::now()) : null;
     }
 
     private function collectionState(Bill $bill): BillCollectionStateEnum

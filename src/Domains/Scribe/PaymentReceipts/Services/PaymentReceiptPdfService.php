@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\PaymentReceipts\Services;
 
 use Baka\Support\AmountInWords;
+use Baka\Support\Money;
 use Baka\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
@@ -77,7 +78,7 @@ final class PaymentReceiptPdfService
             'number' => $receipt->receipt_number,
             'issued_date' => $receipt->issued_at->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
             'customer_name' => $receipt->customer_name,
-            'amount' => $this->currencyLabel($receipt->currency) . number_format($receipt->amount, 2),
+            'amount' => $this->currencyLabel($receipt->currency) . Money::format($receipt->amount),
             'amount_words' => AmountInWords::spanish($receipt->amount),
             'concept' => $this->concept(),
             'payment' => $this->paymentBreakdown(),

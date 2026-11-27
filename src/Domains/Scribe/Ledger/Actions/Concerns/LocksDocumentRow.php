@@ -47,4 +47,18 @@ trait LocksDocumentRow
             }
         );
     }
+
+    /**
+     * Locks the row and says whether its status is still the one on the caller's copy. For an action that has to
+     * keep the caller's unsaved changes, which withRowLocked() would re-read over. Call it inside a transaction.
+     */
+    private function lockedStatusIsUnchanged(Model $document, string $column = 'document_status'): bool
+    {
+        $current = $document->newQueryWithoutScopes()
+            ->whereKey($document->getKey())
+            ->lockForUpdate()
+            ->value($column);
+
+        return $current === $document->getAttribute($column);
+    }
 }

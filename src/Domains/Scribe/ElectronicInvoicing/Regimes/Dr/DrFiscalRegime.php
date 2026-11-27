@@ -6,6 +6,8 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\DateHelper;
+use Baka\Support\Money;
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
@@ -223,10 +225,10 @@ final class DrFiscalRegime implements FiscalRegimeInterface
             . 'and the customer has none on file. Record the customer\'s tax id first (a US company: its EIN with '
             . 'tax_id_type us_ein), or mark the invoice as an export (E46) if that is what it is.',
             $invoice->getId(),
-            number_format((float) $invoice->total_native, 2),
+            Money::format((float) $invoice->total_native),
             $currency,
-            number_format((float) $invoice->total_native * $rate, 0),
-            number_format(DrEcfValidator::CONSUMER_ANONYMOUS_LIMIT_DOP, 0)
+            Number::format(Money::toBase((float) $invoice->total_native, $rate), precision: 0),
+            Number::format(DrEcfValidator::CONSUMER_ANONYMOUS_LIMIT_DOP, precision: 0)
         ));
     }
 

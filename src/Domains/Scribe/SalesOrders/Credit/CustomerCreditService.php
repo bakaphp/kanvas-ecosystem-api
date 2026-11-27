@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\SalesOrders\Credit;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Money;
 use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -173,9 +174,9 @@ class CustomerCreditService
             throw new ValidationException(sprintf(
                 'The order of %s %s is above the %s %s still available of the customer\'s credit limit.',
                 $order->currency,
-                number_format((float) $order->order_total, 2),
+                Money::format((float) $order->order_total),
                 $status->currency,
-                number_format(max(0.0, $status->available()), 2)
+                Money::format(max(0.0, $status->available()))
             ));
         }
     }
@@ -207,7 +208,7 @@ class CustomerCreditService
             throw new ValidationException(sprintf(
                 'The customer is %s %s over their credit limit: the documents are not released.',
                 $status->currency,
-                number_format(abs($status->available()), 2)
+                Money::format(abs($status->available()))
             ));
         }
     }
@@ -370,25 +371,19 @@ class CustomerCreditService
         array &$missing,
     ): ?float {
         $from = strtoupper($from);
+        $rate = $this->rates->conversionRate(
+            $app,
+            $from,
+            $to,
+            $date
+        );
 
-        if ($from === $to) {
-            return $amount;
+        if ($rate === null) {
+            $missing[] = "{$from}/{$to}";
+
+            return null;
         }
 
-        $direct = $this->rates->rateOn($app, $from, $to, $date);
-
-        if ($direct !== null && $direct->rate > 0) {
-            return $amount * $direct->rate;
-        }
-
-        $inverse = $this->rates->rateOn($app, $to, $from, $date);
-
-        if ($inverse !== null && $inverse->rate > 0) {
-            return $amount / $inverse->rate;
-        }
-
-        $missing[] = "{$from}/{$to}";
-
-        return null;
+        return Money::toBase($amount, $rate);
     }
 }

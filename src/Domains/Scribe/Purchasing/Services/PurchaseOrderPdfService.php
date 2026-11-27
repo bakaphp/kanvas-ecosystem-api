@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Purchasing\Services;
 
+use Baka\Support\Money;
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
@@ -85,12 +87,12 @@ final class PurchaseOrderPdfService
                     'number' => $line->line_number,
                     'sku' => $line->sku,
                     'description' => $line->description,
-                    'quantity' => rtrim(rtrim(number_format((float) $line->order_qty, 6, '.', ','), '0'), '.'),
-                    'unit_cost' => number_format((float) $line->unit_cost, 2),
-                    'total' => number_format((float) $line->ext_cost, 2),
+                    'quantity' => Number::format((float) $line->order_qty, maxPrecision: 6),
+                    'unit_cost' => Money::format((float) $line->unit_cost),
+                    'total' => Money::format((float) $line->ext_cost),
                 ])
                 ->all(),
-            'total' => number_format((float) $this->order->order_total, 2),
+            'total' => Money::format((float) $this->order->order_total),
             'notes' => Str::trimToNull($this->order->notes),
         ];
     }

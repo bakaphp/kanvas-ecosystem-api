@@ -61,6 +61,7 @@ class RevenueRepository
             ->fromCompany($company)
             ->notDeleted()
             ->where('document_type', DocumentTypeEnum::CREDIT_NOTE)
+            ->whereIn('document_status', InvoiceDocumentStatusEnum::effective())
             ->whereDate('issued_date', '>=', $periodStart)
             ->whereDate('issued_date', '<=', $periodEnd)
             ->get();
@@ -157,8 +158,9 @@ class RevenueRepository
                 $buckets[$key]['count'] += 1;
             }
         }
+        $creditNotes->load('lines');
+
         foreach ($creditNotes as $cn) {
-            $cn->load('lines');
             foreach ($cn->lines as $line) {
                 $key = $line->item_id !== null ? (string) $line->item_id : '_uncategorized';
                 $label = (string) ($line->description ?? 'Uncategorized');

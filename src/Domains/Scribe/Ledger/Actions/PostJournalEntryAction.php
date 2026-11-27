@@ -11,8 +11,11 @@ use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
+use Kanvas\Scribe\Ledger\Exceptions\InvalidJournalEntryLineException;
+use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Ledger\Models\JournalEntryLine;
+use Kanvas\Scribe\Ledger\Services\AccountResolverService;
 use Kanvas\Scribe\Ledger\Services\FiscalPeriodAutoOpenService;
 use Kanvas\Scribe\Ledger\Services\JournalEntryValidatorService;
 use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
@@ -50,6 +53,7 @@ class PostJournalEntryAction
         protected readonly PeriodCloseService $periodCloseService = new PeriodCloseService(),
         protected readonly DocumentNumberAllocatorService $numberAllocator = new DocumentNumberAllocatorService(),
         protected readonly FiscalPeriodAutoOpenService $periodAutoOpen = new FiscalPeriodAutoOpenService(),
+        protected readonly AccountResolverService $accounts = new AccountResolverService(),
     ) {
     }
 
@@ -74,6 +78,7 @@ class PostJournalEntryAction
 
         $linesArray = $this->linesToArray();
         $this->validator->validate($linesArray);
+        $this->assertAccounts($linesArray);
 
         return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $period, $linesArray): JournalEntry {
             $entry = new JournalEntry();
@@ -127,6 +132,41 @@ class PostJournalEntryAction
 
             return $entry->fresh(['lines']);
         });
+    }
+
+    /**
+     * Every line posts to an account of this company. An account kept in the ledger's own currency takes a
+     * document in any currency, because the base amounts carry its value; an account kept in another currency
+     * (a foreign-currency bank account) only takes lines in that currency.
+     *
+     * @param array<int, array<string, mixed>> $lines
+     */
+    private function assertAccounts(array $lines): void
+    {
+        $currencies = Account::query()
+            ->fromApp($this->data->app)
+            ->fromCompany($this->data->company)
+            ->notDeleted()
+            ->whereIn('id', array_unique(array_column($lines, 'account_id')))
+            ->pluck('currency', 'id');
+        $ledgerCurrency = $this->accounts->ledgerCurrency($this->data->app, $this->data->company);
+
+        foreach ($lines as $index => $line) {
+            if (! $currencies->has($line['account_id'])) {
+                throw new InvalidJournalEntryLineException(
+                    "Line {$index} posts to account {$line['account_id']}, which is not in this company's chart of accounts."
+                );
+            }
+
+            $accountCurrency = strtoupper((string) $currencies[$line['account_id']]);
+            $foreignAccount = $ledgerCurrency !== null && $accountCurrency !== '' && $accountCurrency !== $ledgerCurrency;
+
+            if ($foreignAccount && strtoupper((string) $line['currency']) !== $accountCurrency) {
+                throw new InvalidJournalEntryLineException(
+                    "Line {$index} posts {$line['currency']} to account {$line['account_id']}, which is kept in {$accountCurrency}."
+                );
+            }
+        }
     }
 
     /**

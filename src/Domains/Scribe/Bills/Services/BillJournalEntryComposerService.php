@@ -165,7 +165,9 @@ class BillJournalEntryComposerService
         $company = $bill->company;
 
         $apAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::ACCOUNTS_PAYABLE);
-        $cashAccount = $this->accountResolver->bySubType($app, $company, $cashAccountSubType);
+        // The bank the payment names is where the money moved; the sub-type is only the fallback.
+        $cashAccount = $allocation->payment?->bankAccount?->glAccount
+            ?? $this->accountResolver->bySubType($app, $company, $cashAccountSubType);
 
         $amountNative = (float) $allocation->amount_native;
         $amountBase = (float) $allocation->amount_base;

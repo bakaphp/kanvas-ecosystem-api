@@ -10,6 +10,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Scribe\Bills\Actions\Concerns\KeepsPurchaseOrderLinkMatched;
 use Kanvas\Scribe\Bills\Actions\Concerns\PersistsBillLines;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
@@ -28,6 +29,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  */
 class CreateBillAction
 {
+    use KeepsPurchaseOrderLinkMatched;
     use PersistsBillLines;
 
     public function __construct(
@@ -39,6 +41,8 @@ class CreateBillAction
     public function execute(): Bill
     {
         $bill = DB::connection('accounting')->transaction(function (): Bill {
+            $this->lockPurchaseOrders($this->data->purchase_order_id);
+
             $vendorOrganizationId = $this->data->vendor?->getPayeeId();
             $this->assertBillNumberIsFree($vendorOrganizationId);
 
@@ -106,6 +110,7 @@ class CreateBillAction
 
             $this->persistLines($bill, $this->data);
             $this->persistTaxLines($bill, $this->data);
+            $this->reconcilePurchaseOrderLink($bill);
 
             $bill->load(['lines', 'taxLines']);
 

@@ -76,6 +76,8 @@ class IssuedEcfExportImportTest extends ScribeTestCase
         $this->assertSame('2026-06-05', $accepted->issued_date->toDateString());
         $this->assertSame(41297.64, (float) $accepted->total_native);
         $this->assertSame(41297.64, (float) $accepted->balance_due_native, 'the export carries no payments');
+        $this->assertNotSame('E310000000008', $accepted->external_id, 'two issuers share their first e-NCF numbers');
+        $this->assertStringContainsString('E310000000008', (string) $accepted->external_id);
         $this->assertSame('130434344', Organization::query()->findOrFail($accepted->customer_organization_id)->tax_id);
 
         $fiscal = FiscalDocument::query()->where('entity_id', $accepted->getId())->firstOrFail();

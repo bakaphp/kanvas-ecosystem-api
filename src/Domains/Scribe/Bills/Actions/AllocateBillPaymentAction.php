@@ -7,16 +7,17 @@ namespace Kanvas\Scribe\Bills\Actions;
 use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
 use Kanvas\Scribe\Bills\Services\BillJournalEntryComposerService;
 use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\PaymentRuns\Actions\SyncPaymentRunsForBillAction;
+use Kanvas\Scribe\Payments\Actions\Concerns\GuardsPaymentAllocation;
 use Kanvas\Scribe\Payments\Actions\CreateScribePaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
@@ -36,6 +37,9 @@ use Throwable;
  */
 class AllocateBillPaymentAction
 {
+    use GuardsPaymentAllocation;
+    use LocksDocumentRow;
+
     public function __construct(
         public readonly Bill $bill,
         public readonly float $amountNative,
@@ -68,28 +72,41 @@ class AllocateBillPaymentAction
 
     public function execute(): BillPaymentAllocation
     {
-        if ($this->bill->document_status !== BillDocumentStatusEnum::RECEIVED) {
-            throw new RuntimeException(
-                "Bill {$this->bill->id} must be RECEIVED to allocate a payment "
-                . "(current status: {$this->bill->document_status->value}). Receive it first."
-            );
-        }
+        // Checked on the locked row: two payments on one bill take turns, each against the balance the
+        // other left.
+        $allocation = $this->withRowLocked($this->bill, function (): BillPaymentAllocation {
+            if ($this->bill->document_status !== BillDocumentStatusEnum::RECEIVED) {
+                throw new RuntimeException(
+                    "Bill {$this->bill->id} must be RECEIVED to allocate a payment "
+                    . "(current status: {$this->bill->document_status->value}). Receive it first."
+                );
+            }
 
-        if ($this->amountNative <= 0) {
-            throw new RuntimeException("Payment allocation amount must be positive (got {$this->amountNative}).");
-        }
+            if ($this->amountNative <= 0) {
+                throw new RuntimeException("Payment allocation amount must be positive (got {$this->amountNative}).");
+            }
 
-        if ($this->amountNative > (float) $this->bill->balance_due_native + 0.0001) {
-            throw new RuntimeException(
-                "Payment amount {$this->amountNative} exceeds remaining balance "
-                . "{$this->bill->balance_due_native} on bill {$this->bill->id}. "
-                . 'Overpayments are not supported in v1.'
-            );
-        }
+            $balance = Money::of($this->bill->balance_due_native ?? 0);
 
-        $allocation = DB::connection('accounting')->transaction(function (): BillPaymentAllocation {
+            if (Money::of($this->amountNative)->isGreaterThan($balance->plus('0.0001'))) {
+                throw new RuntimeException(
+                    "Payment amount {$this->amountNative} exceeds remaining balance "
+                    . "{$this->bill->balance_due_native} on bill {$this->bill->id}. "
+                    . 'Overpayments are not supported in v1.'
+                );
+            }
+
             $bill = $this->bill;
             $fxRate = (float) $bill->fx_rate_to_base;
+
+            if ($this->payment !== null) {
+                $this->assertPaymentCovers(
+                    $this->payment,
+                    $bill,
+                    Money::toBase($this->amountNative, $fxRate),
+                    PaymentDirectionEnum::OUTBOUND
+                );
+            }
 
             $payment = $this->payment ?? new CreateScribePaymentAction(
                 app: $bill->app,

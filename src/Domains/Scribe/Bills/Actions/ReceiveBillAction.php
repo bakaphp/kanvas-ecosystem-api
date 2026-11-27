@@ -15,6 +15,7 @@ use Kanvas\Scribe\Bills\Services\BillJournalEntryComposerService;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum as SequenceDocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 
 /**
@@ -32,6 +33,8 @@ use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
  */
 class ReceiveBillAction
 {
+    use LocksDocumentRow;
+
     public function __construct(
         public readonly Bill $bill,
         public readonly PayeeInterface $vendor,
@@ -50,7 +53,11 @@ class ReceiveBillAction
             return $this->bill;
         }
 
-        return DB::connection('accounting')->transaction(function (): Bill {
+        $received = DB::connection('accounting')->transaction(function (): ?Bill {
+            if (! $this->lockedStatusIsUnchanged($this->bill)) {
+                return null;
+            }
+
             $bill = $this->bill;
 
             $this->freezeVendorSnapshot($bill, $this->vendor);
@@ -85,6 +92,16 @@ class ReceiveBillAction
 
             return $bill->refresh();
         });
+
+        if ($received !== null) {
+            return $received;
+        }
+
+        // Another request received or moved the bill since this copy was loaded: nothing is posted a second time.
+        $this->bill->refresh();
+        $this->stateMachine->assertTransition($this->bill, BillDocumentStatusEnum::RECEIVED);
+
+        return $this->bill;
     }
 
     private function freezeVendorSnapshot(Bill $bill, PayeeInterface $vendor): void

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Number as IlluminateNumber;
 
 /**
@@ -53,13 +55,14 @@ class Number extends IlluminateNumber
 
     /**
      * "70.5", not "70.50000000": a plain decimal with no grouping and no trailing zeros. A whole number keeps
-     * its own zeros ("100", never "1").
+     * its own zeros ("100", never "1"). Takes a stored decimal string or a BigDecimal as it is, so a quantity
+     * read from a DECIMAL column never passes through a float.
      */
-    public static function withoutTrailingZeros(int|float $value, int $maxDecimals = 2): string
+    public static function withoutTrailingZeros(BigDecimal|string|int|float $value, int $maxDecimals = 2): string
     {
-        $formatted = number_format((float) $value, $maxDecimals, '.', '');
+        $number = $value instanceof BigDecimal ? $value : Money::of($value);
 
-        return str_contains($formatted, '.') ? rtrim(rtrim($formatted, '0'), '.') : $formatted;
+        return (string) $number->toScale($maxDecimals, RoundingMode::HalfUp)->strippedOfTrailingZeros();
     }
 
     /** MULTIPLIERS as a regex alternation, so no pattern matches a suffix applyMultiplier() ignores. */
