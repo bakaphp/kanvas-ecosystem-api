@@ -4,6 +4,7 @@ type RegionSettings {
     payment_gateways: [String!]
     default_payment_gateway: String
     timezone: String
+    order_type_payment_gateways: Mixed
 }
 
 type Region {

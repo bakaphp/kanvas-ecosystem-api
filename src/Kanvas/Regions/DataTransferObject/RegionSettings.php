@@ -14,6 +14,7 @@ class RegionSettings extends Data
         public readonly array $payment_gateways = [],
         public readonly ?string $default_payment_gateway = null,
         public readonly ?string $timezone = null,
+        public readonly array $order_type_payment_gateways = [],
     ) {
     }
 }
