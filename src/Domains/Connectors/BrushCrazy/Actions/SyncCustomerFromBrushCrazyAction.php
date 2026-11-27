@@ -463,6 +463,7 @@ class SyncCustomerFromBrushCrazyAction
         ]);
 
         $contact->del(ContactCustomFieldEnum::IS_LANDLINE->value);
+        $contact->del(ContactCustomFieldEnum::NONFIXED_VOIP->value);
     }
 
     /**

@@ -41,9 +41,13 @@ class SmsTransport implements Transport
 
     private const string VOIP_WITHOUT_SMS = 'VOIP without SMS';
 
+    private const string NON_FIXED_VOIP = 'Non Fixed Voip';
+
     private const string MOBILE_LINE_TYPE = 'mobile';
 
-    private const array VOIP_LINE_TYPES = ['fixedvoip', 'nonfixedvoip'];
+    private const string NONFIXED_VOIP_LINE_TYPE = 'nonfixedvoip';
+
+    private const array VOIP_LINE_TYPES = ['fixedvoip', self::NONFIXED_VOIP_LINE_TYPE];
 
     /**
      * Lookup classifies a VoIP line but cannot say whether texting is enabled on it; the carrier
@@ -196,8 +200,8 @@ class SmsTransport implements Transport
      * Texts only go to mobile numbers and to VoIP numbers on a carrier known to carry texts. An
      * allow-list on purpose: a line type Twilio adds later, or a number it could not classify, must
      * not slip through. What is already known about the number is asked first — a contact marked
-     * invalid, a line an earlier lookup called a landline (kept on the person) — so neither pays for
-     * another lookup.
+     * invalid, a line an earlier lookup called a landline or a nonFixedVoip without texting (kept on
+     * the person) — so none of them pays for another lookup.
      */
     private function refusalForLine(Delivery $delivery, string $to): ?TransportResult
     {
@@ -208,6 +212,10 @@ class SmsTransport implements Transport
                 'undeliverable_number',
                 $to . ' is marked invalid; no further texts are sent to it.'
             );
+        }
+
+        if ($people?->isPhoneNonFixedVoip($to) === true) {
+            return TransportResult::failed('non_fixed_voip', self::NON_FIXED_VOIP);
         }
 
         if ($people?->isPhoneLandline($to) === true) {
@@ -250,6 +258,12 @@ class SmsTransport implements Transport
 
         // The person who wrote the text reads this reason as is, so it names no number or carrier.
         if ($isVoip && ! Str::contains($carrier, self::VOIP_CARRIER_KEYWORDS)) {
+            if ($lineType === self::NONFIXED_VOIP_LINE_TYPE) {
+                $people?->markPhoneNonFixedVoip($to);
+
+                return TransportResult::failed('non_fixed_voip', self::NON_FIXED_VOIP);
+            }
+
             return TransportResult::failed('voip_without_sms', self::VOIP_WITHOUT_SMS);
         }
 

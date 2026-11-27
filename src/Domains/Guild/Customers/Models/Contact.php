@@ -117,6 +117,12 @@ class Contact extends BaseModel
         return $value === null ? null : (bool) $value;
     }
 
+    /** A nonFixedVoip line a Twilio Lookup found on a carrier that carries no texts. */
+    public function isNonFixedVoip(): bool
+    {
+        return (bool) $this->get(ContactCustomFieldEnum::NONFIXED_VOIP->value);
+    }
+
     public function markInvalid(): bool
     {
         $this->validation_status = ContactValidationStatusEnum::INVALID;

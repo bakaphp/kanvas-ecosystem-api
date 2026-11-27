@@ -577,6 +577,22 @@ class People extends BaseModel implements ExposesTemplateData
             ->count();
     }
 
+    public function markPhoneNonFixedVoip(string $phoneNumber): int
+    {
+        return $this->phoneContactsMatching($phoneNumber)
+            ->each(function (Contact $contact): void {
+                $contact->set(ContactCustomFieldEnum::NONFIXED_VOIP->value, true);
+            })
+            ->count();
+    }
+
+    public function isPhoneNonFixedVoip(string $phoneNumber): bool
+    {
+        return $this->phoneContactsMatching($phoneNumber)->contains(
+            fn (Contact $contact): bool => $contact->isNonFixedVoip()
+        );
+    }
+
     public function isPhoneLandline(string $phoneNumber): bool
     {
         return $this->phoneContactsMatching($phoneNumber)->contains(fn (Contact $contact): bool => $contact->isLandline() === true);
