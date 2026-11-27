@@ -41,9 +41,7 @@ class CreatePeopleSocialChannelsAction
                 return;
             }
 
-            $lead = $this->lead
-                ?? LeadsRepository::getPeopleActiveLead($this->people)
-                ?? LeadsRepository::getPeopleLastLead($this->people);
+            $lead = $this->lead ?? LeadsRepository::getPeopleCurrentLead($this->people);
 
             // The lead's channels need a lead; the person's WhatsApp conversation does not.
             if ($lead === null) {
