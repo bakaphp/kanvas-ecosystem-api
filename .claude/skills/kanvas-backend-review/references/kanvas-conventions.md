@@ -165,6 +165,41 @@ Manual `where('companies_id', ...)` where `fromCompany()` exists, a re-invented 
 
 Any server-side fetch of a URL that user input can influence goes through `SafeUrlFetcher::fetch()` or is gated by `SafeUrl::assertSafe()` first. A raw `file_get_contents($url)` / `Http::get($url)` on a user-supplied URL is an SSRF finding, not a cleanup item — report it at the top.
 
+### Raw `number_format()` / `round()` / float math on money
+
+An amount is computed and printed through the library, not through PHP's float functions:
+`Baka\Support\Money` (`of()`, `sum()`, `stored()`, `toBase()`, `format()`, brick/math underneath) for
+money, and `Baka\Support\Number` for every other number (it extends Laravel's `Number`, so `format()`
+for one shown to a person, plus our `withoutTrailingZeros()` for a plain quantity). Search both classes
+before writing a formatter: a domain-local copy of one of their methods is a duplicate, however small. Floats
+drift (`0.1 + 0.2`), `round()` rounds each part so a total stops matching the sum of its lines, and a
+hand-picked epsilon (`+ 0.005`, `1e-9`) hides both.
+
+Find candidates in the diff, and read each one — the function name alone does not decide it:
+
+```bash
+git diff HEAD -U0 -- '*.php' | grep -nE '^\+.*(number_format\(|[^a-zA-Z_:>]round\(|[0-9]e-[0-9]|\(float\)[^;]*[-+*/] )'
+```
+
+| Found | Use | Fix or list |
+|---|---|---|
+| `number_format($x, 2)` shown to a person | `Money::format($x)`, or `Money::format($x, $currency)` when the code is glued on in front | Fix: same string for a 2-decimal currency |
+| `number_format($x, 0)`, `number_format($x, 3)`, a quantity with thousands separators | `Number::format($x, precision: n)` / `maxPrecision: n` | Fix |
+| `rtrim(rtrim(number_format($x, n, '.', ''), '0'), '.')` | `Number::withoutTrailingZeros($x, n)` | Fix: it is that idiom |
+| `round($x, 4)` / `round($x, 2)` before storing | `Money::stored($x)` / `Money::cents($x)` | Fix when a test covers the path, else list |
+| `$a - $b`, `$a * $rate`, `array_sum()` on amounts, `> $x + 0.005` | `Money::of($a)->minus(...)`, `Money::toBase($a, $rate)`, `Money::sum(...)`, `->isGreaterThan()` | Fix when a test covers the path, else list |
+| `number_format($x, 2, '.', '')` whose result is **hashed or compared** (a dedup key, a fingerprint, a value matched against stored text) | leave it | List only: the bytes are data, and changing them forks every existing row |
+
+Two traps when you do convert. Never hand a float to a brick arithmetic method (`->plus(0.1)`); it is
+deprecated and gone in 0.15, so wrap it: `->plus(Money::of($float))`. And `Money::format()` needs a
+number: keep an existing `(float)` cast on a nullable column, because `Money::of(null)` throws where
+`(float) null` printed `0.00`.
+
+This is money, so the skill's own line applies: a display swap that prints the same string is fixed
+directly; a change to how a stored amount is calculated is fixed only where a test pins the result,
+and otherwise listed with the file and line. Count the display swaps in one report line; give a
+changed calculation its own entry. Rule home: `src/Domains/Scribe/CLAUDE.md` invariant 12.
+
 ### Workflow activity throwing on an expected skip
 
 A `KanvasActivity` must not throw or `report()` for a business condition — empty message, AI mode off, nothing to sync. `executeIntegration` reports every escaping exception to Sentry, so one expected skip becomes hundreds of non-actionable events. Catch it in the `integrationOperation` closure and `return $this->failWorkflow([...])`, which marks it FAILED in the UI without the Sentry write. A plain early return is fine for a benign no-op not worth flagging.
