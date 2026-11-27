@@ -35,6 +35,11 @@ class SalesforceOrganizationsImporter extends SalesforceRecordsImporter
     #[Override]
     protected function pull(string $salesforceId, array $record): Model
     {
-        return new PullOrganizationAction($this->app(), $this->company(), $record, $salesforceId)->execute();
+        return new PullOrganizationAction(
+            $this->app(),
+            $this->company(),
+            $record,
+            $salesforceId
+        )->execute();
     }
 }

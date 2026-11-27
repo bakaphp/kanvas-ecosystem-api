@@ -18,6 +18,7 @@ use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Tests\Connectors\Traits\HasThrowawayCompany;
 use Tests\TestCase;
+use Tests\Workflow\Integration\Imports\Fakes\FakeImportRegistry;
 
 final class StartIntegrationImportActionTest extends TestCase
 {
@@ -34,6 +35,7 @@ final class StartIntegrationImportActionTest extends TestCase
         parent::setUp();
 
         Queue::fake();
+        FakeImportRegistry::reset();
         $this->row = $this->createIntegrationRows();
     }
 
@@ -161,6 +163,20 @@ final class StartIntegrationImportActionTest extends TestCase
         }
 
         Queue::assertNotPushed(RunIntegrationImportJob::class);
+    }
+
+    public function testARefusedStartPreparesNothing(): void
+    {
+        $this->start('chunky', ['region_ids' => ['1']]);
+        $this->assertSame(1, FakeImportRegistry::$prepared);
+
+        $this->assertRefused(
+            'A chunky import is already in progress for this integration.',
+            'chunky',
+            ['region_ids' => ['2']]
+        );
+
+        $this->assertSame(1, FakeImportRegistry::$prepared);
     }
 
     public function testPrepareRunsBeforeQueuingAndItsOutputIsStored(): void

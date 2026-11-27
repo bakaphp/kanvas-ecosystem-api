@@ -25,8 +25,15 @@ class ShopifyProductsImporter extends ShopifyImporter
     {
         $region = $this->region();
 
-        if (! Warehouses::fromCompany($this->company())->where('is_default', 1)->where('regions_id', $region->getId())->exists()) {
-            throw new ValidationException('The region ' . $region->name . ' has no default warehouse to import Shopify products into.');
+        $hasDefaultWarehouse = Warehouses::fromCompany($this->company())
+            ->where('is_default', 1)
+            ->where('regions_id', $region->getId())
+            ->exists();
+
+        if (! $hasDefaultWarehouse) {
+            throw new ValidationException(
+                'The region ' . $region->name . ' has no default warehouse to import Shopify products into.'
+            );
         }
 
         if (! Channels::fromCompany($this->company())->where('is_default', 1)->exists()) {

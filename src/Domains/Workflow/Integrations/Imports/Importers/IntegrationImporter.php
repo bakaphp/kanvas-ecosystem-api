@@ -15,10 +15,8 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 abstract class IntegrationImporter
 {
-    public function __construct(
-        protected IntegrationsCompany $integrationCompany,
-        protected Users $user,
-    ) {
+    public function __construct(protected IntegrationsCompany $integrationCompany, protected Users $user)
+    {
     }
 
     /**
@@ -66,15 +64,9 @@ abstract class IntegrationImporter
         return [$entity => 'queued'];
     }
 
-    /**
-     * A row with no apps_id predates app ownership, so the app bound to the request (or to the job
-     * by overwriteAppService) is the only one left.
-     */
     protected function app(): Apps
     {
-        return $this->integrationCompany->apps_id !== null
-            ? $this->integrationCompany->app
-            : app(Apps::class);
+        return $this->integrationCompany->appOrCurrent();
     }
 
     protected function company(): Companies

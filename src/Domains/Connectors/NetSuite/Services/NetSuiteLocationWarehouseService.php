@@ -6,10 +6,12 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
@@ -77,6 +79,18 @@ class NetSuiteLocationWarehouseService
         return $warehouseId === false
             ? null
             : Warehouses::getByIdFromCompanyApp($warehouseId, $this->company, $this->app);
+    }
+
+    /**
+     * The location one variant's row in a warehouse is read from. A value on the row itself wins,
+     * for data mapped before warehouses carried the location.
+     */
+    public function locationFor(VariantsWarehouses $variantWarehouse): ?string
+    {
+        $key = CustomFieldEnum::NET_SUITE_LOCATION_ID->value;
+
+        return Str::trimToNull((string) $variantWarehouse->get($key))
+            ?? Str::trimToNull((string) $variantWarehouse->warehouse?->get($key));
     }
 
     /**

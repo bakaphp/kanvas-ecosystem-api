@@ -18,10 +18,8 @@ class NetSuiteLocationService
 {
     protected Client $client;
 
-    public function __construct(
-        protected AppInterface $app,
-        protected CompanyInterface $company
-    ) {
+    public function __construct(protected AppInterface $app, protected CompanyInterface $company)
+    {
         $this->client = new Client($app, $company);
     }
 

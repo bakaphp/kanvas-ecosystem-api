@@ -7,7 +7,6 @@ namespace Kanvas\Workflow\Integrations\Imports\Actions;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
@@ -20,6 +19,12 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 class StartIntegrationImportAction
 {
+    /**
+     * Held across prepare(), which may write and may call the external system: a start that is going
+     * to be refused must not get that far.
+     */
+    private const int START_LOCK_SECONDS = 120;
+
     public function __construct(
         protected IntegrationsCompany $integrationCompany,
         protected Users $user,
@@ -41,10 +46,6 @@ class StartIntegrationImportAction
 
         $this->validateOptions($importable);
 
-        $options = $this->integrationCompany
-            ->importerFor($this->entity, $this->user)
-            ->prepare($this->options);
-
         $lock = Cache::lock(
             sprintf(
                 'integration-import-start:%d:%d:%s',
@@ -52,17 +53,21 @@ class StartIntegrationImportAction
                 $this->integrationCompany->integrations_id,
                 $this->entity
             ),
-            10
+            self::START_LOCK_SECONDS
         );
 
         try {
-            $run = $lock->block(5, function () use ($options) {
+            $run = $lock->block(5, function (): IntegrationImport {
                 if (IntegrationImport::inProgressFor($this->integrationCompany, $this->entity) !== null) {
                     throw $this->alreadyInProgress();
                 }
 
+                $options = $this->integrationCompany
+                    ->importerFor($this->entity, $this->user)
+                    ->prepare($this->options);
+
                 return IntegrationImport::create([
-                    'apps_id' => $this->integrationCompany->apps_id ?? app(Apps::class)->getId(),
+                    'apps_id' => $this->integrationCompany->appOrCurrent()->getId(),
                     'companies_id' => $this->integrationCompany->companies_id,
                     'integrations_id' => $this->integrationCompany->integrations_id,
                     'integrations_companies_id' => $this->integrationCompany->getId(),
@@ -84,7 +89,9 @@ class StartIntegrationImportAction
 
     protected function alreadyInProgress(): ValidationException
     {
-        return new ValidationException(sprintf('A %s import is already in progress for this integration.', $this->entity));
+        return new ValidationException(
+            sprintf('A %s import is already in progress for this integration.', $this->entity)
+        );
     }
 
     protected function validateOptions(Importable $importable): void
@@ -115,24 +122,20 @@ class StartIntegrationImportAction
 
     protected function assertType(ImportOption $option, mixed $value): void
     {
-        $valid = match (true) {
-            $option->multiple => is_array($value) && array_is_list($value) && array_all($value, fn (mixed $entry) => is_scalar($entry)),
-            $option->type === ImportOptionTypeEnum::BOOLEAN => is_bool($value),
-            $option->type === ImportOptionTypeEnum::STRING => is_string($value),
-            default => is_scalar($value),
+        [$valid, $expected] = match (true) {
+            $option->multiple => [
+                is_array($value)
+                    && array_is_list($value)
+                    && array_all($value, fn (mixed $entry) => is_scalar($entry)),
+                'a list of choices',
+            ],
+            $option->type === ImportOptionTypeEnum::BOOLEAN => [is_bool($value), 'boolean'],
+            $option->type === ImportOptionTypeEnum::STRING => [is_string($value), 'a string'],
+            default => [is_scalar($value), 'a choice'],
         };
 
-        if ($valid) {
-            return;
+        if (! $valid) {
+            throw new ValidationException(sprintf('The option %s must be %s.', $option->name, $expected));
         }
-
-        $expected = match (true) {
-            $option->multiple => 'a list of choices',
-            $option->type === ImportOptionTypeEnum::BOOLEAN => 'boolean',
-            $option->type === ImportOptionTypeEnum::STRING => 'a string',
-            default => 'a choice',
-        };
-
-        throw new ValidationException(sprintf('The option %s must be %s.', $option->name, $expected));
     }
 }

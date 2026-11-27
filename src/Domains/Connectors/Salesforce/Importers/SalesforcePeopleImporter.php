@@ -37,6 +37,11 @@ class SalesforcePeopleImporter extends SalesforceRecordsImporter
     #[Override]
     protected function pull(string $salesforceId, array $record): Model
     {
-        return new PullPeopleAction($this->app(), $this->company(), $record, $salesforceId)->execute();
+        return new PullPeopleAction(
+            $this->app(),
+            $this->company(),
+            $record,
+            $salesforceId
+        )->execute();
     }
 }

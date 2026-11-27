@@ -17,10 +17,8 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  */
 class EnsureVariantInWarehouseAction
 {
-    public function __construct(
-        protected Variants $variant,
-        protected Warehouses $warehouse,
-    ) {
+    public function __construct(protected Variants $variant, protected Warehouses $warehouse)
+    {
     }
 
     public function execute(): VariantsWarehouses

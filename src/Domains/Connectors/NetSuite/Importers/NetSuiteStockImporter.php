@@ -58,7 +58,10 @@ class NetSuiteStockImporter extends SingleRunImporter
             throw new ValidationException($result['error']);
         }
 
-        $locationErrors = array_filter($result['locations'] ?? [], fn (array $location) => isset($location['error']));
+        $locationErrors = array_filter(
+            $result['locations'] ?? [],
+            fn (array $location) => isset($location['error'])
+        );
 
         return [
             ...Arr::only($result, [

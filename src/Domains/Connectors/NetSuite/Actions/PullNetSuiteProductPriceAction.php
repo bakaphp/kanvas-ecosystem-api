@@ -11,6 +11,7 @@ use Exception;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationWarehouseService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -29,6 +30,7 @@ class PullNetSuiteProductPriceAction
     protected NetSuiteCustomerService $service;
     protected NetSuiteProductService $productService;
     protected NetSuiteProductSearchService $searchService;
+    protected NetSuiteLocationWarehouseService $locations;
     protected bool $shouldUseLegacySearch = false;
 
     public function __construct(
@@ -40,6 +42,7 @@ class PullNetSuiteProductPriceAction
         $this->productService = new NetSuiteProductService($app, $mainAppCompany);
         $this->shouldUseLegacySearch = (bool) $this->app->get(ConfigurationEnum::NET_SUITE_USE_LEGACY_PRODUCT_SEARCH->value);
         $this->searchService = new NetSuiteProductSearchService($app, $mainAppCompany);
+        $this->locations = new NetSuiteLocationWarehouseService($app, $mainAppCompany);
     }
 
     public function execute(string $barcode): array
@@ -67,7 +70,7 @@ class PullNetSuiteProductPriceAction
         $variantWarehouse = $variant->variantWarehouses()->firstOrFail();
 
         $warehouseOptions = $this->getWarehouseOptions($netsuiteProductInfo);
-        $locationId = $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? $defaultWarehouse;
+        $locationId = $this->locations->locationFor($variantWarehouse) ?? $defaultWarehouse;
 
         // @todo: We should unify and extract this logic into its own action later
         $product = $this->shouldUseLegacySearch

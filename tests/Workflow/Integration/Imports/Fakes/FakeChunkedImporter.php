@@ -14,6 +14,8 @@ final class FakeChunkedImporter extends ChunkedImporter
 {
     public function prepare(array $options): array
     {
+        FakeImportRegistry::$prepared++;
+
         return $options === [] ? $options : $options + ['prepared' => true];
     }
 

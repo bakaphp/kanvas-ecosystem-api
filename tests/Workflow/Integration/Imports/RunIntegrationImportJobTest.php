@@ -222,6 +222,38 @@ final class RunIntegrationImportJobTest extends TestCase
         Queue::assertPushed(RunIntegrationImportJob::class, 1);
     }
 
+    public function testTheFirstJobStopsWhenTheIntegrationWasDisconnectedAfterQueuing(): void
+    {
+        FakeImportRegistry::$items = [1, 2];
+        $run = $this->makeRun('chunky');
+        $this->row->is_active = false;
+        $this->row->save();
+
+        $this->job($run)->handle();
+
+        $run = $run->fresh();
+        $this->assertSame(IntegrationImportStatusEnum::FAILED, $run->status);
+        $this->assertSame('The integration was disconnected during the import.', $run->error);
+        $this->assertSame([], FakeImportRegistry::$imported);
+        Queue::assertNotPushed(RunIntegrationImportJob::class);
+    }
+
+    public function testAContinuationStopsWhenTheIntegrationRowIsGone(): void
+    {
+        FakeImportRegistry::$items = range(1, 120);
+        $run = $this->makeRun('chunky');
+        new RunIntegrationImportJob($run)->handle();
+        $this->row->delete();
+
+        new RunIntegrationImportJob($run->fresh(), 100)->handle();
+
+        $run = $run->fresh();
+        $this->assertSame(IntegrationImportStatusEnum::FAILED, $run->status);
+        $this->assertSame('The integration was disconnected during the import.', $run->error);
+        $this->assertSame(100, $run->processed);
+        $this->assertFalse(Cache::has('integration-import-items:' . $run->getId() . ':1'));
+    }
+
     public function testTheRealImporterIsResolvedAndTheRunsAppIsBound(): void
     {
         FakeImportRegistry::$items = [1, 2];

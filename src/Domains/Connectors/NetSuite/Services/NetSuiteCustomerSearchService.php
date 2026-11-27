@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\Str;
 use Kanvas\Connectors\NetSuite\Client;
+use Kanvas\Connectors\NetSuite\Concerns\NormalizesImportIds;
 use NetSuite\Classes\CustomerSearch;
 use NetSuite\Classes\CustomerSearchAdvanced;
 use NetSuite\Classes\CustomerSearchBasic;
@@ -15,6 +15,8 @@ use NetSuite\Classes\SearchBooleanField;
 
 class NetSuiteCustomerSearchService
 {
+    use NormalizesImportIds;
+
     protected Client $client;
 
     public function __construct(
@@ -55,10 +57,10 @@ class NetSuiteCustomerSearchService
         $search = new CustomerSearch();
         $search->basic = $basic;
 
-        return array_values(array_filter(array_map(
-            fn (object $customer) => Str::trimToNull((string) ($customer->internalId ?? '')),
+        return $this->uniqueIds(array_map(
+            fn (object $customer) => $customer->internalId ?? null,
             $this->client->searchAll($search)
-        )));
+        ));
     }
 
     protected function executeAdvancedSearch(CustomerSearchAdvanced $search): array

@@ -10,7 +10,6 @@ use Baka\Contracts\BaseIntegration;
 use Baka\Support\AllowedClass;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
@@ -141,7 +140,7 @@ class IntegrationsCompany extends BaseModel
      */
     public function importables(): array
     {
-        return BaseIntegration::forIntegrationCompany($this, $this->app ?? app(Apps::class))
+        return BaseIntegration::forIntegrationCompany($this, $this->appOrCurrent())
             ?->importables() ?? [];
     }
 
@@ -150,14 +149,12 @@ class IntegrationsCompany extends BaseModel
      */
     public function importableOrFail(string $entity): Importable
     {
-        $importables = $this->importables();
-
-        return array_find($importables, fn (Importable $importable) => $importable->entity === $entity)
+        return $this->importableFor($entity)
             ?? throw new ValidationException(sprintf(
                 '%s cannot import %s. It can import: %s.',
                 $this->integration->name,
                 $entity,
-                implode(', ', array_map(fn (Importable $importable) => $importable->entity, $importables))
+                implode(', ', array_column($this->importables(), 'entity'))
             ));
     }
 

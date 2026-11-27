@@ -268,6 +268,15 @@ trait KanvasModelTrait
     }
 
     /**
+     * A row with no app of its own (written before its table had apps_id, or a global apps_id = 0
+     * row) is read through the app bound to the request, or to the job by overwriteAppService.
+     */
+    public function appOrCurrent(): Apps
+    {
+        return $this->app ?? app(Apps::class);
+    }
+
+    /**
      * Current soft delete.
      *
      * @todo change to laravel default behavior
