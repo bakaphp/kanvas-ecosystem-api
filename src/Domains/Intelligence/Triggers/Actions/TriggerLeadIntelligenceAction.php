@@ -25,7 +25,7 @@ final class TriggerLeadIntelligenceAction
      */
     public function execute(): array
     {
-        $result = new ApplyLeadAiModeAction($this->lead, $this->triggerType)->execute();
+        $result = new ApplyAiModeAction($this->lead, $this->triggerType)->execute();
         $aiMode = $this->lead->get(new LeadConfigurationService()->getAiModeKey($this->lead));
 
         if ($aiMode) {

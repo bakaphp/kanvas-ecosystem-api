@@ -29,7 +29,7 @@ class ApplyLeadClosingStatusAction
             return ['Lead pulled, no closing status to apply'];
         }
 
-        $result = new ApplyLeadAiModeAction($this->lead, $triggerType->value)->execute();
+        $result = new ApplyAiModeAction($this->lead, $triggerType->value)->execute();
 
         return array_merge(['Lead pulled trigger executed'], $result);
     }

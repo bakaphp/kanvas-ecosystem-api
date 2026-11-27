@@ -29,7 +29,7 @@ use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
-use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyAiModeAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
@@ -142,7 +142,7 @@ final class ApplyDoNotContactActionTest extends TestCase
         )->execute();
 
         $phone->refresh()->optIn();
-        new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_FON->value)->execute();
+        new ApplyAiModeAction($lead, TriggersEnum::MANUAL_FON->value)->execute();
 
         $outcome = new ApplyDoNotContactAction(
             people: $people,

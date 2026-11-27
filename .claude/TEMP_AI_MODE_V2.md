@@ -17,7 +17,7 @@ Activar: `$app->set('intelligence_lead_type_mode_v2', true)`
 
 | Archivo V1 | Equivalente V2 |
 |---|---|
-| `Triggers/Actions/ApplyLeadAiModeV1Action.php` | `ApplyLeadAiModeAction.php` |
+| `Triggers/Actions/ApplyLeadAiModeV1Action.php` | `ApplyAiModeAction.php` |
 | `Jobs/SendUnrespondedAgentMessageV1Job.php` | `SendUnrespondedAgentMessageJob.php` |
 | `PipelinesStages/Actions/FollowUpEngagementV1Action.php` | `FollowUpEngagementAction.php` |
 | `Support/UnrespondedLeadAgentMessageCache.php` | *(eliminado en v2, no existe equivalente)* |
@@ -35,7 +35,7 @@ Activar: `$app->set('intelligence_lead_type_mode_v2', true)`
 
 | Caller | Dispatch |
 |---|---|
-| `Triggers/Workflows/TriggerIntelligenceActivity.php` | `ApplyLeadAiModeAction` vs `ApplyLeadAiModeV1Action` |
+| `Triggers/Workflows/TriggerIntelligenceActivity.php` | `ApplyAiModeAction` vs `ApplyLeadAiModeV1Action` |
 | `Agents/Traits/HandlesSupportModeDelayedResponseTrait.php` | `SendUnrespondedAgentMessageJob` vs `SendUnrespondedAgentMessageV1Job` |
 | `app/Console/Commands/Intelligence/FollowUpEngagementCommand.php` | `FollowUpEngagementAction` vs `FollowUpEngagementV1Action` |
 
@@ -70,7 +70,7 @@ Estos cambios de `1.x` se aplicaron directamente, no necesitan flag:
 
 5. **`MessageHumanTakeoverTriggerActivity.php`:** eliminar el bloque `if (! LeadConfigurationService::isV2Enabled()) { ... UnrespondedLeadAgentMessageCache::clear ... }`, quitar sus imports.
 
-6. **`TriggerIntelligenceActivity.php`:** reemplazar el `$actionClass = isV2Enabled() ? ... : ...` por `new ApplyLeadAiModeAction($lead, $triggerType)->execute()` directo.
+6. **`TriggerIntelligenceActivity.php`:** reemplazar el `$actionClass = isV2Enabled() ? ... : ...` por `new ApplyAiModeAction($lead, $triggerType)->execute()` directo.
 
 7. **`FollowUpEngagementCommand.php`:** reemplazar el `$followUpClass = isV2Enabled() ? ... : ...` por `new FollowUpEngagementAction($lead, $log)->execute()` directo. Eliminar imports de `FollowUpEngagementV1Action` y `LeadConfigurationService`.
 
