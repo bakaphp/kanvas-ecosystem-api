@@ -379,7 +379,7 @@ trait BuildsCommunicationFixtures
 
     protected function fileInConversation(
         Channel $channel,
-        Lead $lead,
+        Lead|People $counterpart,
         string $verb,
         array $payload
     ): Message {
@@ -397,7 +397,7 @@ trait BuildsCommunicationFixtures
         $create->runWorkflow = false;
         $message = $create->execute();
 
-        $message->addEntity($lead);
+        $message->addEntity($counterpart);
         $channel->addMessage($message);
 
         return $message;

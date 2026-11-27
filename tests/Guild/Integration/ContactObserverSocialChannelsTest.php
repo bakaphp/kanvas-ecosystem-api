@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
 use Kanvas\Connectors\Meta\Handlers\MetaWhatsAppHandler;
+use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
@@ -15,6 +16,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Regions\Models\Regions;
@@ -209,7 +211,7 @@ final class ContactObserverSocialChannelsTest extends TestCase
 
         $this->assertTrue($lead->socialChannels()->where('slug', SessionChannelService::createChannelSlug('sms', $phone))->exists());
         $this->assertFalse($lead->socialChannels()->where('slug', SessionChannelService::createChannelSlug('whatsapp', $phone))->exists());
-        $this->assertTrue($this->hasWhatsAppConversation($people, $phone));
+        $this->assertTrue($this->hasConversation($people, 'whatsapp', $phone));
     }
 
     public function testAPersonWithoutALeadStillGetsTheirWhatsAppConversation(): void
@@ -220,8 +222,111 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $phone = $this->uniquePhone();
         $people->addCellPhone($phone);
 
-        $this->assertTrue($this->hasWhatsAppConversation($people, $phone));
-        $this->assertFalse($people->socialChannels()->where('slug', SessionChannelService::createChannelSlug('sms', $phone))->exists());
+        $this->assertTrue($this->hasConversation($people, 'whatsapp', $phone));
+        $this->assertTrue($this->hasConversation($people, 'sms', $phone));
+    }
+
+    public function testAPersonWithoutALeadGetsTheirTextAndEmailConversations(): void
+    {
+        $people = $this->createPerson();
+
+        $phone = $this->uniquePhone();
+        $email = 'contact-observer-' . uniqid() . '@example.com';
+        $people->addCellPhone($phone);
+        $people->addEmail($email);
+        $landline = $this->uniquePhone();
+        $people->addPhone($landline);
+
+        $this->assertTrue($this->hasConversation($people, 'sms', $phone));
+        $this->assertTrue($this->hasConversation($people, 'email', $email));
+        $this->assertFalse($people->socialChannels()->where('slug', 'like', 'wa-chat-%')->exists());
+        $this->assertFalse(
+            $people->socialChannels()->where('slug', SessionChannelService::createChannelSlug('sms', $landline))->exists(),
+            'a landline opens nothing'
+        );
+    }
+
+    public function testAPersonWithoutALeadGetsAnAiAssistChannelWhenItIsOn(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $company->set(IntelligenceConfigurationEnum::AI_ASSIST_ENABLED->value, true);
+
+        try {
+            $people = $this->createPerson();
+            $people->addCellPhone($this->uniquePhone());
+        } finally {
+            $company->del(IntelligenceConfigurationEnum::AI_ASSIST_ENABLED->value);
+        }
+
+        $channel = $people->socialChannels()->where('slug', 'ai-assist-people-' . $people->getId())->first();
+
+        $this->assertNotNull($channel);
+        $this->assertTrue($channel->isAiAssistChannel());
+        $this->assertTrue(SessionModel::query()
+            ->where('channel_id', $channel->getId())
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', (string) $people->getId())
+            ->exists());
+    }
+
+    public function testNoAiAssistChannelOnAPersonWhileItIsOff(): void
+    {
+        auth()->user()->getCurrentCompany()->del(IntelligenceConfigurationEnum::AI_ASSIST_ENABLED->value);
+        $people = $this->createPerson();
+        $people->addCellPhone($this->uniquePhone());
+
+        $this->assertFalse($people->socialChannels()->where('slug', 'like', 'ai-assist-%')->exists());
+    }
+
+    /**
+     * One conversation per address: the one opened on the person is the lead's once there is a
+     * lead, never a second channel beside it.
+     */
+    public function testAPersonsConversationBecomesTheirFirstLeads(): void
+    {
+        $people = $this->createPerson();
+        $phone = $this->uniquePhone();
+        $people->addCellPhone($phone);
+        $slug = SessionChannelService::createChannelSlug('sms', $phone);
+        $channelId = $people->socialChannels()->where('slug', $slug)->value('id');
+
+        $lead = $this->createLead($people->fresh(), self::ACTIVE_STATUS_ID);
+
+        $this->assertNotNull($channelId);
+        $this->assertSame($channelId, $lead->socialChannels()->where('slug', $slug)->value('id'));
+        $this->assertFalse($people->socialChannels()->where('slug', $slug)->exists());
+        $this->assertSame(
+            [Lead::class],
+            SessionModel::query()->where('channel_id', $channelId)->distinct()->pluck('entity_namespace')->all(),
+            'its sessions follow it'
+        );
+    }
+
+    /**
+     * A rule on the contact opens channels with no lead named, and only an open lead counts there:
+     * a person whose leads are closed must not get a conversation of their own beside the lead's.
+     */
+    public function testAPersonWhoseLeadsAreClosedKeepsOneConversationPerAddress(): void
+    {
+        $people = $this->createPerson();
+        $closedLead = $this->createLead($people, self::LOST_STATUS_ID);
+        $phone = $this->uniquePhone();
+        $contact = $people->addCellPhone($phone);
+        $slug = SessionChannelService::createChannelSlug('sms', $phone);
+        $agentId = Agent::where('name', 'contact-observer-agent')->notDeleted()->latest('id')->value('id');
+
+        foreach ([1, 2] as $round) {
+            new CreateSocialChannelForContactAction(
+                $contact,
+                app(Apps::class),
+                ['agent_id' => $agentId]
+            )->execute();
+            $contact->weight = $round;
+            $contact->saveOrFail();
+        }
+
+        $this->assertSame(1, $closedLead->socialChannels()->where('slug', $slug)->count());
+        $this->assertFalse($people->socialChannels()->where('slug', $slug)->exists());
     }
 
     public function testUpdatedCellphoneOpensAWhatsAppChannelForTheNewNumber(): void
@@ -235,7 +340,7 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $contact->value = $newPhone;
         $contact->saveOrFail();
 
-        $this->assertTrue($this->hasWhatsAppConversation($people, $newPhone));
+        $this->assertTrue($this->hasConversation($people, 'whatsapp', $newPhone));
     }
 
     public function testNoWhatsAppChannelWithoutTheIntegration(): void
@@ -294,16 +399,19 @@ final class ContactObserverSocialChannelsTest extends TestCase
         ]);
     }
 
-    private function hasWhatsAppConversation(People $people, string $phone): bool
-    {
-        $channel = $people->socialChannels()
-            ->where('slug', SessionChannelService::createChannelSlug('whatsapp', $phone))
+    private function hasConversation(
+        People $people,
+        string $channel,
+        string $address
+    ): bool {
+        $conversation = $people->socialChannels()
+            ->where('slug', SessionChannelService::createChannelSlug($channel, $address))
             ->first();
 
-        return $channel !== null && SessionModel::query()
+        return $conversation !== null && SessionModel::query()
             ->where('entity_namespace', People::class)
             ->where('entity_id', (string) $people->getId())
-            ->where('canal_id', SessionChannelService::createCanalId('whatsapp', $phone))
+            ->where('canal_id', SessionChannelService::createCanalId($channel, $address))
             ->exists();
     }
 

@@ -45,6 +45,7 @@ final class SendMessageToPeopleAction
      * @param string|null $to the address to reach them on; without one, addressFor() picks it
      * @param list<string> $attachmentUrls
      * @param string|null $emailTemplate only read for an email; see SendEmailToPeopleAction
+     * @param string|null $fromAccount the company's number to text from, when it is not the default
      *
      * @return array<string, mixed>
      */
@@ -55,7 +56,8 @@ final class SendMessageToPeopleAction
         ?string $subject = null,
         array $attachmentUrls = [],
         ?Agent $fromAgent = null,
-        ?string $emailTemplate = null
+        ?string $emailTemplate = null,
+        ?string $fromAccount = null
     ): array {
         if ($channel === ChannelTypeEnum::EMAIL) {
             return new SendEmailToPeopleAction($this->people)->execute(
@@ -78,7 +80,8 @@ final class SendMessageToPeopleAction
             $channel,
             $address !== '' ? $this->phoneNumber($address, $channel) : '',
             Content::text($message)->withAttachments($attachmentUrls),
-            Sender::speaking($fromAgent)
+            Sender::speaking($fromAgent),
+            $fromAccount
         );
     }
 
@@ -96,7 +99,8 @@ final class SendMessageToPeopleAction
         ChannelTypeEnum $channel,
         string $to,
         Content $content,
-        Sender $from
+        Sender $from,
+        ?string $fromAccount = null
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no ' . $channel->value . ' address to send to');
@@ -106,7 +110,8 @@ final class SendMessageToPeopleAction
             $channel,
             $to,
             $content,
-            $from
+            $from,
+            $fromAccount
         );
 
         if ($delivery?->wasAccepted() !== true) {

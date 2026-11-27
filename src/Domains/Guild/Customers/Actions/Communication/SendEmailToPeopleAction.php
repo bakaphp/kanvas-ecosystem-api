@@ -38,6 +38,7 @@ class SendEmailToPeopleAction
      * @param  array<string, mixed>  $variables  Extra template context laid over `content` and `people`;
      *     the company and the signature keys stay the sender's own.
      * @param  bool  $trackOpens  Off for a test send to a teammate, so their open never lands on the person.
+     * @param  bool  $writtenByOwner  The signature owner wrote the email themselves, so their own signature closes it.
      */
     public function execute(
         string $to,
@@ -52,6 +53,7 @@ class SendEmailToPeopleAction
         ?CampaignRecipient $campaignRecipient = null,
         array $variables = [],
         bool $trackOpens = true,
+        bool $writtenByOwner = false,
     ): array {
         $content = $this->compose(
             message: $message,
@@ -66,7 +68,8 @@ class SendEmailToPeopleAction
                 important: $important
             ),
             fromAgent: $fromAgent,
-            signatureOwner: $signatureOwner
+            signatureOwner: $signatureOwner,
+            writtenByOwner: $writtenByOwner
         );
 
         $sent = new SendMessageToPeopleAction($this->people)->send(

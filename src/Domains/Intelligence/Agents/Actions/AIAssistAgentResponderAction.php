@@ -22,7 +22,9 @@ class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
     #[Override]
     public function execute(array $params = []): array
     {
-        $entity = $this->message->preferredEntity(Lead::class);
+        // A person's AI Assist channel has no lead: the channel says who the conversation is about.
+        $entity = $this->message->preferredEntity(Lead::class)
+            ?? ($this->channel->entity_namespace !== null ? $this->channel->entityData() : null);
 
         if ($entity === null) {
             throw new ValidationException('No entity found');

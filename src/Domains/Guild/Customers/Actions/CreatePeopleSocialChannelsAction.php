@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Actions\CreateAIAssistChannelAction;
 use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -16,7 +17,8 @@ use Throwable;
 
 /**
  * Opens the person's contact channels outside of a lead pull. Without a lead it targets the
- * person's active lead, or their latest one when none is active.
+ * person's active lead, or their latest one when none is active; a person who never had a lead
+ * gets the same channels (text, email, WhatsApp, AI Assist) on themselves.
  */
 class CreatePeopleSocialChannelsAction
 {
@@ -45,15 +47,9 @@ class CreatePeopleSocialChannelsAction
                 ?? LeadsRepository::getPeopleActiveLead($this->people)
                 ?? LeadsRepository::getPeopleLastLead($this->people);
 
-            // The lead's channels need a lead; the person's WhatsApp conversation does not.
+            // With no lead to hold them, every channel a lead would get is opened on the person.
             if ($lead === null) {
-                foreach ($this->people->contacts as $contact) {
-                    new CreateSocialChannelForContactAction(
-                        $contact,
-                        $this->people->app,
-                        ['agent_id' => $defaultAgentId]
-                    )->execute();
-                }
+                $this->openOnPerson($defaultAgentId);
 
                 return;
             }
@@ -67,6 +63,30 @@ class CreatePeopleSocialChannelsAction
         } catch (Throwable $exception) {
             report($exception);
         }
+    }
+
+    private function openOnPerson(int $agentId): void
+    {
+        $contacts = $this->people->contacts;
+
+        if ($contacts->isEmpty()) {
+            return;
+        }
+
+        foreach ($contacts as $contact) {
+            new CreateSocialChannelForContactAction(
+                $contact,
+                $this->people->app,
+                ['agent_id' => $agentId]
+            )->execute();
+        }
+
+        CreateAIAssistChannelAction::ifEnabled(
+            $this->people,
+            $this->people->app,
+            [],
+            $agentId
+        )?->execute();
     }
 
     /**
