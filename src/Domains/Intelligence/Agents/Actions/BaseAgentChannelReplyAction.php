@@ -90,9 +90,12 @@ class BaseAgentChannelReplyAction
         }
 
         if ($this->respectsLeadAiMode) {
-            $isAiMuted = $lead instanceof Lead
-                ? $lead->isAiMuted()
-                : IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'))?->isOff() ?? false;
+            // A conversation's session can be the person's, with the lead only on the message; the
+            // mode is the lead's, and read off the person it is never found.
+            $modeHolder = $lead instanceof Lead ? $lead : ($this->message->entity(Lead::class) ?? $lead);
+            $isAiMuted = $modeHolder instanceof Lead
+                ? $modeHolder->isAiMuted()
+                : IntelligenceModeEnum::tryFrom((string) $modeHolder->get('ai_mode'))?->isOff() ?? false;
 
             if ($isAiMuted) {
                 throw new AgentReplySkippedException('Ai Agent Off for this lead');
