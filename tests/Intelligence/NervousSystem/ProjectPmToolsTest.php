@@ -377,7 +377,7 @@ class ProjectPmToolsTest extends TestCase
         $project = $this->makeProject($app, $company, $user);
 
         $tool = new CreateNervousSystemPlanTool()->withContext($app, $company, $user);
-        $result = $tool((int) $project->id, 'Marketing site', 'ship the redesign');
+        $result = $tool(title: 'Marketing site', project_id: (int) $project->id, description: 'ship the redesign');
 
         $this->assertSame((int) $project->id, (int) $result['project_id']);
         $this->assertSame(
@@ -1009,8 +1009,8 @@ class ProjectPmToolsTest extends TestCase
         $project = $this->makeProject($app, $company, $user);
 
         $tool = new CreateNervousSystemPlanTool()->withContext($app, $company, $user);
-        $first = $tool((int) $project->id, 'Same title plan');
-        $second = $tool((int) $project->id, 'Same title plan');
+        $first = $tool(title: 'Same title plan', project_id: (int) $project->id);
+        $second = $tool(title: 'Same title plan', project_id: (int) $project->id);
 
         $this->assertSame((int) $first['plan_id'], (int) $second['plan_id']);
         $this->assertTrue($second['reused'] ?? false);

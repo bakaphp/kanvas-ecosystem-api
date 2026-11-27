@@ -12,8 +12,10 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Services\BlockOutcomeDeliveryService;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Throwable;
 
 /**
  * Close the delegation loop at the PLAN level: when a plan a PM handed off finishes, wake the PM —
@@ -36,7 +38,7 @@ class WakeProjectManagerOnPlanOutcomeListener
         // cannot loop it back on itself here.
         $finishedEveryTask = $this->finishedEveryTask($event);
 
-        if (! $finishedEveryTask && ($event->fromSync || ! $this->isPlanOutcome($event))) {
+        if (! $finishedEveryTask && ! $this->isPlanOutcome($event)) {
             return;
         }
 
@@ -48,6 +50,16 @@ class WakeProjectManagerOnPlanOutcomeListener
 
         [$project, $creator] = $target;
         $plan = $event->plan;
+        $handedOff = $creator->is($plan->createdByAgent) && $plan->wasHandedOffByItsCreator();
+
+        // A synced plan change is normally a mirror with nobody to tell. Work an agent handed off is the
+        // exception: its creator is a different agent that is waiting to hear, and most workers record
+        // their outcome as a sync.
+        if (! $finishedEveryTask && $event->fromSync && ! $handedOff) {
+            return;
+        }
+
+        $blockCycle = null;
 
         if ($finishedEveryTask) {
             $plan->rememberFinishWasReported();
@@ -57,6 +69,16 @@ class WakeProjectManagerOnPlanOutcomeListener
             if ($creator->is($plan->createdByAgent)) {
                 $plan->rememberAnswerIsComing();
             }
+        } elseif ($handedOff && $plan->status === PlanStatusEnum::DONE->value) {
+            // Closed directly, with no last task to report: the creator answers in the conversation, so
+            // the done alert must not say it there as well.
+            $plan->rememberAnswerIsComing();
+        } elseif ($handedOff && $plan->status === PlanStatusEnum::BLOCKED->value) {
+            // Reserved before the wake is sent: the blocked alert is queued for 45 seconds from now and
+            // the creator may still be thinking then.
+            $delivery = new BlockOutcomeDeliveryService($plan);
+            $blockCycle = $delivery->currentCycleId() ?? $delivery->startCycle();
+            $delivery->reserveForCreator($blockCycle);
         }
 
         $plan->emitLedgerEvent(
@@ -72,15 +94,26 @@ class WakeProjectManagerOnPlanOutcomeListener
             ],
         );
 
-        WakeAgentForProjectJob::dispatch(
-            $project,
-            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
-            $finishedEveryTask
-                ? $this->everyTaskFinishedFact($plan)
-                : $this->outcomeFact($plan, $event->changeType),
-            wakeAgent: $creator,
-            reportsOn: $finishedEveryTask ? $plan : null,
-        );
+        try {
+            WakeAgentForProjectJob::dispatch(
+                $project,
+                WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+                $finishedEveryTask
+                    ? $this->everyTaskFinishedFact($plan)
+                    : $this->outcomeFact($plan, $event->changeType),
+                wakeAgent: $creator,
+                reportsOn: $finishedEveryTask ? $plan : null,
+                aboutPlan: $plan,
+                blockOutcomeId: $blockCycle,
+            );
+        } catch (Throwable $e) {
+            // The wake never left, so the fallback already queued must be free to speak.
+            if ($blockCycle !== null) {
+                new BlockOutcomeDeliveryService($plan)->releaseReservation($blockCycle);
+            }
+
+            throw $e;
+        }
     }
 
     private function isPlanOutcome(PlanBroadcast $event): bool

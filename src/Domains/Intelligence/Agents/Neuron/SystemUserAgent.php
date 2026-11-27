@@ -256,21 +256,27 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             return [];
         }
 
+        return $this->mergeRegisteredTools($this->baselineTools($agent), $agent, CapabilityFrameworkEnum::NEURON);
+    }
+
+    /**
+     * What every system agent holds before its registry grants are merged in. A subclass that adds tools
+     * of its own adds them to this list and merges once: tools appended after the merge skip the context
+     * fill, lose to a registry copy of the same class and escape the worker boundary.
+     *
+     * @return list<object>
+     */
+    protected function baselineTools(Agent $agent): array
+    {
         $core = $this->identityTools();
 
         $subject = $this->subjectEntity();
-        if ($subject !== null) {
+        if ($subject !== null && $this->app !== null && $this->company !== null) {
             $core[] = new ReadEntityContextTool($subject);
-            $core[] = new ReadUserActivityTool($app, $company, $subject);
+            $core[] = new ReadUserActivityTool($this->app, $this->company, $subject);
         }
 
-        $core = [...$core, ...$this->followThroughTools($agent)];
-
-        return $this->mergeRegisteredTools(
-            $core,
-            $agent,
-            CapabilityFrameworkEnum::NEURON
-        );
+        return [...$core, ...$this->followThroughTools($agent)];
     }
 
     /**

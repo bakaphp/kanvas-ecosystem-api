@@ -6,33 +6,77 @@ namespace Kanvas\Intelligence\Agents\Neuron\Company;
 
 use Kanvas\Companies\Onboarding\Services\OnboardingPromptBlockService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\Concerns\AppliesAccountingReadiness;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportTableTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPersonNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsByTraitsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleBulkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetCompanyBreakdownTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetCustomerStatsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetDealAnalyticsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetLeadAnalyticsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetMessageUsageReportTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetSalesSummaryTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListStaleLeadsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\PastOpportunitiesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadPersonActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadCustomFieldsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateLeadDescriptionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateLeadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdatePersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ListAvailableProductsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ProductDetailTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantDetailTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetProjectAnalyticsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAssignedWorkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlansTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\RememberKnowledgeTool;
+use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
+use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Actions\EnsureCompanyOperationsProjectAction;
+use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Scribe\Setup\Services\AccountingAgentLocatorService;
+use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\ToolInterface;
 use Override;
 
 #[AgentTypeDefinition(
     name: 'Company Brain Agent',
-    description: 'The company brain: one cross-functional intelligence over sales, support, ops, inventory, finance and marketing. Connects signals across domains and uses the full Kanvas toolset to figure out what\'s happening and what to do next.',
+    description: 'The company\'s single assistant and COO: sees across sales, projects, finance and people, answers from the real numbers, and gets work done by handing it to the right agent and reporting back.',
     provider: 'neuron',
     soul: 'You are the company brain — the single intelligence that sees across every part of the business at '
         . 'once. Sales, support, operations, inventory, finance, marketing and the people behind them are one '
@@ -49,6 +93,14 @@ class CompanyBrainAgent extends SystemUserAgent
 {
     use AppliesAccountingReadiness;
 
+    /** Starting work, approving it and staffing: never on a turn nobody is present for. */
+    private const array UNATTENDED_DENIED = [
+        'create_nervous_system_plan',
+        'approve_nervous_system_plan',
+        'hire_agent',
+        'grant_agent_tools',
+    ];
+
     #[Override]
     public function instructions(): string
     {
@@ -62,36 +114,40 @@ class CompanyBrainAgent extends SystemUserAgent
     }
 
     /**
-     * Read-broad, write-narrow. The brain inherits SystemUserAgent's baseline — its own ledger
-     * memory, entity grounding, and the two SAFE internal-only send tools (email/Slack a teammate,
-     * closed-set verified) — then adds this curated cross-domain READ bundle so it can see the
-     * business without being handed a loaded gun. The one write here is `remember` — the safe
-     * self-memory write that pairs with the inherited read_my_ledger; it touches only the agent's
-     * own durable memory, nothing customer-facing.
-     *
-     * It deliberately does NOT hardcode customer-facing sends (send_lead_email/send_lead_sms to a prospect),
-     * bulk (send_batch_message), or irreversible mutations — those belong to the specialist agents;
-     * the brain recommends and hands off. The one way it changes the company is staffing: it can hire
-     * an agent or widen one's grants, both gated on an admin in the conversation, so a recommendation
-     * can become a teammate. Nor does it hardcode module-gated domains (accounting, inventory): those
-     * depend on what the tenant actually runs, so they come in per-tenant through the registered-tool
-     * selection that mergeRegisteredTools() already layers on top (via parent).
+     * Board tools join the baseline before the registry merge so they receive the acting agent and
+     * worker policy. The read bundle keeps its explicit user context; accounting setup is tenant-gated.
+     * Customer-facing sends and bulk writes require a tenant's explicit grants.
      *
      * @return list<object>
      */
     #[Override]
     protected function tools(): array
     {
-        $tools = parent::tools();
-
         $app = $this->app;
         $company = $this->company;
         $user = $this->user;
         $agent = $this->agent;
 
         if ($app === null || $company === null || $user === null || $agent === null) {
-            return $tools;
+            return parent::tools();
         }
+
+        $person = $this->personAtKeyboard();
+        // A mention or a wake on a board: existing work is followed up there, new work is not started.
+        $onABoard = $this->entity instanceof Project || $this->entity instanceof Plan;
+
+        // One merge for everything that writes: it fills each tool's context (the acting agent included,
+        // which is what stamps a plan's creator), lets these instances win over a registry copy of the
+        // same class, and holds them to the worker boundary when the brain itself is working a task.
+        $tools = $this->mergeRegisteredTools(
+            [
+                ...$this->baselineTools($agent),
+                ...$this->delegationTools($agent, $person, $onABoard),
+                ...$this->recordTools($person),
+            ],
+            $agent,
+            CapabilityFrameworkEnum::NEURON,
+        );
 
         $readBundle = [
             new RememberKnowledgeTool($app, $company, $agent),
@@ -110,17 +166,6 @@ class CompanyBrainAgent extends SystemUserAgent
             new GetProjectAnalyticsTool()->withContext($app, $company, $user),
             new ExportTableTool()->withContext($app, $company, $user),
         ];
-
-        // Staffing, the way the project manager does it: see the team and the catalog, then hire or
-        // widen an agent only on an identified admin's say-so. The gate is the requesting HUMAN, never
-        // the brain's own user: a cron turn with nobody at the keyboard must not be able to hire.
-        $requestingHuman = $this->requestingHuman();
-        $readBundle[] = new ListAgentTypesTool()->withContext($app, $company, $user);
-        foreach ([new ListAgentsTool($agent), new HireAgentTool($agent), new GrantAgentToolsTool($agent)] as $staffing) {
-            $readBundle[] = $staffing
-                ->withContext($app, $company, $user)
-                ->forRequestingUser($requestingHuman);
-        }
 
         // Accounting is module-gated like every other domain, but finishing its setup is the brain's job
         // (it runs onboarding), so the setup tools come with the AP/AR agents rather than a catalog grant
@@ -142,7 +187,139 @@ class CompanyBrainAgent extends SystemUserAgent
             }
         }
 
+        return $this->withoutToolsNamed($tools, $this->withheldThisTurn($person, $onABoard));
+    }
+
+    /**
+     * The records a company runs on, worked the way an assistant works them. Leads, people,
+     * organizations and the catalog can be read on every turn. A lead, a person or an organization can
+     * be created or updated, and a note added, only for a person at the keyboard. Nothing here merges,
+     * deletes or sends, and the catalog is read-only: those come from a catalog grant, per company.
+     *
+     * @return list<object>
+     */
+    private function recordTools(?Users $person): array
+    {
+        $app = $this->app;
+        $company = $this->company;
+        $actor = $this->actingUser();
+
+        if ($app === null || $company === null || $actor === null) {
+            return [];
+        }
+
+        $tools = [
+            new LeadRefTool(),
+            new ReadLeadActivityTool(),
+            new PastOpportunitiesTool(),
+            new FindPersonTool(),
+            new FindPeopleBulkTool(),
+            new GetPersonTool(),
+            new ListPeopleTool(),
+            new ReadPersonActivityTool(),
+            new GetOrganizationTool(),
+            new ListOrganizationPeopleTool(),
+            new ReadOrganizationActivityTool(),
+            new InventorySearchTool(),
+            new ProductDetailTool(),
+            new VariantDetailTool(),
+            new ListAvailableProductsTool(),
+        ];
+
+        if ($person === null) {
+            return $tools;
+        }
+
+        return [
+            ...$tools,
+            new CreateLeadTool($app, $company, $actor),
+            new CreatePersonTool(),
+            new CreateOrganizationTool(),
+            new UpdateLeadTool(),
+            new UpdateLeadDescriptionTool(),
+            new SetLeadStatusTool(),
+            new SetLeadCustomFieldsTool(),
+            new UpdatePersonTool(),
+            new UpdateOrganizationTool(),
+            new AddLeadNoteTool(),
+            new AddPersonNoteTool(),
+            new AddOrganizationNoteTool(),
+        ];
+    }
+
+    /**
+     * Handing work to other agents, and staffing them. Following through on work that exists is open on
+     * every turn. Starting work, approving it and staffing need a person at the keyboard: a scheduled
+     * turn runs as the person it is addressed to and a board wake as the board's owner, and neither is
+     * there to have asked for it.
+     *
+     * @return list<object>
+     */
+    private function delegationTools(Agent $agent, ?Users $person, bool $onABoard): array
+    {
+        $app = $this->app;
+        $company = $this->company;
+
+        $tools = [
+            new AddNervousSystemTaskTool(),
+            new AssignNervousSystemPlanTool(),
+            new AssignNervousSystemTaskTool(),
+            new UpdateNervousSystemPlanTool(),
+            new ReadNervousSystemPlanActivityTool(),
+            new CommentOnNervousSystemPlanTool(),
+            new AttachFileToNervousSystemPlanTool(),
+            new ListNervousSystemPlanFilesTool(),
+            new ListAgentTypesTool(),
+            // Any employee may hand work off, so any employee may see who is on staff to take it.
+            new ListAgentsTool($agent)->allowRosterForEveryone(),
+        ];
+
+        if ($person === null || $app === null || $company === null) {
+            return $tools;
+        }
+
+        $tools[] = new HireAgentTool($agent);
+        $tools[] = new GrantAgentToolsTool($agent);
+        $tools[] = new ApproveNervousSystemPlanTool();
+
+        if (! $onABoard) {
+            // No project_id means the company's Operations board, opened the first time it is needed.
+            $tools[] = new CreateNervousSystemPlanTool($this->session, fn (): Project => new EnsureCompanyOperationsProjectAction($app, $company)->execute());
+        }
+
         return $tools;
+    }
+
+    /**
+     * Applied to the finished list, because a registry grant of one of these would otherwise come back
+     * in through the merge on exactly the turns the baseline left it out.
+     *
+     * @return list<string>
+     */
+    private function withheldThisTurn(?Users $person, bool $onABoard): array
+    {
+        if ($person === null) {
+            return self::UNATTENDED_DENIED;
+        }
+
+        return $onABoard ? ['create_nervous_system_plan'] : [];
+    }
+
+    /**
+     * @param list<object> $tools
+     * @param list<string> $names
+     * @return list<object>
+     */
+    private function withoutToolsNamed(array $tools, array $names): array
+    {
+        if ($names === []) {
+            return $tools;
+        }
+
+        return array_values(array_filter(
+            $tools,
+            fn (object $tool): bool => ! ($tool instanceof ToolInterface && in_array($tool->getName(), $names, true)),
+        ));
     }
 
     /**
@@ -189,6 +366,47 @@ For any question, customer, or decision, work up this ladder and push toward the
 - **Know your limits.** If you don't have enough to answer safely, say so and name exactly what you'd need —
   never invent an answer.
 - **Loyalty is to the company's health**, not to whoever happens to be asking.
+
+## Getting work done
+
+You are this person's assistant, and a working agent like any other: you do the work yourself with the
+tools you hold. They should never have to pick an agent, a board or a project.
+
+- If you can answer by reading, answer now.
+- If you hold a tool that does the work, do it yourself, exactly as your instructions for this company
+  say. That is the normal case.
+- Hand work off when it is much bigger than one conversation: many steps, several pieces that can run
+  at the same time, hours of work, or something none of your own tools can do. Then
+  create_nervous_system_plan with a clear title and what "done" looks like, and
+  assign_nervous_system_plan to the agent that fits. Use list_agents with a capability to find who
+  already can do it. Hire only when nobody fits and an admin in this conversation agrees.
+- Never ask the person which project. When the work clearly belongs to a project that already exists
+  (list_projects), pass that project_id and assign the plan to that project's PM agent. For everything
+  else, and whenever you are unsure, leave project_id out: it goes on your own Operations board.
+- After you hand work off, say so in one sentence and stop. You are woken when it finishes or blocks,
+  and your answer then goes to the person who asked. Do not claim it is done before that.
+- When you are woken about a plan you handed off, read it with read_plan_activity and answer from what
+  the worker recorded. If it blocked on a missing capability, reassign it or staff it; if it needs the
+  person, ask them one clear question.
+- Your Operations board is plumbing. Do not mention it unless someone asks where the work is tracked.
+
+## Leads, people and organizations
+
+You can look up a lead, a person or an organization and read its activity, and you can read the product
+catalog. You can also create or update a lead, a person or an organization and add a note to one, when
+the person you are talking to asks for it.
+
+- Look first. Search for the record before creating it; a second copy of a person or a company splits
+  their history in two.
+- Creating a lead is not filing a card. A new lead can be assigned to a salesperson, sent to the company's
+  other systems, and, where the company has turned that on, contacted automatically. Create one only when
+  you were asked to, and say what happens next.
+- A note is the record of something that happened. Add it to the record it is about, in the person's
+  words where you can.
+- Change only what you were asked to change, and say what you changed. When your instructions for this
+  company name a different tool for one kind of record, use that one.
+- You do not merge or delete these records, and you do not change the catalog. When that is what is
+  needed, say so, or hand it to an agent that does.
 DOCTRINE;
     }
 }
