@@ -157,7 +157,7 @@ class NetSuiteProductsImporter extends ChunkedImporter
             return null;
         }
 
-        return $this->startFollowUp('stock');
+        return $this->startFollowUp(ImportEntityEnum::STOCK->value);
     }
 
     /**
@@ -183,7 +183,9 @@ class NetSuiteProductsImporter extends ChunkedImporter
 
         return array_map(
             fn (string $locationId) => $this->locationMapping->warehouseFor($locationId, $mapped)
-                ?? throw new ValidationException('NetSuite location ' . $locationId . ' is not mapped to a warehouse.'),
+                ?? throw new ValidationException(
+                    'NetSuite location ' . $locationId . ' is not mapped to a warehouse.'
+                ),
             $locationIds
         );
     }

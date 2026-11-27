@@ -124,7 +124,9 @@ class Client
             $moreRequest->searchId = $searchId;
             $moreRequest->pageIndex = $pageIndex;
 
-            $more = $this->executeWithRateLimit(fn (NetSuiteService $service) => $service->searchMoreWithId($moreRequest));
+            $more = $this->executeWithRateLimit(
+                fn (NetSuiteService $service) => $service->searchMoreWithId($moreRequest)
+            );
             $results = array_merge($results, $this->pageResults($more->searchResult));
         }
 
@@ -137,7 +139,9 @@ class Client
     private function pageResults(object $page): array
     {
         if (! $page->status->isSuccess) {
-            throw new Exception('NetSuite search failed: ' . ($page->status->statusDetail[0]->message ?? 'unknown error'));
+            throw new Exception(
+                'NetSuite search failed: ' . ($page->status->statusDetail[0]->message ?? 'unknown error')
+            );
         }
 
         return $page->searchRowList->searchRow ?? $page->recordList->record ?? [];

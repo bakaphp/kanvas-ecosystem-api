@@ -6,9 +6,9 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\NetSuite\Client;
+use Kanvas\Connectors\NetSuite\Concerns\NormalizesImportIds;
 use NetSuite\Classes\InventoryItem;
 use NetSuite\Classes\ItemSearch;
 use NetSuite\Classes\ItemSearchBasic;
@@ -24,6 +24,8 @@ use NetSuite\NetSuiteService;
 
 class NetSuiteProductService
 {
+    use NormalizesImportIds;
+
     protected Client $client;
 
     public function __construct(
@@ -58,10 +60,10 @@ class NetSuiteProductService
             $search->inventoryLocationJoin = NetSuiteLocationService::joinFilter($locationIds);
         }
 
-        return array_values(array_filter(array_map(
-            fn (object $item) => Str::trimToNull((string) ($item->itemId ?? '')),
+        return $this->uniqueIds(array_map(
+            fn (object $item) => $item->itemId ?? null,
             $this->client->searchAll($search)
-        )));
+        ));
     }
 
     /**

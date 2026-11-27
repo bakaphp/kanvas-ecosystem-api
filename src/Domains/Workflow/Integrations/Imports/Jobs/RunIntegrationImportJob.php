@@ -38,16 +38,22 @@ class RunIntegrationImportJob implements ShouldQueue
     public int $tries = 1;
     public int $timeout = 3600;
 
-    public function __construct(
-        public IntegrationImport $run,
-        public int $offset = 0,
-    ) {
+    public function __construct(public IntegrationImport $run, public int $offset = 0)
+    {
         $this->onQueue('imports');
     }
 
     public function handle(): void
     {
         $this->overwriteAppService($this->run->app);
+
+        // Disconnecting can delete the row needed to build the importer.
+        if (! $this->stillImportable()) {
+            $this->forgetItemsFrom($this->chunkNumber());
+            $this->run->fail('The integration was disconnected during the import.');
+
+            return;
+        }
 
         $importer = $this->importer();
         $options = $this->run->options ?? [];
@@ -61,13 +67,6 @@ class RunIntegrationImportJob implements ShouldQueue
 
         if (! $importer instanceof ChunkedImporter) {
             throw new RuntimeException('An importer must be a chunked or a single run importer.');
-        }
-
-        if ($this->offset > 0 && ! $this->stillImportable()) {
-            $this->forgetItemsFrom($this->chunkNumber());
-            $this->run->fail('The integration was disconnected during the import.');
-
-            return;
         }
 
         $items = $this->offset === 0 ? $this->listItems($importer, $options) : $this->cachedChunk();

@@ -16,9 +16,9 @@ trait NormalizesImportIds
      */
     protected function uniqueIds(array $ids): array
     {
-        return array_values(array_unique(array_filter(array_map(
-            fn (mixed $id) => Str::trimToNull((string) $id),
-            $ids
-        ))));
+        return array_values(array_unique(array_filter(
+            array_map(fn (mixed $id) => Str::trimToNull((string) $id), $ids),
+            fn (?string $id) => $id !== null
+        )));
     }
 }

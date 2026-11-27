@@ -8,6 +8,7 @@ use Baka\Contracts\BaseIntegration;
 use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite as NetSuiteDto;
+use Kanvas\Connectors\NetSuite\Enums\ImportEntityEnum;
 use Kanvas\Connectors\NetSuite\Importers\NetSuiteCustomersImporter;
 use Kanvas\Connectors\NetSuite\Importers\NetSuiteProductsImporter;
 use Kanvas\Connectors\NetSuite\Importers\NetSuiteStockImporter;
@@ -64,13 +65,13 @@ class NetSuiteHandler extends BaseIntegration
 
         return [
             new Importable(
-                entity: 'customers',
+                entity: ImportEntityEnum::CUSTOMERS->value,
                 label: 'Customers',
                 importer: NetSuiteCustomersImporter::class,
                 options: [$savedSearch],
             ),
             new Importable(
-                entity: 'products',
+                entity: ImportEntityEnum::PRODUCTS->value,
                 label: 'Productos',
                 importer: NetSuiteProductsImporter::class,
                 options: [
@@ -85,7 +86,7 @@ class NetSuiteHandler extends BaseIntegration
                 ],
             ),
             new Importable(
-                entity: 'stock',
+                entity: ImportEntityEnum::STOCK->value,
                 label: 'Stock',
                 importer: NetSuiteStockImporter::class,
                 options: [

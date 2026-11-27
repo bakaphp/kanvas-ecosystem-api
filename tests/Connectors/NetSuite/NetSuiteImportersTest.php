@@ -208,8 +208,18 @@ class NetSuiteImportersTest extends TestCase
         $importer = $this->products();
         $this->client->into($this->collaborator($importer, 'locationService'));
         $this->client->soap->searchResults = [
-            $this->location('7', 'Yusen', '_warehouse', true),
-            $this->location('6', 'In Transit', null, true),
+            $this->location(
+                '7',
+                'Yusen',
+                '_warehouse',
+                true
+            ),
+            $this->location(
+                '6',
+                'In Transit',
+                null,
+                true
+            ),
         ];
 
         $choices = $importer->choices('location_ids');
@@ -272,8 +282,12 @@ class NetSuiteImportersTest extends TestCase
         return $customer;
     }
 
-    private function location(string $id, string $name, ?string $type, bool $available): Location
-    {
+    private function location(
+        string $id,
+        string $name,
+        ?string $type,
+        bool $available
+    ): Location {
         $location = new Location();
         $location->internalId = $id;
         $location->name = $name;

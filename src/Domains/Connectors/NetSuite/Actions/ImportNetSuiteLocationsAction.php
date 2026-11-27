@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\NetSuite\Actions;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\NetSuite\Concerns\NormalizesImportIds;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationService;
@@ -26,14 +27,13 @@ use Kanvas\Users\Models\Users;
  */
 class ImportNetSuiteLocationsAction
 {
+    use NormalizesImportIds;
+
     protected NetSuiteLocationService $locations;
     protected NetSuiteLocationWarehouseService $mapping;
 
-    public function __construct(
-        protected Apps $app,
-        protected Companies $company,
-        protected Users $user
-    ) {
+    public function __construct(protected Apps $app, protected Companies $company, protected Users $user)
+    {
         $this->locations = new NetSuiteLocationService($app, $company);
         $this->mapping = new NetSuiteLocationWarehouseService($app, $company);
     }
@@ -45,7 +45,7 @@ class ImportNetSuiteLocationsAction
     public function execute(string $defaultLocationId, array $locationIds): array
     {
         $names = array_column($this->locations->active(), 'name', 'id');
-        $further = array_values(array_diff(array_unique(array_map('strval', $locationIds)), [$defaultLocationId]));
+        $further = array_values(array_diff($this->uniqueIds($locationIds), [$defaultLocationId]));
 
         foreach ([$defaultLocationId, ...$further] as $locationId) {
             if (! isset($names[$locationId])) {
@@ -87,7 +87,7 @@ class ImportNetSuiteLocationsAction
      */
     public function ensureMapped(array $locationIds): array
     {
-        $locationIds = array_values(array_unique(array_map('strval', $locationIds)));
+        $locationIds = $this->uniqueIds($locationIds);
 
         if ($locationIds === []) {
             throw new ValidationException('Choose at least one NetSuite location.');

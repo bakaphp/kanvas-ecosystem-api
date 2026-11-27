@@ -80,8 +80,10 @@ class that does not extend `IntegrationImporter` is refused.
 `summary`, `error` (why the whole run died), and the three timestamps.
 
 - **One run at a time per (company, integration, entity).** `StartIntegrationImportAction` takes a
-  short cache lock and checks `IntegrationImport::inProgressFor()` inside it; a second start, or one
-  that times out waiting for the lock, is a `ValidationException`. Two entities of the same integration
+  cache lock, checks `IntegrationImport::inProgressFor()` inside it and only then runs `prepare()`,
+  still under the lock: `prepare()` may write (NetSuite maps warehouses), so a start that is refused
+  must not reach it. A second start, or one that times out waiting for the lock, is a
+  `ValidationException`. Two entities of the same integration
   may run together unless an importer's `prepare()` says otherwise (Salesforce people wait for
   organizations).
 - **Run lookups are company + integration scoped, not app scoped.** `inProgressFor()` and
@@ -98,8 +100,8 @@ class that does not extend `IntegrationImporter` is refused.
   the `imports` queue. They stay sequential because the counters are read-modify-write. The job calls
   `overwriteAppService($run->app)` first, as every app-scoped job must. If the cached list expired
   between chunks the run fails with "lost its record list"; starting again is safe because imports are
-  resyncs. Each continuation re-checks `isImportable()` first: if the integration was deactivated or
-  removed mid-run, the run fails with "The integration was disconnected during the import." and its
+  resyncs. Every job, the first one included, re-checks `isImportable()` before anything else: if the
+  integration was deactivated or removed after the run was queued, the run fails with "The integration was disconnected during the import." and its
   cached chunks are dropped.
 - `tries` is 1: a retried chunk would double-count. A job-level failure goes through `failed()` and
   marks the run `FAILED` with the exception message.

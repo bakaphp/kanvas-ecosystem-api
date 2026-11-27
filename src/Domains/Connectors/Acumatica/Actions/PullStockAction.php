@@ -143,9 +143,8 @@ class PullStockAction
             return;
         }
 
-        // Differs from Inventory's EnsureVariantInWarehouseAction: the price comes from any row, not the
-        // default warehouse first, and the new row gets no status_id. Moving onto that action changes
-        // both, so it needs the Acumatica owner's sign-off.
+        // Acumatica copies any existing price without a status; EnsureVariantInWarehouseAction
+        // prefers the default warehouse and copies its status, so it is not interchangeable here.
         $price = (float) ($variant->variantWarehouses()->value('price') ?? 0);
 
         new AddToWarehouseAction(

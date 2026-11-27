@@ -51,8 +51,9 @@ location, see below); there is no NetSuite-specific locations query.
 ## Locations
 
 NetSuite keeps each item's quantity **per location**. Each imported location is mirrored by a Kanvas
-warehouse through the warehouse's `NET_SUITE_LOCATION_ID` custom field; the price refresh, the stock
-import and quotes all read it from there.
+warehouse through the warehouse's `NET_SUITE_LOCATION_ID` custom field; the price refresh
+(`NetSuiteLocationWarehouseService::locationFor()`, which lets a value on the variant-warehouse row win
+for data mapped the old way) and the stock import read it from there.
 
 They are mapped while importing products (`ImportNetSuiteLocationsAction::ensureMapped()`, called by
 `NetSuiteProductsImporter::prepare()`): the location the default warehouse already mirrors stays there;
@@ -162,8 +163,9 @@ Real account, about 1,700 products, `NET_SUITE_MAX_CONCURRENT_REQUESTS` = 2:
   `NetSuiteProductSearchService::searchProductByItemNumber()` without a saved search, and its default is
   `574`, which belongs to the original account. For any other tenant the refresh fails until that is
   parametrized (or `NET_SUITE_USE_LEGACY_PRODUCT_SEARCH` is used).
-- **Quotes fall back to location 4 when the warehouse has no mapping** (`NetSuiteQuoteService.php`).
-  Mapped warehouses never hit it, but the fallback is still specific to the original account.
+- **Quotes do not read the warehouse mapping.** `NetSuiteQuoteService` reads the location off the
+  variant-warehouse row only and falls back to location 4, which is specific to the original account;
+  `SyncNetSuiteProductsAction` reads the row only too. Both should move to `locationFor()`.
 - **Existing customers are not updated** on a resync.
 - The item record (`get`) carries no per-location quantities on this account, so per-location quantity
   only comes from advanced searches (refresh and stock).

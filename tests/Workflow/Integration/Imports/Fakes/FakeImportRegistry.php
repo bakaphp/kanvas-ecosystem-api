@@ -15,6 +15,7 @@ final class FakeImportRegistry
     public static array $imported = [];
     public static ?string $completedThrows = null;
     public static ?IntegrationImportStatusEnum $statusAtCompletion = null;
+    public static int $prepared = 0;
 
     public static function reset(): void
     {
@@ -25,5 +26,6 @@ final class FakeImportRegistry
         self::$imported = [];
         self::$completedThrows = null;
         self::$statusAtCompletion = null;
+        self::$prepared = 0;
     }
 }
