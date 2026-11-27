@@ -30,6 +30,7 @@ use Override;
  * @property int                          $is_opt_out
  * @property int                          $weight
  * @property ContactValidationStatusEnum  $validation_status
+ * @property bool                         $is_nonfixed_voip
  * @property Carbon|null                  $bounced_at
  */
 #[ObservedBy(ContactObserver::class)]
@@ -86,6 +87,7 @@ class Contact extends BaseModel
             'is_deleted' => 'boolean',
             'validation_status' => ContactValidationStatusEnum::class,
             'bounced_at' => 'datetime',
+            'is_nonfixed_voip' => 'boolean',
         ];
     }
 
@@ -120,7 +122,7 @@ class Contact extends BaseModel
     /** A nonFixedVoip line a Twilio Lookup found on a carrier that carries no texts. */
     public function isNonFixedVoip(): bool
     {
-        return (bool) $this->get(ContactCustomFieldEnum::NONFIXED_VOIP->value);
+        return (bool) $this->is_nonfixed_voip;
     }
 
     public function markInvalid(): bool
