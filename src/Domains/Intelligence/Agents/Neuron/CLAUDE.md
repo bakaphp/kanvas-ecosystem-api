@@ -187,6 +187,12 @@ next turn folds onto it, and the cut never touches the live turn, so a project h
 a whole context bundle grew by one bundle per failed wake until Gemini refused it
 (KANVAS-ECOSYSTEM-6JD). Past the cap the newer turn replaces the older one and the orphan row is archived.
 
+The fold drops leading non-user turns, and the history archives what the fold dropped. So a
+conversation that opens with the agent speaking (a Slack DM or an email it sent first) loses that opening
+on the first reply: writing the message into the transcript is not enough. Slack hands it to the answering
+turn as prompt text instead (`Connectors/Slack/Services/SlackUnpromptedMessageService`).
+`SendEmailToUserTool` files an "Emailed you" row for a person who never chatted and still has this hole.
+
 Stores extend `Stores/KanvasMessageStore`: `loadActive()` reads rows, `persist()` writes one,
 `append()` dedupes by message id, `clear()` archives the thread, and the count-based `archive()` is a
 final no-op (see "Archive and summarize" below). Nothing is ever deleted: Social messages and

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Slack\Actions;
 use Kanvas\Connectors\Slack\Client;
 use Kanvas\Connectors\Slack\Services\SlackRoomsContextService;
 use Kanvas\Connectors\Slack\Services\SlackThreadContextService;
+use Kanvas\Connectors\Slack\Services\SlackUnpromptedMessageService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
@@ -45,6 +46,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls),
             $this->message->files,
         );
+        $inboundText = $this->withUnpromptedMessages($inboundText);
         $inboundText = $this->withRoomsContext($this->withThreadContext($inboundText));
 
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
@@ -153,6 +155,17 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         }
 
         return $thread . "\n\nLatest message, addressed to you:\n" . $inboundText;
+    }
+
+    private function withUnpromptedMessages(string $inboundText): string
+    {
+        $said = new SlackUnpromptedMessageService()->render($this->channel, $this->message);
+
+        if ($said === null) {
+            return $inboundText;
+        }
+
+        return $said . "\n\nTheir message:\n" . $inboundText;
     }
 
     /**

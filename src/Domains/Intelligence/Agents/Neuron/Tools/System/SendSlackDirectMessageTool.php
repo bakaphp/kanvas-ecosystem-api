@@ -6,8 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\System;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\Slack\Client;
-use Kanvas\Connectors\Slack\Services\SlackConversationChannelService;
-use Kanvas\Connectors\Slack\Services\SlackReceiverService;
+use Kanvas\Connectors\Slack\Services\SlackUnpromptedMessageService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
@@ -18,7 +17,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksAskToTask;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -150,6 +148,9 @@ class SendSlackDirectMessageTool extends Tool implements RequiresSystemAgent
             return ['status' => 'error', 'message' => 'The Slack DM could not be sent right now. Tell the user you will follow up.'];
         }
 
+        $oneToOneWith = $askerSlackId === null ? $recipient : null;
+        $channel = $this->fileInKanvasChannel($slackChannelId, $message, $oneToOneWith);
+
         $result = [
             'status' => 'success',
             'to' => $recipient->email,
@@ -175,7 +176,7 @@ class SendSlackDirectMessageTool extends Tool implements RequiresSystemAgent
                 $recipient,
                 $this->contextUser(),
                 $this->session,
-                $this->fileInKanvasChannel($slackChannelId, $message)?->getId(),
+                $channel?->getId(),
             ),
         ];
     }
@@ -212,43 +213,23 @@ class SendSlackDirectMessageTool extends Tool implements RequiresSystemAgent
     }
 
     /**
-     * The same conversation Slack's reply will land in, so the wake can say "re-read channel N" and
-     * find the ask there beside the answer. Best-effort: the DM is already delivered.
+     * The same conversation Slack's reply will land in: the turn that answers it is handed what the
+     * agent said, and a wake can say "re-read channel N" and find the ask beside the answer.
+     * Best-effort: the DM is already delivered.
      */
-    private function fileInKanvasChannel(string $slackChannelId, string $message): ?Channel
+    private function fileInKanvasChannel(string $slackChannelId, string $message, ?Users $oneToOneWith): ?Channel
     {
-        if ($this->agent === null || $this->agent->user === null) {
-            return null;
-        }
-
-        $author = $this->agent->user;
-        $teamId = new SlackReceiverService()->teamIdFor($this->agent);
-
-        if ($teamId === null) {
+        if ($this->agent === null) {
             return null;
         }
 
         try {
-            $channel = new SlackConversationChannelService()->channelFor(
+            return new SlackUnpromptedMessageService()->record(
                 $this->agent,
-                $author,
-                $teamId,
                 $slackChannelId,
+                $message,
+                $oneToOneWith,
             );
-
-            new PostChannelMessageAction(
-                channel: $channel,
-                author: $author,
-                verb: 'slack',
-                content: $message,
-                extraPayload: [
-                    'from_ia' => true,
-                    'agent_id' => $this->agent->getId(),
-                    'slack_channel' => $slackChannelId,
-                ],
-            )->execute();
-
-            return $channel;
         } catch (Throwable $e) {
             report($e);
 
