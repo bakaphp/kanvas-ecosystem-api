@@ -10,11 +10,11 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadTypeByNameAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver as LeadReceiverData;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
-use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -28,8 +28,9 @@ final class OpenLeadFromConversationAction
 {
     /**
      * @param array<string, mixed> $filing how the webhook receiver says its leads are filed:
-     *                                     `lead_type` (a name, else Warm), `receiver_id` (the lead
-     *                                     receiver whose rotation owns them) and `pipeline_id`
+     *                                     `lead_type` (a name, else Warm; opened when the company
+     *                                     lacks it), `receiver_id` (the lead receiver whose rotation
+     *                                     owns them) and `pipeline_id`
      */
     public function __construct(
         private readonly People $people,
@@ -42,11 +43,8 @@ final class OpenLeadFromConversationAction
     public function execute(): Lead
     {
         $people = $this->people;
-        $leadType = LeadType::getByNameFromCompanyApp(
-            (string) ($this->filing['lead_type'] ?? 'Warm'),
-            $people->company,
-            $people->app
-        );
+        $leadTypeName = (string) ($this->filing['lead_type'] ?? 'Warm');
+        $leadType = new CreateLeadTypeByNameAction($people->app, $people->company, $leadTypeName)->execute();
 
         $leadSource = new CreateLeadSourceAction(
             new LeadSource(
