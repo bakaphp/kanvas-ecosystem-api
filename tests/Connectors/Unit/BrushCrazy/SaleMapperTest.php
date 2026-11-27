@@ -467,6 +467,27 @@ final class SaleMapperTest extends TestCase
         $this->assertSame('GC-1234', $payments[1]['card']);
     }
 
+    public function testASiteCheckoutChargedInBrushCrazyIsPaidThere(): void
+    {
+        $card = $this->payment(['id' => 1, 'type' => 'CreditCard', 'completed_at' => '2024-03-01 18:00:00']);
+
+        $this->assertTrue(SaleMapper::paidInBrushCrazy($this->sale(payments: [$card])));
+        $this->assertSame([], SaleMapper::kanvasRefundMoves($this->sale(['refunded_at' => '2024-03-02 10:00:00'], payments: [$card]), []));
+    }
+
+    public function testASaleKanvasChargedOrNotYetCompletedIsNotPaidInBrushCrazy(): void
+    {
+        $kanvas = $this->payment(['id' => 1, 'type' => 'Kanvas', 'completed_at' => '2024-03-01 18:00:00']);
+        $card = $this->payment(['id' => 2, 'type' => 'CreditCard', 'completed_at' => '2024-03-01 18:00:00']);
+        $pending = $this->payment(['id' => 3, 'type' => 'CreditCard', 'completed_at' => null]);
+
+        $this->assertFalse(SaleMapper::paidInBrushCrazy($this->sale(payments: [$kanvas])));
+        $this->assertFalse(SaleMapper::paidInBrushCrazy($this->sale(payments: [$kanvas, $card])));
+        $this->assertFalse(SaleMapper::paidInBrushCrazy($this->sale(payments: [$pending])));
+        $this->assertFalse(SaleMapper::paidInBrushCrazy($this->sale(['completed_at' => null], payments: [$card])));
+        $this->assertFalse(SaleMapper::paidInBrushCrazy($this->sale()));
+    }
+
     public function testLineKindClassification(): void
     {
         $this->assertSame(SaleLineKindEnum::REFUND, SaleLineKindEnum::classify($this->item(['category_name' => 'Refund'])));

@@ -448,6 +448,27 @@ class SaleMapper
     }
 
     /**
+     * A site checkout BrushCrazy charged itself (POST /api/checkouts/pay on BrushCrazy): the sale is
+     * completed, holds at least one completed payment, and none of its payments is Kanvas's. Kanvas
+     * took no money for it, so its adopted order only learns it is paid from here, and its refunds
+     * stay in BrushCrazy (kanvasRefundMoves() finds no Kanvas payment to return).
+     */
+    public static function paidInBrushCrazy(SaleRows $sale): bool
+    {
+        if (($sale->sale->completed_at ?? null) === null || $sale->payments === []) {
+            return false;
+        }
+
+        foreach ($sale->payments as $payment) {
+            if (($payment->type ?? null) === self::KANVAS_PAYMENT_TYPE) {
+                return false;
+            }
+        }
+
+        return array_filter($sale->payments, fn (object $payment) => ($payment->completed_at ?? null) !== null) !== [];
+    }
+
+    /**
      * @param  array<int, object>  $payments
      * @return array<int, object>
      */
