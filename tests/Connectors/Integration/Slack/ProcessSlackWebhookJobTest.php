@@ -13,12 +13,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Slack\Actions\CreateMessageFromSlackEventAction;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Slack\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Slack\Jobs\BackfillSlackChannelHistoryJob;
 use Kanvas\Connectors\Slack\Services\SlackThreadContextService;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackWebhookJob;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -28,11 +30,15 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\Stubs\Intelligence\EmptyReplyNeuronAgentStub;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
+use Tests\Traits\MakesEmployees;
 
 final class ProcessSlackWebhookJobTest extends TestCase
 {
+    use MakesEmployees;
+
     private const string BOT_USER_ID = 'UBOT123';
     private const string SLACK_CHANNEL = 'C0001';
     private const string DM_CHANNEL = 'D0001';
@@ -121,6 +127,70 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $this->assertSlackReplyWasPosted();
         // A DM reads like a normal chat — the reply posts at the top level, not in a thread.
         $this->assertSlackPostThreadTs(null);
+    }
+
+    /**
+     * The agent wrote first, on its own, and the teammate answers with "him": without the agent's own
+     * message in view the reply is about nobody, and the agent goes looking for who was meant.
+     */
+    public function testAReplyToADirectMessageTheAgentSentArrivesWithThatMessageInView(): void
+    {
+        $this->theAgentWritesFirst('Max asked me to tell you to follow up on Gaslink.');
+
+        $this->dispatch($this->messageEvent([
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'text' => 'I saw him last night, he asked us to wait until January.',
+        ]));
+
+        $shown = json_encode(FakeNeuronProvider::$lastMessages);
+        $this->assertStringContainsString('follow up on Gaslink', $shown);
+        $this->assertStringContainsString('wait until January', $shown);
+        $this->assertSame(1, substr_count($shown, 'You wrote this to them here earlier'));
+
+        $onTheChannel = $this->messagesOn(self::DM_CHANNEL)
+            ->map(fn (Message $message): string => (string) $message->message['content'])
+            ->all();
+        $this->assertSame('Max asked me to tell you to follow up on Gaslink.', $onTheChannel[0]);
+        $this->assertStringContainsString('wait until January', $onTheChannel[1]);
+    }
+
+    /**
+     * Answered once, it is part of the conversation: the next turn has it in history and is not handed
+     * it a second time.
+     */
+    public function testWhatTheAgentSaidFirstIsHandedOverOnlyWithTheReplyToIt(): void
+    {
+        $this->theAgentWritesFirst('Max asked me to tell you to follow up on Gaslink.');
+        $reply = ['channel' => self::DM_CHANNEL, 'channel_type' => 'im'];
+        $this->dispatch($this->messageEvent([...$reply, 'text' => 'He asked us to wait until January.']));
+
+        $this->dispatch($this->messageEvent([
+            ...$reply,
+            'text' => 'Also, is the Torbel quote out?',
+            'ts' => '1700000050.000100',
+        ]));
+
+        $shown = json_encode(FakeNeuronProvider::$lastMessages);
+        $this->assertStringContainsString('Torbel quote', $shown);
+        $this->assertStringContainsString('follow up on Gaslink', $shown);
+        $this->assertSame(1, substr_count($shown, 'You wrote this to them here earlier'));
+    }
+
+    public function testAnOrdinaryDirectMessageCarriesNoSuchContext(): void
+    {
+        $this->fakeSlackApi();
+
+        $this->dispatch($this->messageEvent([
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'text' => 'what is my pipeline looking like',
+        ]));
+
+        $this->assertStringNotContainsString(
+            'You wrote this to them here earlier',
+            json_encode(FakeNeuronProvider::$lastMessages),
+        );
     }
 
     public function testGroupDirectMessageIsAnsweredAndAttributedLikeARoom(): void
@@ -581,6 +651,41 @@ final class ProcessSlackWebhookJobTest extends TestCase
 
         $this->assertSame('Slack app uninstalled, receiver deactivated', $result['message']);
         $this->assertFalse((bool) $this->receiver->refresh()->is_active);
+    }
+
+    /**
+     * A one-to-one DM the agent opens with a teammate, whose replies then come from that teammate.
+     */
+    private function theAgentWritesFirst(string $message): void
+    {
+        $teammate = $this->makeEmployee();
+        $this->connectAgentToItsTeam();
+        Http::fake([
+            'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U0001']]),
+            'slack.com/api/conversations.open' => Http::response([
+                'ok' => true,
+                'channel' => ['id' => self::DM_CHANNEL],
+            ]),
+            'slack.com/api/users.info' => Http::response([
+                'ok' => true,
+                'user' => ['profile' => ['email' => $teammate->email]],
+            ]),
+            'slack.com/api/*' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+        ]);
+
+        $sent = new SendSlackDirectMessageTool($this->agent)(recipient_email: $teammate->email, message: $message);
+
+        $this->assertSame('success', $sent['status']);
+    }
+
+    private function connectAgentToItsTeam(): void
+    {
+        $this->receiver->configuration = [
+            ...$this->receiver->configuration,
+            ConfigurationEnum::TEAM_ID->value => $this->teamId,
+        ];
+        $this->receiver->saveOrFail();
+        $this->agent->set(CustomFieldEnum::RECEIVER_ID->value, $this->receiver->getId());
     }
 
     private function fakeSlackApi(?string $email = null): void
