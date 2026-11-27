@@ -7,16 +7,17 @@ namespace Kanvas\Scribe\Invoices\Actions;
 use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
+use Kanvas\Scribe\Payments\Actions\Concerns\GuardsPaymentAllocation;
 use Kanvas\Scribe\Payments\Actions\CreateScribePaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
@@ -35,6 +36,9 @@ use RuntimeException;
  */
 class AllocateInvoicePaymentAction
 {
+    use GuardsPaymentAllocation;
+    use LocksDocumentRow;
+
     public function __construct(
         public readonly Invoice $invoice,
         public readonly float $amountNative,
@@ -53,31 +57,44 @@ class AllocateInvoicePaymentAction
 
     public function execute(): InvoicePaymentAllocation
     {
-        if (! in_array($this->invoice->document_status, [
-            InvoiceDocumentStatusEnum::ISSUED,
-            InvoiceDocumentStatusEnum::SENT,
-        ], true)) {
-            throw new RuntimeException(
-                "Invoice {$this->invoice->id} must be ISSUED or SENT to allocate a payment "
-                . "(current status: {$this->invoice->document_status->value}). Issue it first."
-            );
-        }
+        // Checked on the locked row: two payments on one invoice take turns, each against the balance the
+        // other left.
+        $allocation = $this->withRowLocked($this->invoice, function (): InvoicePaymentAllocation {
+            if (! in_array($this->invoice->document_status, [
+                InvoiceDocumentStatusEnum::ISSUED,
+                InvoiceDocumentStatusEnum::SENT,
+            ], true)) {
+                throw new RuntimeException(
+                    "Invoice {$this->invoice->id} must be ISSUED or SENT to allocate a payment "
+                    . "(current status: {$this->invoice->document_status->value}). Issue it first."
+                );
+            }
 
-        if ($this->amountNative <= 0) {
-            throw new RuntimeException("Payment allocation amount must be positive (got {$this->amountNative}).");
-        }
+            if ($this->amountNative <= 0) {
+                throw new RuntimeException("Payment allocation amount must be positive (got {$this->amountNative}).");
+            }
 
-        if ($this->amountNative > (float) $this->invoice->balance_due_native + 0.0001) {
-            throw new RuntimeException(
-                "Payment amount {$this->amountNative} exceeds remaining balance "
-                . "{$this->invoice->balance_due_native} on invoice {$this->invoice->id}. "
-                . 'Overpayments are not supported in v1.'
-            );
-        }
+            $balance = Money::of($this->invoice->balance_due_native ?? 0);
 
-        $allocation = DB::connection('accounting')->transaction(function (): InvoicePaymentAllocation {
+            if (Money::of($this->amountNative)->isGreaterThan($balance->plus('0.0001'))) {
+                throw new RuntimeException(
+                    "Payment amount {$this->amountNative} exceeds remaining balance "
+                    . "{$this->invoice->balance_due_native} on invoice {$this->invoice->id}. "
+                    . 'Overpayments are not supported in v1.'
+                );
+            }
+
             $invoice = $this->invoice;
             $fxRate = (float) $invoice->fx_rate_to_base;
+
+            if ($this->payment !== null) {
+                $this->assertPaymentCovers(
+                    $this->payment,
+                    $invoice,
+                    Money::toBase($this->amountNative, $fxRate),
+                    PaymentDirectionEnum::INBOUND
+                );
+            }
 
             $payment = $this->payment ?? new CreateScribePaymentAction(
                 app: $invoice->app,

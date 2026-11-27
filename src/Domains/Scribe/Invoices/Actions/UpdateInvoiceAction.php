@@ -14,6 +14,7 @@ use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoiceTaxLine;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
@@ -31,6 +32,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  */
 class UpdateInvoiceAction
 {
+    use LocksDocumentRow;
     use PersistsInvoiceLines;
 
     public function __construct(
@@ -63,6 +65,13 @@ class UpdateInvoiceAction
         }
 
         $invoice = DB::connection('accounting')->transaction(function (): Invoice {
+            if (! $this->lockedStatusIsUnchanged($this->invoice)) {
+                throw new InvalidInvoiceTransitionException(
+                    "Invoice {$this->invoice->id} was issued or changed by another request while it was being "
+                    . 'edited. Only draft invoices are editable: reload it.'
+                );
+            }
+
             $invoice = $this->invoice;
             [$totals, $baseTotals] = $this->data->totals();
 

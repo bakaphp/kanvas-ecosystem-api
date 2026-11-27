@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Purchasing\Actions;
 
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
@@ -17,7 +18,6 @@ use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderLine;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderReceipt;
 use Kanvas\Scribe\Purchasing\Services\PurchaseOrderStateMachineService;
-use Kanvas\Scribe\Support\PlainNumber;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -146,8 +146,8 @@ class ReceivePurchaseOrderAction
                 throw new ValidationException(sprintf(
                     'Line %d: %s received but only %s is open on the order.',
                     $number,
-                    PlainNumber::format($quantity),
-                    PlainNumber::format((float) $line->open_qty)
+                    Number::withoutTrailingZeros($quantity, 6),
+                    Number::withoutTrailingZeros((float) $line->open_qty, 6)
                 ));
             }
 

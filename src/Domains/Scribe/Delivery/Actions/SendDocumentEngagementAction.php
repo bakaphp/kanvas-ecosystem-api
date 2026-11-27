@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Delivery\Actions;
 
+use Baka\Support\Money;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -101,7 +102,7 @@ class SendDocumentEngagementAction
     private function defaultBody(string $link): string
     {
         $company = (string) $this->document->company->name;
-        $amount = $this->document->currency . ' ' . number_format((float) $this->document->total_native, 2);
+        $amount = Money::format((float) $this->document->total_native, $this->document->currency);
         $greeting = 'Hello ' . trim((string) $this->people->firstname) . ',';
 
         if ($this->document instanceof Invoice) {

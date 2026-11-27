@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Expenses\Notifications;
 
+use Baka\Support\Money;
 use Illuminate\Support\Facades\View;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Notifications\Notification;
@@ -42,7 +43,7 @@ class ReimbursementDigestNotification extends Notification
         $this->setSubject(sprintf(
             '%s owes you %s %s in expense reimbursements',
             $company->name,
-            number_format($totalOwed, 2),
+            Money::format($totalOwed),
             $currency,
         ));
 

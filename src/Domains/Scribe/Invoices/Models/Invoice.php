@@ -133,6 +133,8 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
     use IsEngageableDocument;
     use UuidTrait;
 
+    public const string EXTERNAL_PAID_HISTORY = 'external_paid_history';
+
     protected $table = 'invoices';
     protected $guarded = [];
 
@@ -258,6 +260,55 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
     public function computeAgingBucket(?Carbon $today = null): AgingBucketEnum
     {
         return AgingBucketEnum::forInvoice($this->due_date, $today ?? Carbon::today());
+    }
+
+    /**
+     * An imported invoice's payments stay in the system it came from, so each time that system reports another
+     * paid amount it is noted here with the day: the only dated trace an as-of report has for them. What the
+     * invoice already had paid before its first note has no day, and is kept as paid on every day.
+     */
+    public function recordExternalPaid(float $paidBase): void
+    {
+        $metadata = $this->metadata ?? [];
+        $history = $metadata[self::EXTERNAL_PAID_HISTORY] ?? [];
+        $paidBefore = (float) $this->getOriginal('paid_base');
+
+        if ($history === [] && $paidBefore > 0) {
+            $history[] = [
+                'at' => null,
+                'paid_base' => $paidBefore,
+            ];
+        }
+
+        $history[] = [
+            'at' => Carbon::now()->toIso8601String(),
+            'paid_base' => $paidBase,
+        ];
+        $metadata[self::EXTERNAL_PAID_HISTORY] = $history;
+        $this->metadata = $metadata;
+    }
+
+    /**
+     * What the source system had reported as paid by then. Null when nothing was ever noted: an invoice imported
+     * before the history was kept.
+     */
+    public function externalPaidAsOf(Carbon $cutoff): ?float
+    {
+        $history = $this->metadata[self::EXTERNAL_PAID_HISTORY] ?? null;
+
+        if ($history === null) {
+            return null;
+        }
+
+        $paid = 0.0;
+
+        foreach ($history as $entry) {
+            if ($entry['at'] === null || Carbon::parse($entry['at'])->lte($cutoff)) {
+                $paid = (float) $entry['paid_base'];
+            }
+        }
+
+        return $paid;
     }
 
     public function isCreditNote(): bool

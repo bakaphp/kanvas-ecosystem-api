@@ -75,9 +75,17 @@ class ImportInvoiceFromExternalAction
     private function applyFinancialState(Invoice $invoice): void
     {
         $fxRate = (float) $this->data->fx_rate_to_base;
-        $paidNative = round($this->paidNative, 4);
-        $totalNative = (float) $invoice->total_native;
-        $balanceNative = round(max($totalNative - $paidNative, 0.0), 4);
+        $paidNative = Money::stored($this->paidNative);
+        $balanceNative = max(
+            0.0,
+            Money::stored(Money::of((float) $invoice->total_native)->minus(Money::of($paidNative)))
+        );
+
+        $reportedChange = Money::of($invoice->paid_native ?? 0)->minus(Money::of($paidNative))->abs();
+
+        if ($reportedChange->isGreaterThan(Money::of(self::PAID_TOLERANCE))) {
+            $invoice->recordExternalPaid(Money::toBase($paidNative, $fxRate));
+        }
 
         $invoice->paid_native = $paidNative;
         $invoice->paid_base = Money::toBase($paidNative, $fxRate);
@@ -90,9 +98,8 @@ class ImportInvoiceFromExternalAction
             : InvoiceDocumentStatusEnum::ISSUED;
         $invoice->collection_state = $isPaid ? null : $this->collectionState($invoice);
 
-        if ($isPaid && $invoice->paid_at === null) {
-            $invoice->paid_at = Carbon::now();
-        }
+        // A refund upstream reopens the invoice: a paid day left behind would say it is still settled.
+        $invoice->paid_at = $isPaid ? ($invoice->paid_at ?? Carbon::now()) : null;
     }
 
     private function collectionState(Invoice $invoice): InvoiceCollectionStateEnum

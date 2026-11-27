@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Baka\Unit;
 
+use Baka\Support\Money;
 use Baka\Support\Number;
 use PHPUnit\Framework\TestCase;
 
@@ -45,5 +46,14 @@ class NumberTest extends TestCase
         $this->assertSame('100', Number::withoutTrailingZeros(100.0));
         $this->assertSame('100', Number::withoutTrailingZeros(100, 0));
         $this->assertSame('0', Number::withoutTrailingZeros(0.0));
+    }
+
+    public function testWithoutTrailingZerosTakesStoredDecimalsAndExactSums(): void
+    {
+        $this->assertSame('10', Number::withoutTrailingZeros('10.000000', 6));
+        $this->assertSame('1234567.25', Number::withoutTrailingZeros(1234567.25, 6));
+        $this->assertSame('0.3', Number::withoutTrailingZeros(0.1 + 0.2, 6));
+        $this->assertSame('1.2346', Number::withoutTrailingZeros('1.23455', 4));
+        $this->assertSame('30', Number::withoutTrailingZeros(Money::sum('10.5', '19.5'), 6));
     }
 }

@@ -140,11 +140,7 @@ class ExpenseMutation
         $expense = Expense::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
         /** @var Filesystem $filesystem */
-        $filesystem = Filesystem::query()
-            ->where('id', (int) $input['filesystem_id'])
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->firstOrFail();
+        $filesystem = Filesystem::getByIdFromCompanyApp((int) $input['filesystem_id'], $company, $app);
 
         return new AttachExpenseReceiptAction(
             expense: $expense,

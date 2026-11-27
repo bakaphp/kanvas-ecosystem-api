@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\DocumentSequences\Services;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
@@ -250,7 +251,13 @@ class DocumentNumberAllocatorService
         $sequence->prefix = $defaultPrefix ?? '';
         $sequence->padding = $defaultPadding;
         $sequence->next_value = 1;
-        $sequence->save();
+
+        try {
+            $sequence->save();
+        } catch (UniqueConstraintViolationException) {
+            // Another request created the row between the read and the insert: take its row and number after it.
+            return $this->sequenceQuery($appsId, $companiesId, $documentType)->lockForUpdate()->firstOrFail();
+        }
 
         return $sequence;
     }

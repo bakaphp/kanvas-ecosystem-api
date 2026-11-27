@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 use Baka\Support\Money;
+use Baka\Support\Number;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
@@ -184,7 +185,7 @@ class EcfDocumentBuilder
             default => throw new ValidationException(sprintf(
                 'A line carries %s%% tax, which is not an ITBIS rate (18%%, 16%% or exempt), so DGII would get a rate the '
                 . 'amounts do not match. Correct the line\'s tax before issuing.',
-                rtrim(rtrim(number_format($percent, 2, '.', ''), '0'), '.')
+                Number::withoutTrailingZeros($percent, 2)
             )),
         };
     }

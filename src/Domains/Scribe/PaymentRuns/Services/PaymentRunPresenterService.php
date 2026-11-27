@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\PaymentRuns\Services;
 
+use Baka\Support\Money;
 use Kanvas\Scribe\PaymentRuns\Enums\CashCheckEnum;
 use Kanvas\Scribe\PaymentRuns\Enums\PaymentRunLineStatusEnum;
 use Kanvas\Scribe\PaymentRuns\Models\PaymentRun;
@@ -61,7 +62,7 @@ class PaymentRunPresenterService
             $out[] = sprintf(
                 '%s %s from %s — %s',
                 $group['currency'],
-                number_format((float) $group['total'], 2),
+                Money::format((float) $group['total']),
                 $group['bank_account_name'] ?? 'no bank account on file for this currency',
                 $this->cashLine($group)
             );
@@ -73,7 +74,7 @@ class PaymentRunPresenterService
                     $line['bill_number'] !== null ? ' (bill ' . $line['bill_number'] . ')' : '',
                     $line['due_date'] ?? 'n/a',
                     $group['currency'],
-                    number_format((float) $line['amount'], 2),
+                    Money::format((float) $line['amount']),
                     $line['status'] !== PaymentRunLineStatusEnum::PENDING->value ? ' [' . $line['status'] . ']' : ''
                 );
             }
@@ -88,12 +89,12 @@ class PaymentRunPresenterService
     private function cashLine(array $group): string
     {
         $balance = $group['known_balance'] !== null
-            ? sprintf('balance %s as of %s (%s)', number_format((float) $group['known_balance'], 2), $group['balance_as_of'] ?? 'unknown date', $group['balance_source'])
+            ? sprintf('balance %s as of %s (%s)', Money::format((float) $group['known_balance']), $group['balance_as_of'] ?? 'unknown date', $group['balance_source'])
             : null;
 
         return match (CashCheckEnum::tryFrom((string) $group['cash_check'])) {
             CashCheckEnum::ENOUGH => "enough cash: {$balance}",
-            CashCheckEnum::SHORT => sprintf('SHORT by %s: %s', number_format((float) $group['shortfall'], 2), $balance),
+            CashCheckEnum::SHORT => sprintf('SHORT by %s: %s', Money::format((float) $group['shortfall']), $balance),
             default => 'balance unknown (no bank feed or statement yet)',
         };
     }

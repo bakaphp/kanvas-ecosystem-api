@@ -179,6 +179,42 @@ class PurchaseOrderReceiveAndMatchTest extends ScribeTestCase
         $this->assertTrue($matcher->match($order->fresh(), $bill)->matched());
     }
 
+    public function test_a_received_unit_is_billed_once_when_two_prices_are_both_within_tolerance_of_it(): void
+    {
+        $toner = ['description' => 'Toner', 'quantity' => 10, 'sku' => 'TN-1'];
+        $order = $this->markSent($this->createPurchaseOrderFor(
+            $this->seedTestOrganization('Three Prices Vendor'),
+            [
+                ['unit_cost' => 100] + $toner,
+                ['unit_cost' => 110] + $toner,
+                ['unit_cost' => 10] + $toner,
+            ]
+        ));
+        $this->receive($order, [
+            ['line_number' => 1, 'quantity' => 10],
+            ['line_number' => 2, 'quantity' => 10],
+            ['line_number' => 3, 'quantity' => 10],
+        ]);
+        $this->company->set(PurchaseOrderConfigurationEnum::PRICE_TOLERANCE_PERCENT->value, '10');
+        $overlapping = $this->createBillFor($order->vendor, [
+            ['unit_price' => 110, 'quantity' => 20] + $toner,
+            ['unit_price' => 120] + $toner,
+        ]);
+        $fitting = $this->createBillFor($order->vendor, [
+            ['unit_price' => 105] + $toner,
+            ['unit_price' => 120] + $toner,
+        ]);
+
+        $match = new PurchaseOrderMatchService()->match($order->fresh(), $overlapping);
+
+        $this->assertSame(['line_2_billed_more_than_received_at_price'], $match->keys());
+        $this->assertSame(['10', '20'], [
+            $match->discrepancies[0]['received_value'],
+            $match->discrepancies[0]['billed_value'],
+        ]);
+        $this->assertTrue(new PurchaseOrderMatchService()->match($order->fresh(), $fitting)->matched());
+    }
+
     public function test_a_line_that_is_not_on_the_order_and_another_vendor_are_flagged(): void
     {
         $order = $this->sentOrder();

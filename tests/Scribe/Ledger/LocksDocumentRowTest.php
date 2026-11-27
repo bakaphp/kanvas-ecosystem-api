@@ -47,6 +47,36 @@ class LocksDocumentRowTest extends ScribeTestCase
         }
     }
 
+    /**
+     * The ledger connection reads committed rows on every statement. Under the server default a transaction
+     * keeps the snapshot of its first read, and a balance summed inside a caller's transaction misses a
+     * payment another request committed meanwhile.
+     */
+    public function test_a_ledger_transaction_reads_what_was_committed_after_it_began(): void
+    {
+        foreach ([self::READER, self::WRITER] as $name) {
+            config(["database.connections.{$name}" => config('database.connections.accounting')]);
+        }
+
+        $reader = DB::connection(self::READER);
+        $writer = DB::connection(self::WRITER);
+        $table = 'lock_row_' . bin2hex(random_bytes(6));
+        $writer->statement("CREATE TABLE `{$table}` (id BIGINT PRIMARY KEY, status VARCHAR(20)) ENGINE=InnoDB");
+
+        try {
+            $reader->beginTransaction();
+            $this->assertSame(0, $reader->table($table)->count());
+            $writer->table($table)->insert(['id' => 1, 'status' => 'paid']);
+
+            $this->assertSame(1, $reader->table($table)->count());
+        } finally {
+            $reader->rollBack();
+            $writer->statement("DROP TABLE `{$table}`");
+            DB::purge(self::READER);
+            DB::purge(self::WRITER);
+        }
+    }
+
     private function documentIn(string $table): Model
     {
         $document = new class () extends Model {

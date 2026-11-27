@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Quotes\Sow\Services;
 
+use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
@@ -83,7 +84,7 @@ final class QuoteSowPdfService
                     ? 'On signature'
                     : Carbon::parse((string) $line['date'])->toFormattedDateString(),
                 'percent' => $total > 0 ? round($amounts[$index] / $total * 100, 2) : null,
-                'amount' => number_format($amounts[$index], 2),
+                'amount' => Money::format($amounts[$index]),
             ];
         }
 
@@ -99,7 +100,7 @@ final class QuoteSowPdfService
                 ],
             ],
             'payment_rows' => $paymentRows,
-            'quote_total' => number_format($total, 2),
+            'quote_total' => Money::format($total),
         ];
     }
 

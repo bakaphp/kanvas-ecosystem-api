@@ -19,6 +19,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
 use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -44,6 +45,7 @@ class IssueInvoiceAction
 {
     use AllocatesInvoiceNumber;
     use FreezesBillableSnapshot;
+    use LocksDocumentRow;
 
     public function __construct(
         public readonly Invoice $invoice,
@@ -71,7 +73,11 @@ class IssueInvoiceAction
             $this->ecf->assertReadyToIssue($this->invoice);
         }
 
-        $invoice = DB::connection('accounting')->transaction(function () use ($issuesEcf): Invoice {
+        $invoice = DB::connection('accounting')->transaction(function () use ($issuesEcf): ?Invoice {
+            if (! $this->lockedStatusIsUnchanged($this->invoice)) {
+                return null;
+            }
+
             $invoice = $this->invoice;
 
             $this->freezeBillableSnapshot($invoice, $this->billable);
@@ -119,6 +125,15 @@ class IssueInvoiceAction
 
             return $invoice->refresh();
         });
+
+        // Another request issued or moved the invoice since this copy was loaded: nothing is numbered, posted or
+        // announced a second time.
+        if ($invoice === null) {
+            $this->invoice->refresh();
+            $this->stateMachine->assertTransition($this->invoice, InvoiceDocumentStatusEnum::ISSUED);
+
+            return $this->invoice;
+        }
 
         // Fired outside the transaction: a connector activity can push this invoice to a third party, and it
         // must not see (or be rolled back with) a JE that hasn't committed yet.

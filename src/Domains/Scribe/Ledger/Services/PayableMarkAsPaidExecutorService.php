@@ -8,8 +8,8 @@ use BackedEnum;
 use Baka\Support\Money;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
+use Kanvas\Scribe\Ledger\Actions\Concerns\LocksDocumentRow;
 
 /**
  * Shared recompute-and-transition workflow for "mark payable as paid" Actions on every Scribe
@@ -19,7 +19,8 @@ use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
  * tracks allocations the same way (SalesReceipt-with-deposits, vendor-credits, etc.) reuses this
  * service instead of duplicating the workflow.
  *
- * Workflow per call (one accounting-DB transaction):
+ * Workflow per call (one accounting-DB transaction, on the document's locked row: the sum and the save are
+ * separate statements, and without the lock a payment committed between them is overwritten):
  *   1. Sum active allocations via PaymentAllocationSumService.
  *   2. Update entity.paid_native / paid_base / balance_due_native / balance_due_base.
  *   3. If balance hits zero AND current status is non-terminal AND state machine permits →
@@ -31,6 +32,8 @@ use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
  */
 class PayableMarkAsPaidExecutorService
 {
+    use LocksDocumentRow;
+
     public function __construct(
         protected readonly PaymentAllocationSumService $allocationSummer = new PaymentAllocationSumService(),
     ) {
@@ -64,7 +67,7 @@ class PayableMarkAsPaidExecutorService
         string $ledgerEventName,
         array $extraEventPayload = [],
     ): Model {
-        return DB::connection('accounting')->transaction(function () use (
+        return $this->withRowLocked($entity, function () use (
             $entity,
             $paidStatusEnum,
             $canTransitionToPaid,

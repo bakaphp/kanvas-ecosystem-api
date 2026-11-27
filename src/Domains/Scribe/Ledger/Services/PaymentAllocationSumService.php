@@ -12,9 +12,6 @@ use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
  * Sums ACTIVE payment allocations for a parent entity (Invoice or Bill). Centralizes the SQL that
  * MarkInvoicePaidAction + MarkBillPaidAction both need.
  *
- * Returns `[native, base]` — same tuple shape the callers were already destructuring into local
- * `$paidNative` + `$paidBase` vars, so the refactor is a 5-line replacement at each site.
- *
  * Status enum lives in `Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum` historically; both
  * Invoice and Bill allocations share the same string values (`active`, `reversed`) so a single
  * filter constant works for both.

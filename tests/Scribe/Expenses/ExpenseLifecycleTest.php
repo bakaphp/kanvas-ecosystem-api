@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Expenses;
 
+use App\GraphQL\Scribe\Mutations\Expenses\ExpenseMutation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\Banking\Actions\CreateBankAccountAction;
 use Kanvas\Scribe\Banking\DataTransferObject\BankAccount as BankAccountData;
@@ -489,6 +491,20 @@ class ExpenseLifecycleTest extends TestCase
         $this->assertSame((int) $filesystem->id, (int) $receipt->filesystem_id);
         $this->assertEquals(static::$cachedUser->getId(), (int) $receipt->uploaded_by_users_id);
         $this->assertSame(0.92, $receipt->metadata['ocr_confidence']);
+    }
+
+    public function test_receipt_mutation_rejects_a_deleted_file(): void
+    {
+        $draft = $this->createDraftExpense(amount: 75.0);
+        $filesystem = $this->createFilesystemRow();
+        $filesystem->softDelete();
+
+        $this->expectException(ModelNotFoundException::class);
+
+        new ExpenseMutation()->attachReceipt(null, [
+            'id' => $draft->getId(),
+            'input' => ['filesystem_id' => $filesystem->getId()],
+        ]);
     }
 
     /**

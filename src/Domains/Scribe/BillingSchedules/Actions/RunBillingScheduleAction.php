@@ -9,17 +9,20 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Services\ApprovalOriginService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\BillingSchedules\Enums\BillingScheduleRunStatusEnum;
 use Kanvas\Scribe\BillingSchedules\Enums\BillingScheduleStatusEnum;
 use Kanvas\Scribe\BillingSchedules\Models\BillingSchedule;
 use Kanvas\Scribe\BillingSchedules\Models\BillingScheduleLine;
 use Kanvas\Scribe\BillingSchedules\Models\BillingScheduleRun;
+use Kanvas\Scribe\FxRates\Services\FxRateService;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Ledger\Services\AccountResolverService;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
@@ -66,6 +69,29 @@ class RunBillingScheduleAction
         $this->submit($run, $invoice);
 
         return $invoice->refresh();
+    }
+
+    /**
+     * A schedule in another currency than the books is invoiced at the rate published for its period. With no rate
+     * the run is refused, and tried again on the next run, instead of booking the invoice at parity.
+     */
+    private function rateToLedger(BillingSchedule $schedule, Carbon $period): float
+    {
+        $ledger = new AccountResolverService()->ledgerCurrency($schedule->app, $schedule->company);
+
+        if ($ledger === null) {
+            return 1.0;
+        }
+
+        return new FxRateService()->conversionRate(
+            $schedule->app,
+            (string) $schedule->currency,
+            $ledger,
+            $period
+        ) ?? throw new ValidationException(
+            "No {$schedule->currency}/{$ledger} exchange rate is published for {$period->toDateString()}, so the "
+            . 'recurring invoice cannot be valued yet.'
+        );
     }
 
     private function runAwaitingSubmission(): ?BillingScheduleRun
@@ -167,7 +193,7 @@ class RunBillingScheduleAction
                 billable: $schedule->customer,
                 lines: new DataCollection(InvoiceLineData::class, $lines),
                 currency: $schedule->currency,
-                fx_rate_to_base: 1.0,
+                fx_rate_to_base: $this->rateToLedger($schedule, $period),
                 net_terms_days: $netTermsDays,
                 issued_date: $period->copy(),
                 due_date: $period->copy()->addDays($netTermsDays),

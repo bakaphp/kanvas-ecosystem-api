@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\PdfIngest\Services;
 
+use Baka\Support\Money;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -65,7 +66,7 @@ class InboxAgentHandOffService
         $reason = (string) ($log->rejected_reason ?? $bill->inboxReviewReason() ?? '');
         $from = $log->from_email !== null ? " from {$log->from_email}" : '';
         $header = "A supplier invoice{$from} reached the accounting inbox and became DRAFT bill {$bill->getId()} "
-            . "({$bill->vendor_display_name}, {$bill->bill_number}, {$bill->currency} " . number_format((float) $bill->total_native, 2) . '), '
+            . "({$bill->vendor_display_name}, {$bill->bill_number}, " . Money::format((float) $bill->total_native, $bill->currency) . '), '
             . "but it could not go to approval: {$reason} ";
 
         $todo = match ($code) {
@@ -136,7 +137,7 @@ class InboxAgentHandOffService
      */
     private function remittanceInstruction(string $customer, array $match, string $file): string
     {
-        $amount = isset($match['amount']) ? number_format((float) $match['amount'], 2) : 'an unstated amount';
+        $amount = isset($match['amount']) ? Money::format((float) $match['amount']) : 'an unstated amount';
         $invoices = array_merge($match['referenced_invoices'] ?? [], $match['open_invoices'] ?? []);
         $listed = implode(', ', array_unique(array_map(
             fn (array $invoice): string => "{$invoice['invoice_number']} (balance {$invoice['balance_due']})",

@@ -6,6 +6,7 @@ namespace Tests\Scribe\Reports;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -17,6 +18,7 @@ use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
 use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
+use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
@@ -228,6 +230,52 @@ class ReportsTest extends TestCase
         $firstRow = $report->rows->toCollection()->first();
         $this->assertSame('2026-06', $firstRow->group_key);
         $this->assertSame(2300.0, $firstRow->net_revenue);
+    }
+
+    public function test_item_revenue_loads_credit_note_lines_together(): void
+    {
+        $customer = $this->seedOrganization('Item report customer');
+        $invoice = $this->issueTestInvoice($customer, subtotal: 1000.0, tax: 0.0);
+
+        for ($index = 0; $index < 3; $index++) {
+            new IssueCreditNoteAction(
+                parentInvoice: $invoice,
+                data: new InvoiceData(
+                    app: $this->kanvasApp,
+                    company: $this->company,
+                    billable: $customer,
+                    lines: new DataCollection(InvoiceLineData::class, [
+                        new InvoiceLineData(description: 'Service credit', quantity: 1, unit_price_native: 10),
+                    ]),
+                    currency: 'USD',
+                    fx_rate_to_base: 1.0,
+                ),
+                user: static::$cachedUser,
+            )->execute();
+        }
+
+        $connection = DB::connection('accounting');
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+
+        try {
+            $report = new RevenueRepository()->generate(
+                app: $this->kanvasApp,
+                company: $this->company,
+                periodStart: Carbon::parse('2026-06-01'),
+                periodEnd: Carbon::parse('2026-06-30'),
+                groupBy: RevenueGroupByEnum::ITEM,
+            );
+            $lineQueries = collect($connection->getQueryLog())->filter(
+                static fn (array $query): bool => str_contains($query['query'], 'from `invoice_lines`')
+            );
+        } finally {
+            $connection->disableQueryLog();
+            $connection->flushQueryLog();
+        }
+
+        $this->assertSame(970.0, $report->total_net_revenue);
+        $this->assertCount(2, $lineQueries, 'One query for invoice lines and one for all credit note lines.');
     }
 
     public function test_aging_evaluation_service_flips_overdue_invoices(): void

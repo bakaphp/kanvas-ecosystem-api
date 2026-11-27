@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Digest\Services;
 
+use Baka\Support\Money;
+
 /**
  * The digest as a few plain lines the agent can post in chat (and that the ledger keeps), built from the same
  * array the email template renders so the two never disagree.
@@ -136,7 +138,7 @@ class AccountingDigestSummaryService
         }
 
         return implode(', ', array_map(
-            fn (array $row): string => sprintf('%s %s (%d)', $row['currency'], number_format($row['amount'], 2), $row['count']),
+            fn (array $row): string => sprintf('%s %s (%d)', $row['currency'], Money::format($row['amount']), $row['count']),
             $rows
         ));
     }

@@ -49,13 +49,14 @@ class ProfitAndLossRepository
             $periodEnd,
         );
 
-        $revenue = $this->buildCrNormalSection(
+        $revenue = $this->buildSection(
             $accounts,
             $activity,
             'Revenue',
             [AccountTypeEnum::REVENUE->value],
+            creditNormal: true,
         );
-        $cogs = $this->buildDrNormalSection(
+        $cogs = $this->buildSection(
             $accounts,
             $activity,
             'Cost of Goods Sold',
@@ -63,7 +64,7 @@ class ProfitAndLossRepository
         );
         $grossProfit = $revenue->total - $cogs->total;
 
-        $operatingExpenses = $this->buildDrNormalSection(
+        $operatingExpenses = $this->buildSection(
             $accounts,
             $activity,
             'Operating Expenses',
@@ -71,13 +72,14 @@ class ProfitAndLossRepository
         );
         $operatingIncome = $grossProfit - $operatingExpenses->total;
 
-        $otherIncome = $this->buildCrNormalSection(
+        $otherIncome = $this->buildSection(
             $accounts,
             $activity,
             'Other Income',
             [AccountTypeEnum::OTHER_INCOME->value],
+            creditNormal: true,
         );
-        $otherExpenses = $this->buildDrNormalSection(
+        $otherExpenses = $this->buildSection(
             $accounts,
             $activity,
             'Other Expenses',
@@ -114,18 +116,18 @@ class ProfitAndLossRepository
     }
 
     /**
-     * CR-normal: revenue / other_income. Displayed as positive when activity is "income-shaped"
-     * (more credits than debits). Net = credit - debit.
+     * Revenue and other income are credit-normal; costs and expenses are debit-normal.
      *
      * @param  Collection<int, Account>                                    $accounts
      * @param  array<int, array{debit: float, credit: float, net: float}>  $activity
      * @param  array<int, string>                                          $types
      */
-    private function buildCrNormalSection(
+    private function buildSection(
         Collection $accounts,
         array $activity,
         string $title,
         array $types,
+        bool $creditNormal = false,
     ): ReportSection {
         $lines = [];
         $total = 0.0;
@@ -138,46 +140,7 @@ class ProfitAndLossRepository
             if ($row === null) {
                 continue;
             }
-            $amount = $row['credit'] - $row['debit'];
-            if ($amount === 0.0) {
-                continue;
-            }
-            $lines[] = $this->toLineItem($account, $amount);
-            $total += $amount;
-        }
-
-        return new ReportSection(
-            title: $title,
-            lines: new DataCollection(ReportLineItem::class, $lines),
-            total: $total,
-        );
-    }
-
-    /**
-     * DR-normal: expense / cogs / other_expense. Net = debit - credit.
-     *
-     * @param  Collection<int, Account>                                    $accounts
-     * @param  array<int, array{debit: float, credit: float, net: float}>  $activity
-     * @param  array<int, string>                                          $types
-     */
-    private function buildDrNormalSection(
-        Collection $accounts,
-        array $activity,
-        string $title,
-        array $types,
-    ): ReportSection {
-        $lines = [];
-        $total = 0.0;
-
-        foreach ($accounts as $account) {
-            if (! in_array($account->account_type->value, $types, true)) {
-                continue;
-            }
-            $row = $activity[$account->id] ?? null;
-            if ($row === null) {
-                continue;
-            }
-            $amount = $row['debit'] - $row['credit'];
+            $amount = $creditNormal ? $row['credit'] - $row['debit'] : $row['debit'] - $row['credit'];
             if ($amount === 0.0) {
                 continue;
             }
