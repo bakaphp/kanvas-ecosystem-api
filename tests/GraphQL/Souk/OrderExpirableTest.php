@@ -934,6 +934,26 @@ class OrderExpirableTest extends TestCase
         $this->assertEquals(1, $variantWarehouse->refresh()->quantity);
     }
 
+    public function testABrokenOrderDoesNotStopTheOthersFromFinishing(): void
+    {
+        $app = app(Apps::class);
+        $variant = $this->buildMovipassVariantWithCapacity(3);
+        $expiredEndAt = ['data' => ['end_at' => now()->subHours(6)->toDateTimeString()]];
+
+        $expiredOrder = $this->createMovipassOrder($variant, $expiredEndAt);
+        $orderWithoutUser = $this->createMovipassOrder($variant, $expiredEndAt);
+        $orderWithoutUser->users_id = 0;
+        $orderWithoutUser->saveQuietly();
+        $unreadableEndAt = $this->createMovipassOrder($variant, ['data' => ['end_at' => 'not a date']]);
+
+        $exitCode = Artisan::call('kanvas-souk:order-finish-expired', ['app_id' => $app->getId()]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertEquals('fulfilled', $expiredOrder->fresh()->fulfillment_status);
+        $this->assertNotEquals('fulfilled', $orderWithoutUser->fresh()->fulfillment_status);
+        $this->assertNotEquals('fulfilled', $unreadableEndAt->fresh()->fulfillment_status);
+    }
+
     public function testOrderExpirableMovipassMultiVariant(): void
     {
         $app = app(Apps::class);
