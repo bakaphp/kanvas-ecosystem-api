@@ -106,6 +106,8 @@ class RunTaskWorkerJob implements ShouldQueue
                     message: $this->resumeFact !== null ? $this->resumeBrief() : $this->brief(),
                     user: $owner,
                     persistConversation: false,
+                    // A worker runs as the plan's owner, who is not there.
+                    unattended: true,
                 )->execute());
         } catch (Throwable $e) {
             $this->markBlocked($e->getMessage());

@@ -34,6 +34,8 @@ use Kanvas\Workflow\Models\WorkflowAction;
  */
 class EnsureCompanyOrchestratorAgentAction
 {
+    public const string USER_DOMAIN = 'orchestrator.kanvas.app';
+
     private const string INBOX_MARKER = 'orchestrator_inbox';
 
     public function __construct(
@@ -66,7 +68,7 @@ class EnsureCompanyOrchestratorAgentAction
 
     private function ensureUser(): Users
     {
-        $email = sprintf('orchestrator+company-%d@orchestrator.kanvas.app', $this->company->getId());
+        $email = sprintf('orchestrator+company-%d@%s', $this->company->getId(), self::USER_DOMAIN);
 
         $existing = Users::query()->where('email', $email)->first();
         if ($existing instanceof Users) {

@@ -58,17 +58,20 @@ trait AnnouncesPlanOutcome
     /**
      * Also say it where the plan was asked for. The Activities channel has no subscribers, so a report
      * that lands only there reaches no one.
+     *
+     * Null when nothing was posted there (no origin, or the origin is the plan's own board), which a
+     * caller that must know the person was told can tell from a posted message.
      */
     protected function alsoPostToOriginConversation(
         Plan $plan,
         string $body,
         string $verb,
         bool $mention = true
-    ): void {
+    ): ?Message {
         $origin = $plan->originChannel;
 
         if ($origin === null) {
-            return;
+            return null;
         }
 
         // The plan's own channel can already be this one; posting to both would say it twice.
@@ -77,7 +80,7 @@ trait AnnouncesPlanOutcome
         );
 
         if ($ownsIt) {
-            return;
+            return null;
         }
 
         $session = $plan->originSession;
@@ -106,6 +109,8 @@ trait AnnouncesPlanOutcome
         )->execute();
 
         $this->deliverToTheConversation($plan, $content, $posted);
+
+        return $posted;
     }
 
     /**
@@ -137,7 +142,9 @@ trait AnnouncesPlanOutcome
                 agentClass: (string) ($agent->type?->handler ?? $agent::class),
                 content: $content,
                 agentId: $agent->getId(),
-                userId: $this->asker($plan)?->getId(),
+                // A personal chat is its user's. A shared channel's transcript belongs to whoever the
+                // conversation was opened for, so it is found by session and agent, not by the asker.
+                userId: $plan->askedInASharedConversation() ? null : $this->asker($plan)?->getId(),
             );
         } catch (Throwable $e) {
             report($e);

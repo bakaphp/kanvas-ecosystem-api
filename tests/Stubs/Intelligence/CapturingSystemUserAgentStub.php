@@ -23,6 +23,9 @@ class CapturingSystemUserAgentStub extends SystemUserAgent
     public static ?Session $lastSession = null;
     public static ?Users $lastConversationHuman = null;
     public static ?bool $lastRendersArtifacts = null;
+    public static ?bool $lastUnattended = null;
+    public static ?Users $lastRequestingHuman = null;
+    public static ?Users $lastPersonAtKeyboard = null;
 
     #[Override]
     protected function provider(): AIProviderInterface
@@ -48,6 +51,9 @@ class CapturingSystemUserAgentStub extends SystemUserAgent
         self::$lastSession = $this->session;
         self::$lastConversationHuman = $this->conversationHuman;
         self::$lastRendersArtifacts = $this->rendersArtifacts;
+        self::$lastUnattended = $this->isUnattendedTurn();
+        self::$lastRequestingHuman = $this->requestingHuman();
+        self::$lastPersonAtKeyboard = $this->personAtKeyboard();
 
         return [];
     }

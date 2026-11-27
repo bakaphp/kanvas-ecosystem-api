@@ -8,6 +8,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Services\BlockOutcomeDeliveryService;
 use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -62,6 +63,16 @@ class PlanObserver
         }
 
         if ($plan->status !== PlanStatusEnum::BLOCKED->value) {
+            return;
+        }
+
+        // Handed off by its creator (the company's Operations board, or a plan another agent put on
+        // this project): nobody on that board is a person watching it, so the asker is told directly,
+        // and the alert is coordinated with the creator's own answer through a block cycle.
+        if ($plan->wasHandedOffByItsCreator()) {
+            $cycle = new BlockOutcomeDeliveryService($plan)->startCycle();
+            NotifyPlanOwnerOfBlockedPlanJob::dispatch($plan, $cycle)->delay(now()->addSeconds(45));
+
             return;
         }
 

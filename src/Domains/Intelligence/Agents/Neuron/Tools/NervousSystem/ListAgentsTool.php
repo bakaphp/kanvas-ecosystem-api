@@ -65,6 +65,19 @@ class ListAgentsTool extends Tool
     ) {
     }
 
+    private bool $rosterForEveryone = false;
+
+    /**
+     * For the company's assistant, which hands work out for any employee: someone who fails the admin
+     * check still gets who is on staff and what each one is for, without what each one holds.
+     */
+    public function allowRosterForEveryone(): static
+    {
+        $this->rosterForEveryone = true;
+
+        return $this;
+    }
+
     /**
      * @return array<int, ToolProperty>
      */
@@ -115,7 +128,10 @@ class ListAgentsTool extends Tool
         // Answered in the roster's own shape, never the guard's — a refusal that came back without
         // `agents` would read as "this company has no agents", which is the one wrong conclusion
         // here: it sends the caller straight to hire_agent to duplicate someone it was not shown.
-        if ($denied = $this->requireAdminOrError()) {
+        $denied = $this->requireAdminOrError();
+        $rosterOnly = $denied !== null && $this->rosterForEveryone;
+
+        if ($denied !== null && ! $rosterOnly) {
             return [
                 'count' => 0,
                 'agents' => [],
@@ -143,22 +159,37 @@ class ListAgentsTool extends Tool
 
         $total = $matched->count();
         $listed = $matched->take($limit);
-        $projects = $this->projectsByAgent($listed->pluck('id')->all());
+        $projects = $rosterOnly ? [] : $this->projectsByAgent($listed->pluck('id')->all());
 
         return [
             'count' => $listed->count(),
             'total' => $total,
             'agents' => $listed
-                ->map(fn (Agent $agent): array => $this->present($agent, $projects))
+                ->map(fn (Agent $agent): array => $rosterOnly
+                    ? $this->presentOnRoster($agent)
+                    : $this->present($agent, $projects))
                 ->values()
                 ->all(),
-            'note' => $total === 0
-                ? 'No agent matches. Nobody on staff does this, so hire_agent is the right next step — '
-                    . 'call list_agent_types first to pick the kind that can physically do the work.'
-                : 'Assign to one of these before hiring another. Use agent_id with the staffing tools and '
-                    . 'handle to @mention. An agent with no tools was hired and never equipped — '
-                    . 'grant_agent_tools fixes that and is cheaper than a second hire.',
+            'note' => $this->note($total, $rosterOnly),
         ];
+    }
+
+    private function note(int $total, bool $rosterOnly): string
+    {
+        if ($rosterOnly) {
+            return $total === 0
+                ? 'No agent matches. Say plainly that nobody on staff does this and that an administrator '
+                    . 'can add someone who does.'
+                : 'Assign the work to the one that fits, by agent_id. What each one holds is shown to '
+                    . 'administrators only.';
+        }
+
+        return $total === 0
+            ? 'No agent matches. Nobody on staff does this, so hire_agent is the right next step — '
+                . 'call list_agent_types first to pick the kind that can physically do the work.'
+            : 'Assign to one of these before hiring another. Use agent_id with the staffing tools and '
+                . 'handle to @mention. An agent with no tools was hired and never equipped — '
+                . 'grant_agent_tools fixes that and is cheaper than a second hire.';
     }
 
     /**
@@ -213,6 +244,21 @@ class ListAgentsTool extends Tool
             ->map(fn (CapabilityTool $tool): string => $tool->name)
             ->values();
 
+        return [
+            ...$this->presentOnRoster($agent),
+            'tool_count' => $tools->count(),
+            'tools' => $tools->take(self::MAX_TOOLS_SHOWN)->all(),
+            'projects' => array_slice($projects[$agent->getId()] ?? [], 0, self::MAX_PROJECTS_SHOWN),
+        ];
+    }
+
+    /**
+     * Who the agent is and whether it can take board work: enough to assign to, nothing about its grants.
+     *
+     * @return array<string, mixed>
+     */
+    private function presentOnRoster(Agent $agent): array
+    {
         $row = [
             'agent_id' => $agent->getId(),
             'name' => $agent->name,
@@ -221,9 +267,6 @@ class ListAgentsTool extends Tool
             'agent_type' => $agent->type?->name,
             'can_execute_board_work' => $agent->canExecuteBoardWork(),
             'is_active' => (bool) $agent->is_active,
-            'tool_count' => $tools->count(),
-            'tools' => $tools->take(self::MAX_TOOLS_SHOWN)->all(),
-            'projects' => array_slice($projects[$agent->getId()] ?? [], 0, self::MAX_PROJECTS_SHOWN),
         ];
 
         // Naming the caller keeps it from reading its own row as a teammate — hiring "a project

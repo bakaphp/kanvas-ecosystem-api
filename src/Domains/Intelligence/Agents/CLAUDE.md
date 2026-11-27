@@ -201,11 +201,93 @@ new AgentChatKernel(
 
 **`fallbackOnFailure` (default `true`):** a failed turn normally comes back as prose — `RunNeuronChatAction::humanizedFallback()` returns "I ran into a hiccup processing that…" so the person on the other end sees something. That is only right when a **human reads the reply**. A customer-facing agent (`$agent->conversesWithCustomer()` — SalesAgent, ReceptionistAgent) gets only "What do you mean?" for **every** failure: a prospect is talking to a persona, and a hiccup, an overloaded AI or a safety filter all read as a broken system. A caller whose reply feeds a pipeline must pass `false` and handle the exception: the newsroom burst publishes whatever the agent writes, so a Gemini response with no `parts` was filed as the reply and shipped as an article titled "I ran into a hiccup processing that" (KANVAS-ECOSYSTEM-691). `AgentBurstResponderAction` keys it on whether it will actually speak — `fallbackOnFailure: $shouldReply`. The Mailgun email responder passes `false` too: the fallback copy is written for staff, and an internal agent (AP/AR) answering an outside sender emailed "narrow it down — an exact name, email, or date range" to a vendor (KANVAS-ECOSYSTEM-6GW); a failed email turn now sends nothing and fails the webhook call instead. `WakeAgentInSessionAction` (scheduled agent tasks, MCP job resumes) passes `false` too: it posts whatever comes back into the channel, so a thread busy past the wait posted "I ran into a hiccup" into Slack and the scheduled task counted as fired (KANVAS-ECOSYSTEM-6JQ); its jobs now release on `RunInFlightException` and run once the thread settles. It also drops a `NO_UPDATE` reply rather than posting it, as `ContinueAgentTurnJob` does, and a scheduled task reaches the agent framed by `RunScheduledAgentActionJob` so a recurring task is not read as a check-in. When it is `false` the action rethrows without `report()`, so the caller reports once rather than twice. The partless response itself no longer fails the turn: `KanvasGemini::processChatResult()` turns it into an empty reply, which connector responders already skip via `AgentReplySkippedException`.
 
+**`unattended` (default `false`) and `conversationHuman` (default `null`):** who is on the other side
+of the turn, when the turn's `user` cannot say. See "Who is on the other side of a turn" below. Always
+pass them by name.
+
 **`sourceChannel` / `sourceMessage` (connector path AND any other rollup caller):**
 - ADK uses them to compute its remote `userId` exactly the way `ADKAgent::chat()` does today (preserves remote session identity — without this, ADK conversations silently fork to a different memory key).
 - Neuron 4 requires a thread id on every run, so the kernel always calls `setThreadId`; `sourceChannel !== null` decides **which** id (`AgentChatKernel::threadId()`). With a channel the thread is the session **entity's own uuid** (the Lead's / People's; `entity:<class>:<id>` for one without a uuid), so every channel and every session of that prospect share one thread and `EntityRollupMessageStore` loads the whole rollup. Without a channel the thread is the session uuid and the store filters to that session.
 
 **Pass `sourceChannel: $session->channel` from any cron/queue-driven caller that needs cross-session history.** Today: connector channel responders (×6) and `FollowUpLeadAction`. Omitting it threads by session uuid, which filters the agent's history to that one session — typically zero useful messages for a cron-spawned agent that didn't originate the prior conversation. The bug surfaces as the agent producing literal-template-copy output because the LLM gets no meaningful prior turns. `WakeAgentForPlanJob` and `AgentReceiverJob` haven't been audited for this yet — check whether they need the same fix.
+
+## Who is on the other side of a turn
+
+The turn's `user` is not always a person who is there. A scheduled action runs as its recipient, a
+project wake as the project's owner, a mention on a channel as the agent's own user. Three readers,
+from widest to narrowest:
+
+| Method | Answers | Null when |
+|---|---|---|
+| `requestingHuman()` | whose rights a guarded tool checks: `conversationHuman ?? user` | the turn has no user |
+| `personAsking()` | a real person, not an AI identity | the human is the agent's own user or the company AI user |
+| `personAtKeyboard()` | a real person who is present | the above, or the turn is marked unattended |
+
+- **`unattended`** is set by the caller, never inferred: `WakeAgentInSessionAction` (scheduled tasks,
+  tool resumes) and every `runAgentWake()` caller pass it, and only a project @mention with a human
+  author is attended. A new caller that wakes an agent with nobody reading passes `unattended: true`.
+- **A project @mention is authorised as the person who typed it** (`WakeAgentForProjectJob::turnIdentity()`).
+  The author is read off the live `mentionMessageId` only, tenant-scoped; `triggerMessageId` is the
+  thread root. **With no human author the job stops before the agent runs.** Neither the owner nor
+  the agent's own user is a safe stand-in: an agent can sit on an administrator's login or hold the
+  hire ability itself. The schedule tools get the same author (`ResolvesConversationHuman` prefers the
+  identified human over the session's subject), so "remind me" lands on whoever typed it.
+- **Every caller that wakes an agent with nobody reading passes `unattended: true`**: scheduled
+  wakes, `runAgentWake()`, `RunTaskWorkerJob` and `AgentReceiverJob`. A worker runs as the plan's
+  owner and a receiver as whoever set it up; both are real people who are not there.
+- **Only Company Brain reads the unattended mark today.** It loads create-plan, approve, hire and grant
+  only when `personAtKeyboard()` is not null, and filters them out of the finished list so a registry
+  grant cannot bring them back. The PM keeps acting on its own wakes as before.
+- **An agent on a person's login cannot see that person.** `actsAsAi()` matches the agent's own user,
+  so that person is never `personAsking()`. `EnsureAgentHasDedicatedUserAction` moves an agent off a
+  shared login; `kanvas:nervous-system:ensure-company-operations-project --dry-run` lists the Brains
+  that need it.
+
+## Company Brain hands work off
+
+One Brain per company is its assistant (`CompanyAssistantLocatorService`: the `company_assistant_agent_id`
+company setting, else the oldest active one). It does the work itself with the tools it holds and hands
+off what is bigger than a conversation.
+
+- `create_nervous_system_plan` on the Brain takes no `project_id`: it lands on the company's Operations
+  board (`EnsureCompanyOperationsProjectAction`, marked `metadata.company_operations`, always owned by
+  the designated assistant). The PM's instance still requires one.
+- **Build a subclass's tools into the baseline, then merge once** (`SystemUserAgent::baselineTools()` →
+  `mergeRegisteredTools()`). A tool appended after the merge has no acting agent (a plan it creates has
+  no creator, so its outcome wakes the wrong agent), loses to a registry copy of the same class, and
+  skips the worker boundary. The Brain's older read bundle is still appended after, on purpose: the
+  merge would change the user those reads run as.
+- **Who asked is carried, not read off the session.** A channel or board session is shared, so the
+  Brain's create-plan passes the turn's human to `Plan::rememberOrigin()`, and a plan is reused only
+  for the same creator, session and asker. It refuses, with nothing created, when it cannot tell who
+  is asking or has no conversation channel to answer on: work that cannot report back is not started.
+  No new plan is started from a turn on a board (`entity` is a `Project` or `Plan`): a plan cannot
+  record the thread it came from. An answer posted on a shared channel @mentions the asker, and its
+  transcript is found by session and agent, not by the asker (`Plan::askedInASharedConversation()`).
+- **An outcome of handed-off work is about one plan** (`Project::isHandedOffBy()`): the wake locks on
+  `plan-wake-{id}`, runs on a session keyed to the plan, as the person who asked, with a prompt that
+  carries only that plan, and waits for the lock instead of being dropped. `aboutPlan` carries the
+  plan for every outcome; `reportsOn` is still only a finish.
+- **One blocked message** (`BlockOutcomeDeliveryService`). Each block of a handed-off plan is a cycle
+  with its own id, started by `PlanObserver` and carried by both queued jobs (`blockOutcomeId`). The
+  listener reserves the cycle for the creator before it wakes it; `NotifyPlanOwnerOfBlockedPlanJob`
+  puts itself back on the queue every 30 s while that reservation is live (up to the hour the creator
+  is given) and speaks only when it is released or expired; whoever speaks takes one delivery claim.
+  A deferred wake keeps its reservation; a silent, failed or unpostable one releases it and
+  dispatches the alert. A job from an earlier block is a no-op on a newer one. A handed-off block
+  always takes the asker-facing alert, on the Operations board or on another PM's project: nobody
+  watching that board is the person who asked. A plan closed directly as done sets the existing
+  finish mark, so the done alert does not repeat the creator's answer.
+- **It works the company's records itself** (`recordTools()`): the lead, person, organization and
+  catalog reads on every turn; create, update and add-note on a lead, person or organization only
+  with a person at the keyboard. The catalog is read-only: an inventory write takes a registry grant.
+  There is no per-company switch, so a company whose records live elsewhere (INTRAS and its
+  `intras_*` tools) steers through its own instructions. `CompanyBrainRecordToolsTest` pins the two
+  tool names the set still dangles.
+- **A synced outcome of handed-off work still wakes its creator.** `fromSync` suppresses a plan
+  change only when nobody handed the plan off; most workers record their outcome as a sync.
+
+Plan and decisions: `docs/nervous-system/company-assistant-plan.md`.
 
 ## Connector contract (`BaseAgentChannelReplyAction` subclasses)
 

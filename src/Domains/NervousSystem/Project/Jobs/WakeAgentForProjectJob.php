@@ -15,16 +15,22 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Services\BlockOutcomeDeliveryService;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
@@ -55,6 +61,9 @@ class WakeAgentForProjectJob implements ShouldQueue
     public const string REASON_PLAN_OUTCOME = 'plan_outcome';
     public const string NO_UPDATE_SENTINEL = 'NO_UPDATE';
     private const int WAKE_LOCK_TTL_SECONDS = 600;
+
+    /** A worker's report is one read_plan_activity call away; the prompt carries enough to decide. */
+    private const int WORKER_SUMMARY_CHARS = 1500;
     private const int MENTION_RETRY_SECONDS = 15;
 
     /** WAKE_LOCK_TTL_SECONDS / MENTION_RETRY_SECONDS + the first attempt: a mention outlasts any held lock. */
@@ -90,6 +99,13 @@ class WakeAgentForProjectJob implements ShouldQueue
      *
      * `reportsOn` is the plan whose finish this wake reports. The person who asked for it is in the
      * conversation they asked in, not on the project channel, so the reply goes there as well.
+     *
+     * `aboutPlan` is the plan any outcome concerns, finished or not. `reportsOn` cannot carry that: a
+     * blocked, failed or rejected plan has no finish to report, and without the plan such a wake would
+     * be about the whole board.
+     *
+     * `blockOutcomeId` is the block cycle this wake answers ({@see BlockOutcomeDeliveryService}); the
+     * blocked alert queued for the same cycle waits for it and speaks only if this wake does not.
      */
     public function __construct(
         public readonly Project $project,
@@ -99,6 +115,8 @@ class WakeAgentForProjectJob implements ShouldQueue
         public readonly ?Agent $wakeAgent = null,
         public readonly ?int $mentionMessageId = null,
         public readonly ?Plan $reportsOn = null,
+        public readonly ?Plan $aboutPlan = null,
+        public readonly ?string $blockOutcomeId = null,
     ) {
         $this->onQueue('nervous-system-project');
 
@@ -114,7 +132,27 @@ class WakeAgentForProjectJob implements ShouldQueue
      */
     private function waitsForTheLock(): bool
     {
-        return $this->reason === self::REASON_MENTION || $this->reportsOn !== null;
+        return $this->reason === self::REASON_MENTION
+            || $this->reportsOn !== null
+            || $this->isDelegatedOutcome();
+    }
+
+    private function subjectPlan(): ?Plan
+    {
+        return $this->aboutPlan ?? $this->reportsOn;
+    }
+
+    /**
+     * An outcome of work the woken agent handed off, as opposed to a PM hearing about its own board.
+     * It is about one plan and one person, so it gets a lock, a session, a prompt and an identity of
+     * its own: on a board a whole company delegates through, sharing any of them makes one person's
+     * answer wait on, or leak into, another's.
+     */
+    private function isDelegatedOutcome(): bool
+    {
+        $agent = $this->subjectPlan() !== null ? $this->agentToWake() : null;
+
+        return $agent !== null && $this->project->isHandedOffBy($agent);
     }
 
     private function agentToWake(): ?Agent
@@ -135,8 +173,11 @@ class WakeAgentForProjectJob implements ShouldQueue
      */
     public function middleware(): array
     {
-        $lock = new WithoutOverlapping('project-wake-' . $this->project->getId())
-            ->expireAfter(self::WAKE_LOCK_TTL_SECONDS);
+        $key = $this->isDelegatedOutcome()
+            ? 'plan-wake-' . $this->subjectPlan()?->getId()
+            : 'project-wake-' . $this->project->getId();
+
+        $lock = new WithoutOverlapping($key)->expireAfter(self::WAKE_LOCK_TTL_SECONDS);
 
         return [
             $this->waitsForTheLock()
@@ -158,6 +199,31 @@ class WakeAgentForProjectJob implements ShouldQueue
             return;
         }
 
+        // Before the session or the agent exists: a request nobody can be shown to have made is not
+        // run at all, on anyone's rights.
+        $identity = $this->turnIdentity($agent, $owner);
+
+        if ($identity === null) {
+            $this->project->emitLedgerEvent(
+                'project.agent.mention_without_author',
+                status: EventStatusEnum::ERROR,
+                payload: [
+                    'agent_id' => $agent->getId(),
+                    'mention_message_id' => $this->mentionMessageId,
+                ],
+            );
+
+            return;
+        }
+
+        [$turnUser, $human, $unattended] = $identity;
+
+        // A retry of a wake whose block was already answered, by this job or by the fallback, or whose
+        // plan has since moved on or blocked again: nothing left for it to say.
+        if ($this->blockIsNoLongerOursToAnswer()) {
+            return;
+        }
+
         $session = $this->resolveSession();
         $failurePayload = [
             'agent_id' => $agent->getId(),
@@ -174,15 +240,19 @@ class WakeAgentForProjectJob implements ShouldQueue
         $wake = $this->runAgentWake(
             $agent,
             $session,
-            $owner,
+            $turnUser,
             $this->buildMessage(),
             $this->project,
             'project.agent',
             $failurePayload,
             images: $images,
             documents: $documents,
+            unattended: $unattended,
+            conversationHuman: $human,
         );
 
+        // Null means the job was put back behind a busy thread, not that it failed: a block reservation
+        // stays, or the fallback would speak now and this wake again on its retry.
         if ($wake === null) {
             $this->reportsOn?->forgetAnswerIsComing();
 
@@ -203,7 +273,8 @@ class WakeAgentForProjectJob implements ShouldQueue
                 payload: $failurePayload,
                 durationMs: $durationMs,
             );
-            $this->reportsOn?->forgetAnswerIsComing();
+            $this->finishAnswerPlan()?->forgetAnswerIsComing();
+            $this->letTheBlockedAlertSpeak();
 
             return;
         }
@@ -248,21 +319,86 @@ class WakeAgentForProjectJob implements ShouldQueue
      */
     private function answerWhereThePlanWasAskedFor(Agent $agent, string $response): void
     {
-        if ($this->reportsOn === null || ! $agent->is($this->reportsOn->createdByAgent)) {
+        // A finish always; any other outcome only for work that was handed off, where nobody else
+        // would tell the person.
+        $plan = $this->reportsOn ?? ($this->isDelegatedOutcome() ? $this->aboutPlan : null);
+
+        if ($plan === null || ! $agent->is($plan->createdByAgent)) {
             return;
         }
 
+        $post = fn (): bool => $this->alsoPostToOriginConversation(
+            $plan,
+            $response,
+            'project-agent-reply',
+            mention: $plan->askedInASharedConversation(),
+        ) !== null;
+
         try {
-            $this->alsoPostToOriginConversation(
-                $this->reportsOn,
-                $response,
-                'project-agent-reply',
-                mention: false,
-            );
+            $told = $this->blockOutcomeId !== null
+                ? new BlockOutcomeDeliveryService($plan)
+                    ->claimDelivery($this->blockOutcomeId, asCreator: true, deliver: $post)
+                : $post();
         } catch (Throwable $e) {
-            $this->reportsOn->forgetAnswerIsComing();
+            $told = false;
             report($e);
         }
+
+        // Nothing reached the person (no conversation to post in, the write failed, or the fallback
+        // already spoke), so the alerts that stood down for this answer are free again.
+        if (! $told) {
+            $this->finishAnswerPlan()?->forgetAnswerIsComing();
+            $this->letTheBlockedAlertSpeak();
+        }
+    }
+
+    /**
+     * The plan whose done alert was held back for this wake's answer: a reported finish, or a handed-off
+     * plan closed directly.
+     */
+    private function finishAnswerPlan(): ?Plan
+    {
+        if ($this->reportsOn !== null) {
+            return $this->reportsOn;
+        }
+
+        $plan = $this->isDelegatedOutcome() ? $this->aboutPlan : null;
+
+        return $plan?->status === PlanStatusEnum::DONE->value ? $plan : null;
+    }
+
+    private function blockIsNoLongerOursToAnswer(): bool
+    {
+        $plan = $this->subjectPlan();
+
+        if ($this->blockOutcomeId === null || $plan === null) {
+            return false;
+        }
+
+        return ! new BlockOutcomeDeliveryService($plan)->isAwaitingAnAnswer($this->blockOutcomeId);
+    }
+
+    /**
+     * The handing-off agent did not say the plan is blocked after all: it had nothing to say, its
+     * answer could not be posted, or its wake was abandoned. The reservation it held is released and
+     * the fallback runs now. Both are no-ops for a cycle that is no longer current.
+     */
+    private function letTheBlockedAlertSpeak(): void
+    {
+        $plan = $this->subjectPlan();
+
+        if ($this->blockOutcomeId === null || $plan === null) {
+            return;
+        }
+
+        $delivery = new BlockOutcomeDeliveryService($plan);
+
+        if (! $delivery->isAwaitingAnAnswer($this->blockOutcomeId)) {
+            return;
+        }
+
+        $delivery->releaseReservation($this->blockOutcomeId);
+        NotifyPlanOwnerOfBlockedPlanJob::dispatch($plan, $this->blockOutcomeId);
     }
 
     /**
@@ -281,7 +417,8 @@ class WakeAgentForProjectJob implements ShouldQueue
     {
         try {
             $this->reportsOn?->forgetFinishWasReported();
-            $this->reportsOn?->forgetAnswerIsComing();
+            $this->finishAnswerPlan()?->forgetAnswerIsComing();
+            $this->letTheBlockedAlertSpeak();
 
             $this->overwriteAppService($this->project->app);
 
@@ -343,6 +480,22 @@ class WakeAgentForProjectJob implements ShouldQueue
     {
         $agent = $this->agentToWake();
         $owner = $this->project->user ?? $agent?->user;
+        $plan = $this->subjectPlan();
+
+        // One thread per handed-off plan: a board-wide thread makes two people's outcomes wait on each
+        // other, and puts one person's work in the history another's answer is written from.
+        if ($agent !== null && $plan !== null && $this->isDelegatedOutcome()) {
+            return Session::firstOrCreateForEntity(
+                $plan,
+                create: [
+                    'agents_id' => $agent->getId(),
+                    'channel_id' => $this->project->default_channel_id,
+                    'user' => $this->sessionUser($plan->asker() ?? $owner),
+                ],
+                extraKey: ['agents_id' => $agent->getId()],
+            );
+        }
+
         $isProjectPm = $agent === null || $agent->getId() === $this->project->agent_id;
 
         return Session::firstOrCreateForEntity(
@@ -350,26 +503,39 @@ class WakeAgentForProjectJob implements ShouldQueue
             create: [
                 'agents_id' => $agent?->getId() ?? $this->project->agent_id,
                 'channel_id' => $this->project->default_channel_id,
-                'user' => $owner !== null ? [
-                    'id' => $owner->getId(),
-                    'name' => trim(($owner->firstname ?? '') . ' ' . ($owner->lastname ?? '')),
-                    'email' => $owner->email ?? null,
-                ] : [],
+                'user' => $this->sessionUser($owner),
             ],
             extraKey: $isProjectPm ? [] : ['agents_id' => $agent->getId()],
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function sessionUser(?Users $user): array
+    {
+        return $user !== null ? [
+            'id' => $user->getId(),
+            'name' => trim(($user->firstname ?? '') . ' ' . ($user->lastname ?? '')),
+            'email' => $user->email ?? null,
+        ] : [];
+    }
+
     protected function buildMessage(): string
     {
-        $bundle = new ProjectContextService()->buildContextBundle($this->project, historyLimit: 20);
-
         $header = sprintf(
             "[NS:project reason=%s project_id=%d project_uuid=%s]\n\n",
             $this->reason,
             $this->project->getId(),
             $this->project->uuid,
         );
+
+        $plan = $this->subjectPlan();
+        if ($plan !== null && $this->isDelegatedOutcome()) {
+            return $header . $this->delegatedOutcomeMessage($plan);
+        }
+
+        $bundle = new ProjectContextService()->buildContextBundle($this->project, historyLimit: 20);
 
         $trigger = '';
         if ($this->triggerMessage !== null && $this->triggerMessage !== '') {
@@ -398,11 +564,105 @@ class WakeAgentForProjectJob implements ShouldQueue
         );
 
         return $header
-            . 'You are the PM of this project. Read the context below, decide what needs to happen, '
-            . "then use your tools to create/assign/move tasks and keep the project moving.\n\n"
+            . ($this->project->isCompanyOperations()
+                ? 'This is your Operations board: the work you handed to other agents. Check what is stalled '
+                    . "or blocked and follow through.\n\n"
+                : 'You are the PM of this project. Read the context below, decide what needs to happen, '
+                    . "then use your tools to create/assign/move tasks and keep the project moving.\n\n")
             . $this->noUpdateGuidance()
             . $trigger
             . 'Context: ' . (string) json_encode($bundle->toArray());
+    }
+
+    /**
+     * Who this turn runs as, the person who typed it, and whether nobody is there. Null when the turn
+     * must not run.
+     *
+     * A mention is the only wake a person typed, and it is authorised as that person. With no author
+     * there is nobody to authorise it as: the project's owner did not ask, and the agent's own user can
+     * itself be an administrator or hold the hire ability, so neither is a safe stand-in.
+     *
+     * @return array{0: Users, 1: ?Users, 2: bool}|null
+     */
+    private function turnIdentity(Agent $agent, Users $owner): ?array
+    {
+        if ($this->isDelegatedOutcome()) {
+            return [$this->subjectPlan()?->asker() ?? $owner, null, true];
+        }
+
+        if ($this->reason !== self::REASON_MENTION) {
+            return [$owner, null, true];
+        }
+
+        $author = $this->mentionAuthor($agent);
+
+        return $author !== null ? [$owner, $author, false] : null;
+    }
+
+    /**
+     * Read off the live mention itself and nothing else: `triggerMessageId` is the thread's root, whose
+     * author is whoever opened the thread.
+     */
+    private function mentionAuthor(Agent $agent): ?Users
+    {
+        $mention = $this->mentionMessage();
+
+        if ($mention === null || $mention->users_id === null) {
+            return null;
+        }
+
+        try {
+            $author = Users::getById((int) $mention->users_id);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return KanvasConversationStore::actsAsAi($author, $agent) ? null : $author;
+    }
+
+    /**
+     * That plan and nothing else. The board holds every employee's requests; handing the whole bundle
+     * to a turn that answers one of them puts the others' work into that answer.
+     */
+    private function delegatedOutcomeMessage(Plan $plan): string
+    {
+        $tasks = $plan->tasks()
+            ->whereNull('parent_task_id')
+            ->orderBy('sequence')
+            ->get()
+            ->map(fn (Task $task): array => array_filter([
+                'task_id' => $task->getId(),
+                'title' => $task->title,
+                'status' => $task->status,
+                'blocked_reason' => $task->blocked_reason,
+                'worker_summary' => Str::limit((string) $task->workerSummary(), self::WORKER_SUMMARY_CHARS),
+            ], static fn (mixed $value): bool => $value !== null && $value !== ''))
+            ->all();
+
+        $summary = array_filter([
+            'plan_id' => $plan->getId(),
+            'title' => $plan->title,
+            'status' => $plan->status,
+            'blocked_needs' => $plan->blocked_needs,
+            'error' => $plan->error_message,
+            'assignee' => $plan->agent?->name,
+            'tasks' => $tasks,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '' && $value !== []);
+
+        $fact = $this->triggerMessage !== null && $this->triggerMessage !== ''
+            ? $this->triggerMessage . "\n\n"
+            : '';
+
+        // A finish is always news to the person. Anything else is news only when it cannot be put right.
+        $unfinished = $this->reportsOn === null
+            ? 'If you can fix it by reassigning, do that and reply ' . self::NO_UPDATE_SENTINEL . '. Otherwise tell the '
+                . "person plainly what is stuck and what is needed, including when it needs an admin.\n\n"
+            : '';
+
+        return "You handed this work to another agent. It has an outcome to report.\n\n"
+            . $fact
+            . $unfinished
+            . 'Plan: ' . (string) json_encode($summary);
     }
 
     private function mentionMessage(): ?Message
@@ -411,7 +671,12 @@ class WakeAgentForProjectJob implements ShouldQueue
             return null;
         }
 
-        return $this->mention ??= Message::query()->where('id', $this->mentionMessageId)->first();
+        return $this->mention ??= Message::query()
+            ->where('id', $this->mentionMessageId)
+            ->fromApp($this->project->app)
+            ->fromCompany($this->project->company)
+            ->notDeleted()
+            ->first();
     }
 
     /**

@@ -56,7 +56,7 @@ final class ProvisionAgentUserAction
             'agent-%s-%d@%s',
             Str::slug($this->name),
             $this->company->getId(),
-            trim((string) config('mail.agent_identity_domain', 'agents.kanvas.local'), '@')
+            self::identityDomain()
         );
 
         $user = $this->existingUser($email);
@@ -97,6 +97,14 @@ final class ProvisionAgentUserAction
         )->execute();
 
         return $user;
+    }
+
+    /**
+     * Where every user made for an agent has its address, which is also how one is told from a person's.
+     */
+    public static function identityDomain(): string
+    {
+        return trim((string) config('mail.agent_identity_domain', 'agents.kanvas.local'), '@');
     }
 
     private function existingUser(string $email): ?Users

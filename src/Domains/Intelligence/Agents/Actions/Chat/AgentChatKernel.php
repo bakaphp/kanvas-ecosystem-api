@@ -67,6 +67,8 @@ class AgentChatKernel
         protected readonly bool $fallbackOnFailure = true,
         protected readonly bool $rendersArtifacts = false,
         protected readonly array $burstMessageIds = [],
+        protected readonly bool $unattended = false,
+        protected readonly ?Users $conversationHuman = null,
     ) {
     }
 
@@ -289,6 +291,10 @@ class AgentChatKernel
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());
             $handler->setPrivateUserTurn($this->privateUserTurn);
+            $handler->setUnattendedTurn($this->unattended);
+            if ($this->conversationHuman !== null) {
+                $handler->setConversationHuman($this->conversationHuman);
+            }
             $handler->setRendersArtifacts($this->rendersArtifacts);
         }
 

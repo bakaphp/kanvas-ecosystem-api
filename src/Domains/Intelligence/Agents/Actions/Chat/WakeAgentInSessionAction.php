@@ -38,6 +38,8 @@ class WakeAgentInSessionAction
             sourceChannel: $this->session->channel,
             persistConversation: false,
             privateUserTurn: true,
+            // Nobody is at the keyboard: it runs as the person it is addressed to, who is not here.
+            unattended: true,
             // Whatever comes back is posted into the channel, so a failed turn must throw rather than
             // hand back the "I ran into a hiccup" prose as if the agent had said it.
             fallbackOnFailure: false,

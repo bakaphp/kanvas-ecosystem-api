@@ -47,6 +47,10 @@ interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies,
 
     public function setPrivateUserTurn(bool $private): void;
 
+    public function setUnattendedTurn(bool $unattended): void;
+
+    public function setConversationHuman(?Users $user): void;
+
     /** Whether the reply lands on a surface that renders `kanvas-artifact` blocks (the admin userChat). */
     public function setRendersArtifacts(bool $renders): void;
 

@@ -136,6 +136,7 @@ trait HasKanvasAgentBehavior
     /** @var list<string> Attachment URLs/paths (image/audio/PDF) on the current turn's user prompt. */
     protected array $turnMedia = [];
     protected bool $privateUserTurn = false;
+    protected bool $unattendedTurn = false;
     protected bool $rendersArtifacts = false;
     protected ?int $inboundMessageId = null;
     protected ?string $turnId = null;
@@ -345,6 +346,26 @@ trait HasKanvasAgentBehavior
     public function setPrivateUserTurn(bool $private): void
     {
         $this->privateUserTurn = $private;
+    }
+
+    public function setUnattendedTurn(bool $unattended): void
+    {
+        $this->unattendedTurn = $unattended;
+    }
+
+    public function isUnattendedTurn(): bool
+    {
+        return $this->unattendedTurn;
+    }
+
+    /**
+     * personAsking() cannot tell a person who is here from one who is not: a scheduled action runs as
+     * its recipient and a project wake as the project's owner, both real people. This is null on those
+     * turns, which the callers mark as unattended.
+     */
+    public function personAtKeyboard(): ?Users
+    {
+        return $this->unattendedTurn ? null : $this->personAsking();
     }
 
     public function setRendersArtifacts(bool $renders): void
