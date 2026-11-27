@@ -148,7 +148,7 @@ class LeadConfigurationService
     }
 
     /**
-     * A person turned follow-up on for this lead by hand (ApplyLeadAiModeAction pins it), so the
+     * A person turned follow-up on for this lead by hand (ApplyAiModeAction pins it), so the
      * automatic follow-up's admin config — start date, lead-type default — no longer applies to it.
      */
     public function hasManualFollowUp(Lead $lead): bool

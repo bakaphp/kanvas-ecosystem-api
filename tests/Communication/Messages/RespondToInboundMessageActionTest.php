@@ -26,6 +26,8 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
+use Kanvas\Intelligence\Triggers\Actions\ApplyAiModeAction;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\ApproveAgentMessageAction;
 use Kanvas\Social\Messages\Approvals\AgentMessageApprovalHandler;
@@ -130,6 +132,22 @@ final class RespondToInboundMessageActionTest extends TestCase
 
         $this->assertSame('No agent owns +18095550611', $result['message']);
         $this->assertSame('no_owner', $result['reason']);
+        $this->assertSame([], $this->transport->sent);
+    }
+
+    /**
+     * Applied to the person, the mode lands on their active lead and silences its conversation.
+     */
+    public function testAPersonSwitchedOffByHandIsNotAnswered(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550680');
+        [$channel, $inbound, $lead] = $this->inboundOn($connection, '+18095550681');
+        new ApplyAiModeAction($lead->people, TriggersEnum::MANUAL_OFF->value)->execute();
+
+        $result = $this->respond($channel, $inbound);
+
+        $this->assertTrue($lead->refresh()->isAiMuted());
+        $this->assertSame('agent_skipped', $result['reason'] ?? null);
         $this->assertSame([], $this->transport->sent);
     }
 
