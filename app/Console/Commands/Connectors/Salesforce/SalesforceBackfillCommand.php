@@ -8,18 +8,17 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Salesforce\Actions\PullAllOrganizationsAction;
-use Kanvas\Connectors\Salesforce\Actions\PullAllPeopleAction;
-use Kanvas\Connectors\Salesforce\Jobs\SalesforceBackfillImportJob;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Workflow\Integrations\Imports\Actions\StartIntegrationImportAction;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 /**
- * Bulk-pulls Accounts (with their email domains, see PullAllOrganizationsAction) and Contacts
- * from a company's Salesforce org and dispatches `SalesforceBackfillImportJob` to upsert them into
- * Kanvas via the existing `PullOrganizationAction`/`PullPeopleAction` pipeline.
+ * Starts the generic integration import for a company's Salesforce Accounts and Contacts.
  *
- * Recommended (not enforced): run Account before Contact — `PullPeopleAction` links a Contact to
- * its Organization only if that Organization is already synced; running Contact first just skips
- * the link, it doesn't fail.
+ * Both objects start one Account run with `then_people`, and the Contact run is queued when it
+ * finishes: `PullPeopleAction` links a Contact to its Organization only if that Organization is
+ * already in, and a Contact run is refused while Accounts are still importing. One object starts
+ * just that run.
  *
  * This backfill does not deduplicate — it can create Organizations/People that already exist in
  * Kanvas under a different custom field. That is expected and handled by a later phase.
@@ -28,16 +27,14 @@ class SalesforceBackfillCommand extends Command
 {
     use KanvasJobsTrait;
 
-    /**
-     * One queue payload per batch instead of the whole org: 10,000 Accounts with their contact
-     * emails nested in is a multi-MB Redis entry and an OOM risk in the worker.
-     * OdooBackfillCommand still dispatches in one piece.
-     */
-    private const int DISPATCH_CHUNK_SIZE = 500;
+    private const array ENTITIES = [
+        'Account' => 'organizations',
+        'Contact' => 'people',
+    ];
 
     protected $signature = 'kanvas:salesforce-backfill {app_id} {company_id} {--objects=Account,Contact}';
 
-    protected $description = 'Bulk-pull Salesforce Accounts/Contacts and queue them for import into Kanvas';
+    protected $description = 'Queue the Salesforce Accounts/Contacts import for a company';
 
     public function handle(): int
     {
@@ -48,38 +45,49 @@ class SalesforceBackfillCommand extends Command
         /** @var Companies $company */
         $company = Companies::getById((int) $this->argument('company_id'));
 
+        $integrationCompany = IntegrationsCompany::getActiveByIntegrationName($company, $app, 'salesforce');
+
+        if ($integrationCompany === null) {
+            $this->error("Salesforce is not connected for company {$company->getId()}.");
+
+            return self::FAILURE;
+        }
+
         $objects = array_filter(array_map('trim', explode(',', (string) $this->option('objects'))));
+        $unknown = array_diff($objects, array_keys(self::ENTITIES));
 
-        foreach ($objects as $object) {
-            match ($object) {
-                'Account' => $this->backfillOrganizations($app, $company),
-                'Contact' => $this->backfillPeople($app, $company),
-                default => $this->warn("Skipping unsupported object: {$object}"),
-            };
+        if ($unknown !== []) {
+            $this->error('Unsupported object: ' . implode(', ', $unknown));
+
+            return self::FAILURE;
         }
 
-        return self::SUCCESS;
-    }
+        if ($company->user === null) {
+            $this->error("Company {$company->getId()} has no owner to run the import as.");
 
-    private function backfillOrganizations(Apps $app, Companies $company): void
-    {
-        $records = new PullAllOrganizationsAction($app, $company)->execute();
-
-        $this->line('Pulled ' . count($records) . " Account(s) from Salesforce for company {$company->name}");
-
-        foreach (array_chunk($records, self::DISPATCH_CHUNK_SIZE) as $chunk) {
-            SalesforceBackfillImportJob::dispatch($app, $company, 'Account', $chunk);
+            return self::FAILURE;
         }
-    }
 
-    private function backfillPeople(Apps $app, Companies $company): void
-    {
-        $records = new PullAllPeopleAction($app, $company)->execute();
+        $runs = array_diff(['Account', 'Contact'], $objects) === []
+            ? ['Account' => ['then_people' => true]]
+            : array_fill_keys($objects, []);
+        $failed = false;
 
-        $this->line('Pulled ' . count($records) . " Contact(s) from Salesforce for company {$company->name}");
-
-        foreach (array_chunk($records, self::DISPATCH_CHUNK_SIZE) as $chunk) {
-            SalesforceBackfillImportJob::dispatch($app, $company, 'Contact', $chunk);
+        foreach ($runs as $object => $options) {
+            try {
+                $run = new StartIntegrationImportAction(
+                    $integrationCompany,
+                    $company->user,
+                    self::ENTITIES[$object],
+                    $options,
+                )->execute();
+                $this->line("Queued the {$object} import (run {$run->getId()}) for company {$company->name}");
+            } catch (ValidationException $e) {
+                $failed = true;
+                $this->error("{$object}: {$e->getMessage()}");
+            }
         }
+
+        return $failed ? self::FAILURE : self::SUCCESS;
     }
 }

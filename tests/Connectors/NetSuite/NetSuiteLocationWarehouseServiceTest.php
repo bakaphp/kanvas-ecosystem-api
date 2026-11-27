@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationWarehouseService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
@@ -95,6 +96,16 @@ class NetSuiteLocationWarehouseServiceTest extends TestCase
         $this->company()->set(ConfigurationEnum::NET_SUITE_DEFAULT_WAREHOUSE->value, '');
 
         $this->assertSame([], $this->service()->map());
+    }
+
+    public function testAnUnmappedCompanyIsToldToImportItsLocationsFirst(): void
+    {
+        $this->company()->set(ConfigurationEnum::NET_SUITE_DEFAULT_WAREHOUSE->value, '');
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('No warehouse of this company is mapped to a NetSuite location. Import the NetSuite locations first.');
+
+        $this->service()->assertMapped();
     }
 
     private function service(): NetSuiteLocationWarehouseService

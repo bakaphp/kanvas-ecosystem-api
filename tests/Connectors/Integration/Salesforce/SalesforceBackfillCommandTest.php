@@ -5,106 +5,150 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Jobs\SalesforceBackfillImportJob;
-use Tests\Connectors\Traits\HasSalesforceConfiguration;
+use Kanvas\Workflow\Integrations\Imports\Jobs\RunIntegrationImportJob;
+use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Tests\Connectors\Integration\Salesforce\Concerns\CreatesSalesforceIntegration;
+use Tests\Connectors\Traits\HasThrowawayCompany;
 use Tests\TestCase;
 
 final class SalesforceBackfillCommandTest extends TestCase
 {
+    use CreatesSalesforceIntegration;
     use DatabaseTransactions;
-    use HasSalesforceConfiguration;
+    use HasThrowawayCompany;
 
-    public function testDispatchesAnImportJobPerRequestedObject(): void
+    protected array $connectionsToTransact = ['mysql', 'ecosystem', 'crm', 'social', 'workflow'];
+
+    public function testBothObjectsStartOrganizationsThenPeople(): void
     {
-        $app = app(Apps::class);
-        $user = static::$cachedUser;
-        $company = $user->getCurrentCompany();
-        $this->configureSalesforce($company);
-        $this->fakeSalesforceOAuth();
-
-        Http::fake([
-            ...$this->fakeAccountDescribe(),
-            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
-                'totalSize' => 1,
-                'done' => true,
-                'records' => [['Id' => '001xx0000000001AAA', 'Name' => 'Acme Corp']],
-            ], 200),
-        ]);
-
+        $company = $this->freshCompany();
+        $integrationCompany = $this->salesforceIntegrationFor($company);
         Queue::fake();
 
         $this->artisan('kanvas:salesforce-backfill', [
-            'app_id' => $app->getId(),
+            'app_id' => app(Apps::class)->getId(),
             'company_id' => $company->getId(),
         ])->assertSuccessful();
 
-        Queue::assertPushed(SalesforceBackfillImportJob::class, 2);
+        Queue::assertPushed(RunIntegrationImportJob::class, 1);
+        $runs = IntegrationImport::where('integrations_companies_id', $integrationCompany->getId())->get();
+        $this->assertSame(['organizations'], $runs->pluck('entity')->all());
+        $this->assertSame(['then_people' => true], $runs->first()->options);
     }
 
-    public function testOnlyDispatchesTheRequestedObject(): void
+    public function testARowWrittenBeforeAppOwnershipIsFound(): void
     {
-        $app = app(Apps::class);
-        $user = static::$cachedUser;
-        $company = $user->getCurrentCompany();
-        $this->configureSalesforce($company);
-        $this->fakeSalesforceOAuth();
-
-        Http::fake([
-            ...$this->fakeAccountDescribe(),
-            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
-                'totalSize' => 1,
-                'done' => true,
-                'records' => [['Id' => '001xx0000000001AAA', 'Name' => 'Acme Corp']],
-            ], 200),
-        ]);
-
+        $company = $this->freshCompany();
+        $integrationCompany = $this->salesforceIntegrationFor($company);
+        $integrationCompany->apps_id = null;
+        $integrationCompany->save();
         Queue::fake();
 
         $this->artisan('kanvas:salesforce-backfill', [
-            'app_id' => $app->getId(),
+            'app_id' => app(Apps::class)->getId(),
             'company_id' => $company->getId(),
             '--objects' => 'Account',
         ])->assertSuccessful();
 
-        Queue::assertPushed(SalesforceBackfillImportJob::class, 1);
-        Queue::assertPushed(function (SalesforceBackfillImportJob $job) {
-            return $job->salesforceObjectType === 'Account';
-        });
-    }
-
-    public function testDispatchesOneJobPerChunkOfRecords(): void
-    {
-        $app = app(Apps::class);
-        $company = static::$cachedUser->getCurrentCompany();
-        $this->configureSalesforce($company);
-        $this->fakeSalesforceOAuth();
-
-        $records = array_map(
-            fn (int $i) => ['Id' => sprintf('001xx%013dAAA', $i), 'Name' => "Account {$i}"],
-            range(1, 1001),
+        Queue::assertPushed(
+            RunIntegrationImportJob::class,
+            fn (RunIntegrationImportJob $job) => $job->run->integrations_companies_id === $integrationCompany->getId()
         );
+    }
 
-        Http::fake([
-            ...$this->fakeAccountDescribe(),
-            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
-                'totalSize' => count($records),
-                'done' => true,
-                'records' => $records,
-            ], 200),
-        ]);
+    public function testTheAppsOwnRowWinsOverOneWithoutAnApp(): void
+    {
+        $company = $this->freshCompany();
+        $legacy = $this->salesforceIntegrationFor($company);
+        $legacy->apps_id = null;
+        $legacy->save();
+        $owned = $this->salesforceIntegrationFor($company);
 
+        $this->assertSame(
+            $owned->getId(),
+            IntegrationsCompany::getActiveByIntegrationName($company, app(Apps::class), 'salesforce')?->getId()
+        );
+    }
+
+    public function testACompanyWithoutAnOwnerFails(): void
+    {
+        $company = $this->freshCompany();
+        $this->salesforceIntegrationFor($company);
+        $company->users_id = 999999999;
+        $company->save();
         Queue::fake();
 
         $this->artisan('kanvas:salesforce-backfill', [
-            'app_id' => $app->getId(),
+            'app_id' => app(Apps::class)->getId(),
             'company_id' => $company->getId(),
-            '--objects' => 'Account',
+        ])
+            ->expectsOutputToContain("Company {$company->getId()} has no owner to run the import as.")
+            ->assertExitCode(1);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function testOnlyTheRequestedObjectIsQueued(): void
+    {
+        $company = $this->freshCompany();
+        $this->salesforceIntegrationFor($company);
+        Queue::fake();
+
+        $this->artisan('kanvas:salesforce-backfill', [
+            'app_id' => app(Apps::class)->getId(),
+            'company_id' => $company->getId(),
+            '--objects' => 'Contact',
         ])->assertSuccessful();
 
-        Queue::assertPushed(SalesforceBackfillImportJob::class, 3);
-        Queue::assertPushed(fn (SalesforceBackfillImportJob $job) => count($job->records) === 1);
+        Queue::assertPushed(RunIntegrationImportJob::class, 1);
+        Queue::assertPushed(fn (RunIntegrationImportJob $job) => $job->run->entity === 'people');
+    }
+
+    public function testFailsWhenSalesforceIsNotConnected(): void
+    {
+        $company = $this->freshCompany();
+        Queue::fake();
+
+        $this->artisan('kanvas:salesforce-backfill', [
+            'app_id' => app(Apps::class)->getId(),
+            'company_id' => $company->getId(),
+        ])
+            ->expectsOutputToContain("Salesforce is not connected for company {$company->getId()}.")
+            ->assertExitCode(1);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function testAnUnknownObjectFails(): void
+    {
+        $company = $this->freshCompany();
+        $this->salesforceIntegrationFor($company);
+        Queue::fake();
+
+        $this->artisan('kanvas:salesforce-backfill', [
+            'app_id' => app(Apps::class)->getId(),
+            'company_id' => $company->getId(),
+            '--objects' => 'Opportunity',
+        ])->assertExitCode(1);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function testARunAlreadyInProgressIsReported(): void
+    {
+        $company = $this->freshCompany();
+        $this->salesforceIntegrationFor($company);
+        Queue::fake();
+        $arguments = ['app_id' => app(Apps::class)->getId(), 'company_id' => $company->getId(), '--objects' => 'Account'];
+        $this->artisan('kanvas:salesforce-backfill', $arguments)->assertSuccessful();
+
+        $this->artisan('kanvas:salesforce-backfill', [...$arguments, '--objects' => 'Account,Contact'])
+            ->expectsOutputToContain('A organizations import is already in progress for this integration.')
+            ->assertExitCode(1);
+
+        Queue::assertPushed(RunIntegrationImportJob::class, 1);
     }
 }

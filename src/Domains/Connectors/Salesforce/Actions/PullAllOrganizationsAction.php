@@ -13,7 +13,7 @@ use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
  * Bulk-pulls every Account from the Salesforce org, paginating through
  * `SalesforceApiClient::queryMore()` while `done === false`. Mirrors
  * `DownloadAllShopifyProductsAction::getAllProducts()` — collects every raw record first, no
- * per-record processing here. The caller (`SalesforceBackfillImportJob`) does the upsert.
+ * per-record processing here. The caller (`SalesforceRecordsImporter`) does the upsert.
  */
 class PullAllOrganizationsAction
 {

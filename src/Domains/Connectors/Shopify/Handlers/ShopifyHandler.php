@@ -8,11 +8,14 @@ use Baka\Contracts\BaseIntegration;
 use Baka\Contracts\DefaultRule;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
+use Kanvas\Connectors\Shopify\Importers\ShopifyCustomersImporter;
+use Kanvas\Connectors\Shopify\Importers\ShopifyProductsImporter;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Connectors\Shopify\ShopifyService;
 use Kanvas\Connectors\Shopify\Workflows\Activities\PushOrderActivity;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
 use Override;
 
 class ShopifyHandler extends BaseIntegration
@@ -32,6 +35,23 @@ class ShopifyHandler extends BaseIntegration
         ShopifyService::shopifySetup($shopifyDto);
 
         return ! empty(Client::getInstance($this->app, $this->company, $shopifyDto->region)->Shop->get());
+    }
+
+    #[Override]
+    public function importables(): array
+    {
+        return [
+            new Importable(
+                entity: 'products',
+                label: 'Productos',
+                importer: ShopifyProductsImporter::class,
+            ),
+            new Importable(
+                entity: 'customers',
+                label: 'Clientes',
+                importer: ShopifyCustomersImporter::class,
+            ),
+        ];
     }
 
     #[Override]

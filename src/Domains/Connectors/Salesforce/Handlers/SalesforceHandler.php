@@ -8,7 +8,12 @@ use Baka\Contracts\BaseIntegration;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Salesforce\Enums\GrantTypeEnum;
+use Kanvas\Connectors\Salesforce\Importers\SalesforceOrganizationsImporter;
+use Kanvas\Connectors\Salesforce\Importers\SalesforcePeopleImporter;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
+use Kanvas\Workflow\Integrations\Imports\Enums\ImportOptionTypeEnum;
 use Override;
 
 class SalesforceHandler extends BaseIntegration
@@ -51,6 +56,30 @@ class SalesforceHandler extends BaseIntegration
         $response = $salesforceClient->describeGlobal();
 
         return isset($response['sobjects']);
+    }
+
+    #[Override]
+    public function importables(): array
+    {
+        return [
+            new Importable(
+                entity: 'organizations',
+                label: 'Organizaciones',
+                importer: SalesforceOrganizationsImporter::class,
+                options: [
+                    new ImportOption(
+                        name: 'then_people',
+                        type: ImportOptionTypeEnum::BOOLEAN,
+                        label: 'Importar contactos al terminar',
+                    ),
+                ],
+            ),
+            new Importable(
+                entity: 'people',
+                label: 'Contactos',
+                importer: SalesforcePeopleImporter::class,
+            ),
+        ];
     }
 
     #[Override]

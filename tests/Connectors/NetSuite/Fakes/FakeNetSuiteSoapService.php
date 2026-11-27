@@ -7,6 +7,7 @@ namespace Tests\Connectors\NetSuite\Fakes;
 use Closure;
 use NetSuite\Classes\GetRequest;
 use NetSuite\Classes\Record;
+use NetSuite\Classes\SearchMoreWithIdRequest;
 use NetSuite\Classes\SearchRequest;
 use NetSuite\NetSuiteService;
 
@@ -26,6 +27,15 @@ class FakeNetSuiteSoapService extends NetSuiteService
 
     /** Answers a search by its request when set; `$searchResults` otherwise. */
     public ?Closure $searchBy = null;
+
+    /**
+     * @var list<list<object>> When set, search() answers the first page and searchMoreWithId() the
+     *                         rest, the way SuiteTalk splits a large result.
+     */
+    public array $pages = [];
+
+    /** @var list<int> page indexes asked of searchMoreWithId, in call order */
+    public array $morePages = [];
 
     /** @var list<string> "{type}:{internalId}" in call order */
     public array $gets = [];
@@ -62,12 +72,36 @@ class FakeNetSuiteSoapService extends NetSuiteService
     {
         $this->lastSearch = $arg;
 
+        $records = match (true) {
+            $this->searchBy !== null => ($this->searchBy)($arg),
+            $this->pages !== [] => $this->pages[0],
+            default => $this->searchResults,
+        };
+
+        return $this->page($records, 1);
+    }
+
+    public function searchMoreWithId(SearchMoreWithIdRequest $arg)
+    {
+        $this->morePages[] = $arg->pageIndex;
+
+        return $this->page($this->pages[$arg->pageIndex - 1] ?? [], $arg->pageIndex);
+    }
+
+    /**
+     * A basic search answers in recordList and an advanced one in searchRowList; the fake fills both
+     * so one list of objects serves either kind of search.
+     */
+    private function page(array $records, int $pageIndex): object
+    {
         return (object) [
             'searchResult' => (object) [
                 'status' => (object) ['isSuccess' => true, 'statusDetail' => []],
-                'recordList' => (object) [
-                    'record' => $this->searchBy !== null ? ($this->searchBy)($arg) : $this->searchResults,
-                ],
+                'searchId' => 'fake-search',
+                'totalPages' => max(1, count($this->pages)),
+                'pageIndex' => $pageIndex,
+                'recordList' => (object) ['record' => $records],
+                'searchRowList' => (object) ['searchRow' => $records],
             ],
         ];
     }

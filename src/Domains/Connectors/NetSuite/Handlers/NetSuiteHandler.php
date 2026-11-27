@@ -8,8 +8,15 @@ use Baka\Contracts\BaseIntegration;
 use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite as NetSuiteDto;
+use Kanvas\Connectors\NetSuite\Enums\ImportEntityEnum;
+use Kanvas\Connectors\NetSuite\Importers\NetSuiteCustomersImporter;
+use Kanvas\Connectors\NetSuite\Importers\NetSuiteProductsImporter;
+use Kanvas\Connectors\NetSuite\Importers\NetSuiteStockImporter;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
+use Kanvas\Workflow\Integrations\Imports\Enums\ImportOptionTypeEnum;
 use Override;
 
 class NetSuiteHandler extends BaseIntegration
@@ -45,5 +52,52 @@ class NetSuiteHandler extends BaseIntegration
         }
 
         return true;
+    }
+
+    #[Override]
+    public function importables(): array
+    {
+        $savedSearch = new ImportOption(
+            name: 'saved_search_id',
+            type: ImportOptionTypeEnum::STRING,
+            label: 'Búsqueda guardada',
+        );
+
+        return [
+            new Importable(
+                entity: ImportEntityEnum::CUSTOMERS->value,
+                label: 'Customers',
+                importer: NetSuiteCustomersImporter::class,
+                options: [$savedSearch],
+            ),
+            new Importable(
+                entity: ImportEntityEnum::PRODUCTS->value,
+                label: 'Productos',
+                importer: NetSuiteProductsImporter::class,
+                options: [
+                    new ImportOption(
+                        name: 'location_ids',
+                        type: ImportOptionTypeEnum::CHOICES,
+                        label: 'Bodegas',
+                        required: true,
+                        multiple: true,
+                    ),
+                    $savedSearch,
+                ],
+            ),
+            new Importable(
+                entity: ImportEntityEnum::STOCK->value,
+                label: 'Stock',
+                importer: NetSuiteStockImporter::class,
+                options: [
+                    $savedSearch,
+                    new ImportOption(
+                        name: 'create_missing',
+                        type: ImportOptionTypeEnum::BOOLEAN,
+                        label: 'Crear filas que falten',
+                    ),
+                ],
+            ),
+        ];
     }
 }

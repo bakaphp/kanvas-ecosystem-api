@@ -143,6 +143,8 @@ class PullStockAction
             return;
         }
 
+        // Acumatica copies any existing price without a status; EnsureVariantInWarehouseAction
+        // prefers the default warehouse and copies its status, so it is not interchangeable here.
         $price = (float) ($variant->variantWarehouses()->value('price') ?? 0);
 
         new AddToWarehouseAction(

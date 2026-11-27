@@ -22,6 +22,14 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
 - [`Salesforce/CLAUDE.md`](Salesforce/CLAUDE.md) — which half of the connector is generic (leads, people, organizations, deals) and which is GAGroup's custom property model hardcoded (`Project__c`/`Location__c`), what a second tenant with properties needs, and why a location is a variant of its project's product and never a product.
 - [`Dhl/CLAUDE.md`](Dhl/CLAUDE.md) — DHL Express (MyDHL) order fulfillment: status path and hooks, reserve-then-call booking, quote replay, hourly tracking poll, late proof of delivery.
+- [`NetSuite/CLAUDE.md`](NetSuite/CLAUDE.md) — the on-demand import (products, customers, stock) as NetSuite's importers on the generic layer: NetSuite locations mapped onto warehouses (default location on the existing default warehouse, never one location twice), saved-search resolution, the follow-up stock import, and the account-specific leftovers (saved search 574, quote location 4).
+
+## Bulk import from a connector
+
+A connector that can pull records in bulk declares them in its handler's `importables()` and writes one
+importer per entity; it does not add its own mutation, run table or queued loop. The layer, its
+contract and how to add an importer: [`../Workflow/Integrations/Imports/CLAUDE.md`](../Workflow/Integrations/Imports/CLAUDE.md).
+NetSuite, Salesforce and Shopify are the references.
 
 ## Known duplication — flagged, not yet resolved
 
@@ -35,19 +43,15 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 | `Actions/PullOrganizationAction.php` / `PullPeopleAction.php` / `PullLeadAction.php` | same |
 | `Activities/Push{Lead,People,Organization}Activity.php` | same |
 | `app/Console/Commands/Connectors/*/…BackfillCommand.php` | same |
-| `Jobs/…BackfillImportJob.php` | same |
+| `Jobs/…BackfillImportJob.php` | same (Salesforce's is gone — see below) |
 
-The two backfill **jobs** are the strongest candidate to unify — the record loop, the
-processed/failed counters, the per-record `try/catch → report()` and the summary log line are
-byte-identical, differing only in the id key (`Id` vs `id`) and which `Pull*Action` each entity
-type maps to. A shared abstract job taking those two as template methods would collapse both.
+Salesforce's backfill job is gone: `kanvas:salesforce-backfill` now starts the generic integration
+import (`SalesforceOrganizationsImporter` / `SalesforcePeopleImporter`, run by
+`RunIntegrationImportJob`). Odoo's `OdooBackfillImportJob` is the remaining copy — migrate it onto
+the same layer rather than keeping a second record loop.
 
 The three `Push*Activity` classes are **not** worth unifying — the framework discovers one class
 per `#[WorkflowAction]` attribute, so that repetition is structural, not accidental.
-
-Deliberately left alone for now (2026-09-12): merging would mean editing the live Salesforce
-connector from an unrelated PR. Do it as its own change, with the Salesforce suite green, before
-a third CRM connector lands and makes it three copies.
 
 ## Hard rules specific to this tree
 

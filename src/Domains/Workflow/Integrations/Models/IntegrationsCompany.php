@@ -6,13 +6,24 @@ namespace Kanvas\Workflow\Integrations\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\BaseIntegration;
+use Baka\Support\AllowedClass;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\Importable;
+use Kanvas\Workflow\Integrations\Imports\DataTransferObject\ImportOption;
+use Kanvas\Workflow\Integrations\Imports\Importers\IntegrationImporter;
+use Kanvas\Workflow\Integrations\Imports\Models\IntegrationImport;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use RuntimeException;
 
 /**
  * @property int $id
@@ -112,6 +123,93 @@ class IntegrationsCompany extends BaseModel
         return $this->is_active;
     }
 
+    public function isImportable(): bool
+    {
+        return $this->is_active && $this->status?->slug === StatusEnum::ACTIVE->value;
+    }
+
+    public function assertImportable(): void
+    {
+        if (! $this->isImportable()) {
+            throw new ValidationException('This integration is not active.');
+        }
+    }
+
+    /**
+     * @return list<Importable>
+     */
+    public function importables(): array
+    {
+        return BaseIntegration::forIntegrationCompany($this, $this->appOrCurrent())
+            ?->importables() ?? [];
+    }
+
+    /**
+     * The client sent the entity, so the refusal lists what it can send instead.
+     */
+    public function importableOrFail(string $entity): Importable
+    {
+        return $this->importableFor($entity)
+            ?? throw new ValidationException(sprintf(
+                '%s cannot import %s. It can import: %s.',
+                $this->integration->name,
+                $entity,
+                implode(', ', array_column($this->importables(), 'entity'))
+            ));
+    }
+
+    /**
+     * What the client needs to render the import screen. Declared in code, so it never calls the
+     * external system.
+     *
+     * @return list<array{entity: string, label: string, options: list<array{name: string, type: string, label: string, required: bool, multiple: bool}>, last_import: ?IntegrationImport}>
+     */
+    public function getImportables(): array
+    {
+        if (! $this->isImportable()) {
+            return [];
+        }
+
+        return array_map(fn (Importable $importable) => [
+            'entity' => $importable->entity,
+            'label' => $importable->label,
+            'options' => array_map(fn (ImportOption $option) => [
+                'name' => $option->name,
+                'type' => $option->type->value,
+                'label' => $option->label,
+                'required' => $option->required,
+                'multiple' => $option->multiple,
+            ], $importable->options),
+            'last_import' => IntegrationImport::latestFor($this, $importable->entity),
+        ], $this->importables());
+    }
+
+    public function importerFor(string $entity, Users $user): IntegrationImporter
+    {
+        $importable = $this->importableFor($entity)
+            ?? throw new RuntimeException(sprintf('The integration no longer offers %s.', $entity));
+        $class = AllowedClass::resolve($importable->importer, IntegrationImporter::class)
+            ?? throw new RuntimeException(sprintf('%s is not an allowed importer.', $importable->importer));
+
+        return new $class($this, $user);
+    }
+
+    public function importableFor(string $entity): ?Importable
+    {
+        return array_find($this->importables(), fn (Importable $importable) => $importable->entity === $entity);
+    }
+
+    public static function getManageable(int $id, AppInterface $app): self
+    {
+        $integrationCompany = self::getById($id);
+
+        if (! $integrationCompany->isManageableFrom($app)) {
+            throw new ModelNotFoundException('Integration not found for this app.');
+        }
+
+        return $integrationCompany;
+    }
+
     /**
      * A row with no recorded app predates app ownership. It is not this app's row, but nothing says
      * it is another app's either, so it stays manageable from any app the company lives in — which is
@@ -147,6 +245,21 @@ class IntegrationsCompany extends BaseModel
             ->where('status_id', $status->getId())
             ->where('region_id', $region->getId())
             ->where('is_active', 1)
+            ->first();
+    }
+
+    /**
+     * Same reach as isManageableFrom(): a row with no recorded app still counts, but this app's own
+     * row wins over it.
+     */
+    public static function getActiveByIntegrationName(Companies $company, AppInterface $app, string $name): ?self
+    {
+        return self::fromCompany($company)
+            ->where(fn ($query) => $query->where('apps_id', $app->getId())->orWhereNull('apps_id'))
+            ->where('is_active', 1)
+            ->whereHas('integration', fn ($query) => $query->where('name', $name))
+            ->orderByRaw('apps_id IS NULL')
+            ->orderBy('id')
             ->first();
     }
 }

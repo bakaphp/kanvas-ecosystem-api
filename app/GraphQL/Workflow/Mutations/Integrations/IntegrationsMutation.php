@@ -7,7 +7,6 @@ namespace App\GraphQL\Workflow\Mutations\Integrations;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
@@ -142,12 +141,6 @@ class IntegrationsMutation
      */
     protected function manageableIntegrationCompany(int $id): ModelsIntegrationsCompany
     {
-        $integrationCompany = ModelsIntegrationsCompany::getById($id);
-
-        if (! $integrationCompany->isManageableFrom(app(Apps::class))) {
-            throw new ModelNotFoundException('Integration not found for this app.');
-        }
-
-        return $integrationCompany;
+        return ModelsIntegrationsCompany::getManageable($id, app(Apps::class));
     }
 }
