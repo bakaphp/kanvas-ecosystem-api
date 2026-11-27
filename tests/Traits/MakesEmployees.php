@@ -43,7 +43,9 @@ trait MakesEmployees
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
-        $user = Users::factory()->create();
+        // The factory's display name is a dictionary word, shared with profiles other tests left
+        // behind, so an @mention of it would resolve to those users as well.
+        $user = Users::factory()->create(['displayname' => 'member' . fake()->unique()->lexify('??????')]);
         new RegisterUsersAppAction($user, $app)->execute((string) $user->password);
 
         new AssignCompanyAction(

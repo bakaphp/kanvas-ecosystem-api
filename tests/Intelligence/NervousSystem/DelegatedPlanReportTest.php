@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\ApprovePlanAction;
@@ -56,6 +57,8 @@ final class DelegatedPlanReportTest extends TestCase
             ->execute();
 
         ScriptedCompanyBrainAgentStub::$reply = 'Done.';
+        // CI runs the queue inline: an @mention's notification would render a mail template there.
+        Notification::fake();
         ScriptedCompanyBrainAgentStub::$lastTurnUser = null;
         ScriptedCompanyBrainAgentStub::$lastUnattended = null;
     }

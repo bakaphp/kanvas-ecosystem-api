@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
@@ -60,6 +61,8 @@ final class BlockOutcomeDeliveryTest extends TestCase
         $this->conversation = $this->sessionWithBrain($this->jenn);
 
         ScriptedCompanyBrainAgentStub::$reply = self::BRAIN_SAYS;
+        // CI runs the queue inline: an @mention's notification would render a mail template there.
+        Notification::fake();
         Bus::fake([
             WakeAgentForProjectJob::class,
             NotifyPlanOwnerOfBlockedPlanJob::class,
