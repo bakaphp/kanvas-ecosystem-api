@@ -114,13 +114,31 @@ final class SyncCustomerAccountFromBrushCrazyActionTest extends TestCase
     public function testAPasswordChangedInBrushCrazyReachesTheSiteLoginThroughThePreload(): void
     {
         $this->action()->fromRow($this->row());
-        $changed = $this->row(['password' => self::OTHER_HASH]);
+        $changed = $this->row(['password' => self::OTHER_HASH, 'points' => 150]);
 
         $action = $this->action();
         $action->preload([$changed]);
         $user = $action->fromRow($changed);
 
         $this->assertSame(self::OTHER_HASH, $user->getAppProfile(app(Apps::class))->password);
+        $this->assertEquals(150, $user->get(CustomerAccountMapper::REWARD_POINTS_FIELD));
+        $this->assertSame(
+            AccountSync::passwordFingerprint(self::OTHER_HASH),
+            $user->get(CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value)
+        );
+    }
+
+    /** Two BrushCrazy users with one email in a chunk share one login instead of failing the second. */
+    public function testASharedEmailInOneChunkMakesOneLogin(): void
+    {
+        $first = $this->row();
+        $second = $this->row(['id' => $this->bcUserId + 1]);
+
+        $action = $this->action();
+        $action->preload([$first, $second]);
+
+        $this->assertSame($action->fromRow($first)->getId(), $action->fromRow($second)->getId());
+        $this->assertSame(1, Users::where('email', $this->email())->count());
     }
 
     /** A phone BrushCrazy cleared stays on the login, so the agreed profile is the login's, not BrushCrazy's. */

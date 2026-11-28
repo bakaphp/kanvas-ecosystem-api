@@ -232,6 +232,29 @@ final class SyncCustomerFromBrushCrazyActionTest extends TestCase
         }
     }
 
+    /** The chunk preload carries each People's contacts, so a re-sync reads none row by row. */
+    public function testAPreloadedReSyncReadsNoContactsPerRow(): void
+    {
+        $people = $this->action()->fromRow($this->row());
+        $action = $this->action();
+        $action->preloadRows([$this->row()]);
+
+        DB::connection('crm')->flushQueryLog();
+        DB::connection('crm')->enableQueryLog();
+        $action->fromRow($this->row(['phone_number' => '(614) 555-0199']));
+        $queries = DB::connection('crm')->getQueryLog();
+        DB::connection('crm')->disableQueryLog();
+
+        foreach ($queries as $query) {
+            $this->assertDoesNotMatchRegularExpression('/^\s*select\b.*peoples_contacts/is', $query['query']);
+        }
+
+        $this->assertSame(
+            '6145550199',
+            $people->contacts()->where('contacts_types_id', $this->contactTypeId(ContactTypeEnum::PHONE))->value('value')
+        );
+    }
+
     public function testStoresAnInternationalPhoneWithItsCountryCode(): void
     {
         $people = $this->action()->fromRow($this->row(['phone_number' => '+44 20 7946 0958']));

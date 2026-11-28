@@ -66,8 +66,8 @@ class SyncCustomerAccountFromBrushCrazyAction
     /** @var array<int, UsersAssociatedApps> user id => their profile in this app */
     protected array $preloadedProfiles = [];
 
-    /** @var array<int, array<string, string>> user id => agreed fingerprints (AccountSync) */
-    protected array $preloadedAgreed = [];
+    /** @var array<int, array<string, mixed>> user id => the settings this mirror writes (settingNames()) */
+    protected array $preloadedSettings = [];
 
     /** @var array<int, int>|null BrushCrazy user id => linked login id, for the chunk; null = no preload */
     protected ?array $preloadedLinked = null;
@@ -123,7 +123,7 @@ class SyncCustomerAccountFromBrushCrazyAction
         $this->preloadedUsers = [];
         $this->preloadedMembers = [];
         $this->preloadedProfiles = [];
-        $this->preloadedAgreed = [];
+        $this->preloadedSettings = [];
         $this->preloadedLinked = null;
 
         if (! $this->enabled()) {
@@ -163,10 +163,10 @@ class SyncCustomerAccountFromBrushCrazyAction
             array_values(array_filter($this->preloadedUsers))
         );
 
-        // The app profiles (login password and name) and the last agreed fingerprints, one query
-        // each for the whole chunk, so keeping accounts in step adds no query per customer. A login
-        // has one row per company it joined; only the global one (getAppProfile()) holds the password
-        // the site checks.
+        // The app profiles (login password and name) and the mirror's settings, one query each for
+        // the whole chunk, so a customer with nothing new costs no query at all. A login has one
+        // row per company it joined; only the global one (getAppProfile()) holds the password the
+        // site checks.
         $memberships = UsersAssociatedApps::query()
             ->whereIn('users_id', $userIds)
             ->where('apps_id', $this->app->getId())
@@ -180,17 +180,39 @@ class SyncCustomerAccountFromBrushCrazyAction
             ->keyBy(fn (UsersAssociatedApps $profile) => (int) $profile->users_id)
             ->all();
 
-        $this->preloadedAgreed = array_fill_keys(array_keys($this->preloadedMembers), []);
+        // get() goes to the database on every Redis miss, and on a first import every key misses.
+        $this->preloadedSettings = array_fill_keys($userIds, []);
         UserConfig::query()
-            ->whereIn('users_id', array_keys($this->preloadedMembers))
-            ->whereIn('name', [
-                CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value,
-                CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value,
-            ])
+            ->whereIn('users_id', $userIds)
+            ->whereIn('name', $this->settingNames($rows))
             ->get(['users_id', 'name', 'value'])
             ->each(function (UserConfig $config) {
-                $this->preloadedAgreed[(int) $config->users_id][$config->name] = (string) $config->value;
+                $this->preloadedSettings[(int) $config->users_id][$config->name] = Str::jsonToArray($config->value);
             });
+    }
+
+    /**
+     * What the mirror writes on a login: the mapper's fields and the agreed fingerprints.
+     *
+     * @param  array<int, object>  $rows
+     * @return array<int, string>
+     */
+    protected function settingNames(array $rows): array
+    {
+        $names = [
+            CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value,
+            CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value,
+        ];
+
+        foreach ($rows as $row) {
+            $mapped = CustomerAccountMapper::map($row);
+
+            if ($mapped !== null) {
+                return [...$names, ...array_keys($mapped['custom_fields'])];
+            }
+        }
+
+        return $names;
     }
 
     public function fromRow(object $row): ?Users
@@ -275,6 +297,13 @@ class SyncCustomerAccountFromBrushCrazyAction
         $user->dob = $mapped['dob'];
         $user->saveQuietly();
 
+        // A login made just now has none of the mirror's settings: nothing to read back. And a
+        // second BrushCrazy user with the same email later in the chunk finds this one, not the
+        // preload's "no user".
+        $this->preloadedSettings[(int) $user->getKey()] = [];
+        $this->preloadedUsers[$mapped['email']] = $user;
+        $this->preloadedMembers[(int) $user->getKey()] = true;
+
         // Both sides start out agreeing. Without this, a password the customer later changes on the
         // site looks like a stale copy of BrushCrazy's, and the next mirror run puts the old one back.
         $this->rememberAgreed($user, array_filter([
@@ -297,12 +326,8 @@ class SyncCustomerAccountFromBrushCrazyAction
     {
         $userId = (int) $user->getKey();
         $profile = $this->preloadedProfiles[$userId] ?? $user->getAppProfile($this->app);
-        $agreed = $this->preloadedAgreed[$userId] ?? [
-            CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value => $user->get(CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value),
-            CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value => $user->get(CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value),
-        ];
-        $agreedPassword = Str::trimToNull((string) ($agreed[CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value] ?? ''));
-        $agreedProfile = Str::trimToNull((string) ($agreed[CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value] ?? ''));
+        $agreedPassword = Str::trimToNull((string) $this->setting($user, CustomFieldEnum::BRUSHCRAZY_SYNCED_PASSWORD->value));
+        $agreedProfile = Str::trimToNull((string) $this->setting($user, CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value));
 
         // An account the site created in BrushCrazy (its push) is the site's own until the two agree.
         $ownedByBrushCrazy = ($mapped['custom_fields'][CustomFieldEnum::BRUSHCRAZY_REGISTRATION_METHOD->value] ?? null)
@@ -406,7 +431,34 @@ class SyncCustomerAccountFromBrushCrazyAction
         $user->disableWorkflows();
 
         foreach ($fingerprints as $key => $value) {
-            $user->set($key, $value, false);
+            $this->putSetting($user, $key, $value, false);
+        }
+    }
+
+    /**
+     * One of settingNames(): from the chunk preload when the login is in it, else get().
+     */
+    protected function setting(Users $user, string $key): mixed
+    {
+        $settings = $this->preloadedSettings[(int) $user->getKey()] ?? null;
+
+        return $settings !== null ? ($settings[$key] ?? null) : $user->get($key);
+    }
+
+    /**
+     * Keeps the preload in step, so a second row for the same login in the chunk compares against
+     * what was just written.
+     */
+    protected function putSetting(Users $user, string $key, mixed $value, bool $isPublic): void
+    {
+        if ($value === null) {
+            $user->del($key);
+        } else {
+            $user->set($key, $value, $isPublic);
+        }
+
+        if (isset($this->preloadedSettings[(int) $user->getKey()])) {
+            $this->preloadedSettings[(int) $user->getKey()][$key] = $value;
         }
     }
 
@@ -467,18 +519,10 @@ class SyncCustomerAccountFromBrushCrazyAction
         $user->disableWorkflows();
 
         foreach ($fields as $key => $value) {
-            if ($value === null) {
-                if ($user->get($key) !== null) {
-                    $user->del($key);
-                }
+            $current = $this->setting($user, $key);
 
-                continue;
-            }
-
-            $current = $user->get($key);
-
-            if ($current === null || $current != $value) {
-                $user->set($key, $value, in_array($key, self::PUBLIC_FIELDS, true));
+            if ($value === null ? $current !== null : ($current === null || $current != $value)) {
+                $this->putSetting($user, $key, $value, in_array($key, self::PUBLIC_FIELDS, true));
             }
         }
     }
