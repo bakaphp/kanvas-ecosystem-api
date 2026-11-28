@@ -12,11 +12,12 @@ use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * Bill/Invoice/Expense GraphQL types are prefixed (ScribeBill, ScribeInvoice, ScribeExpense) to avoid
- * colliding with other domains' own Bill/Invoice/Expense concepts.
+ * Bill/Invoice/Expense/PurchaseOrder GraphQL types are prefixed (ScribeBill, ScribeInvoice, ScribeExpense,
+ * ScribePurchaseOrder) to avoid colliding with other domains' own concepts.
  */
 class ApprovableEntityTypeResolver extends MappedUnionTypeResolver
 {
@@ -27,6 +28,7 @@ class ApprovableEntityTypeResolver extends MappedUnionTypeResolver
         Bill::class => 'ScribeBill',
         Invoice::class => 'ScribeInvoice',
         Expense::class => 'ScribeExpense',
+        PurchaseOrder::class => 'ScribePurchaseOrder',
         Task::class => 'NervousSystemTask',
         Organization::class => 'Organization',
     ];
