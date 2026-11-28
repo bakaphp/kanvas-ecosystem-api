@@ -26,6 +26,11 @@ final readonly class InboundTurn
     ) {
     }
 
+    public static function subjectOf(Message $inbound): ?string
+    {
+        return Str::trimToNull((string) ($inbound->message['subject'] ?? $inbound->message['raw_data']['subject'] ?? ''));
+    }
+
     /**
      * @throws InboundNotAnsweredException when nothing may answer the message
      */

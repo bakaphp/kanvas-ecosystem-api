@@ -642,6 +642,31 @@ final class RespondToInboundMessageActionTest extends TestCase
         $this->assertNull($this->transport->sent[1]['content']->email);
     }
 
+    public function testAnEmailToAnAgentsOwnMailboxReachesTheModelAsAnEmail(): void
+    {
+        $mailbox = $this->connection('fake', 'sofia@kanvas.test', ['config' => [Connection::PERSONAL => true]]);
+        [$channel, $inbound] = $this->emailOn($mailbox, 'luis@customer.test', 'Re: Lot address');
+
+        $this->respond($channel, $inbound);
+
+        $prompt = $this->lastPrompt();
+        $this->assertStringContainsString('email', $prompt);
+        $this->assertStringContainsString('sofia@kanvas.test', $prompt);
+        $this->assertStringContainsString('luis@customer.test', $prompt);
+        $this->assertStringContainsString('Re: Lot address', $prompt);
+        $this->assertStringEndsWith('Is it still available?', $prompt);
+    }
+
+    public function testAnEmailOnACompanyLineReachesTheModelAsItWasWritten(): void
+    {
+        $company = $this->connection('fake', 'sales@kanvas.test');
+        [$channel, $inbound] = $this->emailOn($company, 'ana@customer.test');
+
+        $this->respond($channel, $inbound);
+
+        $this->assertSame('Is it still available?', $this->lastPrompt());
+    }
+
     /**
      * An email can wait for a person to read it first; approving it sends the same draft in the
      * conversation it answers.
@@ -872,6 +897,13 @@ final class RespondToInboundMessageActionTest extends TestCase
         }
 
         return new RespondToInboundMessageAction($channel, $inbound)->execute();
+    }
+
+    private function lastPrompt(): string
+    {
+        $turns = FakeNeuronProvider::$lastMessages;
+
+        return (string) end($turns)->getContent();
     }
 
     private function attachPhoto(Message $message, string $name): void

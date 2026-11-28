@@ -283,7 +283,11 @@ in scope on a customer surface means no recall at all. An internal agent recalls
 **its own human** had with any agent, plus everything the company kept on purpose: saved memories
 (`remember`) and ledger outcomes. What Jenn told agent B is hers; a fact she asked an agent to remember,
 or a plan it approved, is the company's (`InternalAgentMemoryPrivacyTest`, Max's decision 2026-10-04).
-An internal turn with no human (a cron) recalls only the shared kinds. Recall also
+An internal turn with no human (a cron) recalls only the shared kinds. "Its own human" is
+`memoryOwner()`, not always who the turn runs as: an email a teammate writes to the agent's mailbox runs
+as the company AI user with the teammate as the session's record, and it is stamped and recalled under
+the teammate, so it follows them to Slack and the web chat (`TeammateEmailMemoryTest`). Rights still
+come from `requestingHuman()`. Recall also
 leaves out the turns the model is already reading: `CompanyMemoryRetrieval` takes the current thread and
 `KanvasMessageStore::activeWindowStartedAt()`, and skips that thread's documents written since then,
 while older turns of the same thread (archived by a trim or a summary) stay recallable. Neuron's own

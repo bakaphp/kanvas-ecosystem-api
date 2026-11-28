@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Communication\Communication;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\HumanResources\Employees\Services\EmployeeBriefService;
@@ -43,6 +45,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\History\MessageStoreInterface;
 use Override;
+use Throwable;
 
 /**
  * A domain "system agent" that IS a Kanvas user and talks to people like a teammate.
@@ -184,7 +187,34 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             }
         }
 
+        $mailbox = $this->ownMailbox($agent);
+        if ($mailbox !== null) {
+            $lines[] = sprintf(
+                'You have your own email address, %s. It is already set up: mail sent there reaches you as a '
+                . 'message marked as an email, and what you answer is emailed back to the sender.',
+                $mailbox,
+            );
+        }
+
         return implode("\n", $lines) . "\n\n";
+    }
+
+    /**
+     * A lookup, never a reason to fail the turn: the agent answers the same without the line.
+     */
+    private function ownMailbox(Agent $agent): ?string
+    {
+        if ($this->app === null || $this->company === null) {
+            return null;
+        }
+
+        try {
+            return Communication::for($this->app, $this->company)->ownAddress(ChannelTypeEnum::EMAIL, $agent);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**

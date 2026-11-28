@@ -220,6 +220,12 @@ email adds four things, all of them there and none in a connector:
 - **A failed turn sends nothing.** The kernel's fallback copy is written for staff; for an email the
   job fails instead (`fallbackOnFailure: false`).
 - **The agent can open what was attached**: file markers go into the prompt next to the native blocks.
+- **An email to an agent's own mailbox says it is one.** The body alone reads like a chat message, and
+  an agent written to at its own address answered that it had no inbox. `asEmailToOwnMailbox()` puts
+  one line ahead of the body: the sender, the address it reached, the subject, and that the answer is
+  emailed back. Only on `Connection::isPersonalAddressOf()`; a company line reaches the model as
+  written, its agents are tuned on the bare text. `Communication::ownAddress()` is how an agent's
+  prompt learns the address outside a turn; it never falls back to the default connection.
 - **The thread subject is the lead's** (`Lead::emailThreadSubject()` / `anchorEmailThread()`, first touch wins): the outreach
   writes it, a cold inbound gives it, the follow-up engine reads it. Without a lead the transport
   threads under the mail being answered.

@@ -70,7 +70,7 @@ final class Router
         }
 
         if ($sender?->isAgent() === true) {
-            $owned = $this->carrying($channel, fn (Builder $query) => $query->where('config->agent_id', $sender->id));
+            $owned = $this->ownedBy($channel, (int) $sender->id);
 
             if ($owned !== null) {
                 return $owned;
@@ -78,6 +78,15 @@ final class Router
         }
 
         return $this->defaultConnection($channel);
+    }
+
+    /**
+     * The agent's own connection on a channel and nothing else: no default, so asking never gives a
+     * company its built-in connection.
+     */
+    public function ownedBy(ChannelTypeEnum $channel, int $agentId): ?Connection
+    {
+        return $this->carrying($channel, fn (Builder $query) => $query->where('config->agent_id', $agentId));
     }
 
     private function carrying(ChannelTypeEnum $channel, callable $narrow): ?Connection
