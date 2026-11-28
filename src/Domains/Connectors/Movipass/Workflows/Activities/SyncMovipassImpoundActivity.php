@@ -3,6 +3,7 @@
 namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -99,7 +100,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                         ];
                         $order->saveQuietly();
 
-                        return $this->generatePdfVoucher($order);
+                        return $this->generatePdfVoucher($order, $params['who'] ?? null);
                     }
                 }
 
@@ -128,11 +129,15 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
         return $start;
     }
 
-    private function generatePdfVoucher(Order $order): array
+    private function generatePdfVoucher(Order $order, mixed $releasedBy): array
     {
         $receipt = OrderTypeEnum::IMPOUND_LOT->pdfReceipt();
 
-        GenerateOrderReceiptPdfJob::dispatch($order, $order->user, $receipt);
+        GenerateOrderReceiptPdfJob::dispatch(
+            $order,
+            $releasedBy instanceof UserInterface ? $releasedBy : $order->user,
+            $receipt
+        );
 
         return [
             'status' => 'processing',
