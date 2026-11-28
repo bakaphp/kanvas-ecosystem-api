@@ -15,6 +15,8 @@ use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\SearchKnowledgeTool;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\Nodes\AgentEndNode;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
@@ -27,7 +29,7 @@ use Override;
 
 /**
  * Company memory: writing the turn that just ended and deciding what a turn may read back. Requires
- * the HasKanvasAgentBehavior properties and its requireAgent()/requestingHuman().
+ * the HasKanvasAgentBehavior properties and its requireAgent()/requestingHuman()/personAsking().
  */
 trait RemembersForCompany
 {
@@ -55,9 +57,29 @@ trait RemembersForCompany
         }
 
         $shared = Filter::in('source_type', [LedgerKnowledgeSource::MEMORY_SOURCE_TYPE, LedgerKnowledgeSource::OUTCOME_SOURCE_TYPE]);
-        $human = $this->requestingHuman()?->getId();
+        $human = $this->memoryOwner()?->getId();
 
         return $human === null ? $shared : FilterGroup::or(Filter::eq('users_id', $human), $shared);
+    }
+
+    /**
+     * A teammate's email runs as an AI identity, but its memory belongs to the session's teammate.
+     * requestingHuman() still decides rights.
+     */
+    protected function memoryOwner(): ?Users
+    {
+        $human = $this->personAsking();
+
+        if ($human !== null) {
+            return $human;
+        }
+
+        $counterpart = $this->entity;
+        $onATeammate = $counterpart instanceof Users
+            && $this->agent !== null
+            && ! KanvasConversationStore::actsAsAi($counterpart, $this->agent);
+
+        return $onATeammate ? $counterpart : $this->requestingHuman();
     }
 
     /**
@@ -208,7 +230,7 @@ trait RemembersForCompany
             appId: $this->requireApp()->getId(),
             companyId: (int) $this->company?->getId(),
             agentId: $this->requireAgent()->getId(),
-            usersId: (int) $this->requestingHuman()?->getId(),
+            usersId: (int) $this->memoryOwner()?->getId(),
             entityType: $entity === null ? null : $entity::class,
             entityId: $entity === null ? null : (int) $entity->getKey(),
         );

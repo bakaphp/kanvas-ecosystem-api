@@ -143,6 +143,17 @@ final class Communication
     }
 
     /**
+     * The address that is the agent's own on that channel, for telling the agent it has one. Null
+     * for an agent that only answers a company line.
+     */
+    public function ownAddress(ChannelTypeEnum $channel, Agent $agent): ?string
+    {
+        $connection = $this->router()->ownedBy($channel, $agent->getId());
+
+        return $connection?->isPersonalAddressOf($agent) === true ? $connection->account_key : null;
+    }
+
+    /**
      * Answers in the conversation the message belongs to: same connection, same counterpart. It
      * never falls back to the company default — an answer from another number is a new conversation
      * to whoever receives it.

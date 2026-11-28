@@ -84,7 +84,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         if ($this->isEmail()) {
             // On top of the native blocks: the markers let an internal agent open a file with its tools.
-            $prompt = AttachmentPromptBuilder::withFilesystemMarkers($prompt, $this->message->files);
+            $prompt = $this->asEmailToOwnMailbox(AttachmentPromptBuilder::withFilesystemMarkers($prompt, $this->message->files));
         }
 
         $response = new AgentChatKernel(
@@ -139,6 +139,29 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         return in_array($this->turn->medium, [ChannelTypeEnum::SMS, ChannelTypeEnum::MMS], true)
             ? SmsOptOutNoticeService::appendIfFirstOutbound($this->channel, $text)
             : $text;
+    }
+
+    /**
+     * The body alone reads like a chat message. A company line is left as written: its agents are
+     * tuned on the bare text.
+     */
+    private function asEmailToOwnMailbox(string $prompt): string
+    {
+        $mailbox = $this->turn->connection;
+
+        if (! $mailbox->isPersonalAddressOf($this->agent)) {
+            return $prompt;
+        }
+
+        $subject = InboundTurn::subjectOf($this->message);
+
+        return sprintf(
+            "[Email from %s to your own address %s%s. Your answer is emailed back to them as you write it.]\n\n%s",
+            $this->turn->recipient,
+            $mailbox->account_key,
+            $subject !== null ? ', subject "' . $subject . '"' : '',
+            $prompt
+        );
     }
 
     private function isEmail(): bool

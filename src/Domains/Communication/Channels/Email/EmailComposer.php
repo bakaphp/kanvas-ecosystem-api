@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Channels\Email;
 
-use Baka\Support\Str;
 use Kanvas\Communication\Messages\DataTransferObject\Attachment;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\EmailOptions;
+use Kanvas\Communication\Messages\DataTransferObject\InboundTurn;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -56,7 +56,7 @@ final class EmailComposer
         }
 
         $replied = $this->repliedMessage();
-        $thread = Str::trimToNull((string) ($replied?->message['subject'] ?? $replied?->message['raw_data']['subject'] ?? ''));
+        $thread = $replied !== null ? InboundTurn::subjectOf($replied) : null;
 
         if ($thread !== null) {
             return preg_match('/^\s*re:/i', $thread) === 1 ? $thread : 'Re: ' . $thread;

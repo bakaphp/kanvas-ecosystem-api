@@ -9,6 +9,7 @@ use Kanvas\Communication\Communication;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\EmailOptions;
+use Kanvas\Communication\Messages\DataTransferObject\InboundTurn;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
@@ -116,11 +117,7 @@ final class DeliverAgentReplyAction
         }
 
         if ($lead->emailThreadSubject() === null) {
-            $inboundSubject = (string) (
-                $this->inbound->message['subject']
-                ?? $this->inbound->message['raw_data']['subject']
-                ?? ''
-            );
+            $inboundSubject = (string) InboundTurn::subjectOf($this->inbound);
             $lead->anchorEmailThread((string) preg_replace('/^\s*re:\s*/i', '', $inboundSubject));
         }
 
