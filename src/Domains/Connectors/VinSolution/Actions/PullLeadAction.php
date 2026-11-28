@@ -140,6 +140,8 @@ class PullLeadAction
                     $currentLead
                 );
 
+                $this->pullAppointments($lead);
+
                 $lead->refresh();
 
                 return [
@@ -149,6 +151,18 @@ class PullLeadAction
 
             return [];
         });
+    }
+
+    /**
+     * Best-effort: an appointment API failure must not abort the lead pull.
+     */
+    protected function pullAppointments(ModelsLead $lead): void
+    {
+        try {
+            new PullAppointmentsAction($lead)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

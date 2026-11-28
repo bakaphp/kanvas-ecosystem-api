@@ -25,9 +25,16 @@ enum ConfigurationEnum: string
     case LEAD_TIME_DIFF_MINUTES = 'VIN_LEAD_TIME_DIFF_MINUTES';
     case MANAGER_NOTIFIED_AT = 'VIN_SOLUTION_MANAGER_NOTIFIED_AT';
     case DOWNLOAD_ALL_LEADS_USER = 'VIN_SOLUTION_DOWNLOAD_ALL_LEADS_USER';
+    case SESSION_COOKIES = 'VIN_SOLUTION_SESSION_COOKIES';
+    case APPOINTMENT_DURATION_MINUTES = 'VIN_SOLUTION_APPOINTMENT_DURATION_MINUTES';
 
     public static function getUserKey(Companies $company, UserInterface $user): string
     {
         return self::USER->value . '_' . $company->getId() . '_' . $user->getId();
+    }
+
+    public static function appointmentDurationMinutes(Companies $company): int
+    {
+        return (int) ($company->get(self::APPOINTMENT_DURATION_MINUTES->value) ?? 30);
     }
 }
