@@ -151,7 +151,35 @@ class SendLeadEmailsTest extends TestCase
         ];
 
         $sendRotationEmailsAction->execute($payload, 'user');
-        Notification::assertCount(3);
+        Notification::assertCount(2);
+        Notification::assertSentToTimes($user, NewLeadNotification::class, 1);
+    }
+
+    public function testOwnerWhoIsAlsoAgentAndRotationAddressIsEmailedOnce(): void
+    {
+        Notification::fake();
+        $user = auth()->user();
+
+        $leadRotation = $this->makeRotation(
+            strtoupper($user->email) . ',other@example.com,OTHER@example.com',
+            LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS
+        );
+        $leadReceiver = $this->makeReceiver($leadRotation);
+        $lead = Lead::factory()->withReceiverId($leadReceiver->getId())->create();
+
+        new SendRotationEmailsAction(
+            $lead,
+            $leadReceiver,
+            $leadRotation,
+            $user
+        )->execute($this->leadPayload(), 'user');
+
+        Notification::assertSentToTimes($user, NewLeadNotification::class, 1);
+        Notification::assertSentOnDemandTimes(NewLeadNotification::class, 1);
+        Notification::assertSentOnDemand(
+            NewLeadNotification::class,
+            fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'other@example.com'
+        );
     }
 
     public function testSendLeadEmailsInDatabase(): void
