@@ -48,6 +48,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
 {
     private const string AGENT_VERB = 'agent';
     private const string USER_VERB = 'user';
+    private const string LEAD_LABEL = '/^[ \t]*\[Lead: [^\]\r\n]*\][ \t]*/m';
 
     /** Rows the agent writes for itself on a record's channels; never history, never knowledge. */
     public const array INTERNAL_VERBS = [
@@ -127,15 +128,23 @@ class EntityRollupMessageStore extends KanvasMessageStore
                     return null;
                 }
 
+                // No lead label on the agent's own turns: the model reads its past replies as the shape
+                // of the next one and sent "[Lead: <title>] Hi Marie…" to a customer by SMS. Replies
+                // stored with the label already in them are cleaned here so they stop teaching it.
+                if ($fromIa) {
+                    $clean = preg_replace('/^(\[Assistant\]\s*)+/', '', $text) ?? $text;
+                    $clean = self::stripLeadLabels($clean);
+
+                    if ($clean === '') {
+                        return null;
+                    }
+
+                    return new AssistantMessage($clean)->setId('social:' . $socialMessage->getId());
+                }
+
                 $leadPrefix = $this->buildLeadPrefix(
                     $leadTitleByMessage[$socialMessage->getId()] ?? null,
                 );
-
-                if ($fromIa) {
-                    $clean = preg_replace('/^(\[Assistant\]\s*)+/', '', $text) ?? $text;
-
-                    return new AssistantMessage($leadPrefix . $clean)->setId('social:' . $socialMessage->getId());
-                }
 
                 $text = self::withMarker($text, $marker);
                 $channel = $socialMessage->channels->first();
@@ -271,8 +280,8 @@ class EntityRollupMessageStore extends KanvasMessageStore
     }
 
     /**
-     * Bulk-fetch the Lead title for each message_id so a People-scoped history can prefix every turn
-     * with [Lead: <title>] — lets the LLM separate cross-deal threads. No-op on Lead-scoped sessions.
+     * Bulk-fetch the Lead title for each message_id so a People-scoped history can prefix every inbound
+     * turn with [Lead: <title>] — lets the LLM separate cross-deal threads. No-op on Lead-scoped sessions.
      *
      * @param list<int> $messageIds
      * @return array<int, string> message_id => lead title
@@ -315,6 +324,14 @@ class EntityRollupMessageStore extends KanvasMessageStore
         }
 
         return "[Lead: {$leadTitle}] ";
+    }
+
+    /**
+     * Removes the history-only lead label from the start of every line of a reply.
+     */
+    public static function stripLeadLabels(string $text): string
+    {
+        return preg_replace(self::LEAD_LABEL, '', $text) ?? $text;
     }
 
     /**

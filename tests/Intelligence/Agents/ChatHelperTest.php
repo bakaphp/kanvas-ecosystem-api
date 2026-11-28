@@ -256,4 +256,26 @@ class ChatHelperTest extends TestCase
 
         return $fenced ? "```json\n" . $json . "\n```" : $json . "\n";
     }
+
+    public function testStripsTheHistoryLeadLabelTheModelCopiedIntoItsReply(): void
+    {
+        $reply = "[Lead: Marie Hutchinson Opp] Hi Marie, text the VIN right here.\n\n"
+            . '[Lead: Marie Hutchinson Opp] Would you like a couple of options?';
+
+        $this->assertSame(
+            "Hi Marie, text the VIN right here.\n\nWould you like a couple of options?",
+            ChatHelper::extractTextFromResponse($reply),
+        );
+        $this->assertSame(
+            'Hi Marie.',
+            ChatHelper::extractTextFromResponse('{"response": "[Lead: Marie Hutchinson Opp] Hi Marie."}'),
+        );
+    }
+
+    public function testKeepsALeadMentionThatIsNotALineLabel(): void
+    {
+        $reply = 'I moved it under [Lead: Marie Hutchinson Opp] as you asked.';
+
+        $this->assertSame($reply, ChatHelper::extractTextFromResponse($reply));
+    }
 }
