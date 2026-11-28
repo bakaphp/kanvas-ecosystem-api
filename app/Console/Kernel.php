@@ -21,6 +21,7 @@ use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
 use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
 use App\Console\Commands\Ecosystem\KanvasAppKeyAlertPendingSourcesCommand;
+use App\Console\Commands\Ecosystem\Notifications\DispatchScheduledAppUserMailingsCommand;
 use App\Console\Commands\Ecosystem\PruneModelCacheTagsCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
@@ -109,6 +110,7 @@ class Kernel extends ConsoleKernel
         // index grows. Laravel's own cache:prune-stale-tags cannot see them: they are written with no
         // TTL, and it prunes by score.
         $schedule->command(PruneModelCacheTagsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
+        $schedule->command(DispatchScheduledAppUserMailingsCommand::class)->everyMinute()->withoutOverlapping(10)->onOneServer();
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();

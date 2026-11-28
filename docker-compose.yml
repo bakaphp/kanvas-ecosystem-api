@@ -176,6 +176,15 @@ services:
             - "-c"
             - "php artisan config:cache && exec php artisan queue:work
               --queue=notifications --tries=3 --timeout=3750"
+    app-mailing-queue:
+        <<: *common-queue-settings
+        container_name: app-mailing-queue
+        stop_grace_period: 300s
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && exec php artisan queue:work
+              --queue=app-mailing --tries=1 --timeout=3750"
     broadcasts-queue:
         <<: *common-queue-settings
         container_name: broadcasts-queue

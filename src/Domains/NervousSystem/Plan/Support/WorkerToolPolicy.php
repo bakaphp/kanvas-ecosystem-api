@@ -56,6 +56,7 @@ class WorkerToolPolicy extends ScopedToolPolicy
         'send_outlook_email',
         'send_lead_sms',
         'send_batch_message',
+        'send_app_users_email',
         'create_lead_campaign',
         'add_people_to_campaign',
         'send_email_to_user',

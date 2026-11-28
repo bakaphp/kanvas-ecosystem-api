@@ -356,6 +356,20 @@ class OrderReportService
         ];
     }
 
+    public function activeUserIdsQuery(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?string $timezone
+    ): Builder {
+        $scope = $this->resolveScope($orderTypeNames, null);
+
+        return $this->paidPaymentsQuery($scope, $since, $until, $this->validTimezone($timezone))
+            ->whereNotNull('payments.users_id')
+            ->select('payments.users_id')
+            ->distinct();
+    }
+
     public function activeUsers(
         ?array $orderTypeNames,
         ?string $since,

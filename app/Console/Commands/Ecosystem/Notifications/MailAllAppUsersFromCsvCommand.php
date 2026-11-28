@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Notifications\Mailings\Services\AppUserMailingNotificationFactory;
 use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -331,17 +331,12 @@ class MailAllAppUsersFromCsvCommand extends Command
         string $emailTemplateName,
         string $emailSubject
     ): void {
-        $notification = new Blank(
-            $emailTemplateName,
-            [
-                'user' => $user,
-                'name' => $user->firstname . ' ' . $user->lastname,
-            ],
-            ['mail'],
-            $this->app
+        $factory = new AppUserMailingNotificationFactory($this->app, null, null);
+        $notification = $factory->forRecipient(
+            $factory->make($emailTemplateName, $emailSubject, honorMarketingPreferences: false),
+            $user,
         );
 
-        $notification->setSubject($emailSubject);
         Notification::route(
             'mail',
             $user->email
