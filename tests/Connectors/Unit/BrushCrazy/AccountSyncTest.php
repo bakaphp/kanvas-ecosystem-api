@@ -40,16 +40,41 @@ final class AccountSyncTest extends TestCase
         $b = (string) AccountSync::passwordFingerprint(self::HASH_B);
 
         // Same value: nothing to do, whatever happened before.
-        $this->assertFalse(AccountSync::brushCrazyWins($a, $a, null, true));
+        $this->assertFalse(AccountSync::brushCrazyWins(
+            $a,
+            $a,
+            null,
+            true
+        ));
 
         // The site is still at the agreed value: the change was made in BrushCrazy.
-        $this->assertTrue(AccountSync::brushCrazyWins($a, $b, $a, false));
+        $this->assertTrue(AccountSync::brushCrazyWins(
+            $a,
+            $b,
+            $a,
+            false
+        ));
 
         // The site changed since: its own push carries it to BrushCrazy.
-        $this->assertFalse(AccountSync::brushCrazyWins($b, $a, $a, true));
+        $this->assertFalse(AccountSync::brushCrazyWins(
+            $b,
+            $a,
+            $a,
+            true
+        ));
 
         // Before any sync: BrushCrazy's own accounts follow BrushCrazy, the site's keep theirs.
-        $this->assertTrue(AccountSync::brushCrazyWins($a, $b, null, true));
-        $this->assertFalse(AccountSync::brushCrazyWins($a, $b, null, false));
+        $this->assertTrue(AccountSync::brushCrazyWins(
+            $a,
+            $b,
+            null,
+            true
+        ));
+        $this->assertFalse(AccountSync::brushCrazyWins(
+            $a,
+            $b,
+            null,
+            false
+        ));
     }
 }

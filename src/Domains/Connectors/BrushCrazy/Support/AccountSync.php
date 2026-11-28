@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\BrushCrazy\Support;
 
+use Baka\Support\Str;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+
 /**
  * A customer's login lives on both systems (same email, same bcrypt password hash, same name and
  * phone) and either side may change it. Each side remembers a fingerprint of what was last agreed
@@ -28,12 +32,40 @@ final class AccountSync
     }
 
     /**
+     * The login as the site has it: the app's global profile holds its password and name, the
+     * user row the rest.
+     */
+    public static function sitePasswordHash(Users $user, UsersAssociatedApps $profile): string
+    {
+        return (string) ($profile->password ?? $user->password ?? '');
+    }
+
+    /**
+     * Keyed by profileFingerprint()'s parameter names, so it spreads straight into it.
+     *
+     * @return array{firstname: string, lastname: string, phone: ?string, email: string}
+     */
+    public static function siteProfile(Users $user, UsersAssociatedApps $profile): array
+    {
+        return [
+            'firstname' => trim((string) ($profile->firstname ?: $user->firstname)),
+            'lastname' => trim((string) ($profile->lastname ?: $user->lastname)),
+            'phone' => Str::trimToNull((string) ($user->cell_phone_number ?: $user->phone_number)),
+            'email' => Str::lower(trim((string) $user->email)),
+        ];
+    }
+
+    /**
      * Email, name and phone as both systems can compare them: BrushCrazy keeps one `name` and
      * formats phone numbers its own way, so the full name (spacing and case aside), the phone's
      * digits and the email in lower case.
      */
-    public static function profileFingerprint(?string $firstname, ?string $lastname, ?string $phone, ?string $email = null): string
-    {
+    public static function profileFingerprint(
+        ?string $firstname,
+        ?string $lastname,
+        ?string $phone,
+        ?string $email = null
+    ): string {
         $name = mb_strtolower(trim((string) preg_replace('/\s+/', ' ', trim((string) $firstname) . ' ' . trim((string) $lastname))));
         $digits = (string) preg_replace('/\D+/', '', (string) $phone);
         $address = mb_strtolower(trim((string) $email));

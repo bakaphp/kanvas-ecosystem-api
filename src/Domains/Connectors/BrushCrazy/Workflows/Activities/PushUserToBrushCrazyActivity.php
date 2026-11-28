@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\BrushCrazy\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -62,15 +61,12 @@ class PushUserToBrushCrazyActivity extends BrushCrazyPushActivity
                     return $this->failWorkflow(['message' => 'User has no email.', 'entity' => null]);
                 }
 
-                // The login as the site has it: the app profile holds its password and name.
                 $profile = $user->getAppProfile($app);
-                $hash = (string) ($profile->password ?? $user->password ?? '');
-                $firstname = trim((string) ($profile->firstname ?: $user->firstname));
-                $lastname = trim((string) ($profile->lastname ?: $user->lastname));
-                $phone = Str::trimToNull((string) ($user->cell_phone_number ?: $user->phone_number));
+                $hash = AccountSync::sitePasswordHash($user, $profile);
+                $site = AccountSync::siteProfile($user, $profile);
 
                 $password = AccountSync::passwordFingerprint($hash);
-                $profileFingerprint = AccountSync::profileFingerprint($firstname, $lastname, $phone, $email);
+                $profileFingerprint = AccountSync::profileFingerprint(...$site);
                 $brushCrazyUserId = (int) ($user->get(CustomFieldEnum::BRUSHCRAZY_USER_ID->value) ?? 0);
 
                 // `updated` fires for any change to the user (balances, last login...): only a
@@ -88,9 +84,9 @@ class PushUserToBrushCrazyActivity extends BrushCrazyPushActivity
                 $body = [
                     'email' => $email,
                     'user_id' => $brushCrazyUserId > 0 ? $brushCrazyUserId : null,
-                    'first_name' => $firstname,
-                    'last_name' => $lastname,
-                    'phone' => $phone,
+                    'first_name' => $site['firstname'],
+                    'last_name' => $site['lastname'],
+                    'phone' => $site['phone'],
                     'studio_id' => $studioId,
                     // A bcrypt hash both systems check; never the password itself.
                     'password_hash' => $password !== null ? $hash : null,

@@ -15,6 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\BrushCrazy\Actions\SyncCustomerAccountFromBrushCrazyAction;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
 use Kanvas\Connectors\BrushCrazy\Mappers\CustomerAccountMapper;
+use Kanvas\Connectors\BrushCrazy\Support\AccountSync;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -26,6 +27,8 @@ final class SyncCustomerAccountFromBrushCrazyActionTest extends TestCase
 
     /** bcrypt of "secret-pass". */
     private const string HASH = '$2y$04$8XyjsVZWwSmI4owWERm4vuNx.k5knFyzw8JPTaHooadcJ5xiGBSLW';
+
+    private const string OTHER_HASH = '$2y$04$Q4kQ3vI2z8V0w5e3l3Yp4uX3eFJ0aW8x9Yb2c1d0e9f8g7h6i5j4k';
 
     protected $connectionsToTransact = [null, 'ecosystem'];
 
@@ -105,6 +108,36 @@ final class SyncCustomerAccountFromBrushCrazyActionTest extends TestCase
         $this->assertTrue(Hash::check('chosen-on-the-site', $again->getAppProfile(app(Apps::class))->password));
         $this->assertEquals(150, $again->get(CustomerAccountMapper::REWARD_POINTS_FIELD));
         $this->assertSame(1, Users::where('email', $this->email())->count());
+    }
+
+    /** The chunk preload must hand back the global profile, the one the site checks the password on. */
+    public function testAPasswordChangedInBrushCrazyReachesTheSiteLoginThroughThePreload(): void
+    {
+        $this->action()->fromRow($this->row());
+        $changed = $this->row(['password' => self::OTHER_HASH]);
+
+        $action = $this->action();
+        $action->preload([$changed]);
+        $user = $action->fromRow($changed);
+
+        $this->assertSame(self::OTHER_HASH, $user->getAppProfile(app(Apps::class))->password);
+    }
+
+    /** A phone BrushCrazy cleared stays on the login, so the agreed profile is the login's, not BrushCrazy's. */
+    public function testTheAgreedProfileIsWhatTheLoginKept(): void
+    {
+        $this->action()->fromRow($this->row(['phone_number' => '406-555-0100']));
+
+        $user = $this->action()->fromRow($this->row(['name' => 'Jane Roe', 'phone_number' => null]));
+        $user = $user->fresh();
+        $site = AccountSync::siteProfile($user, $user->getAppProfile(app(Apps::class)));
+
+        $this->assertSame('Roe', $site['lastname']);
+        $this->assertSame('406-555-0100', $site['phone']);
+        $this->assertSame(
+            AccountSync::profileFingerprint(...$site),
+            $user->get(CustomFieldEnum::BRUSHCRAZY_SYNCED_PROFILE->value)
+        );
     }
 
     public function testWithoutACustomersBranchNoLoginIsMade(): void
