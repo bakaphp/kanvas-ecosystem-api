@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\BrushCrazy\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\BrushCrazy\Client;
 use Kanvas\Connectors\BrushCrazy\Concerns\UpsertsMirroredRows;
 use Kanvas\Connectors\BrushCrazy\Enums\CustomFieldEnum;
@@ -64,6 +64,9 @@ class SyncCustomerFromBrushCrazyAction
     /** @var array<string, int|null> normalized email => adoptable People id, null when there is none */
     protected array $adoptable = [];
 
+    /** @var array<int, Collection<int, Contact>> People id => every contact, deleted ones too, for the chunk */
+    protected array $preloadedContacts = [];
+
     public function __construct(
         protected AppInterface $app,
         protected UserInterface $user,
@@ -83,6 +86,26 @@ class SyncCustomerFromBrushCrazyAction
         $this->preloadMirroredIds(People::class, CustomFieldEnum::BRUSHCRAZY_USER_ID, $bcUserIds);
         $this->preloadMirroredFields(People::class, CustomFieldEnum::BRUSHCRAZY_USER_ID);
         $this->studioCredits = $this->credits()->forUsers($this->context->bcStudioId, $bcUserIds);
+
+        // syncContacts() runs on every row of every pass, changed or not: its contacts come from
+        // here, one query for the chunk.
+        $peopleIds = array_values(array_filter(
+            $this->mirroredIdMaps[People::class . '|' . CustomFieldEnum::BRUSHCRAZY_USER_ID->value] ?? []
+        ));
+        $this->preloadedContacts = [];
+
+        if ($peopleIds === []) {
+            return;
+        }
+
+        $byPeople = Contact::withTrashed()
+            ->whereIn('peoples_id', $peopleIds)
+            ->get()
+            ->groupBy('peoples_id');
+
+        foreach ($peopleIds as $peopleId) {
+            $this->preloadedContacts[(int) $peopleId] = $byPeople->get($peopleId) ?? new Collection();
+        }
     }
 
     /**
@@ -348,13 +371,14 @@ class SyncCustomerFromBrushCrazyAction
     protected function syncContacts(People $people, array $values): void
     {
         $key = CustomFieldEnum::BRUSHCRAZY_MIRRORED_CONTACTS->value;
-        $stored = $people->get($key);
+        $stored = Str::jsonToArray($this->storedMirroredField($people, $key));
         $stored = is_array($stored) ? $stored : [];
         $retired = array_map('intval', (array) ($stored[self::RETIRED_CONTACTS] ?? []));
         unset($stored[self::RETIRED_CONTACTS]);
         $managed = array_map('intval', $stored);
         $before = $this->mirroredContacts($managed, $retired);
-        $contacts = Contact::withTrashed()->where('peoples_id', $people->getId())->get();
+        $contacts = $this->preloadedContacts[(int) $people->getId()]
+            ?? Contact::withTrashed()->where('peoples_id', $people->getId())->get();
 
         foreach ($values as $typeValue => $value) {
             $typeId = $this->contactTypeId(ContactTypeEnum::from($typeValue));
@@ -414,13 +438,19 @@ class SyncCustomerFromBrushCrazyAction
             return;
         }
 
+        $fields = $this->storedMirroredFields($people);
+
         if ($after === []) {
             $people->del($key);
-
-            return;
+            unset($fields[$key]);
+        } else {
+            $people->set($key, $after);
+            $fields[$key] = self::storedFieldValue($after);
         }
 
-        $people->set($key, $after);
+        // The field cache is what the next read of this People (writeMirroredFields(), a second
+        // row for it) trusts.
+        $this->rememberMirroredFields($people, $fields);
     }
 
     /**
