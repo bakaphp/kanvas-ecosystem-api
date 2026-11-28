@@ -30,8 +30,6 @@ class SweepCodingSessionsCommand extends Command
 {
     use KanvasJobsTrait;
 
-    private const int STALE_MINUTES = 10;
-
     /** A coding chat parked between turns is quiet because it waits on a person, not because it died. */
     private const int CHAT_IDLE_HOURS = 24;
 
@@ -42,7 +40,7 @@ class SweepCodingSessionsCommand extends Command
 
     public function handle(): int
     {
-        $staleBefore = Carbon::now()->subMinutes(self::STALE_MINUTES);
+        $staleBefore = Carbon::now()->subMinutes(AgentTaskSession::STALE_MINUTES);
         $dryRun = (bool) $this->option('dry-run');
 
         $sessions = AgentTaskSession::query()
@@ -97,16 +95,16 @@ class SweepCodingSessionsCommand extends Command
 
         if ($stage !== null && ! $session->isProvisioned()) {
             return 'The launch stalled while ' . $stage->label() . ' — no progress for '
-                . $stage->staleMinutes(self::STALE_MINUTES) . ' minutes.';
+                . $session->launchStaleMinutes() . ' minutes.';
         }
 
         if (! $session->isProvisioned()) {
-            return 'The launch never started within ' . self::STALE_MINUTES
+            return 'The launch never started within ' . AgentTaskSession::STALE_MINUTES
                 . ' minutes — the launch job never ran or crashed before reaching a machine. Check the'
                 . ' coding queue workers and failed_jobs.';
         }
 
-        return 'No activity for ' . self::STALE_MINUTES . ' minutes — the session was interrupted.';
+        return 'No activity for ' . AgentTaskSession::STALE_MINUTES . ' minutes — the session was interrupted.';
     }
 
     private function isParkedChat(AgentTaskSession $session): bool
@@ -120,12 +118,9 @@ class SweepCodingSessionsCommand extends Command
      */
     private function isStale(AgentTaskSession $session): bool
     {
-        $minutes = $this->isParkedChat($session)
-            ? self::CHAT_IDLE_HOURS * 60
-            : $session->launchStage()?->staleMinutes(self::STALE_MINUTES) ?? self::STALE_MINUTES;
-        $lastSeen = $session->heartbeat_at ?? $session->created_at;
+        $minutes = $this->isParkedChat($session) ? self::CHAT_IDLE_HOURS * 60 : $session->launchStaleMinutes();
 
-        return $lastSeen === null || $lastSeen->lt(Carbon::now()->subMinutes($minutes));
+        return ! $session->heardFromWithin($minutes);
     }
 
     private function sweep(AgentTaskSession $session, string $reason): void

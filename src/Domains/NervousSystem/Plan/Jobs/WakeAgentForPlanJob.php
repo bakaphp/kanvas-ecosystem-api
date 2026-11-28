@@ -7,11 +7,13 @@ namespace Kanvas\NervousSystem\Plan\Jobs;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
 use Kanvas\NervousSystem\Plan\Actions\PlanContinuationAction;
@@ -19,11 +21,14 @@ use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\VerifyPlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\ContinuationDecision;
 use Kanvas\NervousSystem\Plan\Enums\ContinuationDecisionEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\PlanLoopSettings;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
@@ -40,6 +45,11 @@ use Kanvas\Social\Messages\Models\Message;
  *
  * And one on failure:
  *   plan.agent.invocation_failed — when the agent turn throws
+ *
+ * A factory agent takes no plan wake; instead:
+ *   plan.agent.handed_to_factory — an assignment or approval handed its pending tasks to the factory
+ *   plan.agent.wake_skipped      — any other wake, with whether the plan's creator was told instead;
+ *                                  also a task outcome on a plan with no owner
  */
 class WakeAgentForPlanJob implements ShouldQueue
 {
@@ -83,6 +93,14 @@ class WakeAgentForPlanJob implements ShouldQueue
      */
     private const array REASONS_THAT_NEED_A_TURN = [self::REASON_COMMENT, self::REASON_CHILD_OUTCOME];
 
+    /**
+     * When a factory agent's plan hands its tasks over. Approval is one of them: a plan held for sign-off
+     * is assigned while it cannot run, and the approval is the only wake that comes after.
+     *
+     * @var list<string>
+     */
+    private const array REASONS_THAT_START_WORK = [self::REASON_PLAN_ASSIGNED, self::REASON_APPROVED];
+
     /** Enough to see a board, short of pasting a long plan into every wake. */
     private const int INVENTORY_LIMIT = 30;
 
@@ -100,16 +118,33 @@ class WakeAgentForPlanJob implements ShouldQueue
         $this->overwriteAppService($this->plan->app);
 
         $agent = $this->plan->agent;
-        $owner = $this->plan->user ?? $agent?->user;
 
-        if ($agent === null || $owner === null) {
+        // A factory stage whose first step runs in Kanvas has no owner (StartFactoryStageAction), so a step
+        // of it that blocks or fails has nobody to wake here: the agent that started the stage hears it.
+        if ($agent === null) {
+            if ($this->reason === self::REASON_TASK_COMPLETED) {
+                $this->skipAndTellTheCreator();
+            }
+
+            return;
+        }
+
+        $owner = $this->plan->user ?? $agent->user;
+
+        if ($owner === null) {
             return;
         }
 
         // A factory agent has no model of its own to own a plan with: the chat kernel would type this
-        // wake into its opencode session, in its default checkout, as if a person had asked for it.
+        // wake into its opencode session, in its default checkout, as if a person had asked for it. An
+        // assignment or an approval hands the plan's tasks to the factory instead; any other fact goes to
+        // its creator.
         if (CodingChatSettingEnum::isEnabledFor($agent)) {
-            $this->tellWhoeverAskedForThePlan();
+            if (in_array($this->reason, self::REASONS_THAT_START_WORK, true) && $this->planTakesWork()) {
+                $this->handOverToTheFactory($agent);
+            } else {
+                $this->skipAndTellTheCreator();
+            }
 
             return;
         }
@@ -209,11 +244,29 @@ class WakeAgentForPlanJob implements ShouldQueue
         }
     }
 
+    private function skipAndTellTheCreator(): void
+    {
+        $this->plan->emitLedgerEvent('plan.agent.wake_skipped', payload: [
+            'agent_id' => $this->plan->agent_id,
+            'reason' => $this->reason,
+            'forwarded_to_creator' => $this->tellWhoeverAskedForThePlan(),
+        ]);
+    }
+
+    /** Still open, and not held for a brief or a sign-off: the worker would drop its tasks unrun. */
+    private function planTakesWork(): bool
+    {
+        $status = PlanStatusEnum::from((string) $this->plan->status);
+
+        return $status->isExecutable() && in_array($status, PlanStatusEnum::openStatuses(), true);
+    }
+
     /**
-     * The fact a factory-owned plan cannot act on (a task finished, a person commented) goes to the agent
-     * that created the plan, which is the one deciding its next step. Nothing to forward wakes nobody.
+     * The fact a plan's owner cannot act on (a task finished, a person commented), or that a plan with no
+     * owner has nobody to act on, goes to the agent that created the plan, which is the one deciding its
+     * next step. Nothing to forward wakes nobody. Returns whether the creator was woken.
      */
-    private function tellWhoeverAskedForThePlan(): void
+    private function tellWhoeverAskedForThePlan(): bool
     {
         $creator = $this->plan->createdByAgent;
         $project = $this->plan->project;
@@ -225,28 +278,62 @@ class WakeAgentForPlanJob implements ShouldQueue
             || $creator->is($this->plan->agent)
             || CodingChatSettingEnum::isEnabledFor($creator)
         ) {
-            return;
+            return false;
         }
 
         // The last task finishing is reported by WakeProjectManagerOnPlanOutcomeListener, into the
         // conversation the plan was asked in; forwarding it too would wake the creator twice.
         if ($this->reason === self::REASON_TASK_COMPLETED && $this->plan->everyTaskFinished()) {
-            return;
+            return false;
         }
+
+        $worker = $this->plan->agent?->name;
 
         WakeAgentForProjectJob::dispatch(
             $project,
             WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
             sprintf(
-                'On plan %d ("%s"), worked by %s in the factory: %s Read the task with get_nervous_system_task '
+                'On plan %d ("%s")%s: %s Read the task with get_nervous_system_task '
                 . 'before you report anything or hand out the next step; its result and any blocker are recorded there.',
                 $this->plan->getId(),
                 (string) $this->plan->title,
-                (string) $this->plan->agent?->name,
+                $worker !== null ? ', worked by ' . $worker . ' in the factory' : '',
                 $this->userMessage,
             ),
             wakeAgent: $creator,
         );
+
+        return true;
+    }
+
+    /**
+     * An assigned plan reaches a factory agent only through its tasks (`WakeAgentForTaskJob` →
+     * `RunTaskWorkerJob`): each pending task, unassigned or already the agent's, goes there once.
+     */
+    private function handOverToTheFactory(Agent $agent): void
+    {
+        $pending = fn (): HasMany => $this->plan->tasks()->where('status', TaskStatusEnum::PENDING->value);
+
+        // Claimed in one conditional write, never read and then saved: a stage plan is created with its
+        // owner before `StartFactoryStageAction` has handed each step to its own agent, and a save after a
+        // stale read would put the designer on the builder's step.
+        $pending()->whereNull('agent_id')->update(['agent_id' => $agent->getId()]);
+
+        // From the write connection: `intelligence` is not sticky, and a replica may not have the claim yet.
+        $tasks = $pending()
+            ->where('agent_id', $agent->getId())
+            ->orderBy('sequence')
+            ->useWritePdo()
+            ->get();
+
+        foreach ($tasks as $task) {
+            WakeAgentForTaskJob::dispatch($task);
+        }
+
+        $this->plan->emitLedgerEvent('plan.agent.handed_to_factory', payload: [
+            'agent_id' => $agent->getId(),
+            'task_ids' => $tasks->map->getId()->values()->all(),
+        ]);
     }
 
     /**

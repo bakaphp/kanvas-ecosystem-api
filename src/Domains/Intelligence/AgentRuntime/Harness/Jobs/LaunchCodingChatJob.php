@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
@@ -45,6 +46,17 @@ class LaunchCodingChatJob implements ShouldQueue
     /** What the factory answers when the branch a task run needs is checked out in another worktree. */
     private const string BRANCH_TAKEN = 'could not create a worktree';
 
+    /**
+     * A launch can reach the worker before the row that dispatched it is visible (a transaction still
+     * open on the dispatching side), so a missing row is looked for again before the launch gives up.
+     */
+    private const int MISSING_ROW_LOOKUPS = 5;
+
+    private const int MISSING_ROW_DELAY_SECONDS = 5;
+
+    /** A provisioned run is polled every minute; one unheard-of for this long is not holding the devices. */
+    private const int RUNNING_SILENT_MINUTES = 30;
+
     public int $tries = 1;
 
     public function __construct(
@@ -52,6 +64,7 @@ class LaunchCodingChatJob implements ShouldQueue
         public readonly int $sessionId,
         public readonly string $instruction,
         public readonly bool $retriedAfterRelease = false,
+        public readonly int $lookups = 0,
     ) {
         $this->onQueue('coding');
     }
@@ -62,7 +75,13 @@ class LaunchCodingChatJob implements ShouldQueue
 
         $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
-        if ($session === null || ! $session->isLive()) {
+        if ($session === null) {
+            $this->lookAgainLater();
+
+            return;
+        }
+
+        if (! $session->isLive()) {
             return;
         }
 
@@ -202,7 +221,7 @@ class LaunchCodingChatJob implements ShouldQueue
             ->live()
             ->with('task')
             ->get()
-            ->filter(static fn (AgentTaskSession $other): bool => $other->isTaskRun());
+            ->filter(static fn (AgentTaskSession $other): bool => $other->isTaskRun() && self::isAlive($other));
 
         $running = $others->filter(static fn (AgentTaskSession $other): bool => $other->isProvisioned())->count();
         $aheadInLine = $others->contains(
@@ -222,6 +241,39 @@ class LaunchCodingChatJob implements ShouldQueue
             ->delay(Carbon::now()->addSeconds(self::TURN_CHECK_SECONDS));
 
         return true;
+    }
+
+    /**
+     * Only a run that is still being heard from holds the Mac. A row whose launch or poller died stays
+     * live until the sweeper closes it, and a waiting run touches its own heartbeat every minute so it is
+     * never swept: counting a dead row would keep every later run on the machine waiting for good.
+     */
+    private static function isAlive(AgentTaskSession $other): bool
+    {
+        return $other->heardFromWithin(
+            $other->isProvisioned() ? self::RUNNING_SILENT_MINUTES : $other->launchStaleMinutes()
+        );
+    }
+
+    private function lookAgainLater(): void
+    {
+        if ($this->lookups >= self::MISSING_ROW_LOOKUPS) {
+            Log::warning('Coding chat launch found no session row; giving up', [
+                'session_id' => $this->sessionId,
+                'app_id' => $this->app->getId(),
+                'lookups' => $this->lookups,
+            ]);
+
+            return;
+        }
+
+        self::dispatch(
+            $this->app,
+            $this->sessionId,
+            $this->instruction,
+            $this->retriedAfterRelease,
+            $this->lookups + 1,
+        )->delay(Carbon::now()->addSeconds(self::MISSING_ROW_DELAY_SECONDS));
     }
 
     /**

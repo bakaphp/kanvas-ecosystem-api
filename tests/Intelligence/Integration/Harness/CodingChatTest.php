@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
@@ -52,6 +53,7 @@ use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
@@ -64,6 +66,7 @@ use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Users\Models\Users;
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use RuntimeException;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
@@ -1292,6 +1295,13 @@ class CodingChatTest extends TestCase
                 && $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
                 && str_contains((string) $job->triggerMessage, 'is now done')
         );
+        $skipped = Event::query()
+            ->where('event_type', 'plan.agent.wake_skipped')
+            ->where('source_entity_id', $plan->getId())
+            ->first();
+        $this->assertNotNull($skipped, 'the skipped wake is recorded');
+        $this->assertSame(WakeAgentForPlanJob::REASON_TASK_COMPLETED, $skipped->payload['reason']);
+        $this->assertTrue($skipped->payload['forwarded_to_creator']);
     }
 
     public function testAPlanWakeForAFactoryAgentWithNothingToPassOnWakesNobody(): void
@@ -1305,6 +1315,60 @@ class CodingChatTest extends TestCase
         $this->assertFalse(AgentTaskSession::query()->where('agent_id', $builder->getId())->exists());
         Queue::assertNotPushed(LaunchCodingChatJob::class);
         Queue::assertNotPushed(WakeAgentForProjectJob::class);
+    }
+
+    /** Held for sign-off, its tasks cannot run when it is assigned, and the approval is the only wake after. */
+    public function testApprovingAPlanOfAFactoryAgentHandsItsPendingTasksToTheFactory(): void
+    {
+        Queue::fake();
+        $builder = $this->factoryAgent();
+        $plan = $this->planAFactoryAgentOwns($builder);
+        $pending = $plan->tasks()->sole();
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_APPROVED)->handle();
+
+        Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($pending));
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+        $this->assertTrue(
+            Event::query()
+                ->where('event_type', 'plan.agent.handed_to_factory')
+                ->where('source_entity_id', $plan->getId())
+                ->exists()
+        );
+    }
+
+    #[DataProvider('plansThatTakeNoWork')]
+    public function testAPlanThatCannotRunHandsNothingToTheFactoryAndRecordsTheSkip(PlanStatusEnum $status): void
+    {
+        Queue::fake();
+        $builder = $this->factoryAgent();
+        $plan = $this->planAFactoryAgentOwns($builder);
+        $plan->status = $status->value;
+        $plan->saveQuietly();
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_PLAN_ASSIGNED)->handle();
+
+        Queue::assertNotPushed(WakeAgentForProjectJob::class);
+        Queue::assertNotPushed(WakeAgentForTaskJob::class);
+        $skipped = Event::query()
+            ->where('event_type', 'plan.agent.wake_skipped')
+            ->where('source_entity_id', $plan->getId())
+            ->first();
+        $this->assertNotNull($skipped, 'a skip that told nobody is still on the ledger');
+        $this->assertSame(WakeAgentForPlanJob::REASON_PLAN_ASSIGNED, $skipped->payload['reason']);
+        $this->assertFalse($skipped->payload['forwarded_to_creator']);
+    }
+
+    /**
+     * @return array<string, array{0: PlanStatusEnum}>
+     */
+    public static function plansThatTakeNoWork(): array
+    {
+        return [
+            'waiting on sign-off' => [PlanStatusEnum::AWAITING_APPROVAL],
+            'already done' => [PlanStatusEnum::DONE],
+            'cancelled' => [PlanStatusEnum::CANCELLED],
+        ];
     }
 
     /**
@@ -1453,6 +1517,120 @@ class CodingChatTest extends TestCase
 
         $this->assertContains('ask_repository', $this->toolNamesOf($this->kanvasAgent()));
         $this->assertNotContains('ask_repository', $this->toolNamesOf($reader));
+    }
+
+    public function testARunNoLongerHeardFromDoesNotKeepTheNextRunWaiting(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $dead = $this->startFactoryRun($this->factoryTask($akira, 'Build the login screen'));
+        $dead->heartbeat_at = Carbon::now()->subMinutes(31);
+        $dead->saveOrFail();
+        $next = $this->factoryTask($akira, 'Build the settings screen');
+        new RunTaskWorkerJob($next)->handle();
+        $run = $this->factoryRunOf($next);
+
+        new LaunchCodingChatJob(app(Apps::class), $run->getId(), 'the brief')->handle();
+
+        $run->refresh();
+        $this->assertNotSame(LaunchStageEnum::WAITING_FOR_FACTORY, $run->launchStage(), 'a dead run holds no devices');
+        $this->assertStringContainsString('Could not start', (string) $run->error_message, 'it went to the Mac');
+    }
+
+    public function testALaunchThatStalledAheadInLineDoesNotHoldTheQueueForever(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $first = $this->factoryTask($akira, 'Build the login screen');
+        new RunTaskWorkerJob($first)->handle();
+        $stalled = $this->factoryRunOf($first);
+        $stalled->heartbeat_at = Carbon::now()->subMinutes(17);
+        $stalled->saveOrFail();
+        $second = $this->factoryTask($akira, 'Build the settings screen');
+        new RunTaskWorkerJob($second)->handle();
+        $run = $this->factoryRunOf($second);
+
+        new LaunchCodingChatJob(app(Apps::class), $run->getId(), 'the brief')->handle();
+
+        $this->assertNotSame(LaunchStageEnum::WAITING_FOR_FACTORY, $run->refresh()->launchStage());
+    }
+
+    public function testALaunchThatCannotFindItsSessionLooksAgainAndThenGivesUpOutLoud(): void
+    {
+        Queue::fake();
+        Log::spy();
+        $missing = (int) AgentTaskSession::query()->max('id') + 1000;
+
+        new LaunchCodingChatJob(app(Apps::class), $missing, 'the brief')->handle();
+
+        Queue::assertPushed(
+            LaunchCodingChatJob::class,
+            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $missing
+                && $job->lookups === 1
+                && $job->delay instanceof Carbon
+                && abs($job->delay->diffInSeconds(Carbon::now()->addSeconds(5), false)) <= 3
+        );
+
+        Queue::fake();
+        new LaunchCodingChatJob(
+            app(Apps::class),
+            $missing,
+            'the brief',
+            lookups: 5,
+        )->handle();
+
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'giving up')
+                && $context['session_id'] === $missing
+                && $context['lookups'] === 5);
+    }
+
+    public function testALaunchWhoseRowIsAlreadyClosedIsNeverLookedForAgain(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $closed = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::COMPLETED);
+
+        new LaunchCodingChatJob(app(Apps::class), $closed->getId(), 'the brief')->handle();
+
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+    }
+
+    public function testAssigningAPlanToAFactoryAgentHandsItsPendingTasksToTheFactory(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $plan = $this->makePlan(['title' => 'Second Look build'], $akira);
+        $pending = $this->makeTask($plan);
+        $done = $this->makeTask($plan, TaskStatusEnum::DONE, sequence: 1);
+        $ownedByAkira = $this->makeTask($plan, sequence: 2);
+        $ownedByAkira->agent_id = $akira->getId();
+        $ownedByAkira->saveOrFail();
+        $ownedByAnother = $this->makeTask($plan, sequence: 3);
+        $ownedByAnother->agent_id = $this->makeAgent()->getId();
+        $ownedByAnother->saveOrFail();
+        $anotherAgentId = $ownedByAnother->agent_id;
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_PLAN_ASSIGNED)->handle();
+
+        $this->assertSame($akira->getId(), $pending->refresh()->agent_id, 'an unassigned task becomes the agent\'s');
+        $this->assertSame($akira->getId(), $ownedByAkira->refresh()->agent_id);
+        $this->assertSame($anotherAgentId, $ownedByAnother->refresh()->agent_id, 'another agent\'s task is left alone');
+        Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($pending));
+        Queue::assertPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($ownedByAkira));
+        Queue::assertNotPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($done));
+        Queue::assertNotPushed(WakeAgentForTaskJob::class, fn (WakeAgentForTaskJob $job): bool => $job->task->is($ownedByAnother));
+        Queue::assertNotPushed(LaunchCodingChatJob::class);
+
+        $handed = Event::query()
+            ->where('event_type', 'plan.agent.handed_to_factory')
+            ->where('source_entity_id', $plan->getId())
+            ->first();
+        $this->assertNotNull($handed, 'the handover is on the ledger');
+        $this->assertEqualsCanonicalizing([$pending->getId(), $ownedByAkira->getId()], $handed->payload['task_ids']);
+        $this->assertNotContains($ownedByAnother->getId(), $handed->payload['task_ids']);
     }
 
     public function testTheFactoryClientReportsWhoHoldsACheckoutInUse(): void

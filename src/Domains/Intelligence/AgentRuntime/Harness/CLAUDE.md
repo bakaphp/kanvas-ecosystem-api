@@ -222,8 +222,14 @@ The agent's own `soul` + `instructions` are sent on every `open` as the factory'
 posts through the plan's origin channel. A **task run** is the same row whose task has a parent: a
 workflow handed the agent a task (`RunTaskWorkerJob`, `WakeAgentForTaskJob`), the run is that task's
 child, and its first turn closes it — the reply becomes `worker_summary`, the child's outcome resumes the
-worker, which closes the task from that answer instead of running the factory again. Paths that do not
-go through those two (plan-owner wakes, `VerifyPlanAction`, receivers, "run agent on record") are not
+worker, which closes the task from that answer instead of running the factory again. **Plan-owner wakes never
+reach the factory either** (see the bullet on factory-owned plans below): a fact goes to the plan's creator,
+and an assignment or an approval (`plan_assigned`, `approved`) hands the pending tasks of a plan that can
+run (open, not held for a brief or a sign-off) to `WakeAgentForTaskJob`, ledger
+`plan.agent.handed_to_factory`; every other wake is recorded as `plan.agent.wake_skipped`. The unassigned
+tasks are claimed in one conditional `UPDATE`, never read and then saved: a stage plan gets its owner before
+`StartFactoryStageAction` has handed each step to its own agent, and a save after a stale read put the
+designer on the builder's step. Other paths (`VerifyPlanAction`, receivers, "run agent on record") are not
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
@@ -253,6 +259,9 @@ Things that bite:
   before removing the folder. Task runs still take turns per Mac (`CODING_CHAT_MAX_TASK_RUNS`, default 1,
   first come first served) because the simulator, emulator and Metro's port are machine-wide; a run
   whose turn has not come waits in `waiting_for_factory` and re-checks every minute — never a failure.
+  Only rows still heard from count: a launching row within its stage's stale window, a provisioned run
+  heard from in the last 30 minutes. A dead row (its launch or poller gone) stays live until the sweeper
+  closes it, and counted it kept every later run on that Mac waiting — across companies — for good.
 - **A task says where it works with a `Repo: <folder>` line** (`CodingChatCheckouts::forTask()`). The line
   wins over any other checkout the text names, is looked up past the five-minute list cache, and a
   declared folder the Mac does not have blocks the task instead of falling back to
@@ -306,19 +315,48 @@ Things that bite:
   (API not deployed, a message type to create) lands the ticket with a "Waiting on backend" list instead
   of BLOCKED, and the release pull request gathers them. The branching lives in the task text, not in
   `serve.sh`, so the Mac needs no change for it.
+- **Learn & improve closes the loop for an app that already exists** (`start_factory_learn`,
+  `FactoryStage::learn()`). One step, for the project's Learn agent (`factory_learn_agent_id`): an agent that
+  works in Kanvas with Amplitude and Sentry tools, never a factory agent (it has a checkout, not data
+  tools), so the step has no `Repo:` line. Its text, written here like every stage, carries the method: read
+  the board's history and every "Rejected:" note first, read each released improvement's metric at week 3
+  and week 6, triage production errors (a warning the app logs on purpose is never a fix; native crashes go
+  to a person), find the worst drop in the product funnel, and answer with up to three
+  `## Improvement <n>:` blocks, each with its metric and read dates. The optional
+  `factory_learn_amplitude_project` / `factory_learn_sentry_project` settings name the sources in the
+  text. When it finishes, the orchestrator is told to start each improvement with `start_factory_ticket`
+  (improvements skip the go/no-go gate) and then `start_factory_release`; the next Learn reads what they
+  did. Starting it while one is open returns the open one. Its plan has no owning agent (a plan owner that
+  is not a factory agent is woken on the plan on top of its task), so only the task wake runs the Learn agent.
+  - **The step runs as a worker, not a board turn** (`WakeAgentForTaskJob` → `RunTaskWorkerJob`). A board
+    turn posts its reply on the project channel and wakes the orchestrator when the agent flips the status,
+    before that reply exists; the worker saves the reply as the task's `worker_summary`, whole, and only
+    then closes the task. The orchestrator is pointed at `get_nervous_system_task` for it:
+    `read_plan_activity` cuts the middle out of a result over 4,000 characters.
+  - **A Learn step is told by its text, never by the plan's title** (`FactoryStage::isLearnStep()`):
+    "Learn: …" is a title anyone types, and the fact that follows starts tickets and a release unasked.
+  - **A step that blocks or throws reaches the orchestrator**: with no plan owner, `WakeAgentForPlanJob`
+    forwards a task outcome (`task_completed` only) to the plan's creator. That also covers a kickoff,
+    ticket or release whose first step belongs to a `CODING_FACTORY_TASKS` agent, which is ownerless too.
+  - **The Learn agent must be able to take board work** (`Agent::canExecuteBoardWork()`): a machine runtime
+    or a CRM-type agent is refused by `start_factory_learn`, because its task would be dropped unrun.
 - **Mixed plans: a Kanvas step waits for the factory step ahead of it** (`Task::waitsOnEarlierFactoryWork()`),
   and the factory worker that finishes starts it. A reopened task on a factory-owned plan, or one that runs
   on the Mac, is woken as a task; its blocked plan unblocks itself (`Plan::resumeIfNothingBlocks()`), only
   for factory work. Plans with no factory work behave as before.
 - **A plan a factory agent owns never wakes that agent's chat.** A plan wake (task done, comment) would
   otherwise be typed into its opencode session as a request; `WakeAgentForPlanJob` forwards the fact to
-  the agent that created the plan instead (`REASON_PLAN_OUTCOME`).
+  the agent that created the plan instead (`REASON_PLAN_OUTCOME`), and records the skip as ledger
+  `plan.agent.wake_skipped` (`reason`, `forwarded_to_creator`).
 - **A new app is created on the Mac, by the agent, never by Kanvas.** `gh` only works inside the Mac's
   desktop login, which is where the session runs and where an SSH call from here does not. The kickoff
   is a task in the template's checkout (`Repo: kanvas-mobile-skeleton`) that runs the factory's
   `.kanvas/new-app create <Name>` (`scripts/new-app.sh`: private repository, clone with the template as
   `upstream`, `main` + `develop`, dependencies); the next task names the new folder and sets the identity
   with `.kanvas/new-app identity`. Env keys, `eas init` and store accounts stay a person's.
+- **A launch that finds no session row looks again.** `LaunchCodingChatJob` re-dispatches itself up to
+  five times, five seconds apart, then logs a warning. Returning silently left the row STARTING until the
+  sweeper reaped it as "the launch job never ran", with nothing in any log.
 - **One lock per checkout, on the Mac — for chats.** `open` takes `locks/<App>`; every environment pointing at the
   same Mac shares it, so a local test chat holds a checkout production then cannot open ("in use"). A
   refusal carries the lock's `holder` (`CheckoutInUseException`); `CheckoutHolderNotice` turns it into
