@@ -60,4 +60,26 @@ final class EntityRollupMessageOrderTest extends TestCase
         $questions = array_values(array_filter($history->getMessages(), fn (Message $turn): bool => $turn->getRole() === 'user'));
         $this->assertStringContainsString('Change that to Saturday.', (string) end($questions)->getContent());
     }
+
+    public function testAPersonHistoryLabelsTheLeadOnInboundTurnsOnly(): void
+    {
+        Queue::fake();
+        $lead = $this->makeLead();
+        $label = '[Lead: ' . $lead->title . ']';
+        $this->leadMessage($lead, 'Yes')->addEntity($lead->people);
+        $this->leadMessage($lead, 'Friday is available.', fromAgent: true)->addEntity($lead->people);
+        $this->leadMessage($lead, $label . " Hi Marie.\n\n" . $label . ' Sent.', fromAgent: true)
+            ->addEntity($lead->people);
+
+        $turns = new EntityRollupMessageStore(
+            app: $lead->app,
+            company: $lead->company,
+            user: auth()->user(),
+            entity: $lead->people,
+        )->loadActive('thread');
+
+        $this->assertStringStartsWith($label, (string) $turns[0]->getContent());
+        $this->assertSame('Friday is available.', (string) $turns[1]->getContent());
+        $this->assertSame("Hi Marie.\n\nSent.", (string) $turns[2]->getContent());
+    }
 }

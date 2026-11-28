@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Helpers;
 
+use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
+
 class ChatHelper
 {
     private const array CONTENT_KEYS = [
@@ -25,7 +27,9 @@ class ChatHelper
 
     public static function extractTextFromResponse(string $response): string
     {
-        return self::collapseDuplicatedBody(self::resolveResponseText($response));
+        return self::collapseDuplicatedBody(
+            EntityRollupMessageStore::stripLeadLabels(self::resolveResponseText($response))
+        );
     }
 
     private static function resolveResponseText(string $response): string
