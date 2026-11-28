@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\DeleteTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GenerateTemplatePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GetTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\ListTemplatesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\TagTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\UpdateTemplateTool;
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;
@@ -38,6 +39,24 @@ class TemplateToolsTest extends TestCase
         $template = Templates::getByIdFromCompanyApp((int) $result['template_id'], $company, $app);
         $this->assertSame($name, $template->name);
         $this->assertSame($user->getId(), (int) $template->users_id);
+    }
+
+    public function testCreateTemplateAttachesAndReturnsTags(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $tags = ['newsletter-' . uniqid(), 'marketing-' . uniqid()];
+
+        $result = new CreateTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(name: 'tpl-' . uniqid(), html: '<p>newsletter</p>', tags: $tags);
+
+        $this->assertTrue($result['success']);
+        $this->assertEqualsCanonicalizing($tags, $result['tags']);
+
+        $template = Templates::getByIdFromCompanyApp((int) $result['template_id'], $company, $app);
+        $this->assertEqualsCanonicalizing($tags, $template->tags()->pluck('name')->all());
     }
 
     public function testCreateDuplicateNameReturnsError(): void
@@ -71,6 +90,68 @@ class TemplateToolsTest extends TestCase
         $this->assertArrayNotHasKey('error', $result);
         $template = Templates::getByIdFromCompanyApp((int) $created['template_id'], $company, $app);
         $this->assertSame('<p>pretty</p>', $template->template);
+    }
+
+    public function testUpdateTemplateSyncsTags(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $created = new CreateTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(
+                name: 'tpl-' . uniqid(),
+                html: '<p>before</p>',
+                tags: ['old-' . uniqid()]
+            );
+        $tags = ['updated-tag-' . uniqid()];
+
+        $result = new UpdateTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(template_id: (int) $created['template_id'], tags: $tags);
+
+        $this->assertTrue($result['success']);
+        $this->assertEqualsCanonicalizing($tags, $result['tags']);
+    }
+
+    public function testTagTemplateAddsAndRemovesTagsOnOwnedTemplate(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $created = new CreateTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(name: 'tpl-' . uniqid(), html: '<p>tag me</p>');
+        $tagNames = ['first-' . uniqid(), 'second-' . uniqid()];
+        $tool = new TagTemplateTool()->withContext($app, $company, $user);
+
+        $added = $tool->__invoke(template_id: (int) $created['template_id'], tags: $tagNames);
+        $this->assertTrue($added['success']);
+        $this->assertEqualsCanonicalizing($tagNames, $added['tags']);
+
+        $removed = $tool->__invoke(
+            template_id: (int) $created['template_id'],
+            tags: [$tagNames[0]],
+            remove: true
+        );
+        $this->assertTrue($removed['success']);
+        $this->assertSame([$tagNames[1]], $removed['tags']);
+    }
+
+    public function testTagTemplateDeniesTaggingUnownedTemplate(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $foreign = $this->makeForeignTemplate($app, $company, $user->getId() + 1);
+
+        $result = new TagTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(template_id: $foreign->getId(), tags: ['not-allowed-' . uniqid()]);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame(ToolOutcomeEnum::DENIED->value, $result['outcome']);
+        $this->assertFalse($foreign->tags()->exists());
     }
 
     public function testUpdateNotOwnedTemplateReturnsError(): void
@@ -233,6 +314,28 @@ class TemplateToolsTest extends TestCase
         $byName = collect($result['templates'])->keyBy('name');
         $this->assertTrue($byName[$prefix . 'mine']['owned']);
         $this->assertFalse($byName[$prefix . 'foreign']['owned']);
+    }
+
+    public function testGetAndListTemplateResponsesIncludeTags(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $name = 'tagged-' . uniqid();
+        $tags = ['get-list-' . uniqid()];
+        $created = new CreateTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(name: $name, html: '<p>tagged</p>', tags: $tags);
+
+        $getResult = new GetTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(template_id: (int) $created['template_id']);
+        $listResult = new ListTemplatesTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(search: $name);
+
+        $this->assertEqualsCanonicalizing($tags, $getResult['tags']);
+        $this->assertEqualsCanonicalizing($tags, $listResult['templates'][0]['tags']);
     }
 
     public function testGetTemplateReturnsHtmlBody(): void

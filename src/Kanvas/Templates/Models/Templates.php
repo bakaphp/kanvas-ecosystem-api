@@ -16,6 +16,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Templates\Enums\TemplateEngineEnum;
 use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\TemplatesVariables\Models\TemplatesVariables;
@@ -41,6 +42,7 @@ use Override;
 class Templates extends BaseModel
 {
     use HasCustomFields;
+    use HasTagsTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }

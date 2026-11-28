@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Templates;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
@@ -14,6 +15,8 @@ use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class TemplatesManagementMutation
 {
+    use SyncsEntityRelatedInput;
+
     public function create(mixed $root, array $request): Templates
     {
         $request = $request['input'];
@@ -38,6 +41,7 @@ class TemplatesManagementMutation
             'parentTemplateId' => $request['parent_template_id'] ?? null,
             'company' => $user->getCurrentCompany(),
             'user' => $user,
+            'tags' => $request['tags'] ?? null,
         ]);
 
         $template = new CreateTemplateAction(
@@ -61,6 +65,14 @@ class TemplatesManagementMutation
                 $templateVariablesDto
             )->execute();
         }
+
+        self::syncTags(
+            $template,
+            $request,
+            $app,
+            $user,
+            $user->getCurrentCompany()
+        );
 
         return $template;
     }
@@ -88,6 +100,7 @@ class TemplatesManagementMutation
             'isSystem' => $request['is_system'] ?? false,
             'company' => $user->getCurrentCompany(),
             'user' => $user,
+            'tags' => $request['tags'] ?? null,
         ]);
 
         $template->update([
@@ -114,6 +127,14 @@ class TemplatesManagementMutation
                 $templateVariablesDto
             )->execute();
         }
+
+        self::syncTags(
+            $template,
+            $request,
+            $app,
+            $user,
+            $user->getCurrentCompany()
+        );
 
         return $template;
     }
