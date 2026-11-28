@@ -38,10 +38,15 @@ class SendRotationEmailsAction
             && $activeUsers->isNotEmpty();
 
         $recipients = $shouldNotifyAgents
-            ? collect([$owner])->merge($activeUsers)->all()
+            ? collect([$owner])->merge($activeUsers)->unique(fn (Users $user) => $user->getId())->values()->all()
             : [$owner];
 
-        $extraEmails = $this->resolveExtraEmails($shouldNotifyAgents);
+        $notificationMode = $this->resolveNotificationMode();
+        $notifiedEmails = $notificationMode->shouldNotifyAgents()
+            ? array_map(fn (Users $user) => mb_strtolower($user->email), $recipients)
+            : [];
+
+        $extraEmails = $this->resolveExtraEmails($shouldNotifyAgents, $notifiedEmails);
 
         if ($extraEmails !== null) {
             $payload['extraEmails'] = $extraEmails;
@@ -55,21 +60,29 @@ class SendRotationEmailsAction
         $sender->execute(
             $this->enrichPayload($payload, $sender),
             $recipients,
-            $this->resolveNotificationMode(),
+            $notificationMode,
         );
     }
 
     // Commas are trimmed alongside whitespace so a stray "," falls through to the rotation instead
     // of parsing down to zero recipients.
-    private function resolveExtraEmails(bool $shouldNotifyAgents): ?string
+    private function resolveExtraEmails(bool $shouldNotifyAgents, array $notifiedEmails): ?string
     {
         $receiverEmails = trim((string) $this->leadReceiver->notification_email, ", \t\n\r\0\x0B");
 
-        if ($receiverEmails !== '') {
-            return $receiverEmails;
-        }
+        $emails = match (true) {
+            $receiverEmails !== '' => $receiverEmails,
+            $shouldNotifyAgents => (string) $this->leadRotation->leads_rotations_email,
+            default => '',
+        };
 
-        return $shouldNotifyAgents ? $this->leadRotation->leads_rotations_email : null;
+        $pending = collect(explode(',', $emails))
+            ->map(fn (string $email) => trim($email))
+            ->filter()
+            ->unique(fn (string $email) => mb_strtolower($email))
+            ->reject(fn (string $email) => in_array(mb_strtolower($email), $notifiedEmails, true));
+
+        return $pending->isEmpty() ? null : $pending->implode(',');
     }
 
     /**
